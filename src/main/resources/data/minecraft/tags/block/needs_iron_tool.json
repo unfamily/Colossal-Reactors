@@ -3,6 +3,10 @@
   "values": [
     "colossal_reactors:reactor_glass",
     "colossal_reactors:reactor_casing",
-    "colossal_reactors:reactor_controller"
+    "colossal_reactors:reactor_controller",
+    "colossal_reactors:reactor_rod",
+    "colossal_reactors:power_port",
+    "colossal_reactors:redstone_port",
+    "colossal_reactors:resource_port"
   ]
 }

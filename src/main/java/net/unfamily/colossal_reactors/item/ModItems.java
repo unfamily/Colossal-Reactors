@@ -16,6 +16,14 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.REACTOR_CASING.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> REACTOR_CONTROLLER = ITEMS.register("reactor_controller",
             () -> new BlockItem(ModBlocks.REACTOR_CONTROLLER.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> REACTOR_ROD = ITEMS.register("reactor_rod",
+            () -> new BlockItem(ModBlocks.REACTOR_ROD.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.register("power_port",
+            () -> new BlockItem(ModBlocks.POWER_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.register("redstone_port",
+            () -> new BlockItem(ModBlocks.REDSTONE_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.register("resource_port",
+            () -> new BlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties()));
 
     private ModItems() {}
 }

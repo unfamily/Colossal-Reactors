@@ -60,6 +60,7 @@ public class ColossalReactors {
         static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
+                ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
             });
         }
     }

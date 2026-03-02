@@ -24,5 +24,24 @@ public class ModBlocks {
                     .strength(2.0f)
                     .noOcclusion()));
 
+    public static final DeferredBlock<Block> REACTOR_ROD = BLOCKS.register("reactor_rod",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)
+                    .noOcclusion()));
+
+    public static final DeferredBlock<Block> POWER_PORT = BLOCKS.register("power_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<Block> REDSTONE_PORT = BLOCKS.register("redstone_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<Block> RESOURCE_PORT = BLOCKS.register("resource_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+
     private ModBlocks() {}
 }
