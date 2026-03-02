@@ -24,6 +24,10 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.REDSTONE_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.register("resource_port",
             () -> new BlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.register("uranium_ingot",
+            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.register("nuclear_waste",
+            () -> new Item(new Item.Properties()));
 
     private ModItems() {}
 }

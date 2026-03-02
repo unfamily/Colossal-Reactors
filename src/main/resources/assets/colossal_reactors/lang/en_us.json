@@ -6,5 +6,7 @@
   "block.colossal_reactors.reactor_rod": "Reactor Rod",
   "block.colossal_reactors.power_port": "Power Port",
   "block.colossal_reactors.redstone_port": "Redstone Port",
-  "block.colossal_reactors.resource_port": "Resource Port"
+  "block.colossal_reactors.resource_port": "Resource Port",
+  "item.colossal_reactors.uranium_ingot": "Uranium Ingot",
+  "item.colossal_reactors.nuclear_waste": "Nuclear Waste"
 }

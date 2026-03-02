@@ -6,5 +6,7 @@
   "block.colossal_reactors.reactor_rod": "Barra del reattore",
   "block.colossal_reactors.power_port": "Porta energia",
   "block.colossal_reactors.redstone_port": "Porta redstone",
-  "block.colossal_reactors.resource_port": "Porta risorse"
+  "block.colossal_reactors.resource_port": "Porta risorse",
+  "item.colossal_reactors.uranium_ingot": "Lingotto di uranio",
+  "item.colossal_reactors.nuclear_waste": "Scorie nucleari"
 }
