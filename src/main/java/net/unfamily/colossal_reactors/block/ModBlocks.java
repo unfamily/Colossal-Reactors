@@ -1,0 +1,28 @@
+package net.unfamily.colossal_reactors.block;
+
+import net.unfamily.colossal_reactors.ColossalReactors;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+public class ModBlocks {
+    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(ColossalReactors.MODID);
+
+    public static final DeferredBlock<ReactorGlassBlock> REACTOR_GLASS = BLOCKS.register("reactor_glass",
+            ReactorGlassBlock::new);
+
+    public static final DeferredBlock<Block> REACTOR_CASING = BLOCKS.register("reactor_casing",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+
+    public static final DeferredBlock<ReactorControllerBlock> REACTOR_CONTROLLER = BLOCKS.register("reactor_controller",
+            () -> new ReactorControllerBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)
+                    .noOcclusion()));
+
+    private ModBlocks() {}
+}

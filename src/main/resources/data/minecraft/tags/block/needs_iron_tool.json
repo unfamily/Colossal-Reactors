@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "colossal_reactors:reactor_glass",
+    "colossal_reactors:reactor_casing",
+    "colossal_reactors:reactor_controller"
+  ]
+}

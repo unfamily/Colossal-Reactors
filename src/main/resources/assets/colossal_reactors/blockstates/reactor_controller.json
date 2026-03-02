@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "colossal_reactors:block/reactor_controller", "y": 0 },
+    "facing=south": { "model": "colossal_reactors:block/reactor_controller", "y": 180 },
+    "facing=east":  { "model": "colossal_reactors:block/reactor_controller", "y": 90 },
+    "facing=west":  { "model": "colossal_reactors:block/reactor_controller", "y": 270 }
+  }
+}

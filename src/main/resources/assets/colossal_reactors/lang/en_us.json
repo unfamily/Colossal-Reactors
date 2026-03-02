@@ -1,3 +1,6 @@
 {
-
+  "itemGroup.colossal_reactors": "Colossal Reactors",
+  "block.colossal_reactors.reactor_glass": "Reactor Glass",
+  "block.colossal_reactors.reactor_casing": "Reactor Casing",
+  "block.colossal_reactors.reactor_controller": "Reactor Controller"
 }

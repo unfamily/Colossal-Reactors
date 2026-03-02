@@ -1,0 +1,6 @@
+{
+  "itemGroup.colossal_reactors": "Reattori Colossali",
+  "block.colossal_reactors.reactor_glass": "Vetro del reattore",
+  "block.colossal_reactors.reactor_casing": "Involucro del reattore",
+  "block.colossal_reactors.reactor_controller": "Controller del reattore"
+}

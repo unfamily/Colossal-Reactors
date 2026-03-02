@@ -1,0 +1,13 @@
+{
+  "loader": "fusion:model",
+  "type": "connecting",
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "colossal_reactors:block/reactor_glass"
+  },
+  "connections": [
+    {
+      "type": "is_same_block"
+    }
+  ]
+}

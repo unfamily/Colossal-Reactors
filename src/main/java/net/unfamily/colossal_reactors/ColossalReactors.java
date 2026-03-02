@@ -11,10 +11,17 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.data.event.GatherDataEvent;
+import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
+import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
+import net.unfamily.colossal_reactors.item.ModItems;
 
 @Mod(ColossalReactors.MODID)
 public class ColossalReactors {
@@ -25,6 +32,17 @@ public class ColossalReactors {
         modEventBus.addListener(this::commonSetup);
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+
+        ModBlocks.BLOCKS.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
+        ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
+        modEventBus.addListener(this::gatherData);
+    }
+
+    private void gatherData(GatherDataEvent event) {
+        var generator = event.getGenerator();
+        var packOutput = generator.getPackOutput();
+        generator.addProvider(event.includeClient(), new ColossalReactorsFusionModelProvider(packOutput));
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -40,7 +58,9 @@ public class ColossalReactors {
     static class ClientModEvents {
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
-            LOGGER.debug("Colossal Reactors client setup");
+            event.enqueueWork(() -> {
+                ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
+            });
         }
     }
 }
