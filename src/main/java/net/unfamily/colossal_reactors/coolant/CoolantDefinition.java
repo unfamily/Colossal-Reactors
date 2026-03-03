@@ -5,9 +5,9 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.List;
 
 /**
- * One coolant type: id, fluid inputs (tag or id), output fluid selector, and RF/MB modifiers for simulation.
- * Output is a fluid tag (e.g. "#c:steam"); at runtime we only output if the tag resolves to a valid fluid.
- * rfIncrementPercent: 0 = 1.0x RF, 2 = 1.02x. mbDecrementPercent: 100 = 1.0x consumption, 150 = 1.5x.
+ * One coolant type: id, fluid inputs (tag or id), output fluid selector, RF/MB modifiers, and optional "water mode".
+ * When consumesFluidForSteam is true: no RF output; wouldBeRf * rfToCoolantFactor = coolant consumed (mB);
+ * steam produced = coolantConsumed * steamPerCoolant (default 1:1).
  */
 public record CoolantDefinition(
         ResourceLocation coolantId,
@@ -15,6 +15,9 @@ public record CoolantDefinition(
         String output,
         int rfIncrementPercent,
         int mbDecrementPercent,
+        boolean consumesFluidForSteam,
+        double rfToCoolantFactor,
+        double steamPerCoolant,
         boolean overwritable
 ) {
     /** Inputs: "#namespace:tag" (fluid tag) or "namespace:fluid_id" (fluid). */
@@ -36,4 +39,5 @@ public record CoolantDefinition(
     public double mbMultiplier() {
         return mbDecrementPercent / 100.0;
     }
+
 }

@@ -180,6 +180,27 @@ public class ReactorRodBlockEntity extends BlockEntity {
         return add;
     }
 
+    /** Drains up to amountMb of the given fluid from coolant. Returns amount actually drained. */
+    public int drainCoolant(Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        int drained = 0;
+        for (int i = coolantEntries.size() - 1; i >= 0 && drained < amountMb; i--) {
+            FluidEntry e = coolantEntries.get(i);
+            if (e.fluid() != fluid) continue;
+            int take = Math.min(amountMb - drained, e.amount());
+            if (take <= 0) continue;
+            drained += take;
+            int remain = e.amount() - take;
+            if (remain <= 0) coolantEntries.remove(i);
+            else coolantEntries.set(i, new FluidEntry(fluid, remain));
+        }
+        if (drained > 0) {
+            setChanged();
+            updateBlockState();
+        }
+        return drained;
+    }
+
     // ---------- Solid waste (same structure: id + count) ----------
 
     public List<SolidWasteEntry> getSolidWasteEntries() {
@@ -215,6 +236,24 @@ public class ReactorRodBlockEntity extends BlockEntity {
         solidWasteEntries.add(new SolidWasteEntry(id, add));
     }
 
+    /** Takes up to count of the given waste item from this rod. Returns amount actually taken. */
+    public int takeSolidWaste(ResourceLocation itemId, int count) {
+        if (count <= 0) return 0;
+        for (int i = 0; i < solidWasteEntries.size(); i++) {
+            SolidWasteEntry e = solidWasteEntries.get(i);
+            if (!e.id().equals(itemId)) continue;
+            int take = Math.min(count, e.count());
+            if (take <= 0) return 0;
+            int remain = e.count() - take;
+            if (remain <= 0) solidWasteEntries.remove(i);
+            else solidWasteEntries.set(i, new SolidWasteEntry(itemId, remain));
+            setChanged();
+            updateBlockState();
+            return take;
+        }
+        return 0;
+    }
+
     // ---------- Liquid waste (same structure as coolant) ----------
 
     public List<FluidEntry> getLiquidWasteEntries() {
@@ -237,6 +276,24 @@ public class ReactorRodBlockEntity extends BlockEntity {
         mergeFluid(liquidWasteEntries, fluid, add);
         setChanged();
         return add;
+    }
+
+    /** Drains up to amountMb of the given fluid from liquid waste. Returns amount actually drained. */
+    public int drainLiquidWaste(Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        int drained = 0;
+        for (int i = liquidWasteEntries.size() - 1; i >= 0 && drained < amountMb; i--) {
+            FluidEntry e = liquidWasteEntries.get(i);
+            if (e.fluid() != fluid) continue;
+            int take = Math.min(amountMb - drained, e.amount());
+            if (take <= 0) continue;
+            drained += take;
+            int remain = e.amount() - take;
+            if (remain <= 0) liquidWasteEntries.remove(i);
+            else liquidWasteEntries.set(i, new FluidEntry(fluid, remain));
+        }
+        if (drained > 0) setChanged();
+        return drained;
     }
 
     private void mergeFluid(List<FluidEntry> list, Fluid fluid, int add) {

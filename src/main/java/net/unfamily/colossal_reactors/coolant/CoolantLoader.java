@@ -51,6 +51,9 @@ public class CoolantLoader {
     private static final String KEY_OUTPUT = "output";
     private static final String KEY_RF_INCREMENT_PERCENT = "rf_increment_percent";
     private static final String KEY_MB_DECREMENT_PERCENT = "mb_decrement_percent";
+    private static final String KEY_CONSUMES_FLUID_FOR_STEAM = "consumes_fluid_for_steam";
+    private static final String KEY_RF_TO_COOLANT_FACTOR = "rf_to_coolant_factor";
+    private static final String KEY_STEAM_PER_COOLANT = "steam_per_coolant";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
     private static final Map<ResourceLocation, CoolantDefinition> DEFINITIONS = new HashMap<>();
@@ -103,7 +106,7 @@ public class CoolantLoader {
     private static void registerInternalDefaults() {
         List<String> inputs = List.of("minecraft:water");
         String output = "#c:steam";
-        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true));
+        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, true));
     }
 
     private static void parseConfigFile(Path filePath) {
@@ -157,8 +160,11 @@ public class CoolantLoader {
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
         int rfIncrement = json.has(KEY_RF_INCREMENT_PERCENT) ? json.get(KEY_RF_INCREMENT_PERCENT).getAsInt() : 0;
         int mbDecrement = json.has(KEY_MB_DECREMENT_PERCENT) ? json.get(KEY_MB_DECREMENT_PERCENT).getAsInt() : 100;
+        boolean consumesFluid = json.has(KEY_CONSUMES_FLUID_FOR_STEAM) && json.get(KEY_CONSUMES_FLUID_FOR_STEAM).getAsBoolean();
+        double rfToCoolant = json.has(KEY_RF_TO_COOLANT_FACTOR) ? json.get(KEY_RF_TO_COOLANT_FACTOR).getAsDouble() : 0.45;
+        double steamPerCoolant = json.has(KEY_STEAM_PER_COOLANT) ? json.get(KEY_STEAM_PER_COOLANT).getAsDouble() : 1.0;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, overwritable);
+        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, consumesFluid, rfToCoolant, steamPerCoolant, overwritable);
     }
 
     private static void addExcludedInputs(JsonObject obj) {
@@ -202,6 +208,16 @@ public class CoolantLoader {
                 .flatMap(holders -> holders.stream().findFirst())
                 .map(h -> h.value())
                 .orElse(null);
+    }
+
+    /** Returns the fluid to drain for this coolant (first input: fluid id or first fluid from tag). Null if definition has no valid input. */
+    @Nullable
+    public static Fluid getFirstFluidFromDefinition(CoolantDefinition def, RegistryAccess registryAccess) {
+        if (def == null || def.inputs().isEmpty()) return null;
+        String first = def.inputs().get(0);
+        if (first.startsWith("#")) return getFirstFluidFromTag(first, registryAccess);
+        ResourceLocation id = ResourceLocation.tryParse(first);
+        return id != null ? BuiltInRegistries.FLUID.get(id) : null;
     }
 
     /**
@@ -252,7 +268,10 @@ public class CoolantLoader {
                   ],
                   "output": "#c:steam",
                   "rf_increment_percent": 0,
-                  "mb_decrement_percent": 100
+                  "mb_decrement_percent": 100,
+                  "consumes_fluid_for_steam": true,
+                  "rf_to_coolant_factor": 0.45,
+                  "steam_per_coolant": 1.0
                 }
               ]
             }

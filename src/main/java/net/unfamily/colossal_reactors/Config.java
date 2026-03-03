@@ -42,7 +42,7 @@ public class Config {
             .comment("Base RF/t for reactor formulas. Default: 200")
             .defineInRange("100_baseRfPerTick", 200.0, 0.0, 1000000.0);
     public static final ModConfigSpec.DoubleValue BASE_MB_PER_TICK = BUILDER
-            .comment("Base MB/t for fuel consumption formulas. Default: 0.03")
+            .comment("Base fuel consumption in ingots per tick (multiplied by URANIUM_INGOT_MB to get units). Default: 0.03")
             .defineInRange("101_baseMbPerTick", 0.03, 0.0, 100.0);
 
     public static final ModConfigSpec.IntValue URANIUM_INGOT_MB = BUILDER

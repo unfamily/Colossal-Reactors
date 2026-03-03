@@ -113,6 +113,38 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return fluidTank;
     }
 
+    /**
+     * Called by the reactor to push solid waste into this port (only when mode is EXTRACT or EJECT and slot is not full).
+     * Returns the stack that could not be inserted (remaining).
+     */
+    @NotNull
+    public ItemStack receiveItemFromReactor(ItemStack stack) {
+        if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return stack;
+        return itemHandler.insertItem(0, stack, false);
+    }
+
+    /**
+     * Called by the reactor to push fluid (e.g. steam) into this port (only when mode is EXTRACT or EJECT and tank has space).
+     * Returns the amount in mB that was accepted.
+     */
+    public int receiveFluidFromReactor(FluidStack stack) {
+        if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return 0;
+        return fluidTank.fill(stack, IFluidHandler.FluidAction.EXECUTE);
+    }
+
+    /** True if this port is in EXTRACT or EJECT and can accept items from the reactor (slot not full). */
+    public boolean canAcceptItemFromReactor() {
+        if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
+        ItemStack inSlot = itemHandler.getStackInSlot(0);
+        return inSlot.isEmpty() || (inSlot.getCount() < inSlot.getMaxStackSize());
+    }
+
+    /** True if this port is in EXTRACT or EJECT and has fluid tank space. */
+    public boolean canAcceptFluidFromReactor() {
+        if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
+        return fluidTank.getFluidAmount() < fluidTank.getCapacity();
+    }
+
     /** Item handler for capability (hoppers/pipes): respects port mode and filter. */
     public IItemHandler getItemHandlerForCapability() {
         return new FilteredItemHandler();

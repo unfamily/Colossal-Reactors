@@ -1,19 +1,25 @@
 package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 /**
- * BlockEntity for Power Port. Large energy buffer, output-only to the world.
- * The reactor will push energy via {@link #receiveEnergyFromReactor(int)}.
- * Capacity and max extract are sized for large reactor output (see big_reactor formulas).
+ * BlockEntity for Power Port. Large energy buffer; reactor pushes in via {@link #receiveEnergyFromReactor(int)}.
+ * Each tick the port pushes energy out to adjacent blocks that can receive (cables, machines).
  */
 public class PowerPortBlockEntity extends BlockEntity {
+
+    /** Max FE to push out per tick in total (distributed across adjacent receivers). */
+    private int getMaxExtractPerTick() {
+        return net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
+    }
 
     /** Buffer capacity: ~20s at 1M FE/t. From CSV, reactors can do 8k–128k+ RF/t. */
     public static final int CAPACITY = 50_000_000;
@@ -25,6 +31,29 @@ public class PowerPortBlockEntity extends BlockEntity {
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
         this.energyStorage = new PowerPortEnergyStorage(CAPACITY, MAX_EXTRACT);
+    }
+
+    /**
+     * Server tick: push energy to adjacent blocks that can receive (cables, machines).
+     */
+    public void tick() {
+        if (level == null || level.isClientSide()) return;
+        int budget = Math.min(getMaxExtractPerTick(), energyStorage.getEnergyStored());
+        if (budget <= 0) return;
+        for (Direction direction : Direction.values()) {
+            if (budget <= 0) break;
+            BlockPos neighborPos = worldPosition.relative(direction);
+            IEnergyStorage neighbor = level.getCapability(Capabilities.EnergyStorage.BLOCK, neighborPos, direction.getOpposite());
+            if (neighbor != null && neighbor.canReceive()) {
+                int toSend = Math.min(budget, energyStorage.getEnergyStored());
+                int received = neighbor.receiveEnergy(toSend, false);
+                if (received > 0) {
+                    energyStorage.extractEnergy(received, false);
+                    budget -= received;
+                    setChanged();
+                }
+            }
+        }
     }
 
     /** Internal storage (used for reactor push and for the output wrapper). */
