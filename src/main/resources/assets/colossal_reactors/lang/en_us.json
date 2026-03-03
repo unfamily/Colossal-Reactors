@@ -7,6 +7,10 @@
   "block.colossal_reactors.power_port": "Power Port",
   "block.colossal_reactors.redstone_port": "Redstone Port",
   "block.colossal_reactors.resource_port": "Resource Port",
+  "block.colossal_reactors.rod_controller": "Rod Controller",
   "item.colossal_reactors.uranium_ingot": "Uranium Ingot",
-  "item.colossal_reactors.nuclear_waste": "Nuclear Waste"
+  "item.colossal_reactors.nuclear_waste": "Nuclear Waste",
+  "message.colossal_reactors.reactor_validation_pending": "Reactor: validation pending...",
+  "message.colossal_reactors.reactor_valid": "Reactor valid — Rods: %s (%s columns), Coolant: %s",
+  "message.colossal_reactors.reactor_invalid": "Reactor invalid"
 }

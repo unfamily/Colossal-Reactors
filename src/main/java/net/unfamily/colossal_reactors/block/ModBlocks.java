@@ -24,8 +24,8 @@ public class ModBlocks {
                     .strength(2.0f)
                     .noOcclusion()));
 
-    public static final DeferredBlock<Block> REACTOR_ROD = BLOCKS.register("reactor_rod",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<ReactorRodBlock> REACTOR_ROD = BLOCKS.register("reactor_rod",
+            () -> new ReactorRodBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)
                     .noOcclusion()));
@@ -39,6 +39,11 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
     public static final DeferredBlock<Block> RESOURCE_PORT = BLOCKS.register("resource_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+
+    public static final DeferredBlock<Block> ROD_CONTROLLER = BLOCKS.register("rod_controller",
             () -> new Block(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));

@@ -7,6 +7,10 @@
   "block.colossal_reactors.power_port": "Porta energia",
   "block.colossal_reactors.redstone_port": "Porta redstone",
   "block.colossal_reactors.resource_port": "Porta risorse",
+  "block.colossal_reactors.rod_controller": "Controller barre",
   "item.colossal_reactors.uranium_ingot": "Lingotto di uranio",
-  "item.colossal_reactors.nuclear_waste": "Scorie nucleari"
+  "item.colossal_reactors.nuclear_waste": "Scorie nucleari",
+  "message.colossal_reactors.reactor_validation_pending": "Reattore: validazione in corso...",
+  "message.colossal_reactors.reactor_valid": "Reattore valido — Barre: %s (%s colonne), Raffreddante: %s",
+  "message.colossal_reactors.reactor_invalid": "Reattore non valido"
 }

@@ -1,7 +1,10 @@
 {
   "variants": {
-    "": {
+    "full=false": {
       "model": "colossal_reactors:block/reactor_rod"
+    },
+    "full=true": {
+      "model": "colossal_reactors:block/reactor_rod_full"
     }
   }
 }

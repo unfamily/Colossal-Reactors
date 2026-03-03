@@ -19,6 +19,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
@@ -35,6 +36,7 @@ public class ColossalReactors {
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        ModBlockEntities.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::gatherData);
     }
@@ -47,6 +49,7 @@ public class ColossalReactors {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.debug("Colossal Reactors common setup");
+        LOGGER.info("Reactor validation debug (dev.001_reactor_validation_debug): {}", Config.REACTOR_VALIDATION_DEBUG.get());
     }
 
     @SubscribeEvent

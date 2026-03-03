@@ -3,22 +3,37 @@ package net.unfamily.colossal_reactors.block;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
+import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 
 /**
  * Reactor controller block. Placeable in 4 horizontal directions, does not connect to other blocks.
- * Hitbox matches the non-full model: inclined screen (22.5° around X), back legs and top bar.
+ * Validates the reactor multiblock behind it (opposite to facing) and re-validates periodically.
  */
-public class ReactorControllerBlock extends Block {
+public class ReactorControllerBlock extends BaseEntityBlock {
 
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
@@ -84,7 +99,25 @@ public class ReactorControllerBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new ReactorControllerBlockEntity(pos, state);
+    }
+
+    /**
+     * No BE ticker: validation is driven by block tick only (onPlace + tick), same pattern as iskautils SacredRubberSaplingBlock.
+     */
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        return null;
+    }
+
+    @Override
+    protected MapCodec<? extends BaseEntityBlock> codec() {
         return simpleCodec(ReactorControllerBlock::new);
     }
 
@@ -95,7 +128,59 @@ public class ReactorControllerBlock extends Block {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
+        // FACING = opposite of player look so the screen faces the player; back = getOpposite(FACING) = into reactor
         return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
+
+    /**
+     * Schedule first tick on place so validation runs even if BE ticker is not invoked (e.g. chunk tick order).
+     */
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
+            serverLevel.scheduleTick(pos, this, 1);
+        }
+    }
+
+    /**
+     * Block tick: drive BlockEntity validation periodically (same pattern as iskautils SacredRubberSaplingBlock).
+     * Ensures validation runs even when the BE ticker is not called by the level.
+     */
+    @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        if (level.getBlockEntity(pos) instanceof ReactorControllerBlockEntity be) {
+            ReactorControllerBlockEntity.tick(level, pos, state, be);
+        }
+        level.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (level.getBlockEntity(pos) instanceof ReactorControllerBlockEntity be) {
+            // Run validation immediately on click so result is always current and tick cycle is started
+            Direction back = state.getValue(FACING).getOpposite();
+            BlockPos startPos = pos.relative(back);
+            ReactorValidation.Result result = ReactorValidation.validate(level, startPos, back);
+            be.setCachedResult(result);
+            be.setChanged();
+
+            if (result.valid()) {
+                player.sendSystemMessage(Component.translatable("message.colossal_reactors.reactor_valid",
+                        result.rodCount(), result.rodColumns(), result.coolantCount()));
+            } else {
+                player.sendSystemMessage(Component.translatable("message.colossal_reactors.reactor_invalid"));
+            }
+
+            // Start or reschedule block tick so periodic validation continues
+            if (level instanceof ServerLevel serverLevel) {
+                serverLevel.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
+            }
+        }
+        return InteractionResult.SUCCESS;
     }
 
     private static VoxelShape shapeFor(Direction facing) {
