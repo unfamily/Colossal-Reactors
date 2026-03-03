@@ -18,15 +18,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
  * Loads fuel definitions from external JSON (external_scripts_path/fuel/*.json).
  * Internal default (uranium) is registered first; JSON entries can add or override by fuel_id.
  * Use dump_default command to write the base fuel JSON into the fuel directory.
+ * "disable" is optional (default false). When true, the entry means "these tags/items: no" (excluded inputs).
  */
 public class FuelLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(FuelLoader.class);
@@ -34,6 +37,7 @@ public class FuelLoader {
 
     private static final String TYPE_FUEL = "colossal_reactors:fuel";
     private static final String KEY_ENTRIES = "entries";
+    /** Optional, default false. When true: "these inputs (tags/items) are not valid" — they are excluded. */
     private static final String KEY_DISABLE = "disable";
     private static final String KEY_FUEL_ID = "fuel_id";
     private static final String KEY_INPUTS = "inputs";
@@ -44,6 +48,8 @@ public class FuelLoader {
     private static final String KEY_OVERWRITABLE = "overwritable";
 
     private static final Map<ResourceLocation, FuelDefinition> DEFINITIONS = new HashMap<>();
+    /** Input selectors (tag or item id) that are excluded: not valid as fuel even if a definition would match. */
+    private static final Set<String> EXCLUDED_INPUTS = new HashSet<>();
 
     /**
      * Scans the fuel directory under configured external scripts path. Internal defaults first, then JSON overrides.
@@ -53,6 +59,7 @@ public class FuelLoader {
             LOGGER.info("Scanning fuel configuration directory...");
         }
         DEFINITIONS.clear();
+        EXCLUDED_INPUTS.clear();
         registerInternalDefaults();
 
         String basePath = Config.EXTERNAL_SCRIPTS_PATH.get();
@@ -116,7 +123,11 @@ public class FuelLoader {
             for (JsonElement e : entries) {
                 if (!e.isJsonObject()) continue;
                 JsonObject obj = e.getAsJsonObject();
-                if (obj.has(KEY_DISABLE) && obj.get(KEY_DISABLE).getAsBoolean()) continue;
+                boolean disable = obj.has(KEY_DISABLE) && obj.get(KEY_DISABLE).getAsBoolean();
+                if (disable) {
+                    addExcludedInputs(obj);
+                    continue;
+                }
                 FuelDefinition def = parseEntry(obj, filePath.toString(), fileOverwritable);
                 if (def != null) processEntry(def);
             }
@@ -149,6 +160,13 @@ public class FuelLoader {
         return new FuelDefinition(fuelId, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerItem, baseRf, baseMb, overwritable);
     }
 
+    private static void addExcludedInputs(JsonObject obj) {
+        if (!obj.has(KEY_INPUTS) || !obj.get(KEY_INPUTS).isJsonArray()) return;
+        for (JsonElement i : obj.getAsJsonArray(KEY_INPUTS)) {
+            if (i.isJsonPrimitive()) EXCLUDED_INPUTS.add(i.getAsString());
+        }
+    }
+
     private static void processEntry(FuelDefinition def) {
         FuelDefinition existing = DEFINITIONS.get(def.fuelId());
         if (existing != null && !existing.overwritable()) {
@@ -164,6 +182,11 @@ public class FuelLoader {
 
     public static Map<ResourceLocation, FuelDefinition> getAll() {
         return new HashMap<>(DEFINITIONS);
+    }
+
+    /** True if this input selector (tag or item id) is excluded ("disable: true" for these tags/items). */
+    public static boolean isInputExcluded(String inputSelector) {
+        return EXCLUDED_INPUTS.contains(inputSelector);
     }
 
     /**

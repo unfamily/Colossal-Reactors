@@ -17,15 +17,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
  * Loads coolant definitions from external JSON (external_scripts_path/coolant/*.json).
  * Internal default: water (minecraft:water) → output #c:steam. JSON entries can add or override by coolant_id.
  * Output by tag: we store the tag; at runtime only if the tag resolves to a valid fluid do we produce output.
+ * "disable" is optional (default false). When true, the entry means "these tags/liquids: no" (excluded inputs).
  */
 public class CoolantLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(CoolantLoader.class);
@@ -33,6 +36,7 @@ public class CoolantLoader {
 
     private static final String TYPE_COOLANT = "colossal_reactors:coolant";
     private static final String KEY_ENTRIES = "entries";
+    /** Optional, default false. When true: "these inputs (tags/fluids) are not valid" — they are excluded. */
     private static final String KEY_DISABLE = "disable";
     private static final String KEY_COOLANT_ID = "coolant_id";
     private static final String KEY_INPUTS = "inputs";
@@ -40,6 +44,8 @@ public class CoolantLoader {
     private static final String KEY_OVERWRITABLE = "overwritable";
 
     private static final Map<ResourceLocation, CoolantDefinition> DEFINITIONS = new HashMap<>();
+    /** Input selectors (tag or fluid id) that are excluded: not valid as coolant. */
+    private static final Set<String> EXCLUDED_INPUTS = new HashSet<>();
 
     /** Default coolant id for water. */
     public static final ResourceLocation WATER_COOLANT_ID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "water");
@@ -52,6 +58,7 @@ public class CoolantLoader {
             LOGGER.info("Scanning coolant configuration directory...");
         }
         DEFINITIONS.clear();
+        EXCLUDED_INPUTS.clear();
         registerInternalDefaults();
 
         String basePath = Config.EXTERNAL_SCRIPTS_PATH.get();
@@ -108,7 +115,11 @@ public class CoolantLoader {
             for (JsonElement e : entries) {
                 if (!e.isJsonObject()) continue;
                 JsonObject obj = e.getAsJsonObject();
-                if (obj.has(KEY_DISABLE) && obj.get(KEY_DISABLE).getAsBoolean()) continue;
+                boolean disable = obj.has(KEY_DISABLE) && obj.get(KEY_DISABLE).getAsBoolean();
+                if (disable) {
+                    addExcludedInputs(obj);
+                    continue;
+                }
                 CoolantDefinition def = parseEntry(obj, filePath.toString(), fileOverwritable);
                 if (def != null) processEntry(def);
             }
@@ -138,6 +149,13 @@ public class CoolantLoader {
         return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, overwritable);
     }
 
+    private static void addExcludedInputs(JsonObject obj) {
+        if (!obj.has(KEY_INPUTS) || !obj.get(KEY_INPUTS).isJsonArray()) return;
+        for (JsonElement i : obj.getAsJsonArray(KEY_INPUTS)) {
+            if (i.isJsonPrimitive()) EXCLUDED_INPUTS.add(i.getAsString());
+        }
+    }
+
     private static void processEntry(CoolantDefinition def) {
         CoolantDefinition existing = DEFINITIONS.get(def.coolantId());
         if (existing != null && !existing.overwritable()) {
@@ -153,6 +171,11 @@ public class CoolantLoader {
 
     public static Map<ResourceLocation, CoolantDefinition> getAll() {
         return new HashMap<>(DEFINITIONS);
+    }
+
+    /** True if this input selector (tag or fluid id) is excluded ("disable: true" for these tags/liquids). */
+    public static boolean isInputExcluded(String inputSelector) {
+        return EXCLUDED_INPUTS.contains(inputSelector);
     }
 
     /**
