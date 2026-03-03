@@ -55,19 +55,27 @@ public final class HeatSinkLoader {
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of(),
                 List.of("#c:water"),
-                1.0, 1.15, true));
+                1.05, 1.15, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/diamond"),
                 List.of(),
-                1.5, 1.55, true));  // fuel=1.5, energy=1.55
+                1.8, 1.6, true));
+        DEFINITIONS.add(new HeatSinkDefinition(
+                List.of("#c:storage_blocks/emerald"),
+                List.of(),
+                1.8, 1.6, true));
+        DEFINITIONS.add(new HeatSinkDefinition(
+                List.of("#c:storage_blocks/netherite"),
+                List.of(),
+                1.7, 2.3, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/gold"),
                 List.of(),
-                1.5, 1.5, true));
+                1.7, 1.5, true));
         DEFINITIONS.add(new HeatSinkDefinition(
-                List.of("#c:storage_blocks/graphite"),
+                List.of("#c:storage_blocks/graphite", "#minecraft:ice"),
                 List.of(),
-                2.0, 0.75, true));  // fuel=2.0, energy=0.75
+                2.5, -5.0, true));
     }
 
     /**
@@ -278,23 +286,33 @@ public final class HeatSinkLoader {
                 {
                   "valid_liquids": ["#c:water"],
                   "must_source": true,
-                  "fuel": 1.0,
+                  "fuel": 1.05,
                   "energy": 1.15
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/diamond"],
-                  "fuel": 1.5,
-                  "energy": 1.55
+                  "fuel": 1.8,
+                  "energy": 1.6
+                },
+                {
+                  "valid_blocks": ["#c:storage_blocks/emerald"],
+                  "fuel": 1.8,
+                  "energy": 1.6
+                },
+                {
+                  "valid_blocks": ["#c:storage_blocks/netherite"],
+                  "fuel": 1.7,
+                  "energy": 2.3
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/gold"],
-                  "fuel": 1.5,
+                  "fuel": 1.7,
                   "energy": 1.5
                 },
                 {
-                  "valid_blocks": ["#c:storage_blocks/graphite"],
-                  "fuel": 2.0,
-                  "energy": 0.75
+                  "valid_blocks": ["#c:storage_blocks/graphite", "#minecraft:ice"],
+                  "fuel": 2.5,
+                  "energy": -5.0
                 }
               ]
             }

@@ -47,7 +47,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
     private static final int SOLID_WASTE_CAPACITY = 1000;
     private static final int LIQUID_WASTE_CAPACITY_MB = 10_000;
 
-    /** Fuel by type: id -> units. Total units must be <= getMaxFuelUnits(). */
+    /** Fuel by type: id -> units (float). Total units must be <= getMaxFuelUnits(). */
     private final List<FuelEntry> fuelEntries = new ArrayList<>();
     /** Coolant: mixed fluids, total mB <= COOLANT_CAPACITY_MB. */
     private final List<FluidEntry> coolantEntries = new ArrayList<>();
@@ -55,10 +55,10 @@ public class ReactorRodBlockEntity extends BlockEntity {
     private final List<SolidWasteEntry> solidWasteEntries = new ArrayList<>();
     /** Liquid waste: same structure as coolant, total <= LIQUID_WASTE_CAPACITY_MB. */
     private final List<FluidEntry> liquidWasteEntries = new ArrayList<>();
-    /** Accumulated consumed units per waste type (for fractional waste: 1000 units -> 1 item). */
-    private final java.util.Map<ResourceLocation, Integer> wasteAccumulator = new java.util.HashMap<>();
+    /** Accumulated consumed units per waste type (float, for fractional waste: 1000 units -> 1 item). */
+    private final java.util.Map<ResourceLocation, Float> wasteAccumulator = new java.util.HashMap<>();
 
-    public record FuelEntry(ResourceLocation id, int units) {}
+    public record FuelEntry(ResourceLocation id, float units) {}
     public record FluidEntry(Fluid fluid, int amount) {}
     public record SolidWasteEntry(ResourceLocation id, int count) {}
 
@@ -72,14 +72,14 @@ public class ReactorRodBlockEntity extends BlockEntity {
         return List.copyOf(fuelEntries);
     }
 
-    public int getTotalFuelUnits() {
-        return fuelEntries.stream().mapToInt(FuelEntry::units).sum();
+    public float getTotalFuelUnits() {
+        return (float) fuelEntries.stream().mapToDouble(FuelEntry::units).sum();
     }
 
-    public int getFuelUnits(ResourceLocation fuelId) {
-        return fuelEntries.stream()
+    public float getFuelUnits(ResourceLocation fuelId) {
+        return (float) fuelEntries.stream()
                 .filter(e -> e.id().equals(fuelId))
-                .mapToInt(FuelEntry::units)
+                .mapToDouble(FuelEntry::units)
                 .sum();
     }
 
@@ -89,11 +89,11 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Add units of a fuel type. Clamps to max total capacity; returns actual amount added. */
-    public int addFuel(ResourceLocation fuelId, int units) {
+    public float addFuel(ResourceLocation fuelId, float units) {
         if (units <= 0) return 0;
-        int total = getTotalFuelUnits();
+        float total = getTotalFuelUnits();
         int max = getMaxFuelUnits();
-        int add = Math.min(units, max - total);
+        float add = Math.min(units, max - total);
         if (add <= 0) return 0;
         mergeFuel(fuelId, add);
         setChanged();
@@ -102,15 +102,15 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Consumes up to `units` of the given fuel type. Returns the amount actually consumed. */
-    public int consumeFuel(ResourceLocation fuelId, int units) {
+    public float consumeFuel(ResourceLocation fuelId, float units) {
         if (units <= 0) return 0;
         for (int i = 0; i < fuelEntries.size(); i++) {
             if (fuelEntries.get(i).id().equals(fuelId)) {
                 FuelEntry e = fuelEntries.get(i);
-                int take = Math.min(units, e.units());
+                float take = Math.min(units, e.units());
                 if (take <= 0) return 0;
-                int newUnits = e.units() - take;
-                if (newUnits <= 0) {
+                float newUnits = e.units() - take;
+                if (newUnits <= 0.0001f) {
                     fuelEntries.remove(i);
                 } else {
                     fuelEntries.set(i, new FuelEntry(fuelId, newUnits));
@@ -124,12 +124,12 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Set units for a fuel type (replaces that type). Total is clamped to max. */
-    public void setFuel(ResourceLocation fuelId, int units) {
+    public void setFuel(ResourceLocation fuelId, float units) {
         fuelEntries.removeIf(e -> e.id().equals(fuelId));
         if (units > 0) {
-            int totalOthers = getTotalFuelUnits();
+            float totalOthers = getTotalFuelUnits();
             int max = getMaxFuelUnits();
-            int allowed = Math.min(units, max - totalOthers);
+            float allowed = Math.min(units, max - totalOthers);
             if (allowed > 0) {
                 fuelEntries.add(new FuelEntry(fuelId, allowed));
             }
@@ -138,13 +138,13 @@ public class ReactorRodBlockEntity extends BlockEntity {
         updateBlockState();
     }
 
-    private void mergeFuel(ResourceLocation fuelId, int add) {
+    private void mergeFuel(ResourceLocation fuelId, float add) {
         for (int i = 0; i < fuelEntries.size(); i++) {
             if (fuelEntries.get(i).id().equals(fuelId)) {
                 FuelEntry e = fuelEntries.get(i);
                 int max = getMaxFuelUnits();
-                int totalOthers = getTotalFuelUnits() - e.units();
-                int newUnits = Math.min(e.units() + add, max - totalOthers);
+                float totalOthers = getTotalFuelUnits() - e.units();
+                float newUnits = Math.min(e.units() + add, max - totalOthers);
                 fuelEntries.set(i, new FuelEntry(fuelId, newUnits));
                 return;
             }
@@ -243,11 +243,11 @@ public class ReactorRodBlockEntity extends BlockEntity {
      * Records consumed fuel units and adds solid waste when accumulation reaches unitsPerItem.
      * E.g. unitsPerItem=1000: every 1000 consumed units produce 1 waste item (remainder carried over).
      */
-    public void recordConsumedAndAddWaste(ResourceLocation wasteId, int consumedUnits, int unitsPerItem) {
+    public void recordConsumedAndAddWaste(ResourceLocation wasteId, float consumedUnits, int unitsPerItem) {
         if (consumedUnits <= 0 || unitsPerItem <= 0) return;
-        int total = wasteAccumulator.getOrDefault(wasteId, 0) + consumedUnits;
-        int wasteCount = total / unitsPerItem;
-        wasteAccumulator.put(wasteId, total % unitsPerItem);
+        float total = wasteAccumulator.getOrDefault(wasteId, 0f) + consumedUnits;
+        int wasteCount = (int) (total / unitsPerItem);
+        wasteAccumulator.put(wasteId, total - wasteCount * unitsPerItem);
         if (wasteCount > 0) addSolidWaste(wasteId, wasteCount);
     }
 
@@ -360,7 +360,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         for (FuelEntry e : fuelEntries) {
             CompoundTag c = new CompoundTag();
             c.putString(TAG_FUEL_ID, e.id().toString());
-            c.putInt(TAG_FUEL_UNITS, e.units());
+            c.putFloat(TAG_FUEL_UNITS, e.units());
             fuelList.add(c);
         }
         tag.put(TAG_FUEL, fuelList);
@@ -372,7 +372,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
             CompoundTag accTag = new CompoundTag();
             for (var e : wasteAccumulator.entrySet()) {
                 if (e.getValue() != null && e.getValue() > 0) {
-                    accTag.putInt(e.getKey().toString(), e.getValue());
+                    accTag.putFloat(e.getKey().toString(), e.getValue());
                 }
             }
             if (!accTag.isEmpty()) tag.put(TAG_WASTE_ACCUMULATOR, accTag);
@@ -413,7 +413,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag c = list.getCompound(i);
                 ResourceLocation id = ResourceLocation.tryParse(c.getString(TAG_FUEL_ID));
-                int units = c.getInt(TAG_FUEL_UNITS);
+                float units = c.contains(TAG_FUEL_UNITS, Tag.TAG_FLOAT) ? c.getFloat(TAG_FUEL_UNITS) : c.getInt(TAG_FUEL_UNITS);
                 if (id != null && units > 0) {
                     fuelEntries.add(new FuelEntry(id, units));
                 }
@@ -423,7 +423,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         if (fuelEntries.isEmpty() && tag.contains(TAG_FUEL_UNITS_LEGACY)) {
             int legacy = tag.getInt(TAG_FUEL_UNITS_LEGACY);
             if (legacy > 0) {
-                fuelEntries.add(new FuelEntry(URANIUM_FUEL_ID, Math.min(legacy, getMaxFuelUnits())));
+                fuelEntries.add(new FuelEntry(URANIUM_FUEL_ID, Math.min((float) legacy, getMaxFuelUnits())));
             }
         }
         coolantEntries.clear();
@@ -447,7 +447,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
             CompoundTag accTag = tag.getCompound(TAG_WASTE_ACCUMULATOR);
             for (String key : accTag.getAllKeys()) {
                 ResourceLocation id = ResourceLocation.tryParse(key);
-                int val = accTag.getInt(key);
+                float val = accTag.getTagType(key) == Tag.TAG_FLOAT ? accTag.getFloat(key) : accTag.getInt(key);
                 if (id != null && val > 0) wasteAccumulator.put(id, val);
             }
         }

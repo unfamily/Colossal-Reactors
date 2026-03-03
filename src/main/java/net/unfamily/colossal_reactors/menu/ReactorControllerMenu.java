@@ -127,7 +127,7 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     public int getEnergyPerTick() { return data.get(INDEX_ENERGY_PER_TICK); }
     public int getSteamPerTick() { return data.get(INDEX_STEAM_PER_TICK); }
     public int getWaterPerTick() { return data.get(INDEX_WATER_PER_TICK); }
-    /** Fuel consumption in ingots/tick as hundredths (e.g. 26 = 0.26). */
+    /** Fuel consumption in fuel units/tick as hundredths (e.g. 26 = 0.26). */
     public int getFuelPerTickHundredths() { return data.get(INDEX_FUEL_PER_TICK_HUNDREDTHS); }
 
     /** Synced block pos for refresh button (client). */

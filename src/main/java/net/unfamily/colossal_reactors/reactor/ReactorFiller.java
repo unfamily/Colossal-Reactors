@@ -81,7 +81,7 @@ public final class ReactorFiller {
                         if (units <= 0) units = 1;
                         int totalSpace = 0;
                         for (ReactorRodBlockEntity rod : rods) {
-                            totalSpace += ReactorRodBlockEntity.getMaxFuelUnits() - rod.getTotalFuelUnits();
+                            totalSpace += Math.max(0, ReactorRodBlockEntity.getMaxFuelUnits() - (int) rod.getTotalFuelUnits());
                         }
                         if (totalSpace >= units) {
                             ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
@@ -89,8 +89,8 @@ public final class ReactorFiller {
                                 int remaining = units;
                                 for (ReactorRodBlockEntity rod : rods) {
                                     if (remaining <= 0) break;
-                                    int added = rod.addFuel(def.fuelId(), remaining);
-                                    remaining -= added;
+                                    float added = rod.addFuel(def.fuelId(), remaining);
+                                    remaining -= (int) added;
                                 }
                                 if (remaining == units) {
                                     port.getItemHandler().insertItem(0, extracted, false);

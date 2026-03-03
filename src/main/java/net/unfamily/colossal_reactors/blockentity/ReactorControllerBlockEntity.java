@@ -68,7 +68,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         }
     }
 
-    /** Called by ReactorSimulation.tick at end of each tick. Fuel hundredths = ingots/tick * 100 (e.g. 0.26 -> 26). */
+    /** Called by ReactorSimulation.tick at end of each tick. Fuel hundredths = fuel units/tick * 100 (e.g. 0.26 -> 26). */
     public void setLastTickStats(int rfPerTick, int steamPerTick, int waterPerTick, int fuelPerTickHundredths) {
         this.lastRfPerTick = rfPerTick;
         this.lastSteamPerTick = steamPerTick;

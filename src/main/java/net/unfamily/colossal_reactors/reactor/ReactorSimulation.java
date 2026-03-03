@@ -88,7 +88,7 @@ public final class ReactorSimulation {
 
         int rodCount = rods.size();
         double effectiveRodCount = computeEffectiveRodCount(level, rods);
-        int totalFuelUnits = rods.stream().mapToInt(ReactorRodBlockEntity::getTotalFuelUnits).sum();
+        double totalFuelUnits = rods.stream().mapToDouble(ReactorRodBlockEntity::getTotalFuelUnits).sum();
         if (totalFuelUnits <= 0) return;
 
         double baseRf = Config.BASE_RF_PER_TICK.get();
@@ -124,7 +124,8 @@ public final class ReactorSimulation {
         if (countAdj + countNon > 0) {
             fuelConsumptionRate *= Math.max(0.1, Config.HEAT_SINK_FUEL_UNITS_MULTIPLIER.get());
         }
-        int fuelUnitsToConsume = (int) Math.min(fuelConsumptionRate * 1000, totalFuelUnits);
+        fuelConsumptionRate = Math.max(fuelConsumptionRate, Config.MIN_FUEL_UNITS_PER_TICK.get());
+        double fuelUnitsToConsume = Math.min(fuelConsumptionRate, totalFuelUnits);
 
         if (fuelUnitsToConsume > 0) {
             consumeFuelFromRods(rods, fuelUnitsToConsume, level.registryAccess());
@@ -138,6 +139,7 @@ public final class ReactorSimulation {
         } else {
             rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
         }
+        rfProduced = Math.max(rfProduced, Config.MIN_RF_PER_TICK.get());
 
         // Water mode: coolant is consumed for steam; no RF when water is sufficient. Use water mode if def is water (by id) or has consumesFluidForSteam.
         boolean waterMode = coolantDef != null
@@ -447,10 +449,10 @@ public final class ReactorSimulation {
         return CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
     }
 
-    private static void consumeFuelFromRods(List<ReactorRodBlockEntity> rods, int totalUnitsToConsume, net.minecraft.core.RegistryAccess registryAccess) {
-        int remaining = totalUnitsToConsume;
+    private static void consumeFuelFromRods(List<ReactorRodBlockEntity> rods, double totalUnitsToConsume, net.minecraft.core.RegistryAccess registryAccess) {
+        double remaining = totalUnitsToConsume;
         int rodIndex = 0;
-        while (remaining > 0 && rodIndex < rods.size() * 2) {
+        while (remaining > 1e-6 && rodIndex < rods.size() * 2) {
             ReactorRodBlockEntity rod = rods.get(rodIndex % rods.size());
             var entries = rod.getFuelEntries();
             if (entries.isEmpty()) {
@@ -463,8 +465,8 @@ public final class ReactorSimulation {
                 rodIndex++;
                 continue;
             }
-            int take = Math.min(remaining, first.units());
-            int consumed = rod.consumeFuel(first.id(), take);
+            float take = (float) Math.min(remaining, first.units());
+            float consumed = rod.consumeFuel(first.id(), take);
             remaining -= consumed;
             if (consumed > 0 && !def.output().isEmpty() && !def.output().startsWith("#")) {
                 ResourceLocation wasteId = ResourceLocation.tryParse(def.output());

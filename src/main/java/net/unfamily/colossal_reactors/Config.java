@@ -62,6 +62,12 @@ public class Config {
     public static final ModConfigSpec.DoubleValue BASE_FUEL_UNITS_PER_TICK = BUILDER
             .comment("Base fuel consumption (fuel units per tick scale). Default: 0.03")
             .defineInRange("101_baseFuelUnitsPerTick", 0.03, 0.0, 100.0);
+    public static final ModConfigSpec.DoubleValue MIN_RF_PER_TICK = BUILDER
+            .comment("Minimum RF/t produced by any running reactor. Default: 500")
+            .defineInRange("101b_minRfPerTick", 500.0, 0.0, 1000000.0);
+    public static final ModConfigSpec.DoubleValue MIN_FUEL_UNITS_PER_TICK = BUILDER
+            .comment("Minimum fuel units consumed per tick. Default: 0.05")
+            .defineInRange("101c_minFuelUnitsPerTick", 0.05, 0.0, 100.0);
     public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
             .comment("Max fuel units per reactor rod (shared capacity). Default: 10000")
             .defineInRange("107_rodMaxFuelUnits", 10000, 1, 10000000);

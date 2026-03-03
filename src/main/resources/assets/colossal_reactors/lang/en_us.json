@@ -41,7 +41,7 @@
   "gui.colossal_reactors.reactor_controller.energy_production": "Energy: %s RF/t",
   "gui.colossal_reactors.reactor_controller.steam_production": "Steam: %s mB/t",
   "gui.colossal_reactors.reactor_controller.water_consume": "Water: %s mB/t",
-  "gui.colossal_reactors.reactor_controller.fuel_units": "Fuel: %s ingot/t",
+  "gui.colossal_reactors.reactor_controller.fuel_units": "Fuel: %s fuel units/t",
   "gui.colossal_reactors.reactor_controller.reboot": "Reboot",
   "gui.colossal_reactors.reactor_controller.reboot.tooltip": "Re-validate the reactor structure to detect changes",
   "gui.colossal_reactors.reactor_controller.coolant": "Coolant: %s",
