@@ -12,5 +12,19 @@
   "item.colossal_reactors.nuclear_waste": "Nuclear Waste",
   "message.colossal_reactors.reactor_validation_pending": "Reactor: validation pending...",
   "message.colossal_reactors.reactor_valid": "Reactor valid — Rods: %s (%s columns), Coolant: %s",
-  "message.colossal_reactors.reactor_invalid": "Reactor invalid"
+  "message.colossal_reactors.reactor_invalid": "Reactor invalid",
+  "gui.colossal_reactors.resource_port.tank_tooltip": "%s / %s mB",
+  "gui.colossal_reactors.resource_port.tank_empty": "Empty",
+  "gui.colossal_reactors.resource_port.mode.insert": "Insert",
+  "gui.colossal_reactors.resource_port.mode.extract": "Extract",
+  "gui.colossal_reactors.resource_port.mode.eject": "Eject",
+  "gui.colossal_reactors.resource_port.mode.insert.tooltip": "The reactor accepts solid fuel and a coolant fluid.",
+  "gui.colossal_reactors.resource_port.mode.extract.tooltip": "The reactor extracts nuclear waste and spent coolant fluid.",
+  "gui.colossal_reactors.resource_port.mode.eject.tooltip": "The reactor ejects the solid fuel it contains.",
+  "gui.colossal_reactors.resource_port.filter.both": "Both",
+  "gui.colossal_reactors.resource_port.filter.only_solid_fuel": "Solid",
+  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid": "Coolant",
+  "gui.colossal_reactors.resource_port.filter.both.tooltip": "Port handles both solid fuel and coolant liquid.",
+  "gui.colossal_reactors.resource_port.filter.only_solid_fuel.tooltip": "Port handles only solid fuel (no coolant).",
+  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid.tooltip": "Port handles only coolant liquid (no solid fuel)."
 }

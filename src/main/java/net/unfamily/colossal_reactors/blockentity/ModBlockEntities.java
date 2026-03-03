@@ -23,6 +23,11 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(ReactorRodBlockEntity::new,
                             ModBlocks.REACTOR_ROD.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ResourcePortBlockEntity>> RESOURCE_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("resource_port",
+                    () -> BlockEntityType.Builder.of(ResourcePortBlockEntity::new,
+                            ModBlocks.RESOURCE_PORT.get()).build(null));
+
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

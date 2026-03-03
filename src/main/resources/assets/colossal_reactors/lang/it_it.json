@@ -12,5 +12,19 @@
   "item.colossal_reactors.nuclear_waste": "Scorie nucleari",
   "message.colossal_reactors.reactor_validation_pending": "Reattore: validazione in corso...",
   "message.colossal_reactors.reactor_valid": "Reattore valido — Barre: %s (%s colonne), Raffreddante: %s",
-  "message.colossal_reactors.reactor_invalid": "Reattore non valido"
+  "message.colossal_reactors.reactor_invalid": "Reattore non valido",
+  "gui.colossal_reactors.resource_port.tank_tooltip": "%s / %s mB",
+  "gui.colossal_reactors.resource_port.tank_empty": "Vuota",
+  "gui.colossal_reactors.resource_port.mode.insert": "Inserisci",
+  "gui.colossal_reactors.resource_port.mode.extract": "Estrai",
+  "gui.colossal_reactors.resource_port.mode.eject": "Espelli",
+  "gui.colossal_reactors.resource_port.mode.insert.tooltip": "Il reattore accetta combustibile solido e un liquido refrigerante.",
+  "gui.colossal_reactors.resource_port.mode.extract.tooltip": "Il reattore estrae le scorie nucleari e il liquido refrigerante esausto.",
+  "gui.colossal_reactors.resource_port.mode.eject.tooltip": "Il reattore estrae il combustibile solido che ha all'interno.",
+  "gui.colossal_reactors.resource_port.filter.both": "Entrambi",
+  "gui.colossal_reactors.resource_port.filter.only_solid_fuel": "Solido",
+  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid": "Refrigerante",
+  "gui.colossal_reactors.resource_port.filter.both.tooltip": "La porta gestisce sia combustibile solido che liquido refrigerante.",
+  "gui.colossal_reactors.resource_port.filter.only_solid_fuel.tooltip": "La porta gestisce solo combustibile solido (nessun refrigerante).",
+  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid.tooltip": "La porta gestisce solo liquido refrigerante (nessun combustibile solido)."
 }

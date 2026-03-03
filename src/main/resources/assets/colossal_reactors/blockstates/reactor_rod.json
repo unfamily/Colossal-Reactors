@@ -1,10 +1,17 @@
 {
   "variants": {
-    "full=false": {
-      "model": "colossal_reactors:block/reactor_rod"
-    },
-    "full=true": {
-      "model": "colossal_reactors:block/reactor_rod_full"
-    }
+    "fill=0":  { "model": "colossal_reactors:block/rods/reactor_rod" },
+    "fill=1":  { "model": "colossal_reactors:block/rods/reactor_rod_5" },
+    "fill=2":  { "model": "colossal_reactors:block/rods/reactor_rod_10" },
+    "fill=3":  { "model": "colossal_reactors:block/rods/reactor_rod_20" },
+    "fill=4":  { "model": "colossal_reactors:block/rods/reactor_rod_30" },
+    "fill=5":  { "model": "colossal_reactors:block/rods/reactor_rod_40" },
+    "fill=6":  { "model": "colossal_reactors:block/rods/reactor_rod_50" },
+    "fill=7":  { "model": "colossal_reactors:block/rods/reactor_rod_60" },
+    "fill=8":  { "model": "colossal_reactors:block/rods/reactor_rod_70" },
+    "fill=9":  { "model": "colossal_reactors:block/rods/reactor_rod_80" },
+    "fill=10": { "model": "colossal_reactors:block/rods/reactor_rod_90" },
+    "fill=11": { "model": "colossal_reactors:block/rods/reactor_rod_95" },
+    "fill=12": { "model": "colossal_reactors:block/rods/reactor_rod_full" }
   }
 }

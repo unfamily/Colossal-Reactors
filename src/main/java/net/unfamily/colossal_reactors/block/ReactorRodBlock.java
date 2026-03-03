@@ -8,27 +8,28 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 
 /**
- * Reactor rod block. When full (fuelUnits >= max) uses full model with inner cube; otherwise empty frame model.
+ * Reactor rod block. Block state FILL (0-12) selects model by fill percentage: 0=empty, 1=5%, 2=10%, ..., 12=100%.
  */
 public class ReactorRodBlock extends BaseEntityBlock {
 
-    public static final BooleanProperty FULL = BooleanProperty.create("full");
+    /** Fill level for model: 0=0%, 1=5%, 2=10%, 3=20%, 4=30%, 5=40%, 6=50%, 7=60%, 8=70%, 9=80%, 10=90%, 11=95%, 12=100%. */
+    public static final IntegerProperty FILL = IntegerProperty.create("fill", 0, 12);
 
     public static final MapCodec<ReactorRodBlock> CODEC = simpleCodec(ReactorRodBlock::new);
 
     public ReactorRodBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FULL, false));
+        registerDefaultState(stateDefinition.any().setValue(FILL, 0));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FULL);
+        builder.add(FILL);
     }
 
     @Override

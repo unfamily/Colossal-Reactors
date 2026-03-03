@@ -17,12 +17,19 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
+import net.unfamily.colossal_reactors.menu.ModMenuTypes;
+import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 @Mod(ColossalReactors.MODID)
 public class ColossalReactors {
@@ -37,8 +44,16 @@ public class ColossalReactors {
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModBlockEntities.register(modEventBus);
+        ModMenuTypes.register(modEventBus);
+        ModPayloads.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::gatherData);
+        modEventBus.addListener(this::registerCapabilities);
+    }
+
+    private void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
+                (be, direction) -> ((ResourcePortBlockEntity) be).getFluidHandler());
     }
 
     private void gatherData(GatherDataEvent event) {
@@ -65,6 +80,11 @@ public class ColossalReactors {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
             });
+        }
+
+        @SubscribeEvent
+        static void registerMenuScreens(RegisterMenuScreensEvent event) {
+            event.register(ModMenuTypes.RESOURCE_PORT_MENU.get(), ResourcePortScreen::new);
         }
     }
 }

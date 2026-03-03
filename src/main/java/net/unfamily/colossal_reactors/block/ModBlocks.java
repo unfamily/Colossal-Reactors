@@ -38,8 +38,8 @@ public class ModBlocks {
             () -> new Block(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
-    public static final DeferredBlock<Block> RESOURCE_PORT = BLOCKS.register("resource_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<ResourcePortBlock> RESOURCE_PORT = BLOCKS.register("resource_port",
+            () -> new ResourcePortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
 
