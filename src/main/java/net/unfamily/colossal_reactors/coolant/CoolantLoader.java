@@ -33,9 +33,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Loads coolant definitions from external JSON (external_scripts_path/coolant/*.json).
+ * Loads coolant definitions from external JSON (external_scripts_path/reactor/*.json with type colossal_reactors:coolant).
  * Internal default: water (minecraft:water) → output #c:steam. JSON entries can add or override by coolant_id.
- * Output by tag: we store the tag; at runtime only if the tag resolves to a valid fluid do we produce output.
  * "disable" is optional (default false). When true, the entry means "these tags/liquids: no" (excluded inputs).
  */
 public class CoolantLoader {
@@ -70,11 +69,11 @@ public class CoolantLoader {
     public static final ResourceLocation WATER_COOLANT_ID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "water");
 
     /**
-     * Scans the coolant directory under configured external scripts path. Internal defaults first, then JSON overrides.
+     * Scans the reactor config directory under configured external scripts path. Internal defaults first, then JSON overrides.
      */
     public static void scanConfigDirectory() {
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Scanning coolant configuration directory...");
+            LOGGER.info("Scanning reactor config directory (coolant)...");
         }
         DEFINITIONS.clear();
         EXCLUDED_INPUTS.clear();
@@ -84,25 +83,25 @@ public class CoolantLoader {
         if (basePath == null || basePath.trim().isEmpty()) {
             basePath = "kubejs/external_scripts/colossal_reactors";
         }
-        Path coolantPath = Paths.get(basePath, "coolant");
-        if (!Files.exists(coolantPath)) {
+        Path reactorPath = Paths.get(basePath, "reactor");
+        if (!Files.exists(reactorPath)) {
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Coolant directory does not exist ({}). Using internal defaults only. Run dump_default to create it.", coolantPath.toAbsolutePath());
+                LOGGER.info("Reactor config directory does not exist ({}). Using internal defaults only. Run dump to create it.", reactorPath.toAbsolutePath());
             }
             return;
         }
-        if (!Files.isDirectory(coolantPath)) {
-            LOGGER.warn("Coolant path is not a directory: {}", coolantPath);
+        if (!Files.isDirectory(reactorPath)) {
+            LOGGER.warn("Reactor config path is not a directory: {}", reactorPath);
             return;
         }
-        try (Stream<Path> files = Files.walk(coolantPath)) {
+        try (Stream<Path> files = Files.walk(reactorPath)) {
             files.filter(Files::isRegularFile)
                     .filter(p -> p.toString().endsWith(".json"))
                     .filter(p -> !p.getFileName().toString().startsWith("."))
                     .sorted()
                     .forEach(CoolantLoader::parseConfigFile);
         } catch (IOException e) {
-            LOGGER.error("Error scanning coolant directory: {}", e.getMessage());
+            LOGGER.error("Error scanning reactor config directory: {}", e.getMessage());
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Coolant definitions loaded: {}", DEFINITIONS.size());
@@ -296,11 +295,11 @@ public class CoolantLoader {
     }
 
     /**
-     * Writes the default coolant JSON into the given directory. Called by dump_default command.
+     * Writes the default coolant JSON into the given directory (e.g. reactor). Called by dump command.
      */
-    public static void dumpDefaultFile(Path coolantPath) throws IOException {
-        Files.createDirectories(coolantPath);
-        Path file = coolantPath.resolve("default_coolant.json");
+    public static void dumpDefaultFile(Path reactorDir) throws IOException {
+        Files.createDirectories(reactorDir);
+        Path file = reactorDir.resolve("default_coolant.json");
         String content = """
             {
               "type": "colossal_reactors:coolant",

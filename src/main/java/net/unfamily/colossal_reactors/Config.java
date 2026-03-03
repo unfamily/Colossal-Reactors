@@ -72,6 +72,15 @@ public class Config {
             .comment("Penalty per horizontal neighbor (another rod or border block). Each rod contributes max(0, 1 - penalty * adjacentCount). Default: 0.25")
             .defineInRange("106c_rodAdjacencyPenalty", 0.25, 0.0, 1.0);
 
+    /** Weight for coolant cells adjacent to at least one rod (Refrigerante 0). Default 1.0 = full influence. */
+    public static final ModConfigSpec.DoubleValue HEAT_SINK_ADJACENT_WEIGHT = BUILDER
+            .comment("Influence weight for coolant (heat sink) cells that touch at least one rod. Each cell counted once. Default: 1.0")
+            .defineInRange("106d_heatSinkAdjacentWeight", 1.0, 0.0, 10.0);
+    /** Weight for coolant cells not adjacent to any rod (Refrigerante 1). Default 0.5 = half influence. */
+    public static final ModConfigSpec.DoubleValue HEAT_SINK_NON_ADJACENT_WEIGHT = BUILDER
+            .comment("Influence weight for coolant cells not touching any rod. Default: 0.5")
+            .defineInRange("106e_heatSinkNonAdjacentWeight", 0.5, 0.0, 10.0);
+
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")
             .defineInRange("010_reactorValidationIntervalTicks", 200, 1, 1200);
@@ -88,17 +97,17 @@ public class Config {
     /** Resource Port: fluid tank capacity (mB). Default: 16000 */
     public static final ModConfigSpec.IntValue RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
             .comment("Resource Port: fluid tank capacity in mB. Default: 16000")
-            .defineInRange("000", 16000, 1000, 1000000);
+            .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, 1000000);
 
     /** Power Port: energy buffer capacity (FE). Default: 50M */
     public static final ModConfigSpec.IntValue POWER_PORT_CAPACITY = BUILDER
             .comment("Power Port: energy buffer capacity in FE. Default: 50000000")
-            .defineInRange("010", 50000000, 1000, 1000000000);
+            .defineInRange("010_powerPortCapacity", 50000000, 1000, 1000000000);
 
     /** Power Port: max energy extract per tick (FE/t). Default: 1M */
     public static final ModConfigSpec.IntValue POWER_PORT_MAX_EXTRACT = BUILDER
             .comment("Power Port: max energy that can be extracted per tick (FE/t). Default: 1000000")
-            .defineInRange("020", 1000000, 1, 100000000);
+            .defineInRange("020_powerPortMaxExtract", 1000000, 1, 100000000);
 
     static {
         BUILDER.pop();

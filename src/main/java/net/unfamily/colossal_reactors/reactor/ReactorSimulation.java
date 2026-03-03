@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
@@ -20,6 +21,7 @@ import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 
@@ -101,19 +103,23 @@ public final class ReactorSimulation {
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null ? coolantDef.mbMultiplier() : 1.0;
 
+        HeatSinkLoader.HeatSinkModifiers heatSink = computeHeatSinkModifiers(level, result, rods.size());
+        double heatSinkFuelMult = heatSink.fuelMultiplier();
+        double heatSinkEnergyMult = heatSink.energyMultiplier();
+
         double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
 
-        // Consumption: empirical curve (scale/sqrt(rodCount+1)) fitted to experimental data; then divided by coolant mbMultiplier so each coolant adapts (e.g. Air 100% -> 1.0, Gelid 160% -> 1.6).
+        // Consumption: empirical curve; divided by coolant mbMultiplier; multiplied by heat sink fuel modifier (e.g. graphite 0.75 = consume less).
         double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.sqrt(effectiveRodCount + 1);
         double mbDivisor = (coolantDef != null && coolantDef.mbMultiplier() > 0) ? coolantDef.mbMultiplier() : 1.0;
-        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor;
+        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor * heatSinkFuelMult;
         int mbToConsume = (int) Math.min(ingotsToConsumeRaw * 1000, totalFuelUnits);
 
         if (mbToConsume > 0) {
             consumeFuelFromRods(rods, mbToConsume, level.registryAccess());
         }
 
-        double rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier;
+        double rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
 
         // Water mode: coolant is consumed for steam; no RF when water is sufficient. Use water mode if def is water (by id) or has consumesFluidForSteam.
         boolean waterMode = coolantDef != null
@@ -277,6 +283,92 @@ public final class ReactorSimulation {
                 if (!pushed) break;
             }
         }
+    }
+
+    /**
+     * Fuel/energy multipliers from interior with adjacency influence: coolant adjacent to a rod (Refrigerante 0)
+     * and coolant not adjacent (Refrigerante 1) are weighted separately; each cell counted once (no double-count
+     * when a block touches multiple rods). Rod cells use their coolant fluid modifier. Non-adjacent coolant cells
+     * contribute rodCount per cell (Excel-style: N_non * RodCount in the formula), not the block's multiplier.
+     */
+    private static HeatSinkLoader.HeatSinkModifiers computeHeatSinkModifiers(ServerLevel level, ReactorValidation.Result result, int rodCount) {
+        int minX = result.minX(), minY = result.minY(), minZ = result.minZ();
+        int maxX = result.maxX(), maxY = result.maxY(), maxZ = result.maxZ();
+        Set<BlockPos> rodPositions = new HashSet<>();
+        for (int x = minX + 1; x < maxX; x++) {
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (level.getBlockState(pos).is(ModBlocks.REACTOR_ROD.get())) {
+                        rodPositions.add(pos);
+                    }
+                }
+            }
+        }
+        double sumFuelRod = 0, sumEnergyRod = 0;
+        int countRod = 0;
+        double sumFuelAdj = 0, sumEnergyAdj = 0;
+        int countAdj = 0;
+        double sumFuelNon = 0, sumEnergyNon = 0;
+        int countNon = 0;
+        var reg = level.registryAccess();
+        double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
+        double wNon = Config.HEAT_SINK_NON_ADJACENT_WEIGHT.get();
+        for (int x = minX + 1; x < maxX; x++) {
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (level.getBlockState(pos).is(ModBlocks.REACTOR_ROD.get())) {
+                        Fluid rodCoolant = getFirstCoolantFluidInRod(level, pos);
+                        HeatSinkLoader.HeatSinkModifiers m = HeatSinkLoader.getModifiersForFluidOrDefault(rodCoolant, reg);
+                        sumFuelRod += m.fuelMultiplier();
+                        sumEnergyRod += m.energyMultiplier();
+                        countRod++;
+                    } else {
+                        HeatSinkLoader.HeatSinkModifiers m = HeatSinkLoader.getModifiersForBlockOrDefault(level.getBlockState(pos), reg);
+                        boolean adjacentToRod = false;
+                        for (Direction d : Direction.values()) {
+                            if (rodPositions.contains(pos.relative(d))) {
+                                adjacentToRod = true;
+                                break;
+                            }
+                        }
+                        if (adjacentToRod) {
+                            sumFuelAdj += m.fuelMultiplier();
+                            sumEnergyAdj += m.energyMultiplier();
+                            countAdj++;
+                        } else {
+                            // Excel-style: non-adjacent (Refrigerante 1) contributes rodCount per cell, not the block multiplier
+                            sumFuelNon += rodCount;
+                            sumEnergyNon += rodCount;
+                            countNon++;
+                        }
+                    }
+                }
+            }
+        }
+        double totalWeightedFuel = sumFuelRod + sumFuelAdj * wAdj + sumFuelNon * wNon;
+        double totalWeightedEnergy = sumEnergyRod + sumEnergyAdj * wAdj + sumEnergyNon * wNon;
+        double totalWeight = countRod + countAdj * wAdj + countNon * wNon;
+        if (totalWeight <= 0) return new HeatSinkLoader.HeatSinkModifiers(1.0, 1.0);
+        double effFuel = totalWeightedFuel / totalWeight;
+        double effEnergy = totalWeightedEnergy / totalWeight;
+        if (Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
+            ColossalReactors.LOGGER.info("[ReactorSimulation] Heat sink: rod={} adj={} nonAdj={} wAdj={} wNon={} => fuelMult={} energyMult={}",
+                    countRod, countAdj, countNon, wAdj, wNon, effFuel, effEnergy);
+        }
+        return new HeatSinkLoader.HeatSinkModifiers(effFuel, effEnergy);
+    }
+
+    /** First coolant fluid with amount > 0 in this rod, or null if not a rod or no coolant. */
+    private static Fluid getFirstCoolantFluidInRod(ServerLevel level, BlockPos pos) {
+        if (!(level.getBlockEntity(pos) instanceof ReactorRodBlockEntity rod)) return null;
+        for (var e : rod.getCoolantEntries()) {
+            if (e.amount() > 0 && e.fluid() != null && e.fluid() != net.minecraft.world.level.material.Fluids.EMPTY) {
+                return e.fluid();
+            }
+        }
+        return null;
     }
 
     /**

@@ -7,6 +7,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 
 /**
  * Validates reactor multiblock structure: parallelepiped, casing border, rod columns with rod_controller on top.
@@ -122,10 +123,10 @@ public final class ReactorValidation {
                     } else {
                         if (state.is(ModBlocks.REACTOR_ROD.get())) {
                             rodCount++;
-                        } else if (state.isAir()) {
+                        } else if (state.isAir() || HeatSinkLoader.isHeatSinkBlock(state, level.registryAccess())) {
                             coolantCount++;
                         } else {
-                            return invalid(level, start, "interior must be rod or air at " + p + " = " + state.getBlock().getDescriptionId());
+                            return invalid(level, start, "interior must be rod, air or heat sink at " + p + " = " + state.getBlock().getDescriptionId());
                         }
                     }
                 }
@@ -175,14 +176,14 @@ public final class ReactorValidation {
         return isShellBlock(state) || state.is(ModBlocks.ROD_CONTROLLER.get());
     }
 
-    /** Can step in depth direction: into shell or rod; into air only when current is interior (not shell, else we'd step outside). */
+    /** Can step in depth direction: into shell or rod; into air or heat sink only when current is interior (not shell, else we'd step outside). */
     private static boolean canStepDepth(Level level, BlockPos pos, Direction intoReactor) {
         BlockPos next = pos.relative(intoReactor);
         BlockState nextState = level.getBlockState(next);
         BlockState currentState = level.getBlockState(pos);
         if (isShellOrRodController(nextState)) return true;
         if (nextState.is(ModBlocks.REACTOR_ROD.get())) return true;
-        if (nextState.isAir() && !isShellOrRodController(currentState)) return true; // only step into air from interior
+        if (!isShellOrRodController(currentState) && (nextState.isAir() || HeatSinkLoader.isHeatSinkBlock(nextState, level.registryAccess()))) return true;
         return false;
     }
 

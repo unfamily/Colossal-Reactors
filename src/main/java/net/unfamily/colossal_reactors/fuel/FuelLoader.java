@@ -34,9 +34,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Loads fuel definitions from external JSON (external_scripts_path/fuel/*.json).
+ * Loads fuel definitions from external JSON (external_scripts_path/reactor/*.json with type colossal_reactors:fuel).
  * Internal default (uranium) is registered first; JSON entries can add or override by fuel_id.
- * Use dump_default command to write the base fuel JSON into the fuel directory.
+ * Use dump command to write default JSON into the reactor directory.
  * "disable" is optional (default false). When true, the entry means "these tags/items: no" (excluded inputs).
  */
 public class FuelLoader {
@@ -59,12 +59,15 @@ public class FuelLoader {
     /** Input selectors (tag or item id) that are excluded: not valid as fuel even if a definition would match. */
     private static final Set<String> EXCLUDED_INPUTS = new HashSet<>();
 
+    /** Subfolder under external scripts path where all reactor JSON configs live (fuel, coolant, heat_sink). */
+    private static final String REACTOR_CONFIG_DIR = "reactor";
+
     /**
-     * Scans the fuel directory under configured external scripts path. Internal defaults first, then JSON overrides.
+     * Scans the reactor config directory under configured external scripts path. Internal defaults first, then JSON overrides.
      */
     public static void scanConfigDirectory() {
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Scanning fuel configuration directory...");
+            LOGGER.info("Scanning reactor config directory (fuel)...");
         }
         DEFINITIONS.clear();
         EXCLUDED_INPUTS.clear();
@@ -74,25 +77,25 @@ public class FuelLoader {
         if (basePath == null || basePath.trim().isEmpty()) {
             basePath = "kubejs/external_scripts/colossal_reactors";
         }
-        Path fuelPath = Paths.get(basePath, "fuel");
-        if (!Files.exists(fuelPath)) {
+        Path reactorPath = Paths.get(basePath, REACTOR_CONFIG_DIR);
+        if (!Files.exists(reactorPath)) {
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Fuel directory does not exist ({}). Using internal defaults only. Run dump_default to create it.", fuelPath.toAbsolutePath());
+                LOGGER.info("Reactor config directory does not exist ({}). Using internal defaults only. Run dump to create it.", reactorPath.toAbsolutePath());
             }
             return;
         }
-        if (!Files.isDirectory(fuelPath)) {
-            LOGGER.warn("Fuel path is not a directory: {}", fuelPath);
+        if (!Files.isDirectory(reactorPath)) {
+            LOGGER.warn("Reactor config path is not a directory: {}", reactorPath);
             return;
         }
-        try (Stream<Path> files = Files.walk(fuelPath)) {
+        try (Stream<Path> files = Files.walk(reactorPath)) {
             files.filter(Files::isRegularFile)
                     .filter(p -> p.toString().endsWith(".json"))
                     .filter(p -> !p.getFileName().toString().startsWith("."))
                     .sorted()
                     .forEach(FuelLoader::parseConfigFile);
         } catch (IOException e) {
-            LOGGER.error("Error scanning fuel directory: {}", e.getMessage());
+            LOGGER.error("Error scanning reactor config directory: {}", e.getMessage());
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Fuel definitions loaded: {}", DEFINITIONS.size());
@@ -233,9 +236,9 @@ public class FuelLoader {
      * Writes the default fuel JSON into the given directory so users can see and override the base fuel.
      * Called by the dump_default command.
      */
-    public static void dumpDefaultFile(Path fuelPath) throws IOException {
-        Files.createDirectories(fuelPath);
-        Path file = fuelPath.resolve("default_fuel.json");
+    public static void dumpDefaultFile(Path reactorDir) throws IOException {
+        Files.createDirectories(reactorDir);
+        Path file = reactorDir.resolve("default_fuel.json");
         String content = """
             {
               "type": "colossal_reactors:fuel",
