@@ -28,6 +28,16 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(ResourcePortBlockEntity::new,
                             ModBlocks.RESOURCE_PORT.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PowerPortBlockEntity>> POWER_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("power_port",
+                    () -> BlockEntityType.Builder.of(PowerPortBlockEntity::new,
+                            ModBlocks.POWER_PORT.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RedstonePortBlockEntity>> REDSTONE_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("redstone_port",
+                    () -> BlockEntityType.Builder.of(RedstonePortBlockEntity::new,
+                            ModBlocks.REDSTONE_PORT.get()).build(null));
+
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

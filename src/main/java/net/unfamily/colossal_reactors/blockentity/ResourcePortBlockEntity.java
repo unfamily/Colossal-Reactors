@@ -17,9 +17,11 @@ import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -101,12 +103,24 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         super(ModBlockEntities.RESOURCE_PORT_BE.get(), pos, state);
     }
 
+    /** Raw handler for menu and internal use (no mode/filter restriction). */
     public IItemHandler getItemHandler() {
         return itemHandler;
     }
 
+    /** Raw handler for menu and bucket interaction (no mode/filter restriction). */
     public IFluidHandler getFluidHandler() {
         return fluidTank;
+    }
+
+    /** Item handler for capability (hoppers/pipes): respects port mode and filter. */
+    public IItemHandler getItemHandlerForCapability() {
+        return new FilteredItemHandler();
+    }
+
+    /** Fluid handler for capability (hoppers/pipes): respects port mode and filter. */
+    public IFluidHandler getFluidHandlerForCapability() {
+        return new FilteredFluidHandler();
     }
 
     public FluidTank getFluidTank() {
@@ -184,5 +198,121 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     @Override
     public void handleUpdateTag(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         loadAdditional(tag, registries);
+    }
+
+    /**
+     * Item handler exposed to capability (hoppers/pipes). INSERT: allow insert only (filter allows items).
+     * EXTRACT/EJECT: allow extract only.
+     */
+    private final class FilteredItemHandler implements IItemHandler {
+        private boolean allowInsert() {
+            return portMode == PortMode.INSERT
+                    && (portFilter == PortFilter.BOTH || portFilter == PortFilter.ONLY_SOLID_FUEL);
+        }
+
+        private boolean allowExtract() {
+            return portMode == PortMode.EXTRACT || portMode == PortMode.EJECT;
+        }
+
+        @Override
+        public int getSlots() {
+            return itemHandler.getSlots();
+        }
+
+        @Override
+        @NotNull
+        public ItemStack getStackInSlot(int slot) {
+            return itemHandler.getStackInSlot(slot);
+        }
+
+        @Override
+        @NotNull
+        public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
+            if (!allowInsert()) {
+                return stack;
+            }
+            return itemHandler.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        @NotNull
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (!allowExtract()) {
+                return ItemStack.EMPTY;
+            }
+            return itemHandler.extractItem(slot, amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return itemHandler.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+            return allowInsert() && itemHandler.isItemValid(slot, stack);
+        }
+    }
+
+    /**
+     * Fluid handler exposed to capability (hoppers/pipes). INSERT: allow fill only (filter allows fluid).
+     * EXTRACT/EJECT: allow drain only.
+     */
+    private final class FilteredFluidHandler implements IFluidHandler {
+        private boolean allowFill() {
+            return portMode == PortMode.INSERT
+                    && (portFilter == PortFilter.BOTH || portFilter == PortFilter.ONLY_COOLANT_LIQUID);
+        }
+
+        private boolean allowDrain() {
+            return portMode == PortMode.EXTRACT || portMode == PortMode.EJECT;
+        }
+
+        @Override
+        public int getTanks() {
+            return fluidTank.getTanks();
+        }
+
+        @Override
+        @NotNull
+        public FluidStack getFluidInTank(int tank) {
+            return fluidTank.getFluidInTank(tank);
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return fluidTank.getTankCapacity(tank);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            if (!allowFill()) {
+                return 0;
+            }
+            return fluidTank.fill(resource, action);
+        }
+
+        @Override
+        @NotNull
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            if (!allowDrain()) {
+                return FluidStack.EMPTY;
+            }
+            return fluidTank.drain(resource, action);
+        }
+
+        @Override
+        @NotNull
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            if (!allowDrain()) {
+                return FluidStack.EMPTY;
+            }
+            return fluidTank.drain(maxDrain, action);
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
+            return allowFill() && fluidTank.isFluidValid(tank, stack);
+        }
     }
 }

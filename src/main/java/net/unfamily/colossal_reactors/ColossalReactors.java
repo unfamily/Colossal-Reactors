@@ -21,6 +21,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
@@ -28,6 +29,8 @@ import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
+import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
@@ -52,8 +55,12 @@ public class ColossalReactors {
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
+                (be, direction) -> ((ResourcePortBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
-                (be, direction) -> ((ResourcePortBlockEntity) be).getFluidHandler());
+                (be, direction) -> ((ResourcePortBlockEntity) be).getFluidHandlerForCapability());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
+                (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
     }
 
     private void gatherData(GatherDataEvent event) {
@@ -85,6 +92,8 @@ public class ColossalReactors {
         @SubscribeEvent
         static void registerMenuScreens(RegisterMenuScreensEvent event) {
             event.register(ModMenuTypes.RESOURCE_PORT_MENU.get(), ResourcePortScreen::new);
+            event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
+            event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
         }
     }
 }

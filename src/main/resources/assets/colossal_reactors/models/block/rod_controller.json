@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "colossal_reactors:block/reactor_casing"
+    "all": "colossal_reactors:block/rod_controller"
   }
 }

@@ -26,5 +26,19 @@
   "gui.colossal_reactors.resource_port.filter.only_coolant_liquid": "Refrigerante",
   "gui.colossal_reactors.resource_port.filter.both.tooltip": "La porta gestisce sia combustibile solido che liquido refrigerante.",
   "gui.colossal_reactors.resource_port.filter.only_solid_fuel.tooltip": "La porta gestisce solo combustibile solido (nessun refrigerante).",
-  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid.tooltip": "La porta gestisce solo liquido refrigerante (nessun combustibile solido)."
+  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid.tooltip": "La porta gestisce solo liquido refrigerante (nessun combustibile solido).",
+  "gui.colossal_reactors.redstone_port.mode.none": "Ignora redstone",
+  "gui.colossal_reactors.redstone_port.mode.low": "Attivo con redstone spento",
+  "gui.colossal_reactors.redstone_port.mode.high": "Attivo con redstone acceso",
+  "gui.colossal_reactors.redstone_port.mode.disabled": "Disattivato",
+  "gui.colossal_reactors.reactor_controller.status": "Stato: %s",
+  "gui.colossal_reactors.reactor_controller.status.on": "ON",
+  "gui.colossal_reactors.reactor_controller.status.off": "OFF",
+  "gui.colossal_reactors.reactor_controller.status.validating": "Validazione...",
+  "gui.colossal_reactors.reactor_controller.rods": "Barre: %s (%s colonne)",
+  "gui.colossal_reactors.reactor_controller.coolant": "Raffreddante: %s",
+  "gui.colossal_reactors.reactor_controller.fuel": "Combustibile: %s",
+  "gui.colossal_reactors.reactor_controller.fuel.yes": "Sì",
+  "gui.colossal_reactors.reactor_controller.fuel.no": "No",
+  "gui.colossal_reactors.reactor_controller.fuel.na": "N/D"
 }

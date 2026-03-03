@@ -26,5 +26,19 @@
   "gui.colossal_reactors.resource_port.filter.only_coolant_liquid": "Coolant",
   "gui.colossal_reactors.resource_port.filter.both.tooltip": "Port handles both solid fuel and coolant liquid.",
   "gui.colossal_reactors.resource_port.filter.only_solid_fuel.tooltip": "Port handles only solid fuel (no coolant).",
-  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid.tooltip": "Port handles only coolant liquid (no solid fuel)."
+  "gui.colossal_reactors.resource_port.filter.only_coolant_liquid.tooltip": "Port handles only coolant liquid (no solid fuel).",
+  "gui.colossal_reactors.redstone_port.mode.none": "Ignore redstone",
+  "gui.colossal_reactors.redstone_port.mode.low": "Active when redstone off",
+  "gui.colossal_reactors.redstone_port.mode.high": "Active when redstone on",
+  "gui.colossal_reactors.redstone_port.mode.disabled": "Disabled",
+  "gui.colossal_reactors.reactor_controller.status": "Status: %s",
+  "gui.colossal_reactors.reactor_controller.status.on": "ON",
+  "gui.colossal_reactors.reactor_controller.status.off": "OFF",
+  "gui.colossal_reactors.reactor_controller.status.validating": "Validating...",
+  "gui.colossal_reactors.reactor_controller.rods": "Rods: %s (%s columns)",
+  "gui.colossal_reactors.reactor_controller.coolant": "Coolant: %s",
+  "gui.colossal_reactors.reactor_controller.fuel": "Fuel: %s",
+  "gui.colossal_reactors.reactor_controller.fuel.yes": "Yes",
+  "gui.colossal_reactors.reactor_controller.fuel.no": "No",
+  "gui.colossal_reactors.reactor_controller.fuel.na": "N/A"
 }

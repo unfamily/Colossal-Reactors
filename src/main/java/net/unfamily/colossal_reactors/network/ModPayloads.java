@@ -23,5 +23,10 @@ public class ModPayloads {
                 ResourcePortFilterPayload.STREAM_CODEC,
                 ResourcePortFilterPayload::handle
         );
+        registrar.playToServer(
+                RedstonePortRedstoneModePayload.TYPE,
+                RedstonePortRedstoneModePayload.STREAM_CODEC,
+                RedstonePortRedstoneModePayload::handle
+        );
     }
 }

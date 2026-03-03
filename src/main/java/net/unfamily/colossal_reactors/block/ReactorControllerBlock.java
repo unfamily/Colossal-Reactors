@@ -8,6 +8,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -15,12 +16,12 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -36,6 +37,7 @@ import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 public class ReactorControllerBlock extends BaseEntityBlock {
 
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final EnumProperty<ControllerState> STATE = EnumProperty.create("state", ControllerState.class);
 
     /** Inclined screen for NORTH: 22.5° tilt (origin z=8), approximated as 4 horizontal slices. */
     private static final VoxelShape SCREEN_NORTH = Shapes.or(
@@ -95,7 +97,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
 
     public ReactorControllerBlock(Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
+        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(STATE, ControllerState.OFF));
     }
 
     @Override
@@ -123,7 +125,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, STATE);
     }
 
     @Override
@@ -133,52 +135,75 @@ public class ReactorControllerBlock extends BaseEntityBlock {
     }
 
     /**
-     * Schedule first tick on place so validation runs even if BE ticker is not invoked (e.g. chunk tick order).
+     * On place: leave OFF. No validation; player must click to start one.
      */
     @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
-        if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
-            serverLevel.scheduleTick(pos, this, 1);
+    }
+
+    /**
+     * Block tick only when scheduled: (1) VALIDATING → run one validation → ON or OFF, schedule next only if ON;
+     * (2) ON → periodic re-validation, stay ON or go OFF; never show boot during periodic (stays visually ON).
+     */
+    @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        BlockEntity be = level.getBlockEntity(pos);
+        if (!(be instanceof ReactorControllerBlockEntity controllerBe)) {
+            return;
+        }
+        Direction back = state.getValue(FACING).getOpposite();
+        BlockPos startPos = pos.relative(back);
+        ControllerState current = state.getValue(STATE);
+
+        if (current == ControllerState.VALIDATING) {
+            ReactorValidation.Result result = ReactorValidation.validate(level, startPos, back);
+            controllerBe.setCachedResult(result);
+            ControllerState next = result.valid() ? ControllerState.ON : ControllerState.OFF;
+            level.setBlock(pos, state.setValue(STATE, next), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+            controllerBe.setChanged();
+            controllerBe.notifyValidationResult();
+            if (next == ControllerState.ON) {
+                level.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
+            }
+            return;
+        }
+
+        if (current == ControllerState.ON) {
+            ReactorValidation.Result result = ReactorValidation.validate(level, startPos, back);
+            if (result.valid()) {
+                controllerBe.setCachedResult(result);
+                controllerBe.setChanged();
+                level.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
+            } else {
+                controllerBe.setCachedResult(result);
+                level.setBlock(pos, state.setValue(STATE, ControllerState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+                controllerBe.setChanged();
+            }
         }
     }
 
     /**
-     * Block tick: drive BlockEntity validation periodically (same pattern as iskautils SacredRubberSaplingBlock).
-     * Ensures validation runs even when the BE ticker is not called by the level.
+     * On click: if ON open GUI; if OFF start one validation (boot then ON/OFF).
      */
-    @Override
-    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-        if (level.getBlockEntity(pos) instanceof ReactorControllerBlockEntity be) {
-            ReactorControllerBlockEntity.tick(level, pos, state, be);
-        }
-        level.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
-    }
-
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (level.getBlockEntity(pos) instanceof ReactorControllerBlockEntity be) {
-            // Run validation immediately on click so result is always current and tick cycle is started
-            Direction back = state.getValue(FACING).getOpposite();
-            BlockPos startPos = pos.relative(back);
-            ReactorValidation.Result result = ReactorValidation.validate(level, startPos, back);
-            be.setCachedResult(result);
-            be.setChanged();
-
-            if (result.valid()) {
-                player.sendSystemMessage(Component.translatable("message.colossal_reactors.reactor_valid",
-                        result.rodCount(), result.rodColumns(), result.coolantCount()));
-            } else {
-                player.sendSystemMessage(Component.translatable("message.colossal_reactors.reactor_invalid"));
+        if (!(level.getBlockEntity(pos) instanceof ReactorControllerBlockEntity be)) {
+            return InteractionResult.PASS;
+        }
+        if (state.getValue(STATE) == ControllerState.ON) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.openMenu(be, pos);
             }
-
-            // Start or reschedule block tick so periodic validation continues
-            if (level instanceof ServerLevel serverLevel) {
-                serverLevel.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
-            }
+            return InteractionResult.CONSUME;
+        }
+        be.setLastInteractingPlayer(player);
+        level.setBlock(pos, state.setValue(STATE, ControllerState.VALIDATING), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.scheduleTick(pos, this, 1);
         }
         return InteractionResult.SUCCESS;
     }

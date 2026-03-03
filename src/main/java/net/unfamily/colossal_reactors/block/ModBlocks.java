@@ -30,12 +30,12 @@ public class ModBlocks {
                     .strength(2.0f)
                     .noOcclusion()));
 
-    public static final DeferredBlock<Block> POWER_PORT = BLOCKS.register("power_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<PowerPortBlock> POWER_PORT = BLOCKS.register("power_port",
+            () -> new PowerPortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
-    public static final DeferredBlock<Block> REDSTONE_PORT = BLOCKS.register("redstone_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<RedstonePortBlock> REDSTONE_PORT = BLOCKS.register("redstone_port",
+            () -> new RedstonePortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
     public static final DeferredBlock<ResourcePortBlock> RESOURCE_PORT = BLOCKS.register("resource_port",

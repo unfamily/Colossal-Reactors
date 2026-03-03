@@ -16,6 +16,14 @@ public class ModMenuTypes {
             MENUS.register("resource_port", () ->
                     new MenuType<>(ResourcePortMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<RedstonePortMenu>> REDSTONE_PORT_MENU =
+            MENUS.register("redstone_port", () ->
+                    new MenuType<>(RedstonePortMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<ReactorControllerMenu>> REACTOR_CONTROLLER_MENU =
+            MENUS.register("reactor_controller", () ->
+                    new MenuType<>(ReactorControllerMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+
     public static void register(IEventBus eventBus) {
         MENUS.register(eventBus);
     }
