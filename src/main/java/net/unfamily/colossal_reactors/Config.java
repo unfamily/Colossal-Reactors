@@ -20,6 +20,11 @@ public class Config {
             .comment("Dump full reactor validation to log (info level). Default: false")
             .define("001_reactor_validation_debug", false);
 
+    /** When true, logs heat sink counts and multipliers each tick (info level). Default: false. */
+    public static final ModConfigSpec.ConfigValue<Boolean> REACTOR_SIMULATION_DEBUG = BUILDER
+            .comment("Log reactor simulation (heat sink rod/adj/nonAdj, weights, fuel/energy mult) each tick. Default: false")
+            .define("002_reactor_simulation_debug", false);
+
     static {
         BUILDER.pop();
     }
@@ -80,6 +85,18 @@ public class Config {
     public static final ModConfigSpec.DoubleValue HEAT_SINK_NON_ADJACENT_WEIGHT = BUILDER
             .comment("Influence weight for coolant cells not touching any rod. Default: 0.5")
             .defineInRange("106e_heatSinkNonAdjacentWeight", 0.5, 0.0, 10.0);
+    /** Extra divisor for fuel consumption when using Excel-style heat sink formula (MB% in sheet). Default: 1.35 */
+    public static final ModConfigSpec.DoubleValue HEAT_SINK_CONSUMPTION_DIVISOR = BUILDER
+            .comment("Extra divisor for fuel consumption with heat sinks (Excel MB%%). Default: 1.35")
+            .defineInRange("106f_heatSinkConsumptionDivisor", 1.35, 0.1, 10.0);
+    /** Multiply RF when using Excel-style heat sink formula to match sheet (e.g. ~1.16 for ~11k RF/t). Default: 1.16 */
+    public static final ModConfigSpec.DoubleValue HEAT_SINK_RF_MULTIPLIER = BUILDER
+            .comment("Scale RF produced with heat sink formula to match Excel. Default: 1.16")
+            .defineInRange("106g_heatSinkRfMultiplier", 1.16, 0.1, 5.0);
+    /** Multiply fuel consumption (mB/t) when using heat sinks to match sheet (e.g. 1.21 for ~0.17 mB/t). Default: 1.21 */
+    public static final ModConfigSpec.DoubleValue HEAT_SINK_MB_MULTIPLIER = BUILDER
+            .comment("Scale fuel consumption with heat sinks to match Excel. Default: 1.21")
+            .defineInRange("106h_heatSinkMbMultiplier", 1.21, 0.1, 5.0);
 
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")

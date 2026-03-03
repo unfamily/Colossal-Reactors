@@ -50,58 +50,59 @@ public final class HeatSinkLoader {
 
     private HeatSinkLoader() {}
 
-    /** Internal defaults so heat sinks work without dumping; JSON in reactor/ can override or add. */
+    /** Internal defaults (tags only, no block ids). JSON in reactor/ can override or add. */
     private static void registerInternalDefaults() {
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of(),
-                List.of("#c:water", "minecraft:water"),
+                List.of("#c:water"),
                 1.0, 1.15, true));
         DEFINITIONS.add(new HeatSinkDefinition(
-                List.of("#c:storage_blocks/diamond", "minecraft:diamond_block"),
+                List.of("#c:storage_blocks/diamond"),
                 List.of(),
-                1.55, 1.5, true));
+                1.5, 1.55, true));  // fuel=1.5, energy=1.55
         DEFINITIONS.add(new HeatSinkDefinition(
-                List.of("#c:storage_blocks/gold", "minecraft:gold_block"),
+                List.of("#c:storage_blocks/gold"),
                 List.of(),
                 1.5, 1.5, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/graphite"),
                 List.of(),
-                0.75, 2.0, true));
+                2.0, 0.75, true));  // fuel=2.0, energy=0.75
     }
 
     /**
-     * Scans the reactor config directory for heat_sinks JSON. Internal defaults first (so heat sinks work without dump), then JSON overrides/adds.
+     * Scans the reactor config directory for heat_sinks JSON. If any JSON with type heat_sinks exists, only those entries are used (override mode).
+     * Internal defaults are used only when the reactor directory is missing or contains no heat_sinks JSON.
      */
     public static void scanConfigDirectory() {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Scanning heat sink configuration (reactor directory)...");
         }
         DEFINITIONS.clear();
-        registerInternalDefaults();
 
         String basePath = Config.EXTERNAL_SCRIPTS_PATH.get();
         if (basePath == null || basePath.trim().isEmpty()) {
             basePath = "kubejs/external_scripts/colossal_reactors";
         }
         Path reactorPath = Paths.get(basePath, "reactor");
-        if (!Files.exists(reactorPath) || !Files.isDirectory(reactorPath)) {
-            if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Reactor config directory does not exist ({}). Using internal heat sink defaults only. Run dump to create/override.", reactorPath.toAbsolutePath());
+        if (Files.exists(reactorPath) && Files.isDirectory(reactorPath)) {
+            try (var stream = Files.list(reactorPath)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(p -> p.toString().endsWith(".json"))
+                        .filter(p -> !p.getFileName().toString().startsWith("."))
+                        .sorted()
+                        .forEach(HeatSinkLoader::parseConfigFile);
+            } catch (IOException e) {
+                LOGGER.error("Error scanning reactor directory for heat sinks: {}", e.getMessage());
             }
-            return;
         }
-        try (var stream = Files.list(reactorPath)) {
-            stream.filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".json"))
-                    .filter(p -> !p.getFileName().toString().startsWith("."))
-                    .sorted()
-                    .forEach(HeatSinkLoader::parseConfigFile);
-        } catch (IOException e) {
-            LOGGER.error("Error scanning fuel directory for heat sinks: {}", e.getMessage());
-        }
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Heat sink definitions loaded: {}", DEFINITIONS.size());
+        if (DEFINITIONS.isEmpty()) {
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("No heat sink JSON found in reactor directory. Using internal defaults. Run dump to create heat_sink.json and override.");
+            }
+            registerInternalDefaults();
+        } else if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Heat sink definitions loaded from JSON (override mode): {}", DEFINITIONS.size());
         }
     }
 
@@ -265,7 +266,7 @@ public final class HeatSinkLoader {
 
     /**
      * Writes the default heat_sink.json into the given directory (e.g. reactor). Called by dump command.
-     * Uses tag namespaces (#c: etc.) and direct ids so it works with any mod setup.
+     * Tags only (no block/liquid ids) so you can verify tag resolution.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
         Files.createDirectories(reactorDir);
@@ -275,25 +276,25 @@ public final class HeatSinkLoader {
               "type": "colossal_reactors:heat_sinks",
               "entries": [
                 {
-                  "valid_liquids": ["#c:water", "minecraft:water"],
+                  "valid_liquids": ["#c:water"],
                   "must_source": true,
                   "fuel": 1.0,
                   "energy": 1.15
                 },
                 {
-                  "valid_blocks": ["#c:storage_blocks/diamond", "minecraft:diamond_block"],
-                  "fuel": 1.55,
-                  "energy": 1.5
+                  "valid_blocks": ["#c:storage_blocks/diamond"],
+                  "fuel": 1.5,
+                  "energy": 1.55
                 },
                 {
-                  "valid_blocks": ["#c:storage_blocks/gold", "minecraft:gold_block"],
+                  "valid_blocks": ["#c:storage_blocks/gold"],
                   "fuel": 1.5,
                   "energy": 1.5
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/graphite"],
-                  "fuel": 0.75,
-                  "energy": 2.0
+                  "fuel": 2.0,
+                  "energy": 0.75
                 }
               ]
             }
@@ -305,4 +306,17 @@ public final class HeatSinkLoader {
     }
 
     public record HeatSinkModifiers(double fuelMultiplier, double energyMultiplier) {}
+
+    /**
+     * Result for simulation: weighted averages plus Excel-style sums (adjacent energy/fuel sums and counts).
+     * Used for formula: RF = Base * (sumEnergyAdj + countNon*rodCount) * efficiencyFactor / rodCount.
+     */
+    public record HeatSinkModifiersResult(
+            double fuelMultiplier,
+            double energyMultiplier,
+            double sumEnergyAdj,
+            double sumFuelAdj,
+            int countAdj,
+            int countNon
+    ) {}
 }

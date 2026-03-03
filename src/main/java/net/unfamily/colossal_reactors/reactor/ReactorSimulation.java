@@ -103,23 +103,38 @@ public final class ReactorSimulation {
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null ? coolantDef.mbMultiplier() : 1.0;
 
-        HeatSinkLoader.HeatSinkModifiers heatSink = computeHeatSinkModifiers(level, result, rods.size());
+        HeatSinkLoader.HeatSinkModifiersResult heatSink = computeHeatSinkModifiers(level, result, rods.size(), rods);
         double heatSinkFuelMult = heatSink.fuelMultiplier();
         double heatSinkEnergyMult = heatSink.energyMultiplier();
+        int countAdj = heatSink.countAdj();
+        int countNon = heatSink.countNon();
+        double sumEnergyAdj = heatSink.sumEnergyAdj();
+        double sumFuelAdj = heatSink.sumFuelAdj();
 
         double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
 
-        // Consumption: empirical curve; divided by coolant mbMultiplier; multiplied by heat sink fuel modifier (e.g. graphite 0.75 = consume less).
+        // Consumption: empirical curve; divided by coolant mbMultiplier. Excel-style: divide by heat sink fuel (MB%) and extra divisor.
         double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.sqrt(effectiveRodCount + 1);
         double mbDivisor = (coolantDef != null && coolantDef.mbMultiplier() > 0) ? coolantDef.mbMultiplier() : 1.0;
-        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor * heatSinkFuelMult;
+        double consumptionDivisor = Math.max(0.1, Config.HEAT_SINK_CONSUMPTION_DIVISOR.get());
+        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor / heatSinkFuelMult / consumptionDivisor;
+        if (countAdj + countNon > 0) {
+            ingotsToConsumeRaw *= Math.max(0.1, Config.HEAT_SINK_MB_MULTIPLIER.get());
+        }
         int mbToConsume = (int) Math.min(ingotsToConsumeRaw * 1000, totalFuelUnits);
 
         if (mbToConsume > 0) {
             consumeFuelFromRods(rods, mbToConsume, level.registryAccess());
         }
 
-        double rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
+        // Excel-style RF when we have coolant cells: Base * (Refrigerante0*RF% + Refrigerante1*RodCount) * efficiencyFactor / effectiveRodCount
+        double rfProduced;
+        if (countAdj + countNon > 0 && effectiveRodCount > 0) {
+            double excelFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
+            rfProduced = baseRf * productionMult * rfEfficiency * excelFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
+        } else {
+            rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
+        }
 
         // Water mode: coolant is consumed for steam; no RF when water is sufficient. Use water mode if def is water (by id) or has consumesFluidForSteam.
         boolean waterMode = coolantDef != null
@@ -287,11 +302,10 @@ public final class ReactorSimulation {
 
     /**
      * Fuel/energy multipliers from interior with adjacency influence: coolant adjacent to a rod (Refrigerante 0)
-     * and coolant not adjacent (Refrigerante 1) are weighted separately; each cell counted once (no double-count
-     * when a block touches multiple rods). Rod cells use their coolant fluid modifier. Non-adjacent coolant cells
-     * contribute rodCount per cell (Excel-style: N_non * RodCount in the formula), not the block's multiplier.
+     * and coolant not adjacent (Refrigerante 1) are weighted separately; each cell counted once (no double-count).
+     * Rod cells use their coolant fluid modifier; adjacent/non-adjacent coolant use block modifier with weights wAdj/wNon.
      */
-    private static HeatSinkLoader.HeatSinkModifiers computeHeatSinkModifiers(ServerLevel level, ReactorValidation.Result result, int rodCount) {
+    private static HeatSinkLoader.HeatSinkModifiersResult computeHeatSinkModifiers(ServerLevel level, ReactorValidation.Result result, int rodsFromList, List<ReactorRodBlockEntity> rods) {
         int minX = result.minX(), minY = result.minY(), minZ = result.minZ();
         int maxX = result.maxX(), maxY = result.maxY(), maxZ = result.maxZ();
         Set<BlockPos> rodPositions = new HashSet<>();
@@ -338,9 +352,8 @@ public final class ReactorSimulation {
                             sumEnergyAdj += m.energyMultiplier();
                             countAdj++;
                         } else {
-                            // Excel-style: non-adjacent (Refrigerante 1) contributes rodCount per cell, not the block multiplier
-                            sumFuelNon += rodCount;
-                            sumEnergyNon += rodCount;
+                            sumFuelNon += m.fuelMultiplier();
+                            sumEnergyNon += m.energyMultiplier();
                             countNon++;
                         }
                     }
@@ -350,14 +363,20 @@ public final class ReactorSimulation {
         double totalWeightedFuel = sumFuelRod + sumFuelAdj * wAdj + sumFuelNon * wNon;
         double totalWeightedEnergy = sumEnergyRod + sumEnergyAdj * wAdj + sumEnergyNon * wNon;
         double totalWeight = countRod + countAdj * wAdj + countNon * wNon;
-        if (totalWeight <= 0) return new HeatSinkLoader.HeatSinkModifiers(1.0, 1.0);
+        if (totalWeight <= 0) return new HeatSinkLoader.HeatSinkModifiersResult(1.0, 1.0, 0.0, 0.0, 0, 0);
         double effFuel = totalWeightedFuel / totalWeight;
         double effEnergy = totalWeightedEnergy / totalWeight;
-        if (Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
-            ColossalReactors.LOGGER.info("[ReactorSimulation] Heat sink: rod={} adj={} nonAdj={} wAdj={} wNon={} => fuelMult={} energyMult={}",
-                    countRod, countAdj, countNon, wAdj, wNon, effFuel, effEnergy);
+        if (Boolean.TRUE.equals(Config.REACTOR_SIMULATION_DEBUG.get())) {
+            int rodsWithCoolant = 0;
+            int rodsNoCoolant = 0;
+            for (ReactorRodBlockEntity r : rods) {
+                if (getFirstCoolantFluidInRod(level, r.getBlockPos()) != null) rodsWithCoolant++;
+                else rodsNoCoolant++;
+            }
+            ColossalReactors.LOGGER.info("[ReactorSimulation] Heat sink: rod(scan)={} rod(list)={} [withCoolant={} noCoolant={}] adj={} nonAdj={} sumEnergyAdj={} sumFuelAdj={} wAdj={} wNon={} => fuelMult={} energyMult={}",
+                    countRod, rodsFromList, rodsWithCoolant, rodsNoCoolant, countAdj, countNon, sumEnergyAdj, sumFuelAdj, wAdj, wNon, effFuel, effEnergy);
         }
-        return new HeatSinkLoader.HeatSinkModifiers(effFuel, effEnergy);
+        return new HeatSinkLoader.HeatSinkModifiersResult(effFuel, effEnergy, sumEnergyAdj, sumFuelAdj, countAdj, countNon);
     }
 
     /** First coolant fluid with amount > 0 in this rod, or null if not a rod or no coolant. */

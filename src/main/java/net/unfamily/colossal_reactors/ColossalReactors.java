@@ -75,6 +75,7 @@ public class ColossalReactors {
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.debug("Colossal Reactors common setup");
         LOGGER.info("Reactor validation debug (dev.001_reactor_validation_debug): {}", Config.REACTOR_VALIDATION_DEBUG.get());
+        LOGGER.info("Reactor simulation debug (dev.002_reactor_simulation_debug): {}", Config.REACTOR_SIMULATION_DEBUG.get());
     }
 
     @SubscribeEvent
