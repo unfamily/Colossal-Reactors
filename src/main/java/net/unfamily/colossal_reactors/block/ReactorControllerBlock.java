@@ -28,6 +28,8 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
+import net.unfamily.colossal_reactors.reactor.ReactorFiller;
+import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 
 /**
@@ -164,22 +166,30 @@ public class ReactorControllerBlock extends BaseEntityBlock {
             controllerBe.setChanged();
             controllerBe.notifyValidationResult();
             if (next == ControllerState.ON) {
-                level.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
+                level.scheduleTick(pos, this, 1);
             }
             return;
         }
 
         if (current == ControllerState.ON) {
-            ReactorValidation.Result result = ReactorValidation.validate(level, startPos, back);
-            if (result.valid()) {
+            ReactorValidation.Result result = controllerBe.getCachedResult();
+            boolean revalidate = (level.getGameTime() % Config.REACTOR_VALIDATION_INTERVAL_TICKS.get()) == 0;
+            if (revalidate) {
+                result = ReactorValidation.validate(level, startPos, back);
+                if (!result.valid()) {
+                    controllerBe.setCachedResult(result);
+                    level.setBlock(pos, state.setValue(STATE, ControllerState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+                    controllerBe.setChanged();
+                    return;
+                }
                 controllerBe.setCachedResult(result);
-                controllerBe.setChanged();
-                level.scheduleTick(pos, this, Config.REACTOR_VALIDATION_INTERVAL_TICKS.get());
-            } else {
-                controllerBe.setCachedResult(result);
-                level.setBlock(pos, state.setValue(STATE, ControllerState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
                 controllerBe.setChanged();
             }
+            if (result != null && result.valid()) {
+                ReactorFiller.tickFill(level, controllerBe);
+                ReactorSimulation.tick(level, controllerBe);
+            }
+            level.scheduleTick(pos, this, 1);
         }
     }
 

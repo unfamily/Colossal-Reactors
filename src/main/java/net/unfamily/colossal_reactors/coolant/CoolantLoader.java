@@ -5,9 +5,17 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +49,8 @@ public class CoolantLoader {
     private static final String KEY_COOLANT_ID = "coolant_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_OUTPUT = "output";
+    private static final String KEY_RF_INCREMENT_PERCENT = "rf_increment_percent";
+    private static final String KEY_MB_DECREMENT_PERCENT = "mb_decrement_percent";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
     private static final Map<ResourceLocation, CoolantDefinition> DEFINITIONS = new HashMap<>();
@@ -93,7 +103,7 @@ public class CoolantLoader {
     private static void registerInternalDefaults() {
         List<String> inputs = List.of("minecraft:water");
         String output = "#c:steam";
-        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, true));
+        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true));
     }
 
     private static void parseConfigFile(Path filePath) {
@@ -145,8 +155,10 @@ public class CoolantLoader {
             }
         }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
+        int rfIncrement = json.has(KEY_RF_INCREMENT_PERCENT) ? json.get(KEY_RF_INCREMENT_PERCENT).getAsInt() : 0;
+        int mbDecrement = json.has(KEY_MB_DECREMENT_PERCENT) ? json.get(KEY_MB_DECREMENT_PERCENT).getAsInt() : 100;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, overwritable);
+        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, overwritable);
     }
 
     private static void addExcludedInputs(JsonObject obj) {
@@ -178,6 +190,49 @@ public class CoolantLoader {
         return EXCLUDED_INPUTS.contains(inputSelector);
     }
 
+    /** Returns the first fluid in the given tag (e.g. "#c:steam"), or null if not a tag or tag is empty. */
+    @Nullable
+    public static Fluid getFirstFluidFromTag(String outputSelector, net.minecraft.core.RegistryAccess registryAccess) {
+        if (outputSelector == null || !outputSelector.startsWith("#")) return null;
+        ResourceLocation tagId = ResourceLocation.tryParse(outputSelector.substring(1));
+        if (tagId == null) return null;
+        var tagKey = TagKey.create(Registries.FLUID, tagId);
+        return registryAccess.lookup(Registries.FLUID)
+                .flatMap(l -> l.get(tagKey))
+                .flatMap(holders -> holders.stream().findFirst())
+                .map(h -> h.value())
+                .orElse(null);
+    }
+
+    /**
+     * Finds the coolant definition that matches the given fluid (by fluid id or fluid tag). Returns null if excluded or no match.
+     */
+    @Nullable
+    public static CoolantDefinition getDefinitionForFluid(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) return null;
+        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String input : def.inputs()) {
+                if (isInputExcluded(input)) continue;
+                if (input.startsWith("#")) {
+                    ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+                    if (tagId == null) continue;
+                    TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+                    var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID).getHolder(ResourceKey.create(Registries.FLUID, fluidId)).orElse(null);
+                    if (fluidHolder == null) continue;
+                    boolean inTag = registryAccess.lookup(Registries.FLUID)
+                            .flatMap(l -> l.get(tagKey))
+                            .map(holders -> holders.contains(fluidHolder))
+                            .orElse(false);
+                    if (inTag) return def;
+                } else {
+                    if (ResourceLocation.tryParse(input).equals(fluidId)) return def;
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * Writes the default coolant JSON into the given directory. Called by dump_default command.
      */
@@ -195,7 +250,9 @@ public class CoolantLoader {
                   "inputs": [
                     "minecraft:water"
                   ],
-                  "output": "#c:steam"
+                  "output": "#c:steam",
+                  "rf_increment_percent": 0,
+                  "mb_decrement_percent": 100
                 }
               ]
             }

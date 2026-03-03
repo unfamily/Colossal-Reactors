@@ -49,6 +49,11 @@ public class Config {
             .comment("MB (fuel units) per one uranium ingot. Default: 1000")
             .defineInRange("102_uraniumIngotMb", 1000, 1, 1000000);
 
+    /** Max fuel units per rod (total capacity shared by all fuel types). Default: 10000. */
+    public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
+            .comment("Max fuel units per reactor rod (shared capacity). Default: 10000")
+            .defineInRange("107_rodMaxFuelUnits", 10000, 1, 10000000);
+
     public static final ModConfigSpec.DoubleValue RF_EFFICIENCY_LOSS = BUILDER
             .comment("RF efficiency loss factor (F3 in formulas). Default: 0.2")
             .defineInRange("103_rfEfficiencyLoss", 0.2, 0.0, 1.0);
@@ -66,6 +71,11 @@ public class Config {
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")
             .defineInRange("010_reactorValidationIntervalTicks", 200, 1, 1200);
+
+    /** Steam produced per RF (e.g. 0.33 mB steam per 1 RF). Default: 0.33 */
+    public static final ModConfigSpec.DoubleValue STEAM_PER_RF = BUILDER
+            .comment("Steam (mB) produced per 1 RF. Default: 0.33")
+            .defineInRange("108_steamPerRf", 0.33, 0.0, 10.0);
 
     static {
         BUILDER.comment("Port block settings").push("ports");

@@ -82,7 +82,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
 
     /** Max total fuel units per rod (from config). */
     public static int getMaxFuelUnits() {
-        return Config.URANIUM_INGOT_MB.get();
+        return Config.ROD_MAX_FUEL_UNITS.get();
     }
 
     /** Add units of a fuel type. Clamps to max total capacity; returns actual amount added. */
@@ -96,6 +96,28 @@ public class ReactorRodBlockEntity extends BlockEntity {
         setChanged();
         updateBlockState();
         return add;
+    }
+
+    /** Consumes up to `units` of the given fuel type. Returns the amount actually consumed. */
+    public int consumeFuel(ResourceLocation fuelId, int units) {
+        if (units <= 0) return 0;
+        for (int i = 0; i < fuelEntries.size(); i++) {
+            if (fuelEntries.get(i).id().equals(fuelId)) {
+                FuelEntry e = fuelEntries.get(i);
+                int take = Math.min(units, e.units());
+                if (take <= 0) return 0;
+                int newUnits = e.units() - take;
+                if (newUnits <= 0) {
+                    fuelEntries.remove(i);
+                } else {
+                    fuelEntries.set(i, new FuelEntry(fuelId, newUnits));
+                }
+                setChanged();
+                updateBlockState();
+                return take;
+            }
+        }
+        return 0;
     }
 
     /** Set units for a fuel type (replaces that type). Total is clamped to max. */

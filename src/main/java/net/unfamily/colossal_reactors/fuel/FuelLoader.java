@@ -5,10 +5,18 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -187,6 +195,36 @@ public class FuelLoader {
     /** True if this input selector (tag or item id) is excluded ("disable: true" for these tags/items). */
     public static boolean isInputExcluded(String inputSelector) {
         return EXCLUDED_INPUTS.contains(inputSelector);
+    }
+
+    /**
+     * Finds the fuel definition that matches the given item (by item id or item tag). Returns null if excluded or no match.
+     */
+    @Nullable
+    public static FuelDefinition getDefinitionForItem(ItemStack stack, RegistryAccess registryAccess) {
+        if (stack == null || stack.isEmpty()) return null;
+        Item item = stack.getItem();
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            for (String input : def.inputs()) {
+                if (isInputExcluded(input)) continue;
+                if (input.startsWith("#")) {
+                    ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+                    if (tagId == null) continue;
+                    TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
+                    var itemHolder = registryAccess.registryOrThrow(Registries.ITEM).getHolder(ResourceKey.create(Registries.ITEM, itemId)).orElse(null);
+                    if (itemHolder == null) continue;
+                    boolean inTag = registryAccess.lookup(Registries.ITEM)
+                            .flatMap(l -> l.get(tagKey))
+                            .map(holders -> holders.contains(itemHolder))
+                            .orElse(false);
+                    if (inTag) return def;
+                } else {
+                    if (ResourceLocation.tryParse(input).equals(itemId)) return def;
+                }
+            }
+        }
+        return null;
     }
 
     /**
