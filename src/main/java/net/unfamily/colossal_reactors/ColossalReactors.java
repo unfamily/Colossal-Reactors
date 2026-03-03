@@ -32,6 +32,8 @@ import net.unfamily.colossal_reactors.network.ModPayloads;
 import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 @Mod(ColossalReactors.MODID)
@@ -77,6 +79,8 @@ public class ColossalReactors {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.debug("Colossal Reactors server starting");
+        FuelLoader.scanConfigDirectory();
+        CoolantLoader.scanConfigDirectory();
     }
 
     @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
