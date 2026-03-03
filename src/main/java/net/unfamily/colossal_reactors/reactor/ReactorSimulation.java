@@ -14,6 +14,7 @@ import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
@@ -118,6 +119,10 @@ public final class ReactorSimulation {
         boolean waterMode = coolantDef != null
                 && (coolantDef.consumesFluidForSteam() || CoolantLoader.WATER_COOLANT_ID.equals(coolantDef.coolantId()));
 
+        int rfPushedThisTick = 0;
+        int steamProducedThisTick = 0;
+        int waterConsumedThisTick = 0;
+
         if (waterMode) {
             // Water mode: consume coolant for steam. Only produce RF when water is insufficient for full conversion.
             int coolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
@@ -128,8 +133,10 @@ public final class ReactorSimulation {
                     if (totalDrained >= coolantToConsumeMb) break;
                     totalDrained += rod.drainCoolant(coolantFluid, coolantToConsumeMb - totalDrained);
                 }
+                waterConsumedThisTick = totalDrained;
                 double steamMb = totalDrained * coolantDef.steamPerCoolant();
                 int steamPerTick = (int) steamMb;
+                steamProducedThisTick = steamPerTick;
                 if (steamPerTick > 0) {
                     String outputTag = coolantDef.output();
                     Fluid steamFluid = CoolantLoader.getFirstFluidFromTag(outputTag, level.registryAccess());
@@ -149,6 +156,7 @@ public final class ReactorSimulation {
                     if (rfToPush > 0 && !powerPorts.isEmpty()) {
                         for (PowerPortBlockEntity port : powerPorts) {
                             int accepted = port.receiveEnergyFromReactor(rfToPush);
+                            rfPushedThisTick += accepted;
                             rfToPush -= accepted;
                             if (rfToPush <= 0) break;
                         }
@@ -160,6 +168,7 @@ public final class ReactorSimulation {
                 if (rfPerTick > 0 && !powerPorts.isEmpty()) {
                     for (PowerPortBlockEntity port : powerPorts) {
                         int accepted = port.receiveEnergyFromReactor(rfPerTick);
+                        rfPushedThisTick += accepted;
                         rfPerTick -= accepted;
                         if (rfPerTick <= 0) break;
                     }
@@ -171,6 +180,7 @@ public final class ReactorSimulation {
             if (rfPerTick > 0 && !powerPorts.isEmpty()) {
                 for (PowerPortBlockEntity port : powerPorts) {
                     int accepted = port.receiveEnergyFromReactor(rfPerTick);
+                    rfPushedThisTick += accepted;
                     rfPerTick -= accepted;
                     if (rfPerTick <= 0) break;
                 }
@@ -178,6 +188,9 @@ public final class ReactorSimulation {
         }
 
         pushWasteToPorts(rods, resourcePorts);
+
+        int fuelHundredths = (int) Math.round(ingotsToConsumeRaw * 100);
+        controller.setLastTickStats(rfPushedThisTick, steamProducedThisTick, waterConsumedThisTick, fuelHundredths);
     }
 
     /**
@@ -218,6 +231,7 @@ public final class ReactorSimulation {
                         }
                     }
                     for (ResourcePortBlockEntity port : extractPorts) {
+                        if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
                         if (stack.isEmpty() || !port.canAcceptItemFromReactor()) continue;
                         ItemStack remaining = port.receiveItemFromReactor(stack);
                         stack = remaining;
@@ -238,6 +252,7 @@ public final class ReactorSimulation {
         }
 
         for (ResourcePortBlockEntity port : extractPorts) {
+            if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
             while (port.canAcceptFluidFromReactor()) {
                 int space = port.getFluidTank().getCapacity() - port.getFluidTank().getFluidAmount();
                 if (space <= 0) break;

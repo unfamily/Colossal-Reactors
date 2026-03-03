@@ -28,6 +28,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
 import net.unfamily.colossal_reactors.reactor.ReactorFiller;
 import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
@@ -186,8 +187,10 @@ public class ReactorControllerBlock extends BaseEntityBlock {
                 controllerBe.setChanged();
             }
             if (result != null && result.valid()) {
-                ReactorFiller.tickFill(level, controllerBe);
-                ReactorSimulation.tick(level, controllerBe);
+                if (isRedstoneGateSatisfied(level, result)) {
+                    ReactorFiller.tickFill(level, controllerBe);
+                    ReactorSimulation.tick(level, controllerBe);
+                }
             }
             level.scheduleTick(pos, this, 1);
         }
@@ -216,6 +219,33 @@ public class ReactorControllerBlock extends BaseEntityBlock {
             serverLevel.scheduleTick(pos, this, 1);
         }
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * If the reactor has at least one redstone port, the reactor runs only when at least one port is active (signal + mode).
+     * If there are no redstone ports, the gate is satisfied (reactor always runs when ON).
+     */
+    public static boolean isRedstoneGateSatisfied(ServerLevel level, ReactorValidation.Result result) {
+        int minX = result.minX();
+        int minY = result.minY();
+        int minZ = result.minZ();
+        int maxX = result.maxX();
+        int maxY = result.maxY();
+        int maxZ = result.maxZ();
+        boolean hasAnyPort = false;
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    if (!level.getBlockState(new BlockPos(x, y, z)).is(ModBlocks.REDSTONE_PORT.get())) continue;
+                    hasAnyPort = true;
+                    BlockEntity be = level.getBlockEntity(new BlockPos(x, y, z));
+                    if (be instanceof RedstonePortBlockEntity port && port.isRedstoneActive(level)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return !hasAnyPort;
     }
 
     private static VoxelShape shapeFor(Direction facing) {

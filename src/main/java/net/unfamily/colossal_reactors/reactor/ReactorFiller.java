@@ -10,6 +10,7 @@ import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
@@ -24,8 +25,6 @@ import java.util.List;
  * and fills rods (fuel items and coolant fluid), respecting each port's filter (both / only solid fuel / only coolant).
  */
 public final class ReactorFiller {
-
-    private static final int MAX_FLUID_DRAIN_PER_TICK = 500;
 
     private ReactorFiller() {}
 
@@ -111,7 +110,8 @@ public final class ReactorFiller {
                         for (ReactorRodBlockEntity rod : rods) {
                             totalSpace += ReactorRodBlockEntity.getCoolantCapacityMb() - rod.getTotalCoolantMb();
                         }
-                        int toDrain = Math.min(MAX_FLUID_DRAIN_PER_TICK, Math.min(fluidStack.getAmount(), totalSpace));
+                        int maxPerTick = Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
+                        int toDrain = Math.min(maxPerTick, Math.min(fluidStack.getAmount(), totalSpace));
                         if (toDrain > 0) {
                             FluidStack drained = port.getFluidTank().drain(toDrain, IFluidHandler.FluidAction.EXECUTE);
                             if (!drained.isEmpty()) {

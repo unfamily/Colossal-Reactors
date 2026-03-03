@@ -54,7 +54,13 @@ public class CoolantLoader {
     private static final String KEY_CONSUMES_FLUID_FOR_STEAM = "consumes_fluid_for_steam";
     private static final String KEY_RF_TO_COOLANT_FACTOR = "rf_to_coolant_factor";
     private static final String KEY_STEAM_PER_COOLANT = "steam_per_coolant";
+    private static final String KEY_FLUID_COLOR = "fluid_color";
+    private static final String KEY_OUTPUT_COLOR = "output_color";
     private static final String KEY_OVERWRITABLE = "overwritable";
+
+    /** Default colors for simple fluid bar rendering: water azure, steam almost white. ARGB. */
+    private static final int DEFAULT_WATER_COLOR = 0xFF3498DB;
+    private static final int DEFAULT_STEAM_COLOR = 0xFFE8F0F0;
 
     private static final Map<ResourceLocation, CoolantDefinition> DEFINITIONS = new HashMap<>();
     /** Input selectors (tag or fluid id) that are excluded: not valid as coolant. */
@@ -106,7 +112,7 @@ public class CoolantLoader {
     private static void registerInternalDefaults() {
         List<String> inputs = List.of("minecraft:water");
         String output = "#c:steam";
-        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, true));
+        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
     }
 
     private static void parseConfigFile(Path filePath) {
@@ -163,8 +169,30 @@ public class CoolantLoader {
         boolean consumesFluid = json.has(KEY_CONSUMES_FLUID_FOR_STEAM) && json.get(KEY_CONSUMES_FLUID_FOR_STEAM).getAsBoolean();
         double rfToCoolant = json.has(KEY_RF_TO_COOLANT_FACTOR) ? json.get(KEY_RF_TO_COOLANT_FACTOR).getAsDouble() : 0.45;
         double steamPerCoolant = json.has(KEY_STEAM_PER_COOLANT) ? json.get(KEY_STEAM_PER_COOLANT).getAsDouble() : 1.0;
+        int fluidColor = parseColor(json, KEY_FLUID_COLOR, DEFAULT_WATER_COLOR);
+        int outputColor = parseColor(json, KEY_OUTPUT_COLOR, DEFAULT_STEAM_COLOR);
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, consumesFluid, rfToCoolant, steamPerCoolant, overwritable);
+        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, consumesFluid, rfToCoolant, steamPerCoolant, fluidColor, outputColor, overwritable);
+    }
+
+    /** Parses optional color from JSON: "fluid_color": "#3498db" or number. Returns ARGB (0 = use default). */
+    private static int parseColor(JsonObject json, String key, int defaultColor) {
+        if (!json.has(key)) return defaultColor;
+        JsonElement el = json.get(key);
+        if (el.isJsonPrimitive()) {
+            if (el.getAsJsonPrimitive().isString()) {
+                String hex = el.getAsString();
+                if (hex.startsWith("#") && hex.length() >= 7) {
+                    try {
+                        int rgb = Integer.parseInt(hex.substring(1), 16);
+                        return 0xFF000000 | (rgb & 0xFFFFFF);
+                    } catch (NumberFormatException ignored) { }
+                }
+            } else if (el.getAsJsonPrimitive().isNumber()) {
+                return el.getAsInt() & 0xFFFFFFFF;
+            }
+        }
+        return defaultColor;
     }
 
     private static void addExcludedInputs(JsonObject obj) {
@@ -221,6 +249,24 @@ public class CoolantLoader {
     }
 
     /**
+     * Returns ARGB color for simple fluid bar rendering. Input fluids use fluid_color, output (e.g. steam) uses output_color.
+     * Returns 0 to use game default when no definition provides a color.
+     */
+    public static int getColorForFluid(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) return 0;
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            Fluid outputFluid = getFirstFluidFromTag(def.output(), registryAccess);
+            if (outputFluid == fluid && def.outputColor() != 0) return def.outputColor();
+            for (String input : def.inputs()) {
+                if (isInputExcluded(input)) continue;
+                Fluid fromInput = input.startsWith("#") ? getFirstFluidFromTag(input, registryAccess) : BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(input));
+                if (fromInput == fluid && def.fluidColor() != 0) return def.fluidColor();
+            }
+        }
+        return 0;
+    }
+
+    /**
      * Finds the coolant definition that matches the given fluid (by fluid id or fluid tag). Returns null if excluded or no match.
      */
     @Nullable
@@ -271,7 +317,9 @@ public class CoolantLoader {
                   "mb_decrement_percent": 100,
                   "consumes_fluid_for_steam": true,
                   "rf_to_coolant_factor": 0.45,
-                  "steam_per_coolant": 1.0
+                  "steam_per_coolant": 1.0,
+                  "fluid_color": "#3498db",
+                  "output_color": "#e8f0f0"
                 }
               ]
             }

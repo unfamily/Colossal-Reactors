@@ -8,6 +8,7 @@ import java.util.List;
  * One coolant type: id, fluid inputs (tag or id), output fluid selector, RF/MB modifiers, and optional "water mode".
  * When consumesFluidForSteam is true: no RF output; wouldBeRf * rfToCoolantFactor = coolant consumed (mB);
  * steam produced = coolantConsumed * steamPerCoolant (default 1:1).
+ * fluidColor and outputColor are ARGB (0 = use game default) for simple GUI rendering.
  */
 public record CoolantDefinition(
         ResourceLocation coolantId,
@@ -18,6 +19,8 @@ public record CoolantDefinition(
         boolean consumesFluidForSteam,
         double rfToCoolantFactor,
         double steamPerCoolant,
+        int fluidColor,
+        int outputColor,
         boolean overwritable
 ) {
     /** Inputs: "#namespace:tag" (fluid tag) or "namespace:fluid_id" (fluid). */

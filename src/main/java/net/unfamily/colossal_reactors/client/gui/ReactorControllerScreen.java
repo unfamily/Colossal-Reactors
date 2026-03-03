@@ -1,15 +1,19 @@
 package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
+import net.unfamily.colossal_reactors.network.ReactorControllerRefreshPayload;
 
 /**
- * Reactor controller GUI. Background reactor_controller.png (230x150). Dark panel (11,19)-(218,137) shows stats in white.
+ * Reactor controller GUI. Background reactor_controller.png (230x150). Dark panel shows status, rods, coolant, energy, steam, water, fuel. Refresh button on the right.
  */
 public class ReactorControllerScreen extends AbstractContainerScreen<ReactorControllerMenu> {
 
@@ -25,10 +29,34 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private static final int LINE_HEIGHT = 12;
     private static final int TEXT_COLOR = 0xFFFFFF;
 
+    /** Reboot button: bottom right, slightly above edge */
+    private static final int REFRESH_BUTTON_WIDTH = 50;
+    private static final int REFRESH_BUTTON_HEIGHT = 20;
+    private static final int REFRESH_BUTTON_RIGHT_INSET = 12;
+    private static final int REFRESH_BUTTON_BOTTOM_INSET = 13;
+
+    private Button refreshButton;
+
     public ReactorControllerScreen(ReactorControllerMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         imageWidth = GUI_WIDTH;
         imageHeight = GUI_HEIGHT;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        int refreshX = leftPos + imageWidth - REFRESH_BUTTON_WIDTH - REFRESH_BUTTON_RIGHT_INSET;
+        int refreshY = topPos + imageHeight - REFRESH_BUTTON_HEIGHT - REFRESH_BUTTON_BOTTOM_INSET;
+        refreshButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_controller.reboot"), b -> sendRefresh())
+                .bounds(refreshX, refreshY, REFRESH_BUTTON_WIDTH, REFRESH_BUTTON_HEIGHT)
+                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_controller.reboot.tooltip")))
+                .build();
+        addRenderableWidget(refreshButton);
+    }
+
+    private void sendRefresh() {
+        PacketDistributor.sendToServer(new ReactorControllerRefreshPayload(menu.getControllerBlockPos()));
     }
 
     @Override
@@ -44,14 +72,20 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
 
         int y = PANEL_Y;
         int stateId = menu.getControllerStateId();
+        // When ON but redstone port blocks, show OFF
+        boolean effectivelyOff = (stateId == 2 && menu.hasRedstonePort() && !menu.isRedstoneGateSatisfied());
         Component statusKey = switch (stateId) {
             case 0 -> Component.translatable("gui.colossal_reactors.reactor_controller.status.off");
             case 1 -> Component.translatable("gui.colossal_reactors.reactor_controller.status.validating");
-            default -> Component.translatable("gui.colossal_reactors.reactor_controller.status.on");
+            default -> effectivelyOff
+                    ? Component.translatable("gui.colossal_reactors.reactor_controller.status.off")
+                    : Component.translatable("gui.colossal_reactors.reactor_controller.status.on");
         };
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey),
-                PANEL_X, y, TEXT_COLOR, false);
+        Component statusLine = Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey);
+        if (!menu.hasRedstonePort()) {
+            statusLine = statusLine.copy().append(Component.literal(" ")).append(Component.translatable("gui.colossal_reactors.reactor_controller.status.requires_redstone_port"));
+        }
+        guiGraphics.drawString(font, statusLine, PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
@@ -60,15 +94,39 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant", menu.getCoolantCount()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", menu.getCoolantCount()),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        Component fuelLabel = menu.hasFuel()
-                ? Component.translatable("gui.colossal_reactors.reactor_controller.fuel.yes")
-                : Component.translatable("gui.colossal_reactors.reactor_controller.fuel.na");
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel", fuelLabel),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", menu.getEnergyPerTick()),
                 PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", menu.getSteamPerTick()),
+                PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", menu.getWaterPerTick()),
+                PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
+        String fuelStr = formatFuelPerTick(menu.getFuelPerTickHundredths());
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
+                PANEL_X, y, TEXT_COLOR, false);
+    }
+
+    private static String formatFuelPerTick(int hundredths) {
+        if (hundredths <= 0) return "0";
+        int intPart = hundredths / 100;
+        int frac = hundredths % 100;
+        if (frac == 0) {
+            return String.valueOf(intPart);
+        }
+        String fracStr = String.format("%02d", frac).replaceFirst("0+$", "");
+        return intPart + "." + fracStr;
     }
 }

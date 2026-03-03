@@ -27,6 +27,12 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     private ReactorValidation.Result cachedResult;
     private ServerPlayer lastInteractingPlayer;
 
+    /** Last tick stats for GUI (updated by ReactorSimulation.tick). Fuel is ingots/tick * 100 (e.g. 26 = 0.26). */
+    private int lastRfPerTick;
+    private int lastSteamPerTick;
+    private int lastWaterPerTick;
+    private int lastFuelPerTickHundredths;
+
     public ReactorControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_CONTROLLER_BE.get(), pos, state);
     }
@@ -35,15 +41,13 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         this.lastInteractingPlayer = player instanceof ServerPlayer sp ? sp : null;
     }
 
-    /** Called from block tick when VALIDATING -> ON/OFF; sends message to player who clicked. */
+    /** Called from block tick when VALIDATING -> ON/OFF; shows message in action bar. */
     public void notifyValidationResult() {
         if (lastInteractingPlayer != null && cachedResult != null) {
-            if (cachedResult.valid()) {
-                lastInteractingPlayer.sendSystemMessage(Component.translatable("message.colossal_reactors.reactor_valid",
-                        cachedResult.rodCount(), cachedResult.rodColumns(), cachedResult.coolantCount()));
-            } else {
-                lastInteractingPlayer.sendSystemMessage(Component.translatable("message.colossal_reactors.reactor_invalid"));
-            }
+            Component message = cachedResult.valid()
+                    ? Component.translatable("message.colossal_reactors.reactor_valid")
+                    : Component.translatable("message.colossal_reactors.reactor_invalid");
+            lastInteractingPlayer.displayClientMessage(message, true);
             lastInteractingPlayer = null;
         }
     }
@@ -63,6 +67,19 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             setChanged();
         }
     }
+
+    /** Called by ReactorSimulation.tick at end of each tick. Fuel hundredths = ingots/tick * 100 (e.g. 0.26 -> 26). */
+    public void setLastTickStats(int rfPerTick, int steamPerTick, int waterPerTick, int fuelPerTickHundredths) {
+        this.lastRfPerTick = rfPerTick;
+        this.lastSteamPerTick = steamPerTick;
+        this.lastWaterPerTick = waterPerTick;
+        this.lastFuelPerTickHundredths = fuelPerTickHundredths;
+    }
+
+    public int getLastRfPerTick() { return lastRfPerTick; }
+    public int getLastSteamPerTick() { return lastSteamPerTick; }
+    public int getLastWaterPerTick() { return lastWaterPerTick; }
+    public int getLastFuelPerTickHundredths() { return lastFuelPerTickHundredths; }
 
     @Override
     public Component getDisplayName() {

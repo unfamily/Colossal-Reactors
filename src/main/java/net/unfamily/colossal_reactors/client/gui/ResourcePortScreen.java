@@ -16,6 +16,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.colossal_reactors.network.ResourcePortFilterPayload;
 import net.unfamily.colossal_reactors.network.ResourcePortModePayload;
@@ -105,6 +106,13 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                         }
                 );
         addRenderableWidget(filterButton);
+        updateFilterButtonVisibility();
+    }
+
+    private void updateFilterButtonVisibility() {
+        if (filterButton != null) {
+            filterButton.visible = menu.getPortMode() == PortMode.EXTRACT || menu.getPortMode() == PortMode.EJECT;
+        }
     }
 
     @Override
@@ -121,7 +129,18 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 int barLeft = fluidBarLeft(this);
                 int barBottom = fluidBarTop(this) + FLUID_FILL_HEIGHT;
                 int fillTop = barBottom - fillPixels;
-                guiGraphics.fill(barLeft, fillTop, barLeft + FLUID_FILL_WIDTH, barBottom, 0xFF3F76E4);
+                int color = 0xFF3F76E4;
+                if (minecraft != null && minecraft.level != null) {
+                    int fluidId = menu.getFluidId();
+                    if (fluidId >= 0) {
+                        Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+                        if (fluid != null && fluid != Fluids.EMPTY) {
+                            int fromDef = CoolantLoader.getColorForFluid(fluid, minecraft.level.registryAccess());
+                            if (fromDef != 0) color = fromDef;
+                        }
+                    }
+                }
+                guiGraphics.fill(barLeft, fillTop, barLeft + FLUID_FILL_WIDTH, barBottom, color);
             }
         }
     }
@@ -137,6 +156,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (modeButton != null && modeButton.getValue() != menu.getPortMode()) {
             modeButton.setValue(menu.getPortMode());
+            updateFilterButtonVisibility();
         }
         if (filterButton != null && filterButton.getValue() != menu.getPortFilter()) {
             filterButton.setValue(menu.getPortFilter());
@@ -180,14 +200,16 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
             }
         }
-        // Filter button tooltip (single line: description only)
-        int fBtnX = leftPos + FILTER_BUTTON_X;
-        int fBtnY = topPos + FILTER_BUTTON_Y;
-        if (mouseX >= fBtnX && mouseX < fBtnX + FILTER_BUTTON_WIDTH && mouseY >= fBtnY && mouseY < fBtnY + FILTER_BUTTON_HEIGHT) {
-            PortFilter filter = menu.getPortFilter();
-            Component line = Component.translatable(filter.getTooltipKey());
-            if (!line.getString().isEmpty()) {
-                guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
+        // Filter button tooltip (only when visible, i.e. Extract/Eject mode)
+        if (filterButton != null && filterButton.visible) {
+            int fBtnX = leftPos + FILTER_BUTTON_X;
+            int fBtnY = topPos + FILTER_BUTTON_Y;
+            if (mouseX >= fBtnX && mouseX < fBtnX + FILTER_BUTTON_WIDTH && mouseY >= fBtnY && mouseY < fBtnY + FILTER_BUTTON_HEIGHT) {
+                PortFilter filter = menu.getPortFilter();
+                Component line = Component.translatable(filter.getTooltipKey());
+                if (!line.getString().isEmpty()) {
+                    guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
+                }
             }
         }
     }
