@@ -170,6 +170,7 @@ public final class ReactorValidation {
                 || state.is(ModBlocks.RESOURCE_PORT.get());
     }
 
+
     private static boolean isShellOrRodController(BlockState state) {
         return isShellBlock(state) || state.is(ModBlocks.ROD_CONTROLLER.get());
     }
