@@ -162,7 +162,8 @@ public final class ReactorValidation {
         return result;
     }
 
-    private static boolean isShellBlock(BlockState state) {
+    /** True if the block is part of the reactor shell (casing, glass, any port). Used for adjacency penalty. */
+    public static boolean isShellBlock(BlockState state) {
         return state.is(ModBlocks.REACTOR_CASING.get())
                 || state.is(ModBlocks.REACTOR_GLASS.get())
                 || state.is(ModBlocks.POWER_PORT.get())

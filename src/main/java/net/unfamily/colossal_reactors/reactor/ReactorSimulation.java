@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.reactor;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -22,12 +23,20 @@ import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Consumption and production cycle when reactor is ON: consume fuel from rods (produce solid waste),
- * produce RF (push to power ports), produce steam (add to rods' liquid waste).
+ * produce RF and/or steam depending on coolant mode.
  * Formulas follow big_reactor style: base RF/MB, rod count, coolant modifiers, efficiency.
+ *
+ * <p><b>Water mode</b> (coolant = water / consumesFluidForSteam): no RF when water is sufficient
+ * for full conversion to steam; only the unconverted part (insufficient water) is output as RF.
+ * Example: 5x5 interior with 5 rods, water in rods → only steam (no RF). If water runs out → RF for the remainder.
+ *
+ * <p><b>Normal mode</b> (other coolants): RF to power ports and steam from RF (STEAM_PER_RF).
  */
 public final class ReactorSimulation {
 
@@ -75,6 +84,7 @@ public final class ReactorSimulation {
         if (rods.isEmpty()) return;
 
         int rodCount = rods.size();
+        double effectiveRodCount = computeEffectiveRodCount(level, rods);
         int totalFuelUnits = rods.stream().mapToInt(ReactorRodBlockEntity::getTotalFuelUnits).sum();
         if (totalFuelUnits <= 0) return;
 
@@ -86,23 +96,30 @@ public final class ReactorSimulation {
         double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
 
         CoolantDefinition coolantDef = getCoolantModifierFromRods(rods);
+        if (coolantDef == null) coolantDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null ? coolantDef.mbMultiplier() : 1.0;
 
-        double efficiencyFactor = Math.log(rodCount + 1) / 2.3;
+        double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
 
-        // baseMb = ingots per tick; 1 ingot = URANIUM_INGOT_MB units -> units to consume per tick
-        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * rodCount * mbMultiplier;
-        int mbToConsume = (int) Math.min(ingotsToConsumeRaw * Config.URANIUM_INGOT_MB.get(), totalFuelUnits);
+        // Consumption: empirical curve (scale/sqrt(rodCount+1)) fitted to experimental data; then divided by coolant mbMultiplier so each coolant adapts (e.g. Air 100% -> 1.0, Gelid 160% -> 1.6).
+        double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.sqrt(effectiveRodCount + 1);
+        double mbDivisor = (coolantDef != null && coolantDef.mbMultiplier() > 0) ? coolantDef.mbMultiplier() : 1.0;
+        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor;
+        int mbToConsume = (int) Math.min(ingotsToConsumeRaw * 1000, totalFuelUnits);
 
         if (mbToConsume > 0) {
             consumeFuelFromRods(rods, mbToConsume, level.registryAccess());
         }
 
-        double rfProduced = baseRf * productionMult * rfEfficiency * rodCount * efficiencyFactor * rfMultiplier;
+        double rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier;
 
-        if (coolantDef != null && coolantDef.consumesFluidForSteam()) {
-            // Water mode: no RF output; consume coolant (wouldBeRf * factor) and produce steam (consumed * steamPerCoolant).
+        // Water mode: coolant is consumed for steam; no RF when water is sufficient. Use water mode if def is water (by id) or has consumesFluidForSteam.
+        boolean waterMode = coolantDef != null
+                && (coolantDef.consumesFluidForSteam() || CoolantLoader.WATER_COOLANT_ID.equals(coolantDef.coolantId()));
+
+        if (waterMode) {
+            // Water mode: consume coolant for steam. Only produce RF when water is insufficient for full conversion.
             int coolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
             Fluid coolantFluid = CoolantLoader.getFirstFluidFromDefinition(coolantDef, level.registryAccess());
             if (coolantToConsumeMb > 0 && coolantFluid != null && coolantFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
@@ -125,29 +142,37 @@ public final class ReactorSimulation {
                         }
                     }
                 }
+                // Produce energy only when water was insufficient (unconverted part goes to RF)
+                if (totalDrained < coolantToConsumeMb && coolantToConsumeMb > 0) {
+                    double fractionNotConverted = 1.0 - (double) totalDrained / coolantToConsumeMb;
+                    int rfToPush = (int) (rfProduced * fractionNotConverted);
+                    if (rfToPush > 0 && !powerPorts.isEmpty()) {
+                        for (PowerPortBlockEntity port : powerPorts) {
+                            int accepted = port.receiveEnergyFromReactor(rfToPush);
+                            rfToPush -= accepted;
+                            if (rfToPush <= 0) break;
+                        }
+                    }
+                }
+            } else {
+                // No valid coolant fluid: push all as RF
+                int rfPerTick = (int) Math.max(0, rfProduced);
+                if (rfPerTick > 0 && !powerPorts.isEmpty()) {
+                    for (PowerPortBlockEntity port : powerPorts) {
+                        int accepted = port.receiveEnergyFromReactor(rfPerTick);
+                        rfPerTick -= accepted;
+                        if (rfPerTick <= 0) break;
+                    }
+                }
             }
         } else {
-            // Normal mode: push RF to power ports and produce steam from RF.
+            // Normal mode: only RF (no steam). Steam is only produced in water mode from consumed coolant.
             int rfPerTick = (int) Math.max(0, rfProduced);
             if (rfPerTick > 0 && !powerPorts.isEmpty()) {
                 for (PowerPortBlockEntity port : powerPorts) {
                     int accepted = port.receiveEnergyFromReactor(rfPerTick);
                     rfPerTick -= accepted;
                     if (rfPerTick <= 0) break;
-                }
-            }
-            double steamMb = rfProduced * Config.STEAM_PER_RF.get();
-            int steamPerTick = (int) steamMb;
-            if (steamPerTick > 0) {
-                String outputTag = coolantDef != null ? coolantDef.output() : "#c:steam";
-                Fluid steamFluid = CoolantLoader.getFirstFluidFromTag(outputTag, level.registryAccess());
-                if (steamFluid != null && steamFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
-                    int remaining = steamPerTick;
-                    for (ReactorRodBlockEntity rod : rods) {
-                        if (remaining <= 0) break;
-                        int added = rod.addLiquidWaste(steamFluid, remaining);
-                        remaining -= added;
-                    }
                 }
             }
         }
@@ -167,7 +192,7 @@ public final class ReactorSimulation {
                 .toList();
 
         int totalSolidWaste = rods.stream().mapToInt(ReactorRodBlockEntity::getTotalSolidWasteCount).sum();
-        if (totalSolidWaste >= ReactorRodBlockEntity.getSolidWasteCapacity()) {
+        if (totalSolidWaste > 0) {
             ResourceLocation wasteId = null;
             for (ReactorRodBlockEntity rod : rods) {
                 for (var e : rod.getSolidWasteEntries()) {
@@ -239,11 +264,51 @@ public final class ReactorSimulation {
         }
     }
 
+    /**
+     * Effective rod count for production/consumption: each rod contributes less when it has horizontal
+     * neighbors that are another rod or a border block (casing, glass, ports). Only horizontal (same Y) is checked.
+     */
+    private static double computeEffectiveRodCount(ServerLevel level, List<ReactorRodBlockEntity> rods) {
+        if (rods.isEmpty()) return 0;
+        Set<BlockPos> rodPositions = new HashSet<>();
+        for (ReactorRodBlockEntity rod : rods) {
+            rodPositions.add(rod.getBlockPos());
+        }
+        double penalty = Config.ROD_ADJACENCY_PENALTY.get();
+        double effective = 0;
+        for (ReactorRodBlockEntity rod : rods) {
+            BlockPos pos = rod.getBlockPos();
+            int adjacentCount = 0;
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos neighbor = pos.relative(dir);
+                if (rodPositions.contains(neighbor) || ReactorValidation.isShellBlock(level.getBlockState(neighbor))) {
+                    adjacentCount++;
+                }
+            }
+            double mult = Math.max(0.0, 1.0 - penalty * adjacentCount);
+            effective += mult;
+        }
+        return effective;
+    }
+
+    /**
+     * Returns the coolant definition to use. Prefers water: if any rod contains water (matches water definition),
+     * return water definition so we always use water mode when water is present.
+     */
     private static CoolantDefinition getCoolantModifierFromRods(List<ReactorRodBlockEntity> rods) {
         if (rods.isEmpty()) return CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         var level = rods.get(0).getLevel();
         if (level == null) return CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         var registryAccess = level.registryAccess();
+        CoolantDefinition waterDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
+        for (ReactorRodBlockEntity rod : rods) {
+            for (var entry : rod.getCoolantEntries()) {
+                CoolantDefinition def = CoolantLoader.getDefinitionForFluid(entry.fluid(), registryAccess);
+                if (def != null) {
+                    if (CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) return waterDef != null ? waterDef : def;
+                }
+            }
+        }
         for (ReactorRodBlockEntity rod : rods) {
             for (var entry : rod.getCoolantEntries()) {
                 CoolantDefinition def = CoolantLoader.getDefinitionForFluid(entry.fluid(), registryAccess);
@@ -276,9 +341,7 @@ public final class ReactorSimulation {
                 ResourceLocation wasteId = ResourceLocation.tryParse(def.output());
                 if (wasteId != null) {
                     int up = def.unitsPerItem();
-                    // wasteCount = ceil(consumed / unitsPerItem): e.g. 1000 units per waste item -> 1 waste per 1000 units
-                    int wasteCount = up <= 0 ? consumed : (consumed + up - 1) / up;
-                    if (wasteCount > 0) rod.addSolidWaste(wasteId, wasteCount);
+                    rod.recordConsumedAndAddWaste(wasteId, consumed, up <= 0 ? 1 : up);
                 }
             }
             rodIndex++;

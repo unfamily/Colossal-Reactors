@@ -75,17 +75,27 @@ public final class ReactorFiller {
                 if (!stack.isEmpty()) {
                     FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
                     if (def != null) {
-                        ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
-                        if (!extracted.isEmpty()) {
-                            int units = def.unitsPerItem();
-                            int remaining = units;
-                            for (ReactorRodBlockEntity rod : rods) {
-                                if (remaining <= 0) break;
-                                int added = rod.addFuel(def.fuelId(), remaining);
-                                remaining -= added;
-                            }
-                            if (remaining == units) {
-                                port.getItemHandler().insertItem(0, extracted, false);
+                        int units = def.unitsPerItem();
+                        if (def.fuelId().equals(ReactorRodBlockEntity.URANIUM_FUEL_ID) && units < 1000) {
+                            units = 1000;
+                        }
+                        if (units <= 0) units = 1;
+                        int totalSpace = 0;
+                        for (ReactorRodBlockEntity rod : rods) {
+                            totalSpace += ReactorRodBlockEntity.getMaxFuelUnits() - rod.getTotalFuelUnits();
+                        }
+                        if (totalSpace >= units) {
+                            ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
+                            if (!extracted.isEmpty()) {
+                                int remaining = units;
+                                for (ReactorRodBlockEntity rod : rods) {
+                                    if (remaining <= 0) break;
+                                    int added = rod.addFuel(def.fuelId(), remaining);
+                                    remaining -= added;
+                                }
+                                if (remaining == units) {
+                                    port.getItemHandler().insertItem(0, extracted, false);
+                                }
                             }
                         }
                     }

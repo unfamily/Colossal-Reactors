@@ -42,12 +42,8 @@ public class Config {
             .comment("Base RF/t for reactor formulas. Default: 200")
             .defineInRange("100_baseRfPerTick", 200.0, 0.0, 1000000.0);
     public static final ModConfigSpec.DoubleValue BASE_MB_PER_TICK = BUILDER
-            .comment("Base fuel consumption in ingots per tick (multiplied by URANIUM_INGOT_MB to get units). Default: 0.03")
+            .comment("Base fuel consumption in ingots per tick; converted to units using fuel definition unitsPerItem. Default: 0.03")
             .defineInRange("101_baseMbPerTick", 0.03, 0.0, 100.0);
-
-    public static final ModConfigSpec.IntValue URANIUM_INGOT_MB = BUILDER
-            .comment("MB (fuel units) per one uranium ingot. Default: 1000")
-            .defineInRange("102_uraniumIngotMb", 1000, 1, 1000000);
 
     /** Max fuel units per rod (total capacity shared by all fuel types). Default: 10000. */
     public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
@@ -67,6 +63,14 @@ public class Config {
     public static final ModConfigSpec.DoubleValue CONSUMPTION_MULTIPLIER = BUILDER
             .comment("Consumption multiplier. Default: 1")
             .defineInRange("106_consumptionMultiplier", 1.0, 0.0, 100.0);
+    /** Consumption scale: empirical base curve (this/sqrt(rodCount+1)); final consumption is divided by coolant mbMultiplier. Default 1.72. */
+    public static final ModConfigSpec.DoubleValue CONSUMPTION_SCALE = BUILDER
+            .comment("Consumption scale factor for empirical curve (fitted to experimental data). Final consumption also depends on coolant MB decrement %. Default: 1.72")
+            .defineInRange("106b_consumptionScale", 1.72, 0.01, 10.0);
+    /** Per horizontal neighbor (rod or shell): each rod's contribution is reduced by this factor. 0.25 = 4 neighbors -> 0 contribution. Default 0.25. */
+    public static final ModConfigSpec.DoubleValue ROD_ADJACENCY_PENALTY = BUILDER
+            .comment("Penalty per horizontal neighbor (another rod or border block). Each rod contributes max(0, 1 - penalty * adjacentCount). Default: 0.25")
+            .defineInRange("106c_rodAdjacencyPenalty", 0.25, 0.0, 1.0);
 
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")
@@ -84,17 +88,17 @@ public class Config {
     /** Resource Port: fluid tank capacity (mB). Default: 16000 */
     public static final ModConfigSpec.IntValue RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
             .comment("Resource Port: fluid tank capacity in mB. Default: 16000")
-            .defineInRange("000", 16_000, 1000, 1_000_000);
+            .defineInRange("000", 16000, 1000, 1000000);
 
     /** Power Port: energy buffer capacity (FE). Default: 50M */
     public static final ModConfigSpec.IntValue POWER_PORT_CAPACITY = BUILDER
             .comment("Power Port: energy buffer capacity in FE. Default: 50000000")
-            .defineInRange("010", 50_000_000, 1_000, 1_000_000_000);
+            .defineInRange("010", 50000000, 1000, 1000000000);
 
     /** Power Port: max energy extract per tick (FE/t). Default: 1M */
     public static final ModConfigSpec.IntValue POWER_PORT_MAX_EXTRACT = BUILDER
             .comment("Power Port: max energy that can be extracted per tick (FE/t). Default: 1000000")
-            .defineInRange("020", 1_000_000, 1, 100_000_000);
+            .defineInRange("020", 1000000, 1, 100000000);
 
     static {
         BUILDER.pop();

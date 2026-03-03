@@ -41,6 +41,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
     private static final String TAG_SOLID_WASTE = "SolidWaste";
     private static final String TAG_COUNT = "Count";
     private static final String TAG_LIQUID_WASTE = "LiquidWaste";
+    private static final String TAG_WASTE_ACCUMULATOR = "WasteAccumulator";
 
     private static final int COOLANT_CAPACITY_MB = 10_000;
     private static final int SOLID_WASTE_CAPACITY = 1000;
@@ -54,6 +55,8 @@ public class ReactorRodBlockEntity extends BlockEntity {
     private final List<SolidWasteEntry> solidWasteEntries = new ArrayList<>();
     /** Liquid waste: same structure as coolant, total <= LIQUID_WASTE_CAPACITY_MB. */
     private final List<FluidEntry> liquidWasteEntries = new ArrayList<>();
+    /** Accumulated consumed units per waste type (for fractional waste: 1000 units -> 1 item). */
+    private final java.util.Map<ResourceLocation, Integer> wasteAccumulator = new java.util.HashMap<>();
 
     public record FuelEntry(ResourceLocation id, int units) {}
     public record FluidEntry(Fluid fluid, int amount) {}
@@ -236,6 +239,18 @@ public class ReactorRodBlockEntity extends BlockEntity {
         solidWasteEntries.add(new SolidWasteEntry(id, add));
     }
 
+    /**
+     * Records consumed fuel units and adds solid waste when accumulation reaches unitsPerItem.
+     * E.g. unitsPerItem=1000: every 1000 consumed units produce 1 waste item (remainder carried over).
+     */
+    public void recordConsumedAndAddWaste(ResourceLocation wasteId, int consumedUnits, int unitsPerItem) {
+        if (consumedUnits <= 0 || unitsPerItem <= 0) return;
+        int total = wasteAccumulator.getOrDefault(wasteId, 0) + consumedUnits;
+        int wasteCount = total / unitsPerItem;
+        wasteAccumulator.put(wasteId, total % unitsPerItem);
+        if (wasteCount > 0) addSolidWaste(wasteId, wasteCount);
+    }
+
     /** Takes up to count of the given waste item from this rod. Returns amount actually taken. */
     public int takeSolidWaste(ResourceLocation itemId, int count) {
         if (count <= 0) return 0;
@@ -353,6 +368,15 @@ public class ReactorRodBlockEntity extends BlockEntity {
         saveFluidList(tag, TAG_COOLANT, coolantEntries);
         saveSolidWasteList(tag);
         saveFluidList(tag, TAG_LIQUID_WASTE, liquidWasteEntries);
+        if (!wasteAccumulator.isEmpty()) {
+            CompoundTag accTag = new CompoundTag();
+            for (var e : wasteAccumulator.entrySet()) {
+                if (e.getValue() != null && e.getValue() > 0) {
+                    accTag.putInt(e.getKey().toString(), e.getValue());
+                }
+            }
+            if (!accTag.isEmpty()) tag.put(TAG_WASTE_ACCUMULATOR, accTag);
+        }
     }
 
     private void saveFluidList(CompoundTag tag, String key, List<FluidEntry> list) {
@@ -418,6 +442,15 @@ public class ReactorRodBlockEntity extends BlockEntity {
         }
         liquidWasteEntries.clear();
         loadFluidList(tag, TAG_LIQUID_WASTE, liquidWasteEntries, registries);
+        wasteAccumulator.clear();
+        if (tag.contains(TAG_WASTE_ACCUMULATOR, Tag.TAG_COMPOUND)) {
+            CompoundTag accTag = tag.getCompound(TAG_WASTE_ACCUMULATOR);
+            for (String key : accTag.getAllKeys()) {
+                ResourceLocation id = ResourceLocation.tryParse(key);
+                int val = accTag.getInt(key);
+                if (id != null && val > 0) wasteAccumulator.put(id, val);
+            }
+        }
         updateBlockState();
     }
 

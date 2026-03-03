@@ -101,7 +101,7 @@ public class FuelLoader {
 
     private static void registerInternalDefaults() {
         ResourceLocation uraniumId = ReactorRodBlockEntity.URANIUM_FUEL_ID;
-        int unitsPerItem = Config.URANIUM_INGOT_MB.get();
+        int unitsPerItem = 1000;
         double baseRf = Config.BASE_RF_PER_TICK.get();
         double baseMb = Config.BASE_MB_PER_TICK.get();
         List<String> inputs = List.of(
@@ -161,7 +161,7 @@ public class FuelLoader {
             }
         }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
-        int unitsPerItem = json.has(KEY_UNITS_PER_ITEM) ? json.get(KEY_UNITS_PER_ITEM).getAsInt() : Config.URANIUM_INGOT_MB.get();
+        int unitsPerItem = json.has(KEY_UNITS_PER_ITEM) ? json.get(KEY_UNITS_PER_ITEM).getAsInt() : 1000;
         double baseRf = json.has(KEY_BASE_RF_PER_TICK) ? json.get(KEY_BASE_RF_PER_TICK).getAsDouble() : Config.BASE_RF_PER_TICK.get();
         double baseMb = json.has(KEY_BASE_MB_PER_TICK) ? json.get(KEY_BASE_MB_PER_TICK).getAsDouble() : Config.BASE_MB_PER_TICK.get();
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
@@ -199,12 +199,14 @@ public class FuelLoader {
 
     /**
      * Finds the fuel definition that matches the given item (by item id or item tag). Returns null if excluded or no match.
+     * Prefers exact item id match over tag match so e.g. uranium_ingot gets the uranium definition (with correct unitsPerItem).
      */
     @Nullable
     public static FuelDefinition getDefinitionForItem(ItemStack stack, RegistryAccess registryAccess) {
         if (stack == null || stack.isEmpty()) return null;
         Item item = stack.getItem();
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        FuelDefinition tagMatch = null;
         for (FuelDefinition def : DEFINITIONS.values()) {
             for (String input : def.inputs()) {
                 if (isInputExcluded(input)) continue;
@@ -218,13 +220,13 @@ public class FuelLoader {
                             .flatMap(l -> l.get(tagKey))
                             .map(holders -> holders.contains(itemHolder))
                             .orElse(false);
-                    if (inTag) return def;
+                    if (inTag) tagMatch = def;
                 } else {
                     if (ResourceLocation.tryParse(input).equals(itemId)) return def;
                 }
             }
         }
-        return null;
+        return tagMatch;
     }
 
     /**
