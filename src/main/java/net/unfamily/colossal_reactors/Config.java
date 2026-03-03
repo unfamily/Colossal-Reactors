@@ -59,9 +59,9 @@ public class Config {
     public static final ModConfigSpec.DoubleValue BASE_RF_PER_TICK = BUILDER
             .comment("Base RF/t for reactor formulas. Default: 200")
             .defineInRange("100_baseRfPerTick", 200.0, 0.0, 1000000.0);
-    public static final ModConfigSpec.DoubleValue BASE_MB_PER_TICK = BUILDER
-            .comment("Base fuel consumption in ingots per tick. Default: 0.03")
-            .defineInRange("101_baseMbPerTick", 0.03, 0.0, 100.0);
+    public static final ModConfigSpec.DoubleValue BASE_FUEL_UNITS_PER_TICK = BUILDER
+            .comment("Base fuel consumption (fuel units per tick scale). Default: 0.03")
+            .defineInRange("101_baseFuelUnitsPerTick", 0.03, 0.0, 100.0);
     public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
             .comment("Max fuel units per reactor rod (shared capacity). Default: 10000")
             .defineInRange("107_rodMaxFuelUnits", 10000, 1, 10000000);
@@ -76,13 +76,13 @@ public class Config {
     }
 
     public static final ModConfigSpec.DoubleValue RF_EFFICIENCY_LOSS = BUILDER
-            .comment("RF efficiency loss factor (F3 in formulas). Default: 0.2")
+            .comment("RF efficiency loss factor. Default: 0.2")
             .defineInRange("103_rfEfficiencyLoss", 0.2, 0.0, 1.0);
-    public static final ModConfigSpec.DoubleValue MB_EFFICIENCY_LOSS = BUILDER
-            .comment("MB efficiency loss factor. Default: 1")
-            .defineInRange("104_mbEfficiencyLoss", 1.0, 0.0, 10.0);
+    public static final ModConfigSpec.DoubleValue FUEL_EFFICIENCY_LOSS = BUILDER
+            .comment("Fuel efficiency factor. Default: 1")
+            .defineInRange("104_fuelEfficiencyLoss", 1.0, 0.0, 10.0);
     public static final ModConfigSpec.DoubleValue PRODUCTION_MULTIPLIER = BUILDER
-            .comment("Production multiplier (F5). Default: 1")
+            .comment("Production multiplier. Default: 1")
             .defineInRange("105_productionMultiplier", 1.0, 0.0, 100.0);
     public static final ModConfigSpec.DoubleValue CONSUMPTION_MULTIPLIER = BUILDER
             .comment("Consumption multiplier. Default: 1")
@@ -133,14 +133,14 @@ public class Config {
             .comment("Weight for coolant cells not touching any rod (Refrigerante 1). Default: 0.5")
             .defineInRange("106e_heatSinkNonAdjacentWeight", 0.5, 0.0, 10.0);
     public static final ModConfigSpec.DoubleValue HEAT_SINK_CONSUMPTION_DIVISOR = BUILDER
-            .comment("Extra divisor for fuel consumption with heat sinks (Excel MB%%). Default: 1.35")
+            .comment("Extra divisor for fuel consumption with heat sinks (MB%%). Default: 1.35")
             .defineInRange("106f_heatSinkConsumptionDivisor", 1.35, 0.1, 10.0);
     public static final ModConfigSpec.DoubleValue HEAT_SINK_RF_MULTIPLIER = BUILDER
             .comment("Scale RF produced with heat sink formula. Default: 1.16")
             .defineInRange("106g_heatSinkRfMultiplier", 1.16, 0.1, 5.0);
-    public static final ModConfigSpec.DoubleValue HEAT_SINK_MB_MULTIPLIER = BUILDER
+    public static final ModConfigSpec.DoubleValue HEAT_SINK_FUEL_UNITS_MULTIPLIER = BUILDER
             .comment("Scale fuel consumption with heat sinks. Default: 1.21")
-            .defineInRange("106h_heatSinkMbMultiplier", 1.21, 0.1, 5.0);
+            .defineInRange("106h_heatSinkFuelUnitsMultiplier", 1.21, 0.1, 5.0);
 
     static {
         BUILDER.pop();
@@ -154,6 +154,9 @@ public class Config {
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")
             .defineInRange("010_reactorValidationIntervalTicks", 200, 1, 1200);
+    public static final ModConfigSpec.BooleanValue ALLOW_MULTIPLE_REACTOR_CONTROLLERS = BUILDER
+            .comment("If false, reactor is valid only with exactly one reactor controller on its outer faces. If true, multiple controllers allowed. Default: false")
+            .define("011_allowMultipleReactorControllers", false);
 
     static {
         BUILDER.pop();

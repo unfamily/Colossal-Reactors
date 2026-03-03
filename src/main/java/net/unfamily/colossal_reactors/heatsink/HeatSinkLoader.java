@@ -308,7 +308,7 @@ public final class HeatSinkLoader {
     public record HeatSinkModifiers(double fuelMultiplier, double energyMultiplier) {}
 
     /**
-     * Result for simulation: weighted averages plus Excel-style sums (adjacent energy/fuel sums and counts).
+     * Result for simulation: weighted averages plus adjacent/non-adjacent energy and fuel sums and counts.
      * Used for formula: RF = Base * (sumEnergyAdj + countNon*rodCount) * efficiencyFactor / rodCount.
      */
     public record HeatSinkModifiersResult(

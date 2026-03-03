@@ -92,9 +92,9 @@ public final class ReactorSimulation {
         if (totalFuelUnits <= 0) return;
 
         double baseRf = Config.BASE_RF_PER_TICK.get();
-        double baseMb = Config.BASE_MB_PER_TICK.get();
+        double baseFuelUnitsPerTick = Config.BASE_FUEL_UNITS_PER_TICK.get();
         double rfEfficiency = 1.0 - Config.RF_EFFICIENCY_LOSS.get();
-        double mbEfficiency = Config.MB_EFFICIENCY_LOSS.get();
+        double fuelEfficiency = Config.FUEL_EFFICIENCY_LOSS.get();
         double productionMult = Config.PRODUCTION_MULTIPLIER.get();
         double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
 
@@ -120,21 +120,21 @@ public final class ReactorSimulation {
         double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.pow(effectiveRodCount + 1, 0.5 * curveStrengthAdjusted);
         double mbDivisor = (coolantDef != null && coolantDef.mbMultiplier() > 0) ? coolantDef.mbMultiplier() : 1.0;
         double consumptionDivisor = Math.max(0.1, Config.HEAT_SINK_CONSUMPTION_DIVISOR.get());
-        double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor / heatSinkFuelMult / consumptionDivisor;
+        double fuelConsumptionRate = baseFuelUnitsPerTick * consumptionMult * fuelEfficiency * effectiveRodCount * consumptionScale / mbDivisor / heatSinkFuelMult / consumptionDivisor;
         if (countAdj + countNon > 0) {
-            ingotsToConsumeRaw *= Math.max(0.1, Config.HEAT_SINK_MB_MULTIPLIER.get());
+            fuelConsumptionRate *= Math.max(0.1, Config.HEAT_SINK_FUEL_UNITS_MULTIPLIER.get());
         }
-        int mbToConsume = (int) Math.min(ingotsToConsumeRaw * 1000, totalFuelUnits);
+        int fuelUnitsToConsume = (int) Math.min(fuelConsumptionRate * 1000, totalFuelUnits);
 
-        if (mbToConsume > 0) {
-            consumeFuelFromRods(rods, mbToConsume, level.registryAccess());
+        if (fuelUnitsToConsume > 0) {
+            consumeFuelFromRods(rods, fuelUnitsToConsume, level.registryAccess());
         }
 
-        // Excel-style RF when we have coolant cells: Base * (Refrigerante0*RF% + Refrigerante1*RodCount) * efficiencyFactor / effectiveRodCount
+        // RF with coolant cells: Base * (adjacent energy sum + nonAdj * rodCount) * efficiencyFactor / effectiveRodCount
         double rfProduced;
         if (countAdj + countNon > 0 && effectiveRodCount > 0) {
-            double excelFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
-            rfProduced = baseRf * productionMult * rfEfficiency * excelFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
+            double heatSinkRfFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
+            rfProduced = baseRf * productionMult * rfEfficiency * heatSinkRfFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
         } else {
             rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
         }
@@ -213,7 +213,7 @@ public final class ReactorSimulation {
 
         pushWasteToPorts(rods, resourcePorts);
 
-        int fuelHundredths = (int) Math.round(ingotsToConsumeRaw * 100);
+        int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
         controller.setLastTickStats(rfPushedThisTick, steamProducedThisTick, waterConsumedThisTick, fuelHundredths);
     }
 

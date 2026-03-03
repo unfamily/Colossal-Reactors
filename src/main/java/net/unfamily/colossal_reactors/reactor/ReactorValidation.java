@@ -156,6 +156,13 @@ public final class ReactorValidation {
             return invalid(level, start, "rod count mismatch: rodCount=" + rodCount + " expected " + rodColumnsExpected + "*" + (interiorCeilingY - interiorFloorY + 1));
         }
 
+        if (!Boolean.TRUE.equals(Config.ALLOW_MULTIPLE_REACTOR_CONTROLLERS.get())) {
+            int controllerCount = countReactorControllersOnOuterFaces(level, minX, minY, minZ, maxX, maxY, maxZ);
+            if (controllerCount != 1) {
+                return invalid(level, start, "reactor must have exactly one reactor controller on outer faces (found " + controllerCount + "). Enable allowMultipleReactorControllers in config to allow more.");
+            }
+        }
+
         Result result = new Result(true, minX, minY, minZ, maxX, maxY, maxZ, rodCount, rodColumnsExpected, coolantCount);
         debug("VALID result: valid=true min=({},{},{}) max=({},{},{}) rodCount={} rodColumns={} coolantCount={}",
                 result.minX(), result.minY(), result.minZ(), result.maxX(), result.maxY(), result.maxZ(),
@@ -189,6 +196,48 @@ public final class ReactorValidation {
 
     private static boolean isRodController(BlockState state) {
         return state.is(ModBlocks.ROD_CONTROLLER.get());
+    }
+
+    /** Count reactor controller blocks on the 6 outer faces of the reactor box (one step outside min/max). */
+    private static int countReactorControllersOnOuterFaces(Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        int count = 0;
+        // Face x = minX - 1
+        for (int y = minY; y <= maxY; y++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (level.getBlockState(new BlockPos(minX - 1, y, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
+            }
+        }
+        // Face x = maxX + 1
+        for (int y = minY; y <= maxY; y++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (level.getBlockState(new BlockPos(maxX + 1, y, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
+            }
+        }
+        // Face y = minY - 1
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (level.getBlockState(new BlockPos(x, minY - 1, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
+            }
+        }
+        // Face y = maxY + 1
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (level.getBlockState(new BlockPos(x, maxY + 1, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
+            }
+        }
+        // Face z = minZ - 1
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                if (level.getBlockState(new BlockPos(x, y, minZ - 1)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
+            }
+        }
+        // Face z = maxZ + 1
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                if (level.getBlockState(new BlockPos(x, y, maxZ + 1)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
+            }
+        }
+        return count;
     }
 
     private static Result invalid() {

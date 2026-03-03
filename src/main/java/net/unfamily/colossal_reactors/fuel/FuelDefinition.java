@@ -14,7 +14,7 @@ public record FuelDefinition(
         String output,
         int unitsPerItem,
         double baseRfPerTick,
-        double baseMbPerTick,
+        double baseFuelUnitsPerTick,
         boolean overwritable
 ) {
     /** Inputs are either "#namespace:tag" (item tag) or "namespace:item_id" (item). */
