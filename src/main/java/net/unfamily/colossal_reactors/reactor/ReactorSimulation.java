@@ -113,8 +113,11 @@ public final class ReactorSimulation {
 
         double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
 
-        // Consumption: empirical curve; divided by coolant mbMultiplier. Excel-style: divide by heat sink fuel (MB%) and extra divisor.
-        double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.sqrt(effectiveRodCount + 1);
+        // Consumption: empirical curve; divisor exponent fades with size so big reactors tend toward linear (less curve advantage). Fade reduced to 40% so curve keeps 60% of strength at large size.
+        double decayRods = Math.max(0.0, Config.CONSUMPTION_CURVE_DECAY_RODS.get());
+        double curveStrength = (decayRods <= 0) ? 1.0 : decayRods / (effectiveRodCount + decayRods);
+        double curveStrengthAdjusted = 0.4 + 0.50 * curveStrength; // decay effect reduced by 50%
+        double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.pow(effectiveRodCount + 1, 0.5 * curveStrengthAdjusted);
         double mbDivisor = (coolantDef != null && coolantDef.mbMultiplier() > 0) ? coolantDef.mbMultiplier() : 1.0;
         double consumptionDivisor = Math.max(0.1, Config.HEAT_SINK_CONSUMPTION_DIVISOR.get());
         double ingotsToConsumeRaw = baseMb * consumptionMult * mbEfficiency * effectiveRodCount * consumptionScale / mbDivisor / heatSinkFuelMult / consumptionDivisor;
