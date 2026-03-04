@@ -9,9 +9,9 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 
 import java.util.ArrayList;
@@ -28,9 +28,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int GUI_WIDTH = 230;
     private static final int GUI_HEIGHT = 230;
 
-    /** Tank at (13, 27), same dimensions as Resource Port: 12x54 fill with 1px inset */
-    private static final int FLUID_BAR_X = 13;
-    private static final int FLUID_BAR_Y = 27;
+    /** Tank at (12, 26), same dimensions as Resource Port: 12x54 fill with 1px inset */
+    private static final int FLUID_BAR_X = 12;
+    private static final int FLUID_BAR_Y = 26;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
@@ -46,24 +46,17 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
         int amount = menu.getFluidAmount();
         int capacity = menu.getFluidCapacity();
-        if (capacity > 0 && amount > 0) {
-            int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
-            if (fillPixels > 0) {
-                int barLeft = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
-                int barBottom = topPos + FLUID_BAR_Y + FLUID_FILL_INSET + FLUID_FILL_HEIGHT;
-                int fillTop = barBottom - fillPixels;
-                int color = 0xFF3F76E4;
-                if (minecraft != null && minecraft.level != null) {
-                    int fluidId = menu.getFluidId();
-                    if (fluidId >= 0) {
-                        Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
-                        if (fluid != null && fluid != Fluids.EMPTY) {
-                            int fromDef = CoolantLoader.getColorForFluid(fluid, minecraft.level.registryAccess());
-                            if (fromDef != 0) color = fromDef;
-                        }
-                    }
+        int fluidId = menu.getFluidId();
+        if (capacity > 0 && amount > 0 && fluidId >= 0) {
+            Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+            if (fluid != null && fluid != Fluids.EMPTY) {
+                int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
+                if (fillPixels > 0) {
+                    int barLeft = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
+                    int barBottom = topPos + FLUID_BAR_Y + FLUID_FILL_INSET + FLUID_FILL_HEIGHT;
+                    int fillTop = barBottom - fillPixels;
+                    FluidRenderHelper.drawFluidInTank(guiGraphics, new FluidStack(fluid, amount), barLeft, fillTop, FLUID_FILL_WIDTH, fillPixels);
                 }
-                guiGraphics.fill(barLeft, fillTop, barLeft + FLUID_FILL_WIDTH, barBottom, color);
             }
         }
     }

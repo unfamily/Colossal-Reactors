@@ -36,7 +36,6 @@ import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.docs.ScriptsDocsGenerator;
-import net.unfamily.colossal_reactors.fluid.FluidColorLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 
@@ -104,7 +103,6 @@ public class ColossalReactors {
         FuelLoader.scanConfigDirectory();
         CoolantLoader.scanConfigDirectory();
         HeatSinkLoader.scanConfigDirectory();
-        FluidColorLoader.scanConfigDirectory();
     }
 
     @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)

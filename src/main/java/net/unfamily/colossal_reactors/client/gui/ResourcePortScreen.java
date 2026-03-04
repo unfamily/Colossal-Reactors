@@ -11,12 +11,12 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
-import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.colossal_reactors.network.ResourcePortFilterPayload;
 import net.unfamily.colossal_reactors.network.ResourcePortModePayload;
@@ -123,24 +123,17 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
 
         int amount = menu.getFluidAmount();
         int capacity = menu.getFluidCapacity();
-        if (capacity > 0 && amount > 0) {
-            int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
-            if (fillPixels > 0) {
-                int barLeft = fluidBarLeft(this);
-                int barBottom = fluidBarTop(this) + FLUID_FILL_HEIGHT;
-                int fillTop = barBottom - fillPixels;
-                int color = 0xFF3F76E4;
-                if (minecraft != null && minecraft.level != null) {
-                    int fluidId = menu.getFluidId();
-                    if (fluidId >= 0) {
-                        Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
-                        if (fluid != null && fluid != Fluids.EMPTY) {
-                            int fromDef = CoolantLoader.getColorForFluid(fluid, minecraft.level.registryAccess());
-                            if (fromDef != 0) color = fromDef;
-                        }
-                    }
+        int fluidId = menu.getFluidId();
+        if (capacity > 0 && amount > 0 && fluidId >= 0) {
+            Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+            if (fluid != null && fluid != Fluids.EMPTY) {
+                int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
+                if (fillPixels > 0) {
+                    int barLeft = fluidBarLeft(this);
+                    int barBottom = fluidBarTop(this) + FLUID_FILL_HEIGHT;
+                    int fillTop = barBottom - fillPixels;
+                    FluidRenderHelper.drawFluidInTank(guiGraphics, new FluidStack(fluid, amount), barLeft, fillTop, FLUID_FILL_WIDTH, fillPixels);
                 }
-                guiGraphics.fill(barLeft, fillTop, barLeft + FLUID_FILL_WIDTH, barBottom, color);
             }
         }
     }

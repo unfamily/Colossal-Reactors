@@ -15,7 +15,6 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
-import net.unfamily.colossal_reactors.fluid.FluidColorLoader;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -253,26 +252,6 @@ public class CoolantLoader {
     }
 
     /**
-     * Returns ARGB color for simple fluid bar rendering. First checks fluid_colors JSON; if no match, uses coolant definition fluid_color/output_color.
-     * Returns 0 to use game default when no definition provides a color.
-     */
-    public static int getColorForFluid(Fluid fluid, RegistryAccess registryAccess) {
-        if (fluid == null || fluid == Fluids.EMPTY) return 0;
-        int fromFluidColors = FluidColorLoader.getColorForFluid(fluid, registryAccess);
-        if (fromFluidColors != 0) return fromFluidColors;
-        for (CoolantDefinition def : DEFINITIONS.values()) {
-            Fluid outputFluid = getFirstFluidFromTag(def.output(), registryAccess);
-            if (outputFluid == fluid && def.outputColor() != 0) return def.outputColor();
-            for (String input : def.inputs()) {
-                if (isInputExcluded(input)) continue;
-                Fluid fromInput = input.startsWith("#") ? getFirstFluidFromTag(input, registryAccess) : BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(input));
-                if (fromInput == fluid && def.fluidColor() != 0) return def.fluidColor();
-            }
-        }
-        return 0;
-    }
-
-    /**
      * Finds the coolant definition that matches the given fluid (by fluid id or fluid tag). Returns null if excluded or no match.
      */
     @Nullable
@@ -311,7 +290,7 @@ public class CoolantLoader {
         String content = """
             {
               "type": "colossal_reactors:coolant",
-              "_comment_colors": "Fluid bar colors are in fluid_colors JSON (see default_fluid_colors.json from dump)",
+              "_comment_gui": "Tank fluid is rendered in GUI using the fluid's texture and tint (same as Mekanism).",
               "entries": [
                 {
                   "disable": false,
