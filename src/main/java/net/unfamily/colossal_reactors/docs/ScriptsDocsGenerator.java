@@ -74,7 +74,7 @@ public final class ScriptsDocsGenerator {
             | Key | Type | Default | Description |
             |-----|------|---------|-------------|
             | `coolant_id` | string | required | Unique id, e.g. `colossal_reactors:water` |
-            | `inputs` | array of string | required | Fluid ids or tags. Tag: `"#c:water"`. Fluid: `"minecraft:water"`. |
+            | `inputs` | array of string | required | Fluid ids or tags. Tag: `"#c:water"`. Fluid: `"namespace:fluid_id"`. |
             | `output` | string | required | Output fluid for steam, usually a tag, e.g. `"#c:steam"` |
             | `reduce_rf_production` | boolean | false | If true, reactor converts RF to steam (consumes fluid from INSERT ports); no RF when fluid is sufficient. |
             | `rf_to_coolant_factor` | number | 0.45 | Coolant (mB) consumed per 1 RF when in water mode: `mb = rfProduced * rf_to_coolant_factor` |
@@ -93,7 +93,7 @@ public final class ScriptsDocsGenerator {
               "entries": [
                 {
                   "coolant_id": "colossal_reactors:water",
-                  "inputs": ["minecraft:water", "#c:water"],
+                  "inputs": ["#c:water"],
                   "output": "#c:steam",
                   "reduce_rf_production": true,
                   "rf_to_coolant_factor": 0.45,
@@ -127,7 +127,7 @@ public final class ScriptsDocsGenerator {
             | Key | Type | Default | Description |
             |-----|------|---------|-------------|
             | `fuel_id` | string | required | Unique id, e.g. `colossal_reactors:uranium` |
-            | `inputs` | array of string | required | Item ids or tags, e.g. `"#c:ingots/uranium"`, `"colossal_reactors:uranium_ingot"` |
+            | `inputs` | array of string | required | Item ids or tags, e.g. `"#c:ingots/uranium"` |
             | `output` | string | optional | Item id for solid waste produced when this fuel is consumed. |
             | `units_per_item` | number | 1000 | Fuel units one item gives (e.g. 1 ingot = 1000 units). |
             | `base_rf_per_tick` | number | from config | Reference RF (used in formulas). |
@@ -142,7 +142,7 @@ public final class ScriptsDocsGenerator {
               "entries": [
                 {
                   "fuel_id": "colossal_reactors:uranium",
-                  "inputs": ["#c:ingots/uranium", "colossal_reactors:uranium_ingot"],
+                  "inputs": ["#c:ingots/uranium"],
                   "output": "colossal_reactors:nuclear_waste",
                   "units_per_item": 1000
                 }

@@ -233,6 +233,11 @@ public final class HeatSinkLoader {
         return m != null ? m : new HeatSinkModifiers(1.0, 1.0);
     }
 
+    /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */
+    public static List<HeatSinkDefinition> getAllDefinitions() {
+        return List.copyOf(DEFINITIONS);
+    }
+
     private static boolean fluidMatches(Fluid fluid, String selector, RegistryAccess registryAccess) {
         ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
         if (selector.startsWith("#")) {

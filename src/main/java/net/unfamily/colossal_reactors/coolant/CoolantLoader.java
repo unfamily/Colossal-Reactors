@@ -34,7 +34,7 @@ import java.util.stream.Stream;
 
 /**
  * Loads coolant definitions from external JSON (external_scripts_path/reactor/*.json with type colossal_reactors:coolant).
- * Internal default: water (minecraft:water) → output #c:steam. JSON entries can add or override by coolant_id.
+ * Internal default: water (#c:water) → output #c:steam. JSON entries can add or override by coolant_id.
  * "disable" is optional (default false). When true, the entry means "these tags/liquids: no" (excluded inputs).
  */
 public class CoolantLoader {
@@ -111,8 +111,8 @@ public class CoolantLoader {
     }
 
     private static void registerInternalDefaults() {
-        // Vanilla water and #c:water tag so modded waters are accepted
-        List<String> inputs = List.of("minecraft:water", "#c:water");
+        // #c:water tag so vanilla and modded waters are accepted
+        List<String> inputs = List.of("#c:water");
         String output = "#c:steam";
         DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
     }
@@ -312,7 +312,7 @@ public class CoolantLoader {
                 {
                   "disable": false,
                   "coolant_id": "colossal_reactors:water",
-                  "inputs": ["minecraft:water", "#c:water"],
+                  "inputs": ["#c:water"],
                   "output": "#c:steam",
                   "rf_increment_percent": 0,
                   "mb_decrement_percent": 100,

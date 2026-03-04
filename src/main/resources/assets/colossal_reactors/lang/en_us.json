@@ -51,5 +51,14 @@
   "gui.colossal_reactors.reactor_controller.reboot": "Reboot",
   "gui.colossal_reactors.reactor_controller.reboot.tooltip": "Re-validate the reactor structure to detect changes",
   "gui.colossal_reactors.reactor_controller.coolant": "Coolant: %s",
-  "gui.colossal_reactors.reactor_controller.fuel": "Fuel: %s"
+  "gui.colossal_reactors.reactor_controller.fuel": "Fuel: %s",
+  "jei.colossal_reactors.reactor_coolant": "Reactor Coolant",
+  "jei.colossal_reactors.reactor_fuel": "Reactor Fuel",
+  "jei.colossal_reactors.reactor_heat_sink": "Reactor Heat Sink",
+  "jei.colossal_reactors.consume_fuel": "Consume fuel: %s",
+  "jei.colossal_reactors.produce_waste": "Produce waste: %s",
+  "jei.colossal_reactors.consume_coolant": "Consume coolant: %s",
+  "jei.colossal_reactors.produce_exhaust_coolant": "Produce exhaust coolant: %s",
+  "jei.colossal_reactors.heat_sink.fuel_reduction": "Fuel Reduction: %sx",
+  "jei.colossal_reactors.heat_sink.rf_increment": "Energy Increment: %sx"
 }

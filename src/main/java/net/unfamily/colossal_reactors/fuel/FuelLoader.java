@@ -108,10 +108,7 @@ public class FuelLoader {
         int unitsPerItem = 1000;
         double baseRf = Config.BASE_RF_PER_TICK.get();
         double baseFuelUnitsPerTick = Config.BASE_FUEL_UNITS_PER_TICK.get();
-        List<String> inputs = List.of(
-                "#c:ingots/uranium",
-                ColossalReactors.MODID + ":uranium_ingot"
-        );
+        List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
         DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerItem, baseRf, baseFuelUnitsPerTick, true));
     }
@@ -280,7 +277,7 @@ public class FuelLoader {
                 {
                   "disable": false,
                   "fuel_id": "colossal_reactors:uranium",
-                  "inputs": ["#c:ingots/uranium", "colossal_reactors:uranium_ingot"],
+                  "inputs": ["#c:ingots/uranium"],
                   "output": "colossal_reactors:nuclear_waste",
                   "units_per_item": 1000,
                   "base_rf_per_tick": 200.0,
