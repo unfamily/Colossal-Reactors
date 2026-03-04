@@ -42,6 +42,7 @@ public final class ScriptsDocsGenerator {
             - `default_coolant.json` – coolant definitions (e.g. water → steam)
             - `default_fuel.json` – fuel definitions (e.g. uranium)
             - `default_heat_sinks.json` – heat sink block/liquid multipliers
+            - `default_fluid_colors.json` – fluid-to-color associations for GUI bars (e.g. water, steam)
 
             These files contain the internal defaults. **Any change you make to these files (or any other JSON in this folder) overrides the internal defaults.** Use `/colossal_reactors reload` after editing to apply changes without restarting.
 
@@ -49,7 +50,7 @@ public final class ScriptsDocsGenerator {
 
             - **This folder** (config: `dev.000_external_scripts_path` + `/reactor`): default `kubejs/external_scripts/colossal_reactors/reactor`
             - **Path**: `%s`
-            - Any `.json` here (except names starting with `.`) is scanned. File names do not matter; the **type** field inside each file selects coolant, fuel, or heat sink.
+            - Any `.json` here (except names starting with `.`) is scanned. File names do not matter; the **type** field inside each file selects coolant, fuel, heat sink, or fluid colors.
 
             ## Reload
 
@@ -81,8 +82,8 @@ public final class ScriptsDocsGenerator {
             | `steam_per_coolant` | number | 1.0 | Steam (mB) produced per 1 mB coolant consumed. |
             | `rf_increment_percent` | number | 0 | RF multiplier = 1 + value/100 (e.g. 2 → 1.02). |
             | `mb_decrement_percent` | number | 100 | Consumption divisor (e.g. 100 → 1.0). |
-            | `fluid_color` | string or number | - | ARGB color for GUI (e.g. `"#3498db"`). |
-            | `output_color` | string or number | - | ARGB color for steam in GUI. |
+            | `fluid_color` | string or number | - | Fallback ARGB for GUI if not in fluid_colors.json. |
+            | `output_color` | string or number | - | Fallback ARGB for steam in GUI if not in fluid_colors.json. |
             | `disable` | boolean | false | If true, this entry **excludes** the listed inputs from being valid (use to blacklist). |
 
             ### Example: water coolant
@@ -108,6 +109,38 @@ public final class ScriptsDocsGenerator {
             ### Example: second coolant (e.g. gel)
 
             Add another entry or file with a different `coolant_id` and inputs. Only one coolant is active at a time (from fluid in INSERT ports).
+
+            ---
+
+            ## Fluid colors (GUI)
+
+            Files with `"type": "colossal_reactors:fluid_colors"` define which ARGB color to use when drawing fluid bars in GUIs (e.g. Resource Port, Reactor Builder tank). This is separate from coolant definitions so all liquid colors can be managed in one place. First matching entry wins; if no entry matches, the mod falls back to coolant `fluid_color`/`output_color` if present.
+
+            ### Root keys
+
+            | Key | Type | Description |
+            |-----|------|-------------|
+            | `type` | string | Must be `colossal_reactors:fluid_colors` |
+            | `entries` | array | List of fluid–color entries (see below). |
+
+            ### Entry keys
+
+            | Key | Type | Description |
+            |-----|------|-------------|
+            | `fluid` | string | Fluid id or tag. Tag: `"#c:water"`. Fluid: `"minecraft:water"`. |
+            | `color` | string or number | ARGB color. Hex string: `"#3498db"`. Or integer. |
+
+            ### Example
+
+            ```json
+            {
+              "type": "colossal_reactors:fluid_colors",
+              "entries": [
+                { "fluid": "#c:water", "color": "#3498db" },
+                { "fluid": "#c:steam", "color": "#e8f0f0" }
+              ]
+            }
+            ```
 
             ---
 

@@ -21,9 +21,10 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
-import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
+import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
@@ -35,6 +36,7 @@ import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.docs.ScriptsDocsGenerator;
+import net.unfamily.colossal_reactors.fluid.FluidColorLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 
@@ -67,6 +69,8 @@ public class ColossalReactors {
                 (be, direction) -> ((ResourcePortBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((ResourcePortBlockEntity) be).getFluidHandlerForCapability());
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
+                (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
     }
@@ -100,6 +104,7 @@ public class ColossalReactors {
         FuelLoader.scanConfigDirectory();
         CoolantLoader.scanConfigDirectory();
         HeatSinkLoader.scanConfigDirectory();
+        FluidColorLoader.scanConfigDirectory();
     }
 
     @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)

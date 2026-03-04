@@ -15,6 +15,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.fluid.FluidColorLoader;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -252,11 +253,13 @@ public class CoolantLoader {
     }
 
     /**
-     * Returns ARGB color for simple fluid bar rendering. Input fluids use fluid_color, output (e.g. steam) uses output_color.
+     * Returns ARGB color for simple fluid bar rendering. First checks fluid_colors JSON; if no match, uses coolant definition fluid_color/output_color.
      * Returns 0 to use game default when no definition provides a color.
      */
     public static int getColorForFluid(Fluid fluid, RegistryAccess registryAccess) {
         if (fluid == null || fluid == Fluids.EMPTY) return 0;
+        int fromFluidColors = FluidColorLoader.getColorForFluid(fluid, registryAccess);
+        if (fromFluidColors != 0) return fromFluidColors;
         for (CoolantDefinition def : DEFINITIONS.values()) {
             Fluid outputFluid = getFirstFluidFromTag(def.output(), registryAccess);
             if (outputFluid == fluid && def.outputColor() != 0) return def.outputColor();
@@ -308,6 +311,7 @@ public class CoolantLoader {
         String content = """
             {
               "type": "colossal_reactors:coolant",
+              "_comment_colors": "Fluid bar colors are in fluid_colors JSON (see default_fluid_colors.json from dump)",
               "entries": [
                 {
                   "disable": false,
@@ -318,9 +322,7 @@ public class CoolantLoader {
                   "mb_decrement_percent": 100,
                   "reduce_rf_production": true,
                   "rf_to_coolant_factor": 0.45,
-                  "steam_per_coolant": 1.0,
-                  "fluid_color": "#3498db",
-                  "output_color": "#e8f0f0"
+                  "steam_per_coolant": 1.0
                 }
               ]
             }

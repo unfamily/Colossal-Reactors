@@ -2,22 +2,38 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.fluids.FluidType;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Reactor Builder GUI. Background reactor_builder.png 176x230; buffer at (8, 82), player at (8, 148), hotbar at (8, 206).
+ * Reactor Builder GUI. Background reactor_builder.png 230x230; slots offset +27px right from left edge.
  */
 public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilderMenu> {
 
     private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/reactor_builder.png");
 
-    private static final int GUI_WIDTH = 176;
+    private static final int GUI_WIDTH = 230;
     private static final int GUI_HEIGHT = 230;
+
+    /** Tank at (13, 27), same dimensions as Resource Port: 12x54 fill with 1px inset */
+    private static final int FLUID_BAR_X = 13;
+    private static final int FLUID_BAR_Y = 27;
+    private static final int FLUID_FILL_WIDTH = 12;
+    private static final int FLUID_FILL_HEIGHT = 54;
+    private static final int FLUID_FILL_INSET = 1;
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -28,12 +44,59 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+        int amount = menu.getFluidAmount();
+        int capacity = menu.getFluidCapacity();
+        if (capacity > 0 && amount > 0) {
+            int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
+            if (fillPixels > 0) {
+                int barLeft = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
+                int barBottom = topPos + FLUID_BAR_Y + FLUID_FILL_INSET + FLUID_FILL_HEIGHT;
+                int fillTop = barBottom - fillPixels;
+                int color = 0xFF3F76E4;
+                if (minecraft != null && minecraft.level != null) {
+                    int fluidId = menu.getFluidId();
+                    if (fluidId >= 0) {
+                        Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+                        if (fluid != null && fluid != Fluids.EMPTY) {
+                            int fromDef = CoolantLoader.getColorForFluid(fluid, minecraft.level.registryAccess());
+                            if (fromDef != 0) color = fromDef;
+                        }
+                    }
+                }
+                guiGraphics.fill(barLeft, fillTop, barLeft + FLUID_FILL_WIDTH, barBottom, color);
+            }
+        }
     }
 
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         int titleX = (imageWidth - font.width(title)) / 2;
         guiGraphics.drawString(font, title, titleX, 6, 0x404040, false);
+    }
+
+    @Override
+    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        super.renderTooltip(guiGraphics, mouseX, mouseY);
+        int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
+        int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
+        if (mouseX >= left && mouseX < left + FLUID_FILL_WIDTH && mouseY >= top && mouseY < top + FLUID_FILL_HEIGHT) {
+            int amount = menu.getFluidAmount();
+            int capacity = menu.getFluidCapacity();
+            int fluidId = menu.getFluidId();
+            Component amountLine = capacity > 0
+                    ? Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip", amount, capacity)
+                    : Component.translatable("gui.colossal_reactors.resource_port.tank_empty");
+            List<FormattedCharSequence> tooltipLines = new ArrayList<>();
+            tooltipLines.add(amountLine.getVisualOrderText());
+            if (fluidId >= 0) {
+                Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+                if (fluid != null && fluid != Fluids.EMPTY) {
+                    FluidType type = fluid.getFluidType();
+                    tooltipLines.add(Component.translatable(type.getDescriptionId()).getVisualOrderText());
+                }
+            }
+            guiGraphics.renderTooltip(font, tooltipLines, mouseX, mouseY);
+        }
     }
 
     @Override
