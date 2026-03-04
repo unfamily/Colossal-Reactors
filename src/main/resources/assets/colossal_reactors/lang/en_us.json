@@ -63,5 +63,13 @@
   "jei.colossal_reactors.consume_coolant": "Consume coolant: %s",
   "jei.colossal_reactors.produce_exhaust_coolant": "Produce exhaust coolant: %s",
   "jei.colossal_reactors.heat_sink.fuel_reduction": "Fuel Reduction: %sx",
-  "jei.colossal_reactors.heat_sink.rf_increment": "Energy Increment: %sx"
+  "jei.colossal_reactors.heat_sink.rf_increment": "Energy Increment: %sx",
+  "gui.colossal_reactors.reactor_builder.tooltip.up_value": "Up: %s",
+  "gui.colossal_reactors.reactor_builder.tooltip.left_value": "Left: %s",
+  "gui.colossal_reactors.reactor_builder.tooltip.right_value": "Right: %s",
+  "gui.colossal_reactors.reactor_builder.tooltip.behind_value": "Behind: %s",
+  "gui.colossal_reactors.reactor_builder.tooltip.left_click": "Left click: increment",
+  "gui.colossal_reactors.reactor_builder.tooltip.right_click": "Right click: decrement",
+  "gui.colossal_reactors.reactor_builder.warning": "XXXXX",
+  "gui.colossal_reactors.reactor_builder.size": "Size: (L+R=%s) x %s x %s"
 }

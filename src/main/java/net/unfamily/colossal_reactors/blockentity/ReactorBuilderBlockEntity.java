@@ -35,10 +35,28 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_FLUID = "Fluid";
     private static final String TAG_FLUID_ID = "FluidId";
     private static final String TAG_FLUID_AMOUNT = "Amount";
+    private static final String TAG_SIZE_L = "SizeL";
+    private static final String TAG_SIZE_R = "SizeR";
+    private static final String TAG_SIZE_H = "SizeH";
+    private static final String TAG_SIZE_D = "SizeD";
+    private static final String TAG_SIZE_W = "SizeW";
     private static final int BUFFER_SLOTS = 9 * 3;
+    private static final int MIN_SIZE = 1;
 
     private static int getTankCapacityMb() {
         return Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
+    }
+
+    private static int getMaxWidth() {
+        return Config.MAX_REACTOR_WIDTH.get();
+    }
+
+    private static int getMaxHeight() {
+        return Config.MAX_REACTOR_HEIGHT.get();
+    }
+
+    private static int getMaxDepth() {
+        return Config.MAX_REACTOR_LENGTH.get();
     }
 
     private final ItemStackHandler bufferHandler = new ItemStackHandler(BUFFER_SLOTS) {
@@ -86,6 +104,50 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
     };
 
+    private int sizeLeft = 1;
+    private int sizeRight = 0;
+    private int sizeHeight = MIN_SIZE;
+    private int sizeDepth = MIN_SIZE;
+
+    private final ContainerData sizeData = new ContainerData() {
+        @Override
+        public int get(int index) {
+            return switch (index) {
+                case 0 -> sizeLeft;
+                case 1 -> sizeRight;
+                case 2 -> sizeHeight;
+                case 3 -> sizeDepth;
+                case 4 -> worldPosition.getX();
+                case 5 -> worldPosition.getY();
+                case 6 -> worldPosition.getZ();
+                default -> 0;
+            };
+        }
+
+        @Override
+        public void set(int index, int value) {
+            if (index >= 4) return; // pos is read-only
+            switch (index) {
+                case 0 -> {
+                    sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
+                    if (sizeLeft + sizeRight < 1) sizeRight = 1 - sizeLeft;
+                }
+                case 1 -> {
+                    sizeRight = Math.max(0, Math.min(getMaxWidth() - sizeLeft, value));
+                    if (sizeLeft + sizeRight < 1) sizeLeft = 1 - sizeRight;
+                }
+                case 2 -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), value));
+                case 3 -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), value));
+                default -> {}
+            }
+        }
+
+        @Override
+        public int getCount() {
+            return 7;
+        }
+    };
+
     public ReactorBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_BUILDER_BE.get(), pos, state);
     }
@@ -100,6 +162,33 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
 
     public ContainerData getFluidData() {
         return fluidData;
+    }
+
+    public ContainerData getSizeData() {
+        return sizeData;
+    }
+
+    /** Direction: 0=up (height), 1=left, 2=right, 3=down/behind (depth). Total width L+R is limited by config. */
+    public void adjustSize(int direction, boolean increment) {
+        if (increment) {
+            switch (direction) {
+                case 0 -> sizeHeight = Math.min(getMaxHeight(), sizeHeight + 1);
+                case 1 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeLeft++; }
+                case 2 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeRight++; }
+                case 3 -> sizeDepth = Math.min(getMaxDepth(), sizeDepth + 1);
+                default -> {}
+            }
+        } else {
+            switch (direction) {
+                case 0 -> sizeHeight = Math.max(MIN_SIZE, sizeHeight - 1);
+                case 1 -> { if (sizeLeft > 0) sizeLeft--; else if (sizeRight > 0) sizeRight--; }
+                case 2 -> { if (sizeRight > 0) sizeRight--; else if (sizeLeft > 0) sizeLeft--; }
+                case 3 -> sizeDepth = Math.max(MIN_SIZE, sizeDepth - 1);
+                default -> {}
+            }
+            if (sizeLeft + sizeRight < 1) sizeLeft = 1;
+        }
+        setChanged();
     }
 
     /**
@@ -147,6 +236,10 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
             fluidTag.putInt(TAG_FLUID_AMOUNT, stack.getAmount());
             tag.put(TAG_FLUID, fluidTag);
         }
+        tag.putInt(TAG_SIZE_L, sizeLeft);
+        tag.putInt(TAG_SIZE_R, sizeRight);
+        tag.putInt(TAG_SIZE_H, sizeHeight);
+        tag.putInt(TAG_SIZE_D, sizeDepth);
     }
 
     @Override
@@ -164,6 +257,22 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 fluidTank.setFluid(new FluidStack(fluid, amount));
             }
         }
+        if (tag.contains(TAG_SIZE_L) || tag.contains(TAG_SIZE_R)) {
+            sizeLeft = Math.max(0, Math.min(getMaxWidth(), tag.getInt(TAG_SIZE_L)));
+            sizeRight = Math.max(0, Math.min(getMaxWidth(), tag.getInt(TAG_SIZE_R)));
+            if (sizeLeft + sizeRight > getMaxWidth()) {
+                int total = sizeLeft + sizeRight;
+                sizeLeft = (sizeLeft * getMaxWidth()) / total;
+                sizeRight = getMaxWidth() - sizeLeft;
+            }
+            if (sizeLeft + sizeRight < 1) { sizeLeft = 1; sizeRight = 0; }
+        } else if (tag.contains(TAG_SIZE_W)) {
+            int w = Math.max(MIN_SIZE, Math.min(getMaxWidth(), tag.getInt(TAG_SIZE_W)));
+            sizeLeft = w / 2;
+            sizeRight = w - sizeLeft;
+        }
+        if (tag.contains(TAG_SIZE_H)) sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), tag.getInt(TAG_SIZE_H)));
+        if (tag.contains(TAG_SIZE_D)) sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), tag.getInt(TAG_SIZE_D)));
     }
 
     @Override
