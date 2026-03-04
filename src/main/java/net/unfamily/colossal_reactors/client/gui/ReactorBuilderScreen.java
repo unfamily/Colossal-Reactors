@@ -72,14 +72,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int WARNING_X = GROUP_LEFT_X;
 
     /**
-     * 6 buttons: 12px from GUI right edge; gap between arrow block and this block.
+     * 9 buttons: 3 cols x 3 rows; 12px from GUI right edge.
      */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
-    private static final int RIGHT_BLOCK_X = GUI_WIDTH - RIGHT_EDGE_INSET - (2 * RIGHT_BUTTON_W + GAP);
+    private static final int RIGHT_BLOCK_X = GUI_WIDTH - RIGHT_EDGE_INSET - (3 * RIGHT_BUTTON_W + 2 * GAP);
     private static final int RIGHT_BUTTON_H = BUTTON_H;
     private static final int RIGHT_COL0_X = RIGHT_BLOCK_X;
     private static final int RIGHT_COL1_X = RIGHT_BLOCK_X + RIGHT_BUTTON_W + GAP;
+    private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
     private static final int RIGHT_ROW0_Y = 32;
     private static final int RIGHT_ROW1_Y = 46;
     private static final int RIGHT_ROW2_Y = 60;
@@ -107,9 +108,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonRight;
     private Button buttonDown;
     /**
-     * Right block buttons, index 0–5 (displayed as 1–6).
+     * Right block buttons, index 0–8: 0=Heat Sink, 1–7=labels, 8=Preview.
      */
-    private final Button[] rightBlockButtons = new Button[6];
+    private final Button[] rightBlockButtons = new Button[9];
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -138,20 +139,20 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(buttonDown);
         addRenderableWidget(buttonRight);
 
-        // Right block: 2 cols x 3 rows. 0=Heat Sink, 5=Preview, others 1–4, 6 reserved.
+        // Right block: 3 cols x 3 rows. 0=Heat Sink, 8=Preview, 1–7=labels.
         int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y, RIGHT_ROW2_Y};
-        int[] colX = {RIGHT_COL0_X, RIGHT_COL1_X};
-        for (int i = 0; i < 6; i++) {
-            int row = i / 2;
-            int col = i % 2;
+        int[] colX = {RIGHT_COL0_X, RIGHT_COL1_X, RIGHT_COL2_X};
+        for (int i = 0; i < 9; i++) {
+            int row = i / 3;
+            int col = i % 3;
             Component label = (i == 0) ? getHeatSinkButtonLabel()
-                    : (i == 4) ? Component.translatable("gui.colossal_reactors.reactor_builder.preview")
+                    : (i == 8) ? Component.translatable("gui.colossal_reactors.reactor_builder.preview")
                     : Component.literal(String.valueOf(i + 1));
             final int buttonIndex = i;
             rightBlockButtons[i] = Button.builder(label, b -> onRightBlockClick(buttonIndex))
                     .bounds(leftPos + colX[col], topPos + rowY[row], RIGHT_BUTTON_W, RIGHT_BUTTON_H)
                     .build();
-            if (i == 4) {
+            if (i == 8) {
                 rightBlockButtons[i].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
             }
             addRenderableWidget(rightBlockButtons[i]);
@@ -172,16 +173,16 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // left click = previous
             return;
         }
-        if (index == 4) {
+        if (index == 8) {
             PacketDistributor.sendToServer(new ReactorPreviewPayload(pos));
         }
     }
 
     private void updateButtonTooltips() {
-        buttonUp.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.up_value", menu.getSizeH()));
+        buttonUp.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.up_value", menu.getSizeH() + 1));
         buttonLeft.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.left_value", menu.getSizeLeft()));
         buttonRight.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.right_value", menu.getSizeRight()));
-        buttonDown.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.behind_value", menu.getSizeD()));
+        buttonDown.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.behind_value", menu.getSizeD() + 1));
         // Heat sink button: current value + left=previous, right=next
         Component heatSinkName = getHeatSinkButtonLabel();
         Component heatSinkTooltip = Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value", heatSinkName)
@@ -236,9 +237,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private boolean isInRightBlockButton(int x, int y, int index) {
-        int row = index / 2;
-        int col = index % 2;
-        int left = leftPos + (col == 0 ? RIGHT_COL0_X : RIGHT_COL1_X);
+        int row = index / 3;
+        int col = index % 3;
+        int left = leftPos + (col == 0 ? RIGHT_COL0_X : col == 1 ? RIGHT_COL1_X : RIGHT_COL2_X);
         int top = topPos + (row == 0 ? RIGHT_ROW0_Y : row == 1 ? RIGHT_ROW1_Y : RIGHT_ROW2_Y);
         return x >= left && x < left + RIGHT_BUTTON_W && y >= top && y < top + RIGHT_BUTTON_H;
     }
@@ -270,10 +271,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int titleX = (imageWidth - font.width(title)) / 2;
         guiGraphics.drawString(font, title, titleX, 6, 0x404040, false);
 
-        // Size: (L+R=total) x Y x Z — centered, above buttons
+        // Size: (L+R=total) x (Y+1) x (Z+1) — display Y/Z as +1 for player
         int totalW = menu.getSizeLeft() + menu.getSizeRight();
         Component sizeLabel = Component.translatable("gui.colossal_reactors.reactor_builder.size",
-                menu.getSizeLeft(), menu.getSizeRight(), totalW, menu.getSizeH(), menu.getSizeD());
+                menu.getSizeLeft(), menu.getSizeRight(), totalW, menu.getSizeH() + 1, menu.getSizeD() + 1);
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 

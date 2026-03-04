@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
@@ -54,16 +55,19 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             int maxY = (int) Math.floor(aabb.maxY - 1e-6);
             int maxZ = (int) Math.floor(aabb.maxZ - 1e-6);
 
-            int color = 0x80FF00FF; // transparent purple (visible against blue sky)
+            int colorFree = 0x80FF00FF; // transparent purple (visible against blue sky)
+            int colorOccupied = 0xE0FF0000; // red tint for occupied blocks
             int durationTicks = 200;
 
-            // Border only (like fan): top/bottom, front/back, left/right faces edges
+            // Border only (like fan): top/bottom, front/back, left/right faces edges; red if block occupied
             for (int x = minX; x <= maxX; x++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     boolean edge = (x == minX || x == maxX || z == minZ || z == maxZ);
                     if (edge) {
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, minY, z), color, durationTicks);
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, maxY, z), color, durationTicks);
+                        int cMin = isBlockOccupied(level, new BlockPos(x, minY, z)) ? colorOccupied : colorFree;
+                        int cMax = isBlockOccupied(level, new BlockPos(x, maxY, z)) ? colorOccupied : colorFree;
+                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, minY, z), cMin, durationTicks);
+                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, maxY, z), cMax, durationTicks);
                     }
                 }
             }
@@ -71,8 +75,10 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                 for (int y = minY; y <= maxY; y++) {
                     boolean edge = (x == minX || x == maxX || y == minY || y == maxY);
                     if (edge) {
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, y, minZ), color, durationTicks);
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, y, maxZ), color, durationTicks);
+                        int cMin = isBlockOccupied(level, new BlockPos(x, y, minZ)) ? colorOccupied : colorFree;
+                        int cMax = isBlockOccupied(level, new BlockPos(x, y, maxZ)) ? colorOccupied : colorFree;
+                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, y, minZ), cMin, durationTicks);
+                        ModPayloads.sendPreviewMarker(player, new BlockPos(x, y, maxZ), cMax, durationTicks);
                     }
                 }
             }
@@ -80,11 +86,19 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                 for (int y = minY; y <= maxY; y++) {
                     boolean edge = (z == minZ || z == maxZ || y == minY || y == maxY);
                     if (edge) {
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(minX, y, z), color, durationTicks);
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(maxX, y, z), color, durationTicks);
+                        int cMin = isBlockOccupied(level, new BlockPos(minX, y, z)) ? colorOccupied : colorFree;
+                        int cMax = isBlockOccupied(level, new BlockPos(maxX, y, z)) ? colorOccupied : colorFree;
+                        ModPayloads.sendPreviewMarker(player, new BlockPos(minX, y, z), cMin, durationTicks);
+                        ModPayloads.sendPreviewMarker(player, new BlockPos(maxX, y, z), cMax, durationTicks);
                     }
                 }
             }
         });
+    }
+
+    /** True if the block at pos would block reactor construction (not air, not replaceable). */
+    private static boolean isBlockOccupied(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return !state.isAir() && !state.canBeReplaced();
     }
 }
