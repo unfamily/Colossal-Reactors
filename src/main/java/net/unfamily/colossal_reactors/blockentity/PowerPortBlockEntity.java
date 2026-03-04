@@ -13,6 +13,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 /**
  * BlockEntity for Power Port. Large energy buffer; reactor pushes in via {@link #receiveEnergyFromReactor(int)}.
  * Each tick the port pushes energy out to adjacent blocks that can receive (cables, machines).
+ * Capacity and max extract per tick are read from Config (ports.power).
  */
 public class PowerPortBlockEntity extends BlockEntity {
 
@@ -21,16 +22,13 @@ public class PowerPortBlockEntity extends BlockEntity {
         return net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
     }
 
-    /** Buffer capacity: ~20s at 1M FE/t. From CSV, reactors can do 8k–128k+ RF/t. */
-    public static final int CAPACITY = 50_000_000;
-    /** Max transfer per tick (cables pull this much). 1M FE/t for large reactors. */
-    public static final int MAX_EXTRACT = 1_000_000;
-
     private final PowerPortEnergyStorage energyStorage;
 
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
-        this.energyStorage = new PowerPortEnergyStorage(CAPACITY, MAX_EXTRACT);
+        int capacity = net.unfamily.colossal_reactors.Config.POWER_PORT_CAPACITY.get();
+        int maxExtract = net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
+        this.energyStorage = new PowerPortEnergyStorage(capacity, maxExtract);
     }
 
     /**

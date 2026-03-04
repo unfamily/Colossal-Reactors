@@ -23,6 +23,7 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,7 +41,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final String TAG_PORT_MODE = "PortMode";
     private static final String TAG_PORT_FILTER = "PortFilter";
     private static final int SLOT_SIZE = 1;
-    public static final int TANK_CAPACITY_MB = 16000;
+
+    private static int getTankCapacityMb() {
+        return Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
+    }
 
     private static final int DATA_MODE = 3;
     private static final int DATA_POS_X = 4;
@@ -56,7 +60,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     };
 
-    private final FluidTank fluidTank = new FluidTank(TANK_CAPACITY_MB) {
+    private final FluidTank fluidTank = new FluidTank(getTankCapacityMb()) {
         @Override
         protected void onContentsChanged() {
             setChanged();
@@ -91,7 +95,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 if (value <= 0) {
                     fluidTank.setFluid(FluidStack.EMPTY);
                 } else if (!current.isEmpty()) {
-                    fluidTank.setFluid(new FluidStack(current.getFluid(), Math.min(value, TANK_CAPACITY_MB)));
+                    fluidTank.setFluid(new FluidStack(current.getFluid(), Math.min(value, fluidTank.getCapacity())));
                 }
             }
         }
@@ -146,6 +150,23 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public boolean canAcceptFluidFromReactor() {
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
         return fluidTank.getFluidAmount() < fluidTank.getCapacity();
+    }
+
+    /**
+     * Drains fluid from this port's tank for reactor coolant consumption. Only when mode is INSERT and filter allows fluid.
+     * Returns amount actually drained (caller uses this for steam production).
+     */
+    public int takeFluidForReactor(Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        if (portMode != PortMode.INSERT) return 0;
+        if (portFilter != PortFilter.BOTH && portFilter != PortFilter.ONLY_COOLANT_LIQUID) return 0;
+        FluidStack inTank = fluidTank.getFluid();
+        if (inTank.isEmpty() || inTank.getFluid() != fluid) return 0;
+        int drain = Math.min(amountMb, inTank.getAmount());
+        if (drain <= 0) return 0;
+        fluidTank.drain(drain, IFluidHandler.FluidAction.EXECUTE);
+        setChanged();
+        return drain;
     }
 
     /**

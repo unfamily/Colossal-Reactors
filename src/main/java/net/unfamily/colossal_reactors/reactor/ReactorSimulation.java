@@ -151,7 +151,7 @@ public final class ReactorSimulation {
         int waterConsumedThisTick = 0;
 
         if (waterMode) {
-            // Water mode: consume coolant for steam. Only produce RF when water is insufficient for full conversion.
+            // Water mode: consume coolant from rods for steam; add steam to rods as liquid waste; pushWasteToPorts moves it to EXTRACT ports.
             int coolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
             Fluid coolantFluid = CoolantLoader.getFirstFluidFromDefinition(coolantDef, level.registryAccess());
             if (coolantToConsumeMb > 0 && coolantFluid != null && coolantFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
@@ -493,27 +493,25 @@ public final class ReactorSimulation {
         return effective;
     }
 
-    /**
-     * Returns the coolant definition to use. Prefers water: if any rod contains water (matches water definition),
-     * return water definition so we always use water mode when water is present.
-     */
+    /** Returns the coolant definition from the first rod that has coolant; prefers water when present. */
     private static CoolantDefinition getCoolantModifierFromRods(List<ReactorRodBlockEntity> rods) {
-        if (rods.isEmpty()) return CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
-        var level = rods.get(0).getLevel();
-        if (level == null) return CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
-        var registryAccess = level.registryAccess();
+        net.minecraft.core.RegistryAccess reg = null;
         CoolantDefinition waterDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         for (ReactorRodBlockEntity rod : rods) {
-            for (var entry : rod.getCoolantEntries()) {
-                CoolantDefinition def = CoolantLoader.getDefinitionForFluid(entry.fluid(), registryAccess);
+            for (var e : rod.getCoolantEntries()) {
+                if (e.amount() <= 0 || e.fluid() == null || e.fluid() == Fluids.EMPTY) continue;
+                if (reg == null) reg = rod.getLevel() != null && rod.getLevel() instanceof net.minecraft.server.level.ServerLevel sl ? sl.registryAccess() : net.minecraft.core.RegistryAccess.EMPTY;
+                CoolantDefinition def = CoolantLoader.getDefinitionForFluid(e.fluid(), reg);
                 if (def != null) {
                     if (CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) return waterDef != null ? waterDef : def;
                 }
             }
         }
         for (ReactorRodBlockEntity rod : rods) {
-            for (var entry : rod.getCoolantEntries()) {
-                CoolantDefinition def = CoolantLoader.getDefinitionForFluid(entry.fluid(), registryAccess);
+            for (var e : rod.getCoolantEntries()) {
+                if (e.amount() <= 0 || e.fluid() == null || e.fluid() == Fluids.EMPTY) continue;
+                if (reg == null) reg = rod.getLevel() != null && rod.getLevel() instanceof net.minecraft.server.level.ServerLevel sl ? sl.registryAccess() : net.minecraft.core.RegistryAccess.EMPTY;
+                CoolantDefinition def = CoolantLoader.getDefinitionForFluid(e.fluid(), reg);
                 if (def != null) return def;
             }
         }
