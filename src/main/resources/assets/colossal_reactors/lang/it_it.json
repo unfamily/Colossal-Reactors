@@ -73,5 +73,8 @@
   "gui.colossal_reactors.reactor_builder.warning": "XXXXX",
   "gui.colossal_reactors.reactor_builder.size": "Dimensioni: (%s+%s=%s) x %s x %s",
   "gui.colossal_reactors.reactor_builder.preview": "Anteprima",
-  "gui.colossal_reactors.reactor_builder.preview.tooltip": "Mostra l'ingombro del reattore nel mondo per 10 secondi"
+  "gui.colossal_reactors.reactor_builder.preview.tooltip": "Mostra l'ingombro del reattore nel mondo per 10 secondi",
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value": "Dissipatore: %s",
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left": "Tasto sinistro: precedente",
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right": "Tasto destro: successivo"
 }

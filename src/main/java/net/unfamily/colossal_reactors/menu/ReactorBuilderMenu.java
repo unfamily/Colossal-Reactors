@@ -69,7 +69,7 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
         this.fluidData = new SimpleContainerData(3);
-        this.sizeData = new SimpleContainerData(7);
+        this.sizeData = new SimpleContainerData(8);
         addDataSlots(fluidData);
         addDataSlots(sizeData);
         ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
@@ -105,6 +105,8 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public BlockPos getBlockPos() {
         return new BlockPos(sizeData.get(4), sizeData.get(5), sizeData.get(6));
     }
+    /** Heat sink option index (0=Air, 1..=definition). Synced via sizeData index 7. */
+    public int getHeatSinkIndex() { return sizeData.get(7); }
 
     @Override
     public boolean stillValid(Player player) {

@@ -8,9 +8,11 @@ import com.google.gson.JsonObject;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
@@ -245,6 +247,60 @@ public final class HeatSinkLoader {
     /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */
     public static List<HeatSinkDefinition> getAllDefinitions() {
         return List.copyOf(DEFINITIONS);
+    }
+
+    /** Number of heat sink options for builder GUI: 1 (Air) + one per definition. */
+    public static int getHeatSinkOptionCount() {
+        return 1 + DEFINITIONS.size();
+    }
+
+    /** Display name for option index (0 = Air, 1.. = first block/fluid name from that definition). */
+    public static Component getOptionDisplayName(RegistryAccess registryAccess, int index) {
+        if (index <= 0) return Component.translatable("block.minecraft.air");
+        int defIdx = index - 1;
+        if (defIdx >= DEFINITIONS.size()) return Component.literal("?");
+        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        if (!def.validBlocks().isEmpty()) {
+            String selector = def.validBlocks().getFirst();
+            var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+            if (selector.startsWith("#")) {
+                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+                if (tagId != null) {
+                    TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
+                    return blockReg.getTag(tagKey)
+                            .flatMap(holders -> holders.stream().findFirst())
+                            .map(h -> Component.translatable(h.value().getDescriptionId()))
+                            .orElse(Component.literal(selector));
+                }
+            } else {
+                ResourceLocation id = ResourceLocation.tryParse(selector);
+                if (id != null && blockReg.containsKey(id)) {
+                    return Component.translatable(blockReg.get(id).getDescriptionId());
+                }
+            }
+            return Component.literal(selector);
+        }
+        if (!def.validLiquids().isEmpty()) {
+            String selector = def.validLiquids().getFirst();
+            var fluidReg = registryAccess.registryOrThrow(Registries.FLUID);
+            if (selector.startsWith("#")) {
+                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+                if (tagId != null) {
+                    TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+                    return fluidReg.getTag(tagKey)
+                            .flatMap(holders -> holders.stream().findFirst())
+                            .map(h -> Component.translatable(h.value().getFluidType().getDescriptionId()))
+                            .orElse(Component.literal(selector));
+                }
+            } else {
+                ResourceLocation id = ResourceLocation.tryParse(selector);
+                if (id != null && fluidReg.containsKey(id)) {
+                    return Component.translatable(fluidReg.get(id).getFluidType().getDescriptionId());
+                }
+            }
+            return Component.literal(selector);
+        }
+        return Component.literal("?");
     }
 
     /** Resolves flowing fluid to its source for id/tag lookup. For safety, identity checks always use the source. */

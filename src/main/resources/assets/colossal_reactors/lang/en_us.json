@@ -73,5 +73,8 @@
   "gui.colossal_reactors.reactor_builder.warning": "XXXXX",
   "gui.colossal_reactors.reactor_builder.size": "Size: (%s+%s=%s) x %s x %s",
   "gui.colossal_reactors.reactor_builder.preview": "Preview",
-  "gui.colossal_reactors.reactor_builder.preview.tooltip": "Show reactor footprint in the world for 10 seconds"
+  "gui.colossal_reactors.reactor_builder.preview.tooltip": "Show reactor footprint in the world for 10 seconds",
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value": "Heat Sink: %s",
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left": "Left click: previous",
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right": "Right click: next"
 }

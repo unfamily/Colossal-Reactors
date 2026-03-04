@@ -25,6 +25,7 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 import org.jetbrains.annotations.Nullable;
 
@@ -42,6 +43,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_SIZE_H = "SizeH";
     private static final String TAG_SIZE_D = "SizeD";
     private static final String TAG_SIZE_W = "SizeW";
+    private static final String TAG_HEAT_SINK_IDX = "HeatSinkIdx";
     private static final int BUFFER_SLOTS = 9 * 3;
     private static final int MIN_SIZE = 1;
 
@@ -110,6 +112,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int sizeRight = 0;
     private int sizeHeight = MIN_SIZE;
     private int sizeDepth = MIN_SIZE;
+    /** Heat sink option index for fill: 0 = Air, 1.. = HeatSinkLoader definition index. */
+    private int selectedHeatSinkIndex = 0;
 
     private final ContainerData sizeData = new ContainerData() {
         @Override
@@ -122,13 +126,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 4 -> worldPosition.getX();
                 case 5 -> worldPosition.getY();
                 case 6 -> worldPosition.getZ();
+                case 7 -> selectedHeatSinkIndex;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4) return; // pos is read-only
+            if (index >= 4 && index != 7) return; // pos read-only
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -140,13 +145,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 }
                 case 2 -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), value));
                 case 3 -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), value));
+                case 7 -> selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, value));
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 7;
+            return 8;
         }
     };
 
@@ -174,6 +180,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSizeRight() { return sizeRight; }
     public int getSizeHeight() { return sizeHeight; }
     public int getSizeDepth() { return sizeDepth; }
+    public int getSelectedHeatSinkIndex() { return selectedHeatSinkIndex; }
+
+    /** Cycle heat sink option: next=true next, next=false previous. Left click=prev, right click=next. */
+    public void cycleHeatSink(boolean next) {
+        int max = HeatSinkLoader.getHeatSinkOptionCount() - 1;
+        if (next) selectedHeatSinkIndex = selectedHeatSinkIndex >= max ? 0 : selectedHeatSinkIndex + 1;
+        else selectedHeatSinkIndex = selectedHeatSinkIndex <= 0 ? max : selectedHeatSinkIndex - 1;
+        setChanged();
+    }
 
     /**
      * Returns the reactor volume AABB in world coordinates (block-aligned).
@@ -276,6 +291,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_SIZE_R, sizeRight);
         tag.putInt(TAG_SIZE_H, sizeHeight);
         tag.putInt(TAG_SIZE_D, sizeDepth);
+        tag.putInt(TAG_HEAT_SINK_IDX, selectedHeatSinkIndex);
     }
 
     @Override
@@ -309,6 +325,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
         if (tag.contains(TAG_SIZE_H)) sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), tag.getInt(TAG_SIZE_H)));
         if (tag.contains(TAG_SIZE_D)) sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), tag.getInt(TAG_SIZE_D)));
+        if (tag.contains(TAG_HEAT_SINK_IDX)) selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, tag.getInt(TAG_HEAT_SINK_IDX)));
     }
 
     @Override

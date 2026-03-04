@@ -46,6 +46,11 @@ public class ModPayloads {
                 ReactorPreviewPayload.STREAM_CODEC,
                 ReactorPreviewPayload::handle
         );
+        registrar.playToServer(
+                ReactorBuilderHeatSinkPayload.TYPE,
+                ReactorBuilderHeatSinkPayload.STREAM_CODEC,
+                ReactorBuilderHeatSinkPayload::handle
+        );
     }
 
     /** S2C: send one preview marker to the player (called from server in ReactorPreviewPayload handler). */
