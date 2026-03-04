@@ -22,6 +22,7 @@ import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.integration.ReactorMeltdownIntegrations;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.minecraft.core.RegistryAccess;
@@ -111,7 +112,6 @@ public final class ReactorSimulation {
         int countAdj = heatSink.countAdj();
         int countNon = heatSink.countNon();
         double sumEnergyAdj = heatSink.sumEnergyAdj();
-        double sumFuelAdj = heatSink.sumFuelAdj();
 
         double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
 
@@ -228,6 +228,62 @@ public final class ReactorSimulation {
 
         int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
         controller.setLastTickStats(rfPushedThisTick, steamProducedThisTick, waterConsumedThisTick, fuelHundredths);
+
+        if (Config.REACTOR_UNSTABILITY.get()) {
+            updateStability(level, controller, result, rfProduced, waterMode, waterConsumedThisTick,
+                    coolantDef, heatSink.sumOverheatingAdj(), heatSink.sumOverheatingNon(), baseRf);
+        }
+    }
+
+    /** Approximate center of reactor interior: for even dimensions (e.g. 10 blocks) picks one of the central blocks (2x2 or 2x1). */
+    private static BlockPos reactorInteriorCenter(ReactorValidation.Result result) {
+        int cx = result.minX() + (result.maxX() - result.minX()) / 2;
+        int cy = result.minY() + (result.maxY() - result.minY()) / 2;
+        int cz = result.minZ() + (result.maxZ() - result.minZ()) / 2;
+        return new BlockPos(cx, cy, cz);
+    }
+
+    /**
+     * Updates controller stability when reactor unstability is enabled.
+     * Cooling uses overheating multiplier (sumOverheatingAdj + sumOverheatingNon); defaults in JSON = same as fuel.
+     * Stability drops when cooling is insufficient; small reactors lose stability more slowly.
+     */
+    private static void updateStability(ServerLevel level, ReactorControllerBlockEntity controller, ReactorValidation.Result result,
+            double rfProduced, boolean waterMode, int waterConsumedThisTick, CoolantDefinition coolantDef,
+            double sumOverheatingAdj, double sumOverheatingNon, double baseRf) {
+        int volume = (result.maxX() - result.minX() + 1) * (result.maxY() - result.minY() + 1) * (result.maxZ() - result.minZ() + 1);
+        // Effective cooling from heat sink blocks: use overheating multiplier (surriscaldamento; default = fuel)
+        double heatSinkCoolingRF = baseRf * 0.5 * (sumOverheatingAdj + sumOverheatingNon);
+        double fluidCoolingRF = 0;
+        if (waterMode && coolantDef != null && coolantDef.rfToCoolantFactor() > 0) {
+            fluidCoolingRF = waterConsumedThisTick / coolantDef.rfToCoolantFactor();
+        }
+        double totalCooling = heatSinkCoolingRF + fluidCoolingRF;
+        double ratio = (rfProduced > 0) ? (totalCooling / rfProduced) : 1.0;
+
+        int current = controller.getStabilityPermille();
+        final double dropThreshold = 0.85;
+        double sizeFactor = Math.sqrt(volume) / 250.0 * 10.0;
+        if (ratio < dropThreshold) {
+            // Undercooled: stability drops
+            double drop = (dropThreshold - ratio) * sizeFactor;
+            int dropPermille = Math.max(1, (int) Math.ceil(drop));
+            int newVal = current - dropPermille;
+            if (newVal <= 0) {
+                // Meltdown: trigger at effective reactor center (approximate: for even dimensions picks one of the central blocks, e.g. 2x2 -> one block)
+                BlockPos center = reactorInteriorCenter(result);
+                int sizeX = result.maxX() - result.minX() + 1;
+                int sizeY = result.maxY() - result.minY() + 1;
+                int sizeZ = result.maxZ() - result.minZ() + 1;
+                ReactorMeltdownIntegrations.triggerMeltdown(level, center, volume, sizeX, sizeY, sizeZ);
+                newVal = 0;
+            }
+            controller.setStabilityPermille(Math.max(0, newVal));
+        } else {
+            // Recover at same scale as drop (so increase speed matches decrease speed)
+            int addPermille = Math.max(1, (int) Math.ceil(sizeFactor));
+            controller.setStabilityPermille(Math.min(1000, current + addPermille));
+        }
     }
 
     /**
@@ -353,9 +409,9 @@ public final class ReactorSimulation {
         }
         double sumFuelRod = 0, sumEnergyRod = 0;
         int countRod = 0;
-        double sumFuelAdj = 0, sumEnergyAdj = 0;
+        double sumFuelAdj = 0, sumEnergyAdj = 0, sumOverheatingAdj = 0;
         int countAdj = 0;
-        double sumFuelNon = 0, sumEnergyNon = 0;
+        double sumFuelNon = 0, sumEnergyNon = 0, sumOverheatingNon = 0;
         int countNon = 0;
         var reg = level.registryAccess();
         double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
@@ -381,10 +437,12 @@ public final class ReactorSimulation {
                         if (adjacentToRod) {
                             sumFuelAdj += m.fuelMultiplier();
                             sumEnergyAdj += m.energyMultiplier();
+                            sumOverheatingAdj += m.overheatingMultiplier();
                             countAdj++;
                         } else {
                             sumFuelNon += m.fuelMultiplier();
                             sumEnergyNon += m.energyMultiplier();
+                            sumOverheatingNon += m.overheatingMultiplier();
                             countNon++;
                         }
                     }
@@ -394,7 +452,7 @@ public final class ReactorSimulation {
         double totalWeightedFuel = sumFuelRod + sumFuelAdj * wAdj + sumFuelNon * wNon;
         double totalWeightedEnergy = sumEnergyRod + sumEnergyAdj * wAdj + sumEnergyNon * wNon;
         double totalWeight = countRod + countAdj * wAdj + countNon * wNon;
-        if (totalWeight <= 0) return new HeatSinkLoader.HeatSinkModifiersResult(1.0, 1.0, 0.0, 0.0, 0, 0);
+        if (totalWeight <= 0) return new HeatSinkLoader.HeatSinkModifiersResult(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0);
         double effFuel = totalWeightedFuel / totalWeight;
         double effEnergy = totalWeightedEnergy / totalWeight;
         if (Boolean.TRUE.equals(Config.REACTOR_SIMULATION_DEBUG.get())) {
@@ -402,7 +460,7 @@ public final class ReactorSimulation {
             ColossalReactors.LOGGER.info("[ReactorSimulation] Heat sink: rod(scan)={} rod(list)={} coolantFromPorts={} adj={} nonAdj={} sumEnergyAdj={} sumFuelAdj={} wAdj={} wNon={} => fuelMult={} energyMult={}",
                     countRod, rodsFromList, coolantStr, countAdj, countNon, sumEnergyAdj, sumFuelAdj, wAdj, wNon, effFuel, effEnergy);
         }
-        return new HeatSinkLoader.HeatSinkModifiersResult(effFuel, effEnergy, sumEnergyAdj, sumFuelAdj, countAdj, countNon);
+        return new HeatSinkLoader.HeatSinkModifiersResult(effFuel, effEnergy, sumEnergyAdj, sumFuelAdj, sumEnergyNon, sumFuelNon, sumOverheatingAdj, sumOverheatingNon, countAdj, countNon);
     }
 
     /**

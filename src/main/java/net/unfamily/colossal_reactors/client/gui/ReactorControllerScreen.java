@@ -117,6 +117,24 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         guiGraphics.drawString(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
                 PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
+        if (menu.isUnstabilityEnabled()) {
+            int permille = menu.getStabilityPermille();
+            String stabilityStr = String.format("%.1f%%", permille / 10.0);
+            Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
+            guiGraphics.drawString(font, label, PANEL_X, y, TEXT_COLOR, false);
+            int stabilityColor = stabilityColorFromPermille(permille);
+            guiGraphics.drawString(font, stabilityStr, PANEL_X + font.width(label), y, stabilityColor, false);
+        }
+    }
+
+    /** Green at 100% stability, red at 0%; interpolates in between. */
+    private static int stabilityColorFromPermille(int permille) {
+        float t = Math.max(0, Math.min(1000, permille)) / 1000f;
+        int r = (int) (255 * (1f - t));
+        int g = (int) (255 * t);
+        return (r << 16) | (g << 8) | 0;
     }
 
     private static String formatFuelPerTick(int hundredths) {

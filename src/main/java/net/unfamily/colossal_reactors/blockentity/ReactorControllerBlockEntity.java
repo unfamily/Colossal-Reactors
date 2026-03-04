@@ -33,6 +33,9 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     private int lastWaterPerTick;
     private int lastFuelPerTickHundredths;
 
+    /** Reactor stability 0–1000 permille (0.0%–100.0%) when reactor unstability is enabled. Default 1000 = 100%. */
+    private int stabilityPermille = 1000;
+
     public ReactorControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_CONTROLLER_BE.get(), pos, state);
     }
@@ -81,6 +84,12 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     public int getLastWaterPerTick() { return lastWaterPerTick; }
     public int getLastFuelPerTickHundredths() { return lastFuelPerTickHundredths; }
 
+    /** Stability in permille 0–1000 (display as 0.0%–100.0%). */
+    public int getStabilityPermille() { return stabilityPermille; }
+    public void setStabilityPermille(int permille) {
+        this.stabilityPermille = Math.max(0, Math.min(1000, permille));
+    }
+
     @Override
     public Component getDisplayName() {
         return Component.translatable("block.colossal_reactors.reactor_controller");
@@ -106,6 +115,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             tag.putInt("val_rodColumns", cachedResult.rodColumns());
             tag.putInt("val_coolantCount", cachedResult.coolantCount());
         }
+        tag.putInt("stability", stabilityPermille);
     }
 
     @Override
@@ -120,6 +130,11 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             );
         } else {
             cachedResult = null;
+        }
+        if (tag.contains("stability")) {
+            int v = tag.getInt("stability");
+            // Backward compat: old saves used 0-100 percent
+            stabilityPermille = (v <= 100) ? Math.min(1000, v * 10) : Math.max(0, Math.min(1000, v));
         }
     }
 

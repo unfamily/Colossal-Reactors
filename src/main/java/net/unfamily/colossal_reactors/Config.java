@@ -210,5 +210,31 @@ public class Config {
         BUILDER.pop(); // ports
     }
 
+    // ========== evil_things ==========
+    static {
+        BUILDER.comment("Optional integrations that may be considered overpowered or disruptive. All default: false.",
+                "Enable only if you want these effects.").push("evil_things");
+    }
+
+    public static final ModConfigSpec.BooleanValue REACTOR_UNSTABILITY = BUILDER
+            .comment("Reactor unstability. Default: false")
+            .define("000_reactor_unstability", false);
+
+    public static final ModConfigSpec.BooleanValue MEKANISM_RADIATION_INTEGRATION = BUILDER
+            .comment("Mekanism radiation integration. Default: false")
+            .define("001_mekanism_radiation_integration", false);
+
+    public static final ModConfigSpec.BooleanValue ISKA_UTILS_EXPLOSION_INTEGRATION = BUILDER
+            .comment("Iska Utils explosion integration. Default: false")
+            .define("002_iska_utils_explosion_integration", false);
+
+    public static final ModConfigSpec.BooleanValue ALEXS_CAVES_EXPLOSION_INTEGRATION = BUILDER
+            .comment("Alex's Caves explosion integration. Default: false")
+            .define("003_alexs_caves_explosion_integration", false);
+
+    static {
+        BUILDER.pop(); // evil_things
+    }
+
     static final ModConfigSpec SPEC = BUILDER.build();
 }

@@ -42,6 +42,8 @@ public final class HeatSinkLoader {
     private static final String KEY_VALID_LIQUIDS = "valid_liquids";
     private static final String KEY_FUEL = "fuel";
     private static final String KEY_ENERGY = "energy";
+    /** Overheating multiplier for stability; only used when reactor instability is enabled in config. If omitted, defaults to fuel. */
+    private static final String KEY_OVERHEATING = "overheating";
     private static final String KEY_DISABLE = "disable";
     /** Optional, default true: when true, valid_liquids only match fluid source (e.g. water source), not flowing. */
     private static final String KEY_MUST_SOURCE = "must_source";
@@ -50,32 +52,32 @@ public final class HeatSinkLoader {
 
     private HeatSinkLoader() {}
 
-    /** Internal defaults (tags only, no block ids). JSON in reactor/ can override or add. */
+    /** Internal defaults: overheating = same as fuel for each entry. JSON in reactor/ can override or add. */
     private static void registerInternalDefaults() {
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of(),
                 List.of("#c:water"),
-                1.05, 1.15, true));
+                1.05, 1.15, 1.05, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/diamond"),
                 List.of(),
-                1.8, 1.6, true));
+                1.8, 1.6, 1.8, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/emerald"),
                 List.of(),
-                1.8, 1.6, true));
+                1.8, 1.6, 1.8, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/netherite"),
                 List.of(),
-                1.7, 2.3, true));
+                1.7, 2.3, 1.7, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/gold"),
                 List.of(),
-                1.7, 1.5, true));
+                1.7, 1.5, 1.7, true));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/graphite", "#minecraft:ice"),
                 List.of(),
-                2.5, -5.0, true));
+                2.5, -5.0, 2.5, true));
     }
 
     /**
@@ -160,8 +162,10 @@ public final class HeatSinkLoader {
         }
         double fuel = json.has(KEY_FUEL) ? json.get(KEY_FUEL).getAsDouble() : 1.0;
         double energy = json.has(KEY_ENERGY) ? json.get(KEY_ENERGY).getAsDouble() : 1.0;
+        // overheating: used only when config REACTOR_UNSTABILITY is enabled; default = fuel
+        double overheating = json.has(KEY_OVERHEATING) ? json.get(KEY_OVERHEATING).getAsDouble() : fuel;
         boolean mustSource = !json.has(KEY_MUST_SOURCE) || json.get(KEY_MUST_SOURCE).getAsBoolean();
-        return new HeatSinkDefinition(validBlocks, validLiquids, fuel, energy, mustSource);
+        return new HeatSinkDefinition(validBlocks, validLiquids, fuel, energy, overheating, mustSource);
     }
 
     /**
@@ -176,11 +180,11 @@ public final class HeatSinkLoader {
      * Returns fuel and energy multipliers for this block (air = 1.0, 1.0). Checks valid_blocks first, then if the state is a liquid block (fluid in world) checks valid_liquids using the fluid's tags; must_source uses the actual fluid state in the world (source vs flowing).
      */
     public static HeatSinkModifiers getModifiersForBlock(BlockState state, RegistryAccess registryAccess) {
-        if (state.isAir()) return new HeatSinkModifiers(1.0, 1.0);
+        if (state.isAir()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
         for (HeatSinkDefinition def : DEFINITIONS) {
             for (String selector : def.validBlocks()) {
                 if (blockMatches(state, selector, registryAccess)) {
-                    return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier());
+                    return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier(), def.overheatingMultiplier());
                 }
             }
         }
@@ -193,7 +197,7 @@ public final class HeatSinkLoader {
                         if (def.mustSource() && !fluidState.isSource()) {
                             continue;
                         }
-                        return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier());
+                        return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier(), def.overheatingMultiplier());
                     }
                 }
             }
@@ -206,11 +210,11 @@ public final class HeatSinkLoader {
      */
     public static HeatSinkModifiers getModifiersForBlockOrDefault(BlockState state, RegistryAccess registryAccess) {
         HeatSinkModifiers m = getModifiersForBlock(state, registryAccess);
-        return m != null ? m : new HeatSinkModifiers(1.0, 1.0);
+        return m != null ? m : new HeatSinkModifiers(1.0, 1.0, 1.0);
     }
 
     /**
-     * Returns fuel and energy multipliers for this fluid from valid_liquids entries, or null if no match.
+     * Returns fuel, energy and overheating multipliers for this fluid from valid_liquids entries, or null if no match.
      */
     public static HeatSinkModifiers getModifiersForFluid(Fluid fluid, RegistryAccess registryAccess) {
         if (fluid == null || fluid == Fluids.EMPTY) return null;
@@ -220,17 +224,17 @@ public final class HeatSinkLoader {
                     if (def.mustSource() && !fluid.defaultFluidState().isSource()) {
                         continue; // flowing fluid not valid when must_source is true
                     }
-                    return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier());
+                    return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier(), def.overheatingMultiplier());
                 }
             }
         }
         return null;
     }
 
-    /** Same as getModifiersForFluid but returns (1.0, 1.0) when fluid has no heat sink entry. */
+    /** Same as getModifiersForFluid but returns (1.0, 1.0, 1.0) when fluid has no heat sink entry. */
     public static HeatSinkModifiers getModifiersForFluidOrDefault(Fluid fluid, RegistryAccess registryAccess) {
         HeatSinkModifiers m = getModifiersForFluid(fluid, registryAccess);
-        return m != null ? m : new HeatSinkModifiers(1.0, 1.0);
+        return m != null ? m : new HeatSinkModifiers(1.0, 1.0, 1.0);
     }
 
     /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */
@@ -287,37 +291,44 @@ public final class HeatSinkLoader {
         String content = """
             {
               "type": "colossal_reactors:heat_sinks",
+              "_comment_overheating": "overheating is only used when reactor instability is enabled in config (evil_things)",
               "entries": [
                 {
                   "valid_liquids": ["#c:water"],
                   "must_source": true,
                   "fuel": 1.05,
-                  "energy": 1.15
+                  "energy": 1.15,
+                  "overheating": 1.05
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/diamond"],
                   "fuel": 1.8,
-                  "energy": 1.6
+                  "energy": 1.6,
+                  "overheating": 1.8
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/emerald"],
                   "fuel": 1.8,
-                  "energy": 1.6
+                  "energy": 1.6,
+                  "overheating": 1.8
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/netherite"],
                   "fuel": 1.7,
-                  "energy": 2.3
+                  "energy": 2.3,
+                  "overheating": 1.7
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/gold"],
                   "fuel": 1.7,
-                  "energy": 1.5
+                  "energy": 1.5,
+                  "overheating": 1.7
                 },
                 {
                   "valid_blocks": ["#c:storage_blocks/graphite", "#minecraft:ice"],
                   "fuel": 2.5,
-                  "energy": -5.0
+                  "energy": -5.0,
+                  "overheating": 2.5
                 }
               ]
             }
@@ -328,17 +339,22 @@ public final class HeatSinkLoader {
         }
     }
 
-    public record HeatSinkModifiers(double fuelMultiplier, double energyMultiplier) {}
+    public record HeatSinkModifiers(double fuelMultiplier, double energyMultiplier, double overheatingMultiplier) {}
 
     /**
-     * Result for simulation: weighted averages plus adjacent/non-adjacent energy and fuel sums and counts.
-     * Used for formula: RF = Base * (sumEnergyAdj + countNon*rodCount) * efficiencyFactor / rodCount.
+     * Result for simulation: weighted averages plus adjacent/non-adjacent energy, fuel and overheating sums.
+     * RF = Base * (sumEnergyAdj + countNon*rodCount) * efficiencyFactor / rodCount.
+     * sumOverheatingAdj + sumOverheatingNon are used for stability (surriscaldamento); default in JSON = same as fuel.
      */
     public record HeatSinkModifiersResult(
             double fuelMultiplier,
             double energyMultiplier,
             double sumEnergyAdj,
             double sumFuelAdj,
+            double sumEnergyNon,
+            double sumFuelNon,
+            double sumOverheatingAdj,
+            double sumOverheatingNon,
             int countAdj,
             int countNon
     ) {}

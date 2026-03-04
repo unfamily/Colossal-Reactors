@@ -44,6 +44,8 @@
   "gui.colossal_reactors.reactor_controller.status.requires_redstone_port": "(serve porta redstone)",
   "gui.colossal_reactors.reactor_controller.rods": "Barre: %s (%s colonne)",
   "gui.colossal_reactors.reactor_controller.coolant_blocks": "Dissipanti: %s",
+  "gui.colossal_reactors.reactor_controller.stability": "Stabilità: %s%%",
+  "gui.colossal_reactors.reactor_controller.stability.label": "Stabilità: ",
   "gui.colossal_reactors.reactor_controller.energy_production": "Energia: %s RF/t",
   "gui.colossal_reactors.reactor_controller.steam_production": "Vapore: %s mB/t",
   "gui.colossal_reactors.reactor_controller.water_consume": "Acqua: %s mB/t",

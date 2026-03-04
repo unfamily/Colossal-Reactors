@@ -137,6 +137,14 @@ dependencies {
 
     implementation "curse.maven:fusion-connected-textures-854949:7471474"
 
+    // Optional integrations (compileOnly: not required at runtime, used when evil_things config is enabled)
+    compileOnly "curse.maven:mekanism-268560:7621971"
+    compileOnly "curse.maven:mekanism-generators-268566:7621974"
+    compileOnly "curse.maven:mekanism-tools-268567:7621975"
+    compileOnly "curse.maven:alexs-caves-unofficial-port-1420348:7518652"
+    compileOnly "curse.maven:citadel-1-21-1-port-1415723:7528198"
+    compileOnly "curse.maven:iskanderts-utilities-1271145:7676846"
+
     // JEI: compile against API only; at runtime use full JEI when testing
     compileOnly("mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}")
     runtimeOnly("mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}")

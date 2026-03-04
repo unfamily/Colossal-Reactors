@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.unfamily.colossal_reactors.block.ControllerState;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ReactorControllerBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -38,7 +39,9 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     private static final int INDEX_POS_Z = 11;
     private static final int INDEX_HAS_REDSTONE_PORT = 12;
     private static final int INDEX_REDSTONE_GATE_SATISFIED = 13;
-    private static final int DATA_COUNT = 14;
+    private static final int INDEX_STABILITY = 14;
+    private static final int INDEX_UNSTABILITY_ENABLED = 15;
+    private static final int DATA_COUNT = 16;
 
     public ReactorControllerMenu(int containerId, Inventory playerInventory, ReactorControllerBlockEntity blockEntity) {
         super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
@@ -47,8 +50,11 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
             @Override
             public int get(int index) {
                 var result = blockEntity.getCachedResult();
-                var state = blockEntity.getLevel() != null
-                        ? blockEntity.getLevel().getBlockState(blockEntity.getBlockPos()).getValue(ReactorControllerBlock.STATE)
+                var blockState = blockEntity.getLevel() != null
+                        ? blockEntity.getLevel().getBlockState(blockEntity.getBlockPos())
+                        : null;
+                var state = (blockState != null && blockState.is(ModBlocks.REACTOR_CONTROLLER.get()))
+                        ? blockState.getValue(ReactorControllerBlock.STATE)
                         : ControllerState.OFF;
                 return switch (index) {
                     case INDEX_STATE -> state.ordinal();
@@ -68,6 +74,8 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                             ? (hasRedstonePortInResult(blockEntity.getLevel(), result) ? 1 : 0) : 0;
                     case INDEX_REDSTONE_GATE_SATISFIED -> result != null && blockEntity.getLevel() instanceof ServerLevel sl
                             ? (ReactorControllerBlock.isRedstoneGateSatisfied(sl, result) ? 1 : 0) : 1;
+                    case INDEX_STABILITY -> blockEntity.getStabilityPermille();
+                    case INDEX_UNSTABILITY_ENABLED -> Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get()) ? 1 : 0;
                     default -> 0;
                 };
             }
@@ -143,6 +151,16 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     /** True when the reactor can run this tick (no redstone ports, or at least one port active). */
     public boolean isRedstoneGateSatisfied() {
         return data.get(INDEX_REDSTONE_GATE_SATISFIED) != 0;
+    }
+
+    /** Reactor stability in permille 0–1000 (display as 0.0%–100.0%). */
+    public int getStabilityPermille() {
+        return data.get(INDEX_STABILITY);
+    }
+
+    /** True when reactor unstability (evil_things) is enabled; stability line is shown only then. */
+    public boolean isUnstabilityEnabled() {
+        return data.get(INDEX_UNSTABILITY_ENABLED) != 0;
     }
 
     @Override

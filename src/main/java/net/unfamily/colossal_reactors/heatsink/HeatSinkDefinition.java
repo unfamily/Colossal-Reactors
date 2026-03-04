@@ -3,15 +3,17 @@ package net.unfamily.colossal_reactors.heatsink;
 import java.util.List;
 
 /**
- * One heat sink entry from JSON: valid blocks/liquids and fuel/energy multipliers.
- * Used for interior coolant blocks (and optionally liquids in rods).
- * When {@code mustSource} is true (default), only fluid "source" (e.g. water source block) counts for valid_liquids; flowing fluid is not valid.
+ * One heat sink entry from JSON: valid blocks/liquids, fuel/energy and overheating multipliers.
+ * Overheating is used only for stability (surriscaldamento); defaults to same as fuel when omitted in JSON.
+ * Only used when reactor instability is enabled in config (evil_things / REACTOR_UNSTABILITY).
+ * When {@code mustSource} is true (default), only fluid "source" counts for valid_liquids; flowing fluid is not valid.
  */
 public record HeatSinkDefinition(
         List<String> validBlocks,
         List<String> validLiquids,
         double fuelMultiplier,
         double energyMultiplier,
+        double overheatingMultiplier,
         boolean mustSource
 ) {
     public HeatSinkDefinition {
