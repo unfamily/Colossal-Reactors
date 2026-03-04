@@ -4,15 +4,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Computes whether a position in the reactor rod space is a rod, based on pattern and mode.
- * Rod space is the interior volume where rods can be placed (inset by 1 for OPTIMIZED/ECONOMY, full for PRODUCTION).
+ * Computes whether a position in the reactor rod space is a rod (part of a rod column).
+ * Patterns are 2D (top view): only (rx, rz) define rod columns; the same column extends for all Y.
+ * Rod space is the interior volume (inset by 1 for OPTIMIZED/ECONOMY, full for PRODUCTION).
  */
 public final class RodPatternLogic {
 
-    /** Cache: for Frame pattern, which variant (rod at center vs heat sink at center) yields more rods per (rw,rh,rd). */
+    /** Cache: for Frame pattern, which variant (rod at center vs heat sink at center) yields more rod columns per (rw, rd). */
     private static final Map<Long, Boolean> FRAME_ROD_AT_CENTER_CACHE = new ConcurrentHashMap<>();
-    private static long frameCacheKey(int rw, int rh, int rd) {
-        return (long) rw << 24 | (rh & 0xFFF) << 12 | (rd & 0xFFF);
+    private static long frameCacheKey(int rw, int rd) {
+        return (long) rw << 16 | (rd & 0xFFFF);
     }
 
     public static final int PATTERN_DOTS = 0;
@@ -51,111 +52,96 @@ public final class RodPatternLogic {
 
     /**
      * Same as {@link #isRod(int, int, int, int, int, int, int)} with preview flag.
-     * When forPreview is true (e.g. preview markers): Frame always uses "rod at center" variant for display.
-     * When forPreview is false (actual placement): Frame uses the variant that creates more rods.
+     * Patterns are 2D (top view): same column (rx, rz) is rod for all ry.
      */
     public static boolean isRod(int rx, int ry, int rz, int rw, int rh, int rd, int pattern, boolean forPreview) {
         if (rw <= 0 || rh <= 0 || rd <= 0) return false;
         if (rx < 0 || rx >= rw || ry < 0 || ry >= rh || rz < 0 || rz >= rd) return false;
+        return isRodColumn(rx, rz, rw, rd, pattern, forPreview);
+    }
+
+    /**
+     * True if the column at (rx, rz) is a rod column (pattern is 2D, viewed from above).
+     * The whole column from y=0 to rh-1 is rod; rh is not used in the pattern.
+     */
+    public static boolean isRodColumn(int rx, int rz, int rw, int rd, int pattern, boolean forPreview) {
+        if (rw <= 0 || rd <= 0) return false;
+        if (rx < 0 || rx >= rw || rz < 0 || rz >= rd) return false;
         return switch (pattern) {
-            case PATTERN_DOTS -> isRodDots(rx, ry, rz, rw, rh, rd);
-            case PATTERN_CHECKERBOARD -> isRodCheckerboard(rx, ry, rz, rw, rh, rd);
-            case PATTERN_EXPANSION -> isRodExpansion(rx, ry, rz, rw, rh, rd, forPreview);
+            case PATTERN_DOTS -> isRodDotsColumn(rx, rz, rw, rd);
+            case PATTERN_CHECKERBOARD -> isRodCheckerboardColumn(rx, rz, rw, rd);
+            case PATTERN_EXPANSION -> isRodExpansionColumn(rx, rz, rw, rd, forPreview);
             default -> false;
         };
     }
 
-    /** Dots: rods every 2 blocks in a grid; avoid 2x2 block in center for even dimensions. */
-    private static boolean isRodDots(int rx, int ry, int rz, int rw, int rh, int rd) {
-        // Place at (even, even, even) in some parity, but avoid 2x2 center when all dims even
-        int cx = rw / 2;
-        int cy = rh / 2;
-        int cz = rd / 2;
-        boolean evenW = (rw & 1) == 0;
-        boolean evenH = (rh & 1) == 0;
-        boolean evenD = (rd & 1) == 0;
-        // Standard grid: rod at (2i, 2j, 2k)
-        boolean onGrid = (rx % 2 == 0) && (ry % 2 == 0) && (rz % 2 == 0);
+    /** Dots (2D): rod columns every 2 in a grid; avoid 2x2 at center when both width and depth even. */
+    private static boolean isRodDotsColumn(int rx, int rz, int rw, int rd) {
+        boolean onGrid = (rx % 2 == 0) && (rz % 2 == 0);
         if (!onGrid) return false;
-        // If all even, exclude the central 2x2x2 (or 2x2 in the plane) to avoid 2x2 rod block at center
-        if (evenW && evenH && evenD) {
-            if (rx >= cx - 1 && rx <= cx && ry >= cy - 1 && ry <= cy && rz >= cz - 1 && rz <= cz)
-                return false;
-        } else if (evenW && evenH) {
-            if (rx >= cx - 1 && rx <= cx && ry >= cy - 1 && ry <= cy) return false;
-        } else if (evenW && evenD) {
+        int cx = rw / 2, cz = rd / 2;
+        boolean evenW = (rw & 1) == 0, evenD = (rd & 1) == 0;
+        if (evenW && evenD) {
             if (rx >= cx - 1 && rx <= cx && rz >= cz - 1 && rz <= cz) return false;
-        } else if (evenH && evenD) {
-            if (ry >= cy - 1 && ry <= cy && rz >= cz - 1 && rz <= cz) return false;
         }
         return true;
     }
 
-    /** Checkerboard: alternating so no two rods share a face (no rods touching). */
-    private static boolean isRodCheckerboard(int rx, int ry, int rz, int rw, int rh, int rd) {
-        // 3D checkerboard: rod at (i+j+k) % 2 == 0 gives no face-adjacent rods
-        return (rx + ry + rz) % 2 == 0;
+    /** Checkerboard (2D): alternating columns so no two rod columns touch. */
+    private static boolean isRodCheckerboardColumn(int rx, int rz, int rw, int rd) {
+        return (rx + rz) % 2 == 0;
     }
 
     /**
-     * Expansion/Frame: two variants — (A) rod at center, (B) heat sink at center.
-     * For placement we use whichever variant yields more rods for this dimension.
-     * For preview (forPreview=true) we always show variant A (rod at center).
-     * Even dimensions: center can be 2x2 or 2x2x2 (rod block or heat sink block).
+     * Frame (2D): perimeter + inner frame edges + center. Center can be 1, 1x2, 2x1, or 2x2 columns
+     * when one of (rw, rd) is odd and the other even (1x2 or 2x1) or both even (2x2).
      */
-    private static boolean isRodExpansion(int rx, int ry, int rz, int rw, int rh, int rd, boolean forPreview) {
-        int minDim = Math.min(rw, Math.min(rh, rd));
+    private static boolean isRodExpansionColumn(int rx, int rz, int rw, int rd, boolean forPreview) {
+        int minDim = Math.min(rw, rd);
         if (minDim < 3) return false;
-        int layers = expansionLayerCount(rw, rh, rd);
+        int layers = expansionLayerCount(rw, rd);
         boolean rodAtCenter = forPreview
-                || FRAME_ROD_AT_CENTER_CACHE.computeIfAbsent(frameCacheKey(rw, rh, rd),
-                        k -> countExpansionRods(rw, rh, rd, layers, true) >= countExpansionRods(rw, rh, rd, layers, false));
-        return isRodExpansionWithLayers(rx, ry, rz, rw, rh, rd, layers, rodAtCenter);
+                || FRAME_ROD_AT_CENTER_CACHE.computeIfAbsent(frameCacheKey(rw, rd),
+                        k -> countExpansionColumns(rw, rd, layers, true) >= countExpansionColumns(rw, rd, layers, false));
+        return isRodExpansionColumnWithLayers(rx, rz, rw, rd, layers, rodAtCenter);
     }
 
-    private static boolean isRodExpansionWithLayers(int rx, int ry, int rz, int rw, int rh, int rd, int layers, boolean rodAtCenter) {
-        // L=0: full 6 faces (outer perimeter)
-        if (rx == 0 || rx == rw - 1 || ry == 0 || ry == rh - 1 || rz == 0 || rz == rd - 1)
-            return true;
-        // L>=1: only the 12 edges of the inner box(es), not the face interiors
+    private static boolean isRodExpansionColumnWithLayers(int rx, int rz, int rw, int rd, int layers, boolean rodAtCenter) {
+        // L=0: outer perimeter (2D)
+        if (rx == 0 || rx == rw - 1 || rz == 0 || rz == rd - 1) return true;
+        // L>=1: boundary of inner rectangle [L, rw-1-L] x [L, rd-1-L]
         for (int L = 1; L < layers; L++) {
-            boolean onEdgeX = (rx == L || rx == rw - 1 - L) && (ry == L || ry == rh - 1 - L);
-            boolean onEdgeY = (rx == L || rx == rw - 1 - L) && (rz == L || rz == rd - 1 - L);
-            boolean onEdgeZ = (ry == L || ry == rh - 1 - L) && (rz == L || rz == rd - 1 - L);
-            if (onEdgeX || onEdgeY || onEdgeZ) return true;
+            if (rx == L || rx == rw - 1 - L || rz == L || rz == rd - 1 - L) return true;
         }
-        // Center: variant A = rod at center, variant B = heat sink at center (no rods here).
         if (!rodAtCenter) return false;
-        int cx = rw / 2, cy = rh / 2, cz = rd / 2;
-        boolean oddW = (rw & 1) == 1, oddH = (rh & 1) == 1, oddD = (rd & 1) == 1;
-        if (oddW && oddH && oddD)
-            return rx == cx && ry == cy && rz == cz;
-        // Even: center 2x2 or 2x2x2 block (e.g. rw=4 -> cx=2, center indices 1,2)
+        int cx = rw / 2, cz = rd / 2;
+        boolean oddW = (rw & 1) == 1, oddD = (rd & 1) == 1;
+        // Center: 1 column (both odd), 1x2 or 2x1 (one odd one even), 2x2 (both even)
         boolean inCenterX = oddW ? (rx == cx) : (rx >= cx - 1 && rx <= cx);
-        boolean inCenterY = oddH ? (ry == cy) : (ry >= cy - 1 && ry <= cy);
         boolean inCenterZ = oddD ? (rz == cz) : (rz >= cz - 1 && rz <= cz);
-        return inCenterX && inCenterY && inCenterZ;
+        return inCenterX && inCenterZ;
     }
 
-    /**
-     * Choose expansion style (2 or 3 layers) by which places more rods. Called with rod space dimensions.
-     */
-    public static int expansionLayerCount(int rw, int rh, int rd) {
-        int minDim = Math.min(rw, Math.min(rh, rd));
+    /** Layer count for Frame (2D: uses only rw, rd). */
+    public static int expansionLayerCount(int rw, int rd) {
+        int minDim = Math.min(rw, rd);
         if (minDim < 5) return 1;
         if (minDim < 7) return 2;
-        int count2 = countExpansionRods(rw, rh, rd, 2, true);
-        int count3 = countExpansionRods(rw, rh, rd, 3, true);
+        int count2 = countExpansionColumns(rw, rd, 2, true);
+        int count3 = countExpansionColumns(rw, rd, 3, true);
         return count3 >= count2 ? 3 : 2;
     }
 
-    private static int countExpansionRods(int rw, int rh, int rd, int layers, boolean rodAtCenter) {
+    /** Backward compatibility: 3D signature delegates to 2D. */
+    public static int expansionLayerCount(int rw, int rh, int rd) {
+        return expansionLayerCount(rw, rd);
+    }
+
+    private static int countExpansionColumns(int rw, int rd, int layers, boolean rodAtCenter) {
         int count = 0;
         for (int rx = 0; rx < rw; rx++) {
-            for (int ry = 0; ry < rh; ry++) {
-                for (int rz = 0; rz < rd; rz++) {
-                    if (isRodExpansionWithLayers(rx, ry, rz, rw, rh, rd, layers, rodAtCenter)) count++;
-                }
+            for (int rz = 0; rz < rd; rz++) {
+                if (isRodExpansionColumnWithLayers(rx, rz, rw, rd, layers, rodAtCenter)) count++;
             }
         }
         return count;
