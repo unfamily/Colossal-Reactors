@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.client.gui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -75,13 +76,19 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.left_click";
     private static final String TOOLTIP_RIGHT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.right_click";
+    private static final String TOOLTIP_SHIFT_10 = "gui.colossal_reactors.reactor_builder.tooltip.shift_10";
+    private static final String TOOLTIP_ALT_CTRL_5 = "gui.colossal_reactors.reactor_builder.tooltip.alt_ctrl_5";
 
     private static Tooltip tooltipWithValue(String valueKey, int value) {
         Component full = Component.translatable(valueKey, value)
                 .append(Component.literal("\n"))
                 .append(Component.translatable(TOOLTIP_LEFT_CLICK))
                 .append(Component.literal("\n"))
-                .append(Component.translatable(TOOLTIP_RIGHT_CLICK));
+                .append(Component.translatable(TOOLTIP_RIGHT_CLICK))
+                .append(Component.literal("\n"))
+                .append(Component.translatable(TOOLTIP_SHIFT_10))
+                .append(Component.literal("\n"))
+                .append(Component.translatable(TOOLTIP_ALT_CTRL_5));
         return Tooltip.create(full);
     }
 
@@ -176,9 +183,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void sendSize(int direction, boolean increment) {
         BlockPos pos = menu.getBlockPos();
-        if (!pos.equals(BlockPos.ZERO)) {
-            PacketDistributor.sendToServer(new ReactorBuilderSizePayload(pos, direction, increment));
-        }
+        if (pos.equals(BlockPos.ZERO)) return;
+        int amount = Screen.hasShiftDown() ? 10 : (Screen.hasControlDown() || Screen.hasAltDown()) ? 5 : 1;
+        PacketDistributor.sendToServer(new ReactorBuilderSizePayload(pos, direction, increment, amount));
     }
 
     @Override

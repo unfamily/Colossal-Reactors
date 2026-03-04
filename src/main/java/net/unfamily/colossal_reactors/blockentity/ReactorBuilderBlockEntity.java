@@ -108,10 +108,11 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
     };
 
-    private int sizeLeft = 1;
-    private int sizeRight = 0;
-    private int sizeHeight = MIN_SIZE;
-    private int sizeDepth = MIN_SIZE;
+    /** Default 7x6x6 centered on X: 3 left + 3 right = 7 width, height 6, depth 6. */
+    private int sizeLeft = 3;
+    private int sizeRight = 3;
+    private int sizeHeight = 6;
+    private int sizeDepth = 6;
     /** Heat sink option index for fill: 0 = Air, 1.. = HeatSinkLoader definition index. */
     private int selectedHeatSinkIndex = 0;
 
@@ -219,27 +220,31 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         return new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
     }
 
-    /** Direction: 0=up, 1=left button (adjusts sizeRight), 2=right button (adjusts sizeLeft), 3=behind. L/R inverted vs GUI. */
-    public void adjustSize(int direction, boolean increment) {
-        if (increment) {
-            switch (direction) {
-                case 0 -> sizeHeight = Math.min(getMaxHeight(), sizeHeight + 1);
-                case 1 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeRight++; }  // left button -> right extent
-                case 2 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeLeft++; }   // right button -> left extent
-                case 3 -> sizeDepth = Math.min(getMaxDepth(), sizeDepth + 1);
-                default -> {}
+    /** Direction: 0=up, 1=left button (adjusts sizeRight), 2=right button (adjusts sizeLeft), 3=behind. amount=1,5,10. */
+    public void adjustSize(int direction, boolean increment, int amount) {
+        int delta = increment ? amount : -amount;
+        switch (direction) {
+            case 0 -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), sizeHeight + delta));
+            case 1 -> {
+                int newR = Math.max(0, Math.min(getMaxWidth() - sizeLeft, sizeRight + delta));
+                sizeRight = newR;
+                if (sizeLeft + sizeRight < 1) sizeLeft = 1 - sizeRight;
             }
-        } else {
-            switch (direction) {
-                case 0 -> sizeHeight = Math.max(MIN_SIZE, sizeHeight - 1);
-                case 1 -> { if (sizeRight > 0) sizeRight--; else if (sizeLeft > 0) sizeLeft--; }
-                case 2 -> { if (sizeLeft > 0) sizeLeft--; else if (sizeRight > 0) sizeRight--; }
-                case 3 -> sizeDepth = Math.max(MIN_SIZE, sizeDepth - 1);
-                default -> {}
+            case 2 -> {
+                int newL = Math.max(0, Math.min(getMaxWidth() - sizeRight, sizeLeft + delta));
+                sizeLeft = newL;
+                if (sizeLeft + sizeRight < 1) sizeRight = 1 - sizeLeft;
             }
-            if (sizeLeft + sizeRight < 1) sizeLeft = 1;
+            case 3 -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), sizeDepth + delta));
+            default -> {}
         }
+        if (sizeLeft + sizeRight < 1) { sizeLeft = 1; sizeRight = 0; }
         setChanged();
+    }
+
+    /** Single step (backward compatible). */
+    public void adjustSize(int direction, boolean increment) {
+        adjustSize(direction, increment, 1);
     }
 
     /**

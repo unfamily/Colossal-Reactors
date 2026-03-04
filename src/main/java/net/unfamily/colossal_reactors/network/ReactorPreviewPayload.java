@@ -54,7 +54,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             int maxY = (int) Math.floor(aabb.maxY - 1e-6);
             int maxZ = (int) Math.floor(aabb.maxZ - 1e-6);
 
-            int color = 0x8044AAFF; // transparent blue
+            int color = 0x80FF00FF; // transparent purple (visible against blue sky)
             int durationTicks = 200;
 
             // Border only (like fan): top/bottom, front/back, left/right faces edges

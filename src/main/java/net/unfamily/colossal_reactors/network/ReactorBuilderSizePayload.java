@@ -16,9 +16,9 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 
 /**
- * C2S: adjust reactor builder area in one direction (0=up, 1=left, 2=right, 3=behind). increment=true adds 1, false subtracts 1.
+ * C2S: adjust reactor builder area in one direction (0=up, 1=left, 2=right, 3=behind). increment=true add, false subtract. amount=1,5,10 (Shift=10, Alt/Ctrl=5).
  */
-public record ReactorBuilderSizePayload(BlockPos pos, int direction, boolean increment) implements CustomPacketPayload {
+public record ReactorBuilderSizePayload(BlockPos pos, int direction, boolean increment, int amount) implements CustomPacketPayload {
 
     public static final Type<ReactorBuilderSizePayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_builder_size"));
@@ -30,6 +30,8 @@ public record ReactorBuilderSizePayload(BlockPos pos, int direction, boolean inc
             ReactorBuilderSizePayload::direction,
             ByteBufCodecs.BOOL,
             ReactorBuilderSizePayload::increment,
+            ByteBufCodecs.INT,
+            ReactorBuilderSizePayload::amount,
             ReactorBuilderSizePayload::new
     );
 
@@ -44,7 +46,8 @@ public record ReactorBuilderSizePayload(BlockPos pos, int direction, boolean inc
             ServerLevel level = player.serverLevel();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof ReactorBuilderBlockEntity builder) {
-                builder.adjustSize(packet.direction(), packet.increment());
+                int amt = Math.max(1, Math.min(10, packet.amount()));
+                builder.adjustSize(packet.direction(), packet.increment(), amt);
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });
