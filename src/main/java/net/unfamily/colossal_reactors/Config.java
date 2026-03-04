@@ -168,19 +168,6 @@ public class Config {
         BUILDER.pop();
     }
 
-    // --- reactor.steam ---
-    static {
-        BUILDER.comment("Steam conversion").push("steam");
-    }
-
-    public static final ModConfigSpec.DoubleValue STEAM_PER_RF = BUILDER
-            .comment("Steam (mB) produced per 1 RF. Default: 0.33")
-            .defineInRange("108_steamPerRf", 0.33, 0.0, 10.0);
-
-    static {
-        BUILDER.pop();
-    }
-
     static {
         BUILDER.pop(); // reactor
     }

@@ -3,15 +3,11 @@ package net.unfamily.colossal_reactors.reactor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
-import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
-import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 
@@ -19,10 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * When the reactor controller sees the multiblock as valid (ON), it pulls from resource ports in INSERT mode:
- * fuel items and coolant fluid into rods. All rods in the multiblock are pooled: total fuel capacity is
- * rodCount * maxFuelUnitsPerRod, total coolant capacity is rodCount * coolantCapacityMbPerRod. Fill rates
- * scale with rod count so that more rods give more accessible liquid and fuel per tick.
+ * When the reactor controller sees the multiblock as valid (ON), it pulls fuel items from INSERT ports into rods.
+ * Liquids (coolant, steam) use ports only; the simulation drains coolant from INSERT ports and pushes steam to EXTRACT/EJECT ports.
  */
 public final class ReactorFiller {
 
@@ -67,69 +61,38 @@ public final class ReactorFiller {
         var registryAccess = level.registryAccess();
 
         for (ResourcePortBlockEntity port : insertPorts) {
-            PortFilter filter = port.getPortFilter();
-
             // Fuel: pool capacity across all rods; pull as many items as total space allows
-            if (filter == PortFilter.BOTH || filter == PortFilter.ONLY_SOLID_FUEL) {
-                ItemStack stack = port.getItemHandler().getStackInSlot(0);
-                if (!stack.isEmpty()) {
-                    FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
-                    if (def != null) {
-                        int units = def.unitsPerItem();
-                        if (def.fuelId().equals(ReactorRodBlockEntity.URANIUM_FUEL_ID) && units < 1000) {
-                            units = 1000;
-                        }
-                        if (units <= 0) units = 1;
-                        int totalSpace = 0;
+            ItemStack stack = port.getItemHandler().getStackInSlot(0);
+            if (!stack.isEmpty()) {
+                FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
+                if (def != null) {
+                    int units = def.unitsPerItem();
+                    if (def.fuelId().equals(ReactorRodBlockEntity.URANIUM_FUEL_ID) && units < 1000) {
+                        units = 1000;
+                    }
+                    if (units <= 0) units = 1;
+                    int totalSpace = 0;
+                    for (ReactorRodBlockEntity rod : rods) {
+                        totalSpace += Math.max(0, ReactorRodBlockEntity.getMaxFuelUnits() - (int) rod.getTotalFuelUnits());
+                    }
+                    int maxItems = totalSpace >= units ? totalSpace / units : 0;
+                    for (int i = 0; i < maxItems; i++) {
+                        totalSpace = 0;
                         for (ReactorRodBlockEntity rod : rods) {
                             totalSpace += Math.max(0, ReactorRodBlockEntity.getMaxFuelUnits() - (int) rod.getTotalFuelUnits());
                         }
-                        int maxItems = totalSpace >= units ? totalSpace / units : 0;
-                        for (int i = 0; i < maxItems; i++) {
-                            totalSpace = 0;
-                            for (ReactorRodBlockEntity rod : rods) {
-                                totalSpace += Math.max(0, ReactorRodBlockEntity.getMaxFuelUnits() - (int) rod.getTotalFuelUnits());
-                            }
-                            if (totalSpace < units) break;
-                            ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
-                            if (extracted.isEmpty()) break;
-                            int remaining = units;
-                            for (ReactorRodBlockEntity rod : rods) {
-                                if (remaining <= 0) break;
-                                float added = rod.addFuel(def.fuelId(), remaining);
-                                remaining -= (int) added;
-                            }
-                            if (remaining == units) {
-                                port.getItemHandler().insertItem(0, extracted, false);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            // Coolant: pool capacity across all rods; transfer up to (base * rodCount) mB/tick
-            if (filter == PortFilter.BOTH || filter == PortFilter.ONLY_COOLANT_LIQUID) {
-                FluidStack inTank = port.getFluidTank().getFluid();
-                if (!inTank.isEmpty()) {
-                    CoolantDefinition def = CoolantLoader.getDefinitionForFluid(inTank.getFluid(), registryAccess);
-                    if (def != null) {
-                        int totalSpace = 0;
+                        if (totalSpace < units) break;
+                        ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
+                        if (extracted.isEmpty()) break;
+                        int remaining = units;
                         for (ReactorRodBlockEntity rod : rods) {
-                            totalSpace += Math.max(0, ReactorRodBlockEntity.getCoolantCapacityMb() - rod.getTotalCoolantMb());
+                            if (remaining <= 0) break;
+                            float added = rod.addFuel(def.fuelId(), remaining);
+                            remaining -= (int) added;
                         }
-                        if (totalSpace > 0) {
-                            int maxDrain = Math.min(inTank.getAmount(), totalSpace);
-                            if (maxDrain > 0) {
-                                int drained = port.takeFluidForReactor(inTank.getFluid(), maxDrain);
-                                if (drained > 0) {
-                                    int remaining = drained;
-                                    for (ReactorRodBlockEntity rod : rods) {
-                                        if (remaining <= 0) break;
-                                        int added = rod.addCoolant(inTank.getFluid(), remaining);
-                                        remaining -= added;
-                                    }
-                                }
-                            }
+                        if (remaining == units) {
+                            port.getItemHandler().insertItem(0, extracted, false);
+                            break;
                         }
                     }
                 }

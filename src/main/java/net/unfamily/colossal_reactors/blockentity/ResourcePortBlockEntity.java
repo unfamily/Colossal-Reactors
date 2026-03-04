@@ -153,13 +153,12 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * Drains fluid from this port's tank for reactor coolant consumption. Only when mode is INSERT and filter allows fluid.
+     * Drains fluid from this port's tank for reactor coolant consumption. Only when mode is INSERT.
      * Returns amount actually drained (caller uses this for steam production).
      */
     public int takeFluidForReactor(Fluid fluid, int amountMb) {
         if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
         if (portMode != PortMode.INSERT) return 0;
-        if (portFilter != PortFilter.BOTH && portFilter != PortFilter.ONLY_COOLANT_LIQUID) return 0;
         FluidStack inTank = fluidTank.getFluid();
         if (inTank.isEmpty() || inTank.getFluid() != fluid) return 0;
         int drain = Math.min(amountMb, inTank.getAmount());
@@ -311,13 +310,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * Item handler exposed to capability (hoppers/pipes). INSERT: allow insert only (filter allows items).
-     * EXTRACT/EJECT: allow extract only.
+     * Item handler exposed to capability (hoppers/pipes). INSERT: allow insert. EXTRACT/EJECT: allow extract only.
      */
     private final class FilteredItemHandler implements IItemHandler {
         private boolean allowInsert() {
-            return portMode == PortMode.INSERT
-                    && (portFilter == PortFilter.BOTH || portFilter == PortFilter.ONLY_SOLID_FUEL);
+            return portMode == PortMode.INSERT;
         }
 
         private boolean allowExtract() {
@@ -365,13 +362,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * Fluid handler exposed to capability (hoppers/pipes). INSERT: allow fill only (filter allows fluid).
-     * EXTRACT/EJECT: allow drain only.
+     * Fluid handler exposed to capability (hoppers/pipes). INSERT: allow fill. EXTRACT/EJECT: allow drain only.
      */
     private final class FilteredFluidHandler implements IFluidHandler {
         private boolean allowFill() {
-            return portMode == PortMode.INSERT
-                    && (portFilter == PortFilter.BOTH || portFilter == PortFilter.ONLY_COOLANT_LIQUID);
+            return portMode == PortMode.INSERT;
         }
 
         private boolean allowDrain() {

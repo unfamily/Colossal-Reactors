@@ -5,9 +5,9 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.List;
 
 /**
- * One coolant type: id, fluid inputs (tag or id), output fluid selector, RF/MB modifiers, and optional "water mode".
- * When consumesFluidForSteam is true: no RF output; wouldBeRf * rfToCoolantFactor = coolant consumed (mB);
- * steam produced = coolantConsumed * steamPerCoolant (default 1:1).
+ * One coolant type: id, fluid inputs (tag or id), output fluid selector, RF/MB modifiers.
+ * When reduceRfProduction is true: RF are converted to steam (fluid consumed); no RF when fluid is sufficient.
+ * wouldBeRf * rfToCoolantFactor = coolant consumed (mB); steam = coolantConsumed * steamPerCoolant.
  * fluidColor and outputColor are ARGB (0 = use game default) for simple GUI rendering.
  */
 public record CoolantDefinition(
@@ -16,7 +16,7 @@ public record CoolantDefinition(
         String output,
         int rfIncrementPercent,
         int mbDecrementPercent,
-        boolean consumesFluidForSteam,
+        boolean reduceRfProduction,
         double rfToCoolantFactor,
         double steamPerCoolant,
         int fluidColor,
