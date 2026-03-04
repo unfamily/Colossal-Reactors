@@ -49,7 +49,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     /**
      * Size above buttons (centered). Buffer/inventory: left 35, right 35+9*18=197.
      */
-    private static final int SIZE_LABEL_Y = 22;
+    private static final int SIZE_LABEL_Y = 18;
     /**
      * Area buttons: ^ on row1; < V > on row2. Arrow block aligned with inventory left edge (35).
      */
@@ -57,7 +57,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int BUTTON_H = 12;
     private static final int ROW1_Y = 32;
     private static final int ROW2_Y = 46;
-    private static final int WARNING_Y = 62;
     private static final int GAP = 3;
     private static final int INVENTORY_LEFT_X = 35;
     private static final int ARROW_GROUP_WIDTH = 3 * BUTTON_W + 2 * GAP;  // 48
@@ -69,10 +68,13 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int BUTTON_LEFT_X = GROUP_LEFT_X;
     private static final int BUTTON_DOWN_X = GROUP_LEFT_X + BUTTON_W + GAP;
     private static final int BUTTON_RIGHT_X = GROUP_LEFT_X + 2 * (BUTTON_W + GAP);
-    private static final int WARNING_X = GROUP_LEFT_X;
+    /** Preview button below the 4 arrows, centered with arrow group. */
+    private static final int PREVIEW_BUTTON_Y = ROW2_Y + BUTTON_H + GAP;
+    private static final int PREVIEW_BUTTON_W = ARROW_GROUP_WIDTH;
+    private static final int PREVIEW_BUTTON_X = GROUP_LEFT_X;
 
     /**
-     * 9 buttons: 3 cols x 3 rows; 12px from GUI right edge.
+     * 6 buttons: 3 cols x 2 rows (Heat Sink, 1, 2, 3, 7, 8); warning between the two rows.
      */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
@@ -82,8 +84,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_COL1_X = RIGHT_BLOCK_X + RIGHT_BUTTON_W + GAP;
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
     private static final int RIGHT_ROW0_Y = 32;
-    private static final int RIGHT_ROW1_Y = 46;
-    private static final int RIGHT_ROW2_Y = 60;
+    /** Second row kept where the old third row was (60). */
+    private static final int RIGHT_ROW1_Y = 60;
+    /** Warning text between the two rows of the 6 right buttons. */
+    private static final int WARNING_RIGHT_Y = RIGHT_ROW0_Y + RIGHT_BUTTON_H + 1;
+    private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.left_click";
     private static final String TOOLTIP_RIGHT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.right_click";
@@ -107,10 +112,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonLeft;
     private Button buttonRight;
     private Button buttonDown;
+    private Button buttonPreview;
     /**
-     * Right block buttons, index 0–8: 0=Heat Sink, 1–7=labels, 8=Preview.
+     * Right block buttons, index 0–5: 0=Heat Sink, 1–3=labels 1,2,3, 4–5=labels 7,8.
      */
-    private final Button[] rightBlockButtons = new Button[9];
+    private final Button[] rightBlockButtons = new Button[6];
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -139,22 +145,28 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(buttonDown);
         addRenderableWidget(buttonRight);
 
-        // Right block: 3 cols x 3 rows. 0=Heat Sink, 8=Preview, 1–7=labels.
-        int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y, RIGHT_ROW2_Y};
+        // Preview below the 4 arrows, centered with arrow group
+        buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.preview"), b -> {
+            if (!menu.getBlockPos().equals(BlockPos.ZERO))
+                PacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
+        })
+                .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
+                .build();
+        buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
+        addRenderableWidget(buttonPreview);
+
+        // Right block: 3 cols x 2 rows. 0=Heat Sink, 1,2,3,7,8 (no 4,5,6).
+        int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y};
         int[] colX = {RIGHT_COL0_X, RIGHT_COL1_X, RIGHT_COL2_X};
-        for (int i = 0; i < 9; i++) {
+        int[] labels = { -1, 1, 2, 3, 7, 8 };  // -1 = Heat Sink
+        for (int i = 0; i < 6; i++) {
             int row = i / 3;
             int col = i % 3;
-            Component label = (i == 0) ? getHeatSinkButtonLabel()
-                    : (i == 8) ? Component.translatable("gui.colossal_reactors.reactor_builder.preview")
-                    : Component.literal(String.valueOf(i + 1));
+            Component label = (labels[i] == -1) ? getHeatSinkButtonLabel() : Component.literal(String.valueOf(labels[i]));
             final int buttonIndex = i;
             rightBlockButtons[i] = Button.builder(label, b -> onRightBlockClick(buttonIndex))
                     .bounds(leftPos + colX[col], topPos + rowY[row], RIGHT_BUTTON_W, RIGHT_BUTTON_H)
                     .build();
-            if (i == 8) {
-                rightBlockButtons[i].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
-            }
             addRenderableWidget(rightBlockButtons[i]);
         }
     }
@@ -240,7 +252,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int row = index / 3;
         int col = index % 3;
         int left = leftPos + (col == 0 ? RIGHT_COL0_X : col == 1 ? RIGHT_COL1_X : RIGHT_COL2_X);
-        int top = topPos + (row == 0 ? RIGHT_ROW0_Y : row == 1 ? RIGHT_ROW1_Y : RIGHT_ROW2_Y);
+        int top = topPos + (row == 0 ? RIGHT_ROW0_Y : RIGHT_ROW1_Y);
         return x >= left && x < left + RIGHT_BUTTON_W && y >= top && y < top + RIGHT_BUTTON_H;
     }
 
@@ -278,9 +290,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Warning (red) below the arrow block, left-aligned with it
+        // Warning (red) between the two rows of the 6 right buttons
         Component warning = Component.translatable("gui.colossal_reactors.reactor_builder.warning");
-        guiGraphics.drawString(font, warning, WARNING_X, WARNING_Y, 0xFF0000, false);
+        guiGraphics.drawString(font, warning, WARNING_RIGHT_X, WARNING_RIGHT_Y, 0xFF0000, false);
     }
 
     @Override
