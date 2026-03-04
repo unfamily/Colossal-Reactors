@@ -20,6 +20,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
+import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 
@@ -86,8 +87,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_ROW0_Y = 32;
     /** Second row kept where the old third row was (60). */
     private static final int RIGHT_ROW1_Y = 60;
-    /** Warning text between the two rows of the 6 right buttons. */
-    private static final int WARNING_RIGHT_Y = RIGHT_ROW0_Y + RIGHT_BUTTON_H + 1;
+    /** Warning text at same height as the arrow row (right button). */
+    private static final int WARNING_RIGHT_Y = ROW2_Y;
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.left_click";
@@ -155,20 +156,33 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
         addRenderableWidget(buttonPreview);
 
-        // Right block: 3 cols x 2 rows. 0=Heat Sink, 1,2,3,7,8 (no 4,5,6).
+        // Right block: 3 cols x 2 rows. 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=7, 5=8.
         int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y};
         int[] colX = {RIGHT_COL0_X, RIGHT_COL1_X, RIGHT_COL2_X};
-        int[] labels = { -1, 1, 2, 3, 7, 8 };  // -1 = Heat Sink
         for (int i = 0; i < 6; i++) {
             int row = i / 3;
             int col = i % 3;
-            Component label = (labels[i] == -1) ? getHeatSinkButtonLabel() : Component.literal(String.valueOf(labels[i]));
+            Component label = getRightButtonLabel(i);
             final int buttonIndex = i;
             rightBlockButtons[i] = Button.builder(label, b -> onRightBlockClick(buttonIndex))
                     .bounds(leftPos + colX[col], topPos + rowY[row], RIGHT_BUTTON_W, RIGHT_BUTTON_H)
                     .build();
             addRenderableWidget(rightBlockButtons[i]);
         }
+    }
+
+    private Component getRightButtonLabel(int index) {
+        return switch (index) {
+            case 0 -> getHeatSinkButtonLabel();
+            case 1 -> Component.translatable("gui.colossal_reactors.reactor_builder.pattern." + menu.getRodPattern());
+            case 2 -> Component.translatable("gui.colossal_reactors.reactor_builder.pattern_mode." + menu.getPatternMode());
+            case 3 -> menu.isOpenTop()
+                    ? Component.translatable("gui.colossal_reactors.reactor_builder.open_top.open")
+                    : Component.translatable("gui.colossal_reactors.reactor_builder.open_top.closed");
+            case 4 -> Component.literal("7");
+            case 5 -> Component.literal("8");
+            default -> Component.literal("?");
+        };
     }
 
     private Component getHeatSinkButtonLabel() {
@@ -185,9 +199,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // left click = previous
             return;
         }
-        if (index == 8) {
-            PacketDistributor.sendToServer(new ReactorPreviewPayload(pos));
-        }
+        if (index == 1) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1));  // rod pattern
+        if (index == 2) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2));  // pattern mode
+        if (index == 3) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0));  // open top
     }
 
     private void updateButtonTooltips() {
@@ -195,15 +209,24 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonLeft.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.left_value", menu.getSizeLeft()));
         buttonRight.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.right_value", menu.getSizeRight()));
         buttonDown.setTooltip(tooltipWithValue("gui.colossal_reactors.reactor_builder.tooltip.behind_value", menu.getSizeD() + 1));
-        // Heat sink button: current value + left=previous, right=next
+        // Heat sink button
         Component heatSinkName = getHeatSinkButtonLabel();
-        Component heatSinkTooltip = Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value", heatSinkName)
-                .append(Component.literal("\n"))
-                .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left"))
-                .append(Component.literal("\n"))
-                .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"));
-        rightBlockButtons[0].setTooltip(Tooltip.create(heatSinkTooltip));
+        rightBlockButtons[0].setTooltip(Tooltip.create(
+                Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value", heatSinkName)
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[0].setMessage(getHeatSinkButtonLabel());
+        // Button 1: Pattern
+        rightBlockButtons[1].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern." + menu.getRodPattern())));
+        rightBlockButtons[1].setMessage(getRightButtonLabel(1));
+        // Button 2: Pattern mode
+        rightBlockButtons[2].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern_mode." + menu.getPatternMode())));
+        rightBlockButtons[2].setMessage(getRightButtonLabel(2));
+        // Button 3: Open top
+        rightBlockButtons[3].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.open_top")));
+        rightBlockButtons[3].setMessage(getRightButtonLabel(3));
     }
 
     private void sendSize(int direction, boolean increment) {

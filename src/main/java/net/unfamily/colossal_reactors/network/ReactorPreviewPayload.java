@@ -13,6 +13,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import net.unfamily.colossal_reactors.reactor.RodPatternLogic;
 
 /**
  * C2S: request reactor footprint preview. Server computes AABB and sends marker payloads to client.
@@ -57,7 +58,32 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
 
             int colorFree = 0x80FF00FF; // transparent purple (visible against blue sky)
             int colorOccupied = 0xE0FF0000; // red tint for occupied blocks
+            int colorRod = 0xE0FFFF00; // yellow tint for rod positions
             int durationTicks = 200;
+
+            int pattern = builder.getRodPattern();
+            int patternMode = builder.getPatternMode();
+            int w = maxX - minX + 1;
+            int h = maxY - minY + 1;
+            int d = maxZ - minZ + 1;
+            int rw = RodPatternLogic.rodSpaceWidth(w, patternMode);
+            int rh = RodPatternLogic.rodSpaceHeight(h, patternMode);
+            int rd = RodPatternLogic.rodSpaceDepth(d, patternMode);
+            int inset = (patternMode == RodPatternLogic.MODE_PRODUCTION) ? 0 : 1;
+
+            // Rod positions (interior): yellow markers
+            for (int lx = inset; lx < w - inset; lx++) {
+                for (int ly = inset; ly < h - inset; ly++) {
+                    for (int lz = inset; lz < d - inset; lz++) {
+                        int rx = lx - inset;
+                        int ry = ly - inset;
+                        int rz = lz - inset;
+                        if (RodPatternLogic.isRod(rx, ry, rz, rw, rh, rd, pattern, true)) {
+                            ModPayloads.sendPreviewMarker(player, new BlockPos(minX + lx, minY + ly, minZ + lz), colorRod, durationTicks);
+                        }
+                    }
+                }
+            }
 
             // Border only (like fan): top/bottom, front/back, left/right faces edges; red if block occupied
             for (int x = minX; x <= maxX; x++) {

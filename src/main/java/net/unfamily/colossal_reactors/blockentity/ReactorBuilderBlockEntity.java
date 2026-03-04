@@ -44,6 +44,9 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_SIZE_D = "SizeD";
     private static final String TAG_SIZE_W = "SizeW";
     private static final String TAG_HEAT_SINK_IDX = "HeatSinkIdx";
+    private static final String TAG_OPEN_TOP = "OpenTop";
+    private static final String TAG_ROD_PATTERN = "RodPattern";
+    private static final String TAG_PATTERN_MODE = "PatternMode";
     private static final int BUFFER_SLOTS = 9 * 3;
     private static final int MIN_SIZE = 1;
 
@@ -115,6 +118,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int sizeDepth = 6;
     /** Heat sink option index for fill: 0 = Air, 1.. = HeatSinkLoader definition index. */
     private int selectedHeatSinkIndex = 0;
+    /** When built: true = top face open for manual edits, false = closed. */
+    private boolean openTop = false;
+    /** Rod column pattern: 0=DOTS, 1=CHECKERBOARD, 2=EXPANSION. */
+    private int rodPattern = 0;
+    /** Pattern mode: 0=OPTIMIZED (-2 inset), 1=PRODUCTION (no inset), 2=ECONOMY (like optimized, border fill differs). */
+    private int patternMode = 0;
+
+    private static final int ROD_PATTERN_COUNT = 3;
+    private static final int PATTERN_MODE_COUNT = 3;
 
     private final ContainerData sizeData = new ContainerData() {
         @Override
@@ -128,13 +140,16 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 5 -> worldPosition.getY();
                 case 6 -> worldPosition.getZ();
                 case 7 -> selectedHeatSinkIndex;
+                case 8 -> openTop ? 1 : 0;
+                case 9 -> rodPattern;
+                case 10 -> patternMode;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7) return; // pos read-only
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -147,13 +162,16 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 2 -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), value));
                 case 3 -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), value));
                 case 7 -> selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, value));
+                case 8 -> openTop = value != 0;
+                case 9 -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, value));
+                case 10 -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, value));
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 8;
+            return 11;
         }
     };
 
@@ -182,6 +200,27 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSizeHeight() { return sizeHeight; }
     public int getSizeDepth() { return sizeDepth; }
     public int getSelectedHeatSinkIndex() { return selectedHeatSinkIndex; }
+    public boolean isOpenTop() { return openTop; }
+    public int getRodPattern() { return rodPattern; }
+    public int getPatternMode() { return patternMode; }
+
+    /** Toggle open top (reactor top open when built). */
+    public void cycleOpenTop() {
+        openTop = !openTop;
+        setChanged();
+    }
+
+    /** Cycle rod pattern: DOTS -> CHECKERBOARD -> EXPANSION -> DOTS. */
+    public void cycleRodPattern() {
+        rodPattern = (rodPattern + 1) % ROD_PATTERN_COUNT;
+        setChanged();
+    }
+
+    /** Cycle pattern mode: OPTIMIZED -> PRODUCTION -> ECONOMY -> OPTIMIZED. */
+    public void cyclePatternMode() {
+        patternMode = (patternMode + 1) % PATTERN_MODE_COUNT;
+        setChanged();
+    }
 
     /** Cycle heat sink option: next=true next, next=false previous. Left click=prev, right click=next. */
     public void cycleHeatSink(boolean next) {
@@ -297,6 +336,9 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_SIZE_H, sizeHeight);
         tag.putInt(TAG_SIZE_D, sizeDepth);
         tag.putInt(TAG_HEAT_SINK_IDX, selectedHeatSinkIndex);
+        tag.putBoolean(TAG_OPEN_TOP, openTop);
+        tag.putInt(TAG_ROD_PATTERN, rodPattern);
+        tag.putInt(TAG_PATTERN_MODE, patternMode);
     }
 
     @Override
@@ -331,6 +373,9 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_SIZE_H)) sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), tag.getInt(TAG_SIZE_H)));
         if (tag.contains(TAG_SIZE_D)) sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), tag.getInt(TAG_SIZE_D)));
         if (tag.contains(TAG_HEAT_SINK_IDX)) selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, tag.getInt(TAG_HEAT_SINK_IDX)));
+        if (tag.contains(TAG_OPEN_TOP)) openTop = tag.getBoolean(TAG_OPEN_TOP);
+        if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
+        if (tag.contains(TAG_PATTERN_MODE)) patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, tag.getInt(TAG_PATTERN_MODE)));
     }
 
     @Override

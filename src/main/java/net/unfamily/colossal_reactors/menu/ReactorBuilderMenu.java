@@ -69,7 +69,7 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
         this.fluidData = new SimpleContainerData(3);
-        this.sizeData = new SimpleContainerData(8);
+        this.sizeData = new SimpleContainerData(11);
         addDataSlots(fluidData);
         addDataSlots(sizeData);
         ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
@@ -107,6 +107,12 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     }
     /** Heat sink option index (0=Air, 1..=definition). Synced via sizeData index 7. */
     public int getHeatSinkIndex() { return sizeData.get(7); }
+    /** Open top when built (index 8): 0=closed, 1=open. */
+    public boolean isOpenTop() { return sizeData.get(8) != 0; }
+    /** Rod pattern (index 9): 0=DOTS, 1=CHECKERBOARD, 2=EXPANSION. */
+    public int getRodPattern() { return sizeData.get(9); }
+    /** Pattern mode (index 10): 0=OPTIMIZED, 1=PRODUCTION, 2=ECONOMY. */
+    public int getPatternMode() { return sizeData.get(10); }
 
     @Override
     public boolean stillValid(Player player) {
