@@ -10,12 +10,15 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -145,6 +148,44 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return fluidTank.getFluidAmount() < fluidTank.getCapacity();
     }
 
+    /**
+     * Handles bucket/fluid container click: fill block from item or drain block to item.
+     * Uses the same fill/drain rules as the port (INSERT = fill allowed, EXTRACT/EJECT = drain allowed).
+     * Returns true if a transfer occurred (caller must then update player hand with itemHandler.getContainer()).
+     */
+    public boolean interactWithItemFluidHandler(IFluidHandlerItem itemHandler, Player player) {
+        if (itemHandler.getTanks() == 0) return false;
+        IFluidHandler blockHandler = getFluidHandler();
+        FluidStack inItem = itemHandler.getFluidInTank(0);
+        if (!inItem.isEmpty()) {
+            // Item has fluid: try to fill block (allowed in INSERT mode)
+            if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
+                int filled = blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.EXECUTE);
+                if (filled > 0) {
+                    itemHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
+                    inItem.getFluid().getPickupSound().ifPresent(player::playSound);
+                    return true;
+                }
+            }
+        } else {
+            // Item empty: try to drain block to item (allowed in EXTRACT/EJECT mode)
+            FluidStack inBlock = blockHandler.getFluidInTank(0);
+            if (!inBlock.isEmpty() && itemHandler.isFluidValid(0, inBlock)) {
+                int capacity = itemHandler.getTankCapacity(0);
+                FluidStack toFill = inBlock.copy();
+                toFill.setAmount(Math.min(inBlock.getAmount(), capacity));
+                int filled = itemHandler.fill(toFill, IFluidHandler.FluidAction.EXECUTE);
+                if (filled > 0) {
+                    blockHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
+                    var soundEvent = inBlock.getFluid().getFluidType().getSound(net.neoforged.neoforge.common.SoundActions.BUCKET_EMPTY);
+                    if (soundEvent != null) player.playSound(soundEvent);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Item handler for capability (hoppers/pipes): respects port mode and filter. */
     public IItemHandler getItemHandlerForCapability() {
         return new FilteredItemHandler();
@@ -157,6 +198,22 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     public FluidTank getFluidTank() {
         return fluidTank;
+    }
+
+    /**
+     * Drops all items from the item handler into the world. Call when the block is broken.
+     */
+    public void dropAllContents() {
+        Level level = getLevel();
+        if (level == null || level.isClientSide()) return;
+        BlockPos pos = getBlockPos();
+        for (int i = 0; i < itemHandler.getSlots(); i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                Block.popResource(level, pos, stack);
+                itemHandler.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
     }
 
     public PortMode getPortMode() {

@@ -15,8 +15,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 
 public class ResourcePortBlock extends BaseEntityBlock {
@@ -43,6 +42,17 @@ public class ResourcePortBlock extends BaseEntityBlock {
     }
 
     @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof ResourcePortBlockEntity resourcePort) {
+                resourcePort.dropAllContents();
+            }
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (level.isClientSide()) {
             return ItemInteractionResult.SUCCESS;
@@ -51,28 +61,23 @@ public class ResourcePortBlock extends BaseEntityBlock {
         if (!(be instanceof ResourcePortBlockEntity resourcePort)) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
-        IFluidHandler blockHandler = resourcePort.getFluidHandler();
-        IFluidHandler itemHandler = stack.getCapability(Capabilities.FluidHandler.ITEM);
-        if (itemHandler == null) {
+        // Work on a copy with count 1 so the capability modifies that copy; then we update player hand explicitly (avoids duplication / missing bucket fill).
+        ItemStack singleStack = stack.copyWithCount(1);
+        IFluidHandlerItem fluidHandler = singleStack.getCapability(Capabilities.FluidHandler.ITEM);
+        if (fluidHandler == null) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
-        // Try fill block from item (e.g. water bucket -> tank)
-        FluidStack inItem = itemHandler.getFluidInTank(0);
-        if (!inItem.isEmpty()) {
-            int filled = blockHandler.fill(inItem, IFluidHandler.FluidAction.EXECUTE);
-            if (filled > 0) {
-                itemHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
-                return ItemInteractionResult.SUCCESS;
+        if (resourcePort.interactWithItemFluidHandler(fluidHandler, player)) {
+            stack.shrink(1);
+            if (stack.isEmpty()) {
+                player.setItemInHand(hand, fluidHandler.getContainer());
+            } else {
+                player.setItemInHand(hand, stack);
+                if (!player.getInventory().add(fluidHandler.getContainer())) {
+                    player.drop(fluidHandler.getContainer(), false);
+                }
             }
-        }
-        // Try drain block to item (e.g. tank -> empty bucket)
-        FluidStack inBlock = blockHandler.getFluidInTank(0);
-        if (!inBlock.isEmpty()) {
-            int drained = itemHandler.fill(inBlock, IFluidHandler.FluidAction.EXECUTE);
-            if (drained > 0) {
-                blockHandler.drain(drained, IFluidHandler.FluidAction.EXECUTE);
-                return ItemInteractionResult.SUCCESS;
-            }
+            return ItemInteractionResult.SUCCESS;
         }
         return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }

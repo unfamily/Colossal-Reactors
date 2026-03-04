@@ -24,6 +24,7 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.minecraft.core.RegistryAccess;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -213,6 +214,7 @@ public final class ReactorSimulation {
             }
         }
 
+        pushEjectToPorts(rods, resourcePorts, level.registryAccess());
         pushWasteToPorts(rods, resourcePorts);
 
         int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
@@ -220,15 +222,84 @@ public final class ReactorSimulation {
     }
 
     /**
-     * Pushes solid waste (when total >= 1000) and liquid waste (steam) from rods to resource ports
-     * that are in EXTRACT or EJECT mode and not full.
+     * Pushes input material back out to EJECT ports: fuel (from rod fuel units, converted at unitsPerItem) and coolant.
+     */
+    private static void pushEjectToPorts(List<ReactorRodBlockEntity> rods, List<ResourcePortBlockEntity> resourcePorts, RegistryAccess registryAccess) {
+        List<ResourcePortBlockEntity> ejectPorts = resourcePorts.stream()
+                .filter(p -> p.getPortMode() == PortMode.EJECT)
+                .toList();
+        if (ejectPorts.isEmpty()) return;
+
+        // Eject fuel: convert units back to items using definition's unitsPerItem
+        for (ReactorRodBlockEntity rod : rods) {
+            for (var entry : rod.getFuelEntries()) {
+                if (entry.units() < 1e-6f) continue;
+                FuelDefinition def = FuelLoader.get(entry.id());
+                if (def == null) continue;
+                int unitsPerItem = Math.max(1, def.unitsPerItem());
+                int items = (int) (entry.units() / unitsPerItem);
+                if (items <= 0) continue;
+                float toConsume = items * (float) unitsPerItem;
+                float consumed = rod.consumeFuel(entry.id(), toConsume);
+                if (consumed < 1e-6f) continue;
+                int actualItems = (int) (consumed / unitsPerItem);
+                if (actualItems <= 0) continue;
+                ItemStack template = FuelLoader.getFirstInputStack(entry.id(), registryAccess);
+                if (template.isEmpty()) continue;
+                ItemStack stack = new ItemStack(template.getItem(), actualItems);
+                for (ResourcePortBlockEntity port : ejectPorts) {
+                    if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
+                    if (!port.canAcceptItemFromReactor() || stack.isEmpty()) continue;
+                    ItemStack remaining = port.receiveItemFromReactor(stack);
+                    stack = remaining;
+                    if (stack.isEmpty()) break;
+                }
+                if (!stack.isEmpty() && stack.getCount() > 0) {
+                    float putBack = stack.getCount() * (float) unitsPerItem;
+                    rod.addFuel(entry.id(), putBack);
+                }
+            }
+        }
+
+        // Eject coolant from rods to EJECT ports
+        for (ResourcePortBlockEntity port : ejectPorts) {
+            if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
+            while (port.canAcceptFluidFromReactor()) {
+                int space = port.getFluidTank().getCapacity() - port.getFluidTank().getFluidAmount();
+                if (space <= 0) break;
+                boolean pushed = false;
+                for (ReactorRodBlockEntity rod : rods) {
+                    for (var entry : rod.getCoolantEntries()) {
+                        if (entry.amount() <= 0 || entry.fluid() == Fluids.EMPTY) continue;
+                        int drain = Math.min(entry.amount(), space);
+                        if (drain <= 0) continue;
+                        int drained = rod.drainCoolant(entry.fluid(), drain);
+                        if (drained > 0) {
+                            int filled = port.receiveFluidFromReactor(new FluidStack(entry.fluid(), drained));
+                            if (filled < drained) {
+                                rod.addCoolant(entry.fluid(), drained - filled);
+                            }
+                            pushed = true;
+                            break;
+                        }
+                    }
+                    if (pushed) break;
+                }
+                if (!pushed) break;
+            }
+        }
+    }
+
+    /**
+     * Pushes solid waste and liquid waste (steam) from rods to resource ports in EXTRACT mode.
      */
     private static void pushWasteToPorts(List<ReactorRodBlockEntity> rods, List<ResourcePortBlockEntity> resourcePorts) {
         if (resourcePorts.isEmpty()) return;
 
         List<ResourcePortBlockEntity> extractPorts = resourcePorts.stream()
-                .filter(p -> p.getPortMode() == PortMode.EXTRACT || p.getPortMode() == PortMode.EJECT)
+                .filter(p -> p.getPortMode() == PortMode.EXTRACT)
                 .toList();
+        if (extractPorts.isEmpty()) return;
 
         int totalSolidWaste = rods.stream().mapToInt(ReactorRodBlockEntity::getTotalSolidWasteCount).sum();
         if (totalSolidWaste > 0) {

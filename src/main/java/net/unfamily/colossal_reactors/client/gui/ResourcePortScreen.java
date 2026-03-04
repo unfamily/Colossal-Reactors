@@ -88,7 +88,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                         }
                 );
         addRenderableWidget(modeButton);
-        filterButton = CycleButton.builder(PortFilter::getDisplayName)
+        filterButton = CycleButton.<PortFilter>builder(filter -> filter.getDisplayName(menu.getPortMode()))
                 .withValues(PortFilter.values())
                 .withInitialValue(menu.getPortFilter())
                 .displayOnlyValue()
@@ -206,7 +206,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
             int fBtnY = topPos + FILTER_BUTTON_Y;
             if (mouseX >= fBtnX && mouseX < fBtnX + FILTER_BUTTON_WIDTH && mouseY >= fBtnY && mouseY < fBtnY + FILTER_BUTTON_HEIGHT) {
                 PortFilter filter = menu.getPortFilter();
-                Component line = Component.translatable(filter.getTooltipKey());
+                Component line = Component.translatable(filter.getTooltipKey(menu.getPortMode()));
                 if (!line.getString().isEmpty()) {
                     guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
                 }
