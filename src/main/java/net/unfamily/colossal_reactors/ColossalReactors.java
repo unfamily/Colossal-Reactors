@@ -30,6 +30,7 @@ import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.network.ReactorPreviewMarkerPayload;
 import net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen;
 import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
@@ -41,7 +42,9 @@ import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 @Mod(ColossalReactors.MODID)
 public class ColossalReactors {
@@ -113,6 +116,12 @@ public class ColossalReactors {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
             });
+        }
+
+        @SubscribeEvent
+        static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
+            event.registrar(ColossalReactors.MODID).versioned("1")
+                    .playToClient(ReactorPreviewMarkerPayload.TYPE, ReactorPreviewMarkerPayload.STREAM_CODEC, ClientPayloadHandlers::handlePreviewMarker);
         }
 
         @SubscribeEvent

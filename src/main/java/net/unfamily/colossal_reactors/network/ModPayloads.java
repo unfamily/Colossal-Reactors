@@ -1,6 +1,9 @@
 package net.unfamily.colossal_reactors.network;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -38,5 +41,15 @@ public class ModPayloads {
                 ReactorBuilderSizePayload.STREAM_CODEC,
                 ReactorBuilderSizePayload::handle
         );
+        registrar.playToServer(
+                ReactorPreviewPayload.TYPE,
+                ReactorPreviewPayload.STREAM_CODEC,
+                ReactorPreviewPayload::handle
+        );
+    }
+
+    /** S2C: send one preview marker to the player (called from server in ReactorPreviewPayload handler). */
+    public static void sendPreviewMarker(ServerPlayer player, BlockPos pos, int color, int durationTicks) {
+        PacketDistributor.sendToPlayer(player, new ReactorPreviewMarkerPayload(pos, color, durationTicks));
     }
 }

@@ -95,8 +95,10 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     /** Fluid registry id for GUI; -1 if empty. */
     public int getFluidId() { return fluidData.get(2); }
 
-    public int getSizeLeft() { return sizeData.get(0); }
-    public int getSizeRight() { return sizeData.get(1); }
+    /** Display "Left": shows sizeRight (L/R inverted for GUI). */
+    public int getSizeLeft() { return sizeData.get(1); }
+    /** Display "Right": shows sizeLeft (L/R inverted for GUI). */
+    public int getSizeRight() { return sizeData.get(0); }
     public int getSizeH() { return sizeData.get(2); }
     public int getSizeD() { return sizeData.get(3); }
     /** Block pos synced via sizeData indices 4,5,6 (for client button payloads). */

@@ -71,5 +71,7 @@
   "gui.colossal_reactors.reactor_builder.tooltip.left_click": "Tasto sinistro: incrementa",
   "gui.colossal_reactors.reactor_builder.tooltip.right_click": "Tasto destro: decrementa",
   "gui.colossal_reactors.reactor_builder.warning": "XXXXX",
-  "gui.colossal_reactors.reactor_builder.size": "Dimensioni: (L+R=%s) x %s x %s"
+  "gui.colossal_reactors.reactor_builder.size": "Dimensioni: (%s+%s=%s) x %s x %s",
+  "gui.colossal_reactors.reactor_builder.preview": "Anteprima",
+  "gui.colossal_reactors.reactor_builder.preview.tooltip": "Mostra l'ingombro del reattore nel mondo per 10 secondi"
 }

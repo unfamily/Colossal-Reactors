@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -168,21 +170,55 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         return sizeData;
     }
 
-    /** Direction: 0=up (height), 1=left, 2=right, 3=down/behind (depth). Total width L+R is limited by config. */
+    public int getSizeLeft() { return sizeLeft; }
+    public int getSizeRight() { return sizeRight; }
+    public int getSizeHeight() { return sizeHeight; }
+    public int getSizeDepth() { return sizeDepth; }
+
+    /**
+     * Returns the reactor volume AABB in world coordinates (block-aligned).
+     * Reactor extends from one block behind the builder (opposite of facing), with left/right/up/depth from sizes.
+     */
+    public static AABB getReactorVolumeAABB(BlockPos builderPos, Direction facing, int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth) {
+        Direction back = facing.getOpposite();
+        Direction left = facing.getCounterClockWise(Direction.Axis.Y);
+        Direction right = facing.getClockWise(Direction.Axis.Y);
+        BlockPos base = builderPos.relative(back, 1);
+        int minX = base.getX(), maxX = base.getX();
+        int minY = base.getY(), maxY = base.getY();
+        int minZ = base.getZ(), maxZ = base.getZ();
+        for (int dl = 0; dl <= sizeLeft; dl++) {
+            for (int dr = 0; dr <= sizeRight; dr++) {
+                for (int dy = 0; dy <= sizeHeight; dy++) {
+                    for (int dd = 0; dd <= sizeDepth; dd++) {
+                        int x = base.getX() + left.getStepX() * dl + right.getStepX() * dr + back.getStepX() * dd;
+                        int y = base.getY() + Direction.UP.getStepY() * dy + left.getStepY() * dl + right.getStepY() * dr + back.getStepY() * dd;
+                        int z = base.getZ() + left.getStepZ() * dl + right.getStepZ() * dr + back.getStepZ() * dd;
+                        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                        minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+                    }
+                }
+            }
+        }
+        return new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
+    }
+
+    /** Direction: 0=up, 1=left button (adjusts sizeRight), 2=right button (adjusts sizeLeft), 3=behind. L/R inverted vs GUI. */
     public void adjustSize(int direction, boolean increment) {
         if (increment) {
             switch (direction) {
                 case 0 -> sizeHeight = Math.min(getMaxHeight(), sizeHeight + 1);
-                case 1 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeLeft++; }
-                case 2 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeRight++; }
+                case 1 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeRight++; }  // left button -> right extent
+                case 2 -> { if (sizeLeft + sizeRight < getMaxWidth()) sizeLeft++; }   // right button -> left extent
                 case 3 -> sizeDepth = Math.min(getMaxDepth(), sizeDepth + 1);
                 default -> {}
             }
         } else {
             switch (direction) {
                 case 0 -> sizeHeight = Math.max(MIN_SIZE, sizeHeight - 1);
-                case 1 -> { if (sizeLeft > 0) sizeLeft--; else if (sizeRight > 0) sizeRight--; }
-                case 2 -> { if (sizeRight > 0) sizeRight--; else if (sizeLeft > 0) sizeLeft--; }
+                case 1 -> { if (sizeRight > 0) sizeRight--; else if (sizeLeft > 0) sizeLeft--; }
+                case 2 -> { if (sizeLeft > 0) sizeLeft--; else if (sizeRight > 0) sizeRight--; }
                 case 3 -> sizeDepth = Math.max(MIN_SIZE, sizeDepth - 1);
                 default -> {}
             }
