@@ -90,10 +90,9 @@ public class ColossalReactors {
         if (basePath == null || basePath.trim().isEmpty()) {
             basePath = "kubejs/external_scripts/colossal_reactors";
         }
-        Path base = Paths.get(basePath);
-        Path reactorDir = base.resolve("reactor");
+        Path reactorDir = Paths.get(basePath).resolve("reactor");
         try {
-            ScriptsDocsGenerator.generateReadme(base);
+            ScriptsDocsGenerator.generateReadme(reactorDir);
         } catch (Exception e) {
             LOGGER.warn("Could not write scripts README: {}", e.getMessage());
         }
