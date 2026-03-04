@@ -20,6 +20,7 @@ public class ModCreativeModeTabs {
                             .icon(() -> new ItemStack(ModItems.REACTOR_CONTROLLER.get()))
                             .displayItems((params, output) -> {
                                 output.accept(ModItems.REACTOR_CONTROLLER.get());
+                                output.accept(ModItems.REACTOR_BUILDER.get());
                                 output.accept(ModItems.REACTOR_GLASS.get());
                                 output.accept(ModItems.REACTOR_CASING.get());
                                 output.accept(ModItems.REACTOR_ROD.get());

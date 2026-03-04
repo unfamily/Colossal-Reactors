@@ -3,6 +3,7 @@
   "block.colossal_reactors.reactor_glass": "Vetro del reattore",
   "block.colossal_reactors.reactor_casing": "Involucro del reattore",
   "block.colossal_reactors.reactor_controller": "Controller del reattore",
+  "block.colossal_reactors.reactor_builder": "Costruttore reattore",
   "block.colossal_reactors.reactor_rod": "Barra del reattore",
   "block.colossal_reactors.power_port": "Porta energia",
   "block.colossal_reactors.redstone_port": "Porta redstone",

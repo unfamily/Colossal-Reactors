@@ -48,5 +48,10 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
 
+    public static final DeferredBlock<ReactorBuilderBlock> REACTOR_BUILDER = BLOCKS.register("reactor_builder",
+            () -> new ReactorBuilderBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+
     private ModBlocks() {}
 }

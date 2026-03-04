@@ -24,6 +24,10 @@ public class ModMenuTypes {
             MENUS.register("reactor_controller", () ->
                     new MenuType<>(ReactorControllerMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<ReactorBuilderMenu>> REACTOR_BUILDER_MENU =
+            MENUS.register("reactor_builder", () ->
+                    new MenuType<>(ReactorBuilderMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+
     public static void register(IEventBus eventBus) {
         MENUS.register(eventBus);
     }

@@ -3,6 +3,7 @@
   "block.colossal_reactors.reactor_glass": "Reactor Glass",
   "block.colossal_reactors.reactor_casing": "Reactor Casing",
   "block.colossal_reactors.reactor_controller": "Reactor Controller",
+  "block.colossal_reactors.reactor_builder": "Reactor Builder",
   "block.colossal_reactors.reactor_rod": "Reactor Rod",
   "block.colossal_reactors.power_port": "Power Port",
   "block.colossal_reactors.redstone_port": "Redstone Port",

@@ -38,6 +38,11 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(RedstonePortBlockEntity::new,
                             ModBlocks.REDSTONE_PORT.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ReactorBuilderBlockEntity>> REACTOR_BUILDER_BE =
+            BLOCK_ENTITY_TYPES.register("reactor_builder",
+                    () -> BlockEntityType.Builder.of(ReactorBuilderBlockEntity::new,
+                            ModBlocks.REACTOR_BUILDER.get()).build(null));
+
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

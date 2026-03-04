@@ -29,6 +29,7 @@ import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen;
 import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
@@ -116,6 +117,7 @@ public class ColossalReactors {
             event.register(ModMenuTypes.RESOURCE_PORT_MENU.get(), ResourcePortScreen::new);
             event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
             event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
+            event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
         }
     }
 }
