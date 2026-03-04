@@ -267,7 +267,7 @@ public class FuelLoader {
     }
 
     /**
-     * Writes the default fuel JSON into the given reactor directory. Called on every startup.
+     * Writes the default fuel JSON into the given reactor directory. Called only by /colossal_reactors dump.
      * Edits to the file override internal defaults when the mod loads.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
@@ -276,7 +276,6 @@ public class FuelLoader {
         String content = """
             {
               "type": "colossal_reactors:fuel",
-              "overwritable": true,
               "entries": [
                 {
                   "disable": false,

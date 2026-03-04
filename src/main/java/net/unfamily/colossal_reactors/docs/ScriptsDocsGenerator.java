@@ -38,12 +38,12 @@ public final class ScriptsDocsGenerator {
 
             ## Default dump
 
-            On every startup the mod writes default JSON files into this folder:
+            When you run `/colossal_reactors dump`, the mod writes default JSON files into this folder:
             - `default_coolant.json` – coolant definitions (e.g. water → steam)
             - `default_fuel.json` – fuel definitions (e.g. uranium)
             - `default_heat_sinks.json` – heat sink block/liquid multipliers
 
-            These files contain the internal defaults. **Any change you make to these files (or any other JSON in this folder) overrides the internal defaults.** The mod loads JSON after applying internal defaults, so entries in your files replace or add to them. Use `/colossal_reactors reload` after editing to apply changes without restarting.
+            These files contain the internal defaults. **Any change you make to these files (or any other JSON in this folder) overrides the internal defaults.** Use `/colossal_reactors reload` after editing to apply changes without restarting.
 
             ## Location
 
@@ -67,7 +67,6 @@ public final class ScriptsDocsGenerator {
             | Key | Type | Description |
             |-----|------|-------------|
             | `type` | string | Must be `colossal_reactors:coolant` |
-            | `overwritable` | boolean | Default true. If false, entries in this file cannot be overridden by other files. |
             | `entries` | array | List of coolant entries (see below). |
 
             ### Entry keys
@@ -75,7 +74,7 @@ public final class ScriptsDocsGenerator {
             | Key | Type | Default | Description |
             |-----|------|---------|-------------|
             | `coolant_id` | string | required | Unique id, e.g. `colossal_reactors:water` |
-            | `inputs` | array of string | required | Fluid ids or tags. Tag: `"#forge:water"`. Fluid: `"minecraft:water"`. |
+            | `inputs` | array of string | required | Fluid ids or tags. Tag: `"#c:water"`. Fluid: `"minecraft:water"`. |
             | `output` | string | required | Output fluid for steam, usually a tag, e.g. `"#c:steam"` |
             | `reduce_rf_production` | boolean | false | If true, reactor converts RF to steam (consumes fluid from INSERT ports); no RF when fluid is sufficient. |
             | `rf_to_coolant_factor` | number | 0.45 | Coolant (mB) consumed per 1 RF when in water mode: `mb = rfProduced * rf_to_coolant_factor` |
@@ -84,7 +83,6 @@ public final class ScriptsDocsGenerator {
             | `mb_decrement_percent` | number | 100 | Consumption divisor (e.g. 100 → 1.0). |
             | `fluid_color` | string or number | - | ARGB color for GUI (e.g. `"#3498db"`). |
             | `output_color` | string or number | - | ARGB color for steam in GUI. |
-            | `overwritable` | boolean | from file | Whether this entry can be overridden. |
             | `disable` | boolean | false | If true, this entry **excludes** the listed inputs from being valid (use to blacklist). |
 
             ### Example: water coolant
@@ -92,11 +90,10 @@ public final class ScriptsDocsGenerator {
             ```json
             {
               "type": "colossal_reactors:coolant",
-              "overwritable": true,
               "entries": [
                 {
                   "coolant_id": "colossal_reactors:water",
-                  "inputs": ["minecraft:water", "#forge:water"],
+                  "inputs": ["minecraft:water", "#c:water"],
                   "output": "#c:steam",
                   "reduce_rf_production": true,
                   "rf_to_coolant_factor": 0.45,
@@ -123,7 +120,6 @@ public final class ScriptsDocsGenerator {
             | Key | Type | Description |
             |-----|------|-------------|
             | `type` | string | Must be `colossal_reactors:fuel` |
-            | `overwritable` | boolean | Default true. |
             | `entries` | array | List of fuel entries. |
 
             ### Entry keys
@@ -136,7 +132,6 @@ public final class ScriptsDocsGenerator {
             | `units_per_item` | number | 1000 | Fuel units one item gives (e.g. 1 ingot = 1000 units). |
             | `base_rf_per_tick` | number | from config | Reference RF (used in formulas). |
             | `base_fuel_units_per_tick` | number | from config | Reference consumption rate. |
-            | `overwritable` | boolean | from file | Whether this entry can be overridden. |
             | `disable` | boolean | false | If true, listed inputs are **excluded** from being valid fuel. |
 
             ### Example: uranium
@@ -144,7 +139,6 @@ public final class ScriptsDocsGenerator {
             ```json
             {
               "type": "colossal_reactors:fuel",
-              "overwritable": true,
               "entries": [
                 {
                   "fuel_id": "colossal_reactors:uranium",

@@ -96,13 +96,6 @@ public class ColossalReactors {
         } catch (Exception e) {
             LOGGER.warn("Could not write scripts README: {}", e.getMessage());
         }
-        try {
-            FuelLoader.dumpDefaultFile(reactorDir);
-            CoolantLoader.dumpDefaultFile(reactorDir);
-            HeatSinkLoader.dumpDefaultFile(reactorDir);
-        } catch (Exception e) {
-            LOGGER.warn("Could not write default script files: {}", e.getMessage());
-        }
         FuelLoader.scanConfigDirectory();
         CoolantLoader.scanConfigDirectory();
         HeatSinkLoader.scanConfigDirectory();

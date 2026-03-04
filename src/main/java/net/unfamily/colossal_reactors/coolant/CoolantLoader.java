@@ -111,8 +111,8 @@ public class CoolantLoader {
     }
 
     private static void registerInternalDefaults() {
-        // Vanilla water and forge:water tag so modded waters are accepted
-        List<String> inputs = List.of("minecraft:water", "#forge:water");
+        // Vanilla water and #c:water tag so modded waters are accepted
+        List<String> inputs = List.of("minecraft:water", "#c:water");
         String output = "#c:steam";
         DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
     }
@@ -299,7 +299,7 @@ public class CoolantLoader {
     }
 
     /**
-     * Writes the default coolant JSON into the given reactor directory. Called on every startup.
+     * Writes the default coolant JSON into the given reactor directory. Called only by /colossal_reactors dump.
      * Edits to the file override internal defaults when the mod loads.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
@@ -308,12 +308,11 @@ public class CoolantLoader {
         String content = """
             {
               "type": "colossal_reactors:coolant",
-              "overwritable": true,
               "entries": [
                 {
                   "disable": false,
                   "coolant_id": "colossal_reactors:water",
-                  "inputs": ["minecraft:water", "#forge:water"],
+                  "inputs": ["minecraft:water", "#c:water"],
                   "output": "#c:steam",
                   "rf_increment_percent": 0,
                   "mb_decrement_percent": 100,

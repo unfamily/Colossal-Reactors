@@ -273,7 +273,7 @@ public final class HeatSinkLoader {
     }
 
     /**
-     * Writes the default heat sink JSON into the given reactor directory. Called on every startup.
+     * Writes the default heat sink JSON into the given reactor directory. Called only by /colossal_reactors dump.
      * Edits to the file override internal defaults when the mod loads.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
