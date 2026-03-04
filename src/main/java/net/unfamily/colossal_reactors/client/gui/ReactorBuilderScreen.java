@@ -37,16 +37,22 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int GUI_WIDTH = 230;
     private static final int GUI_HEIGHT = 230;
 
-    /** Tank at (12, 26), same dimensions as Resource Port: 12x54 fill with 1px inset */
+    /**
+     * Tank at (12, 26), same dimensions as Resource Port: 12x54 fill with 1px inset
+     */
     private static final int FLUID_BAR_X = 12;
     private static final int FLUID_BAR_Y = 26;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
 
-    /** Size above buttons (centered). Buffer/inventory: left 35, right 35+9*18=197. */
+    /**
+     * Size above buttons (centered). Buffer/inventory: left 35, right 35+9*18=197.
+     */
     private static final int SIZE_LABEL_Y = 22;
-    /** Area buttons: ^ on row1; < V > on row2. Arrow block aligned with inventory left edge (35). */
+    /**
+     * Area buttons: ^ on row1; < V > on row2. Arrow block aligned with inventory left edge (35).
+     */
     private static final int BUTTON_W = 14;
     private static final int BUTTON_H = 12;
     private static final int ROW1_Y = 32;
@@ -55,7 +61,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int GAP = 3;
     private static final int INVENTORY_LEFT_X = 35;
     private static final int ARROW_GROUP_WIDTH = 3 * BUTTON_W + 2 * GAP;  // 48
-    /** Arrow block left edge = inventory left edge (35). */
+    /**
+     * Arrow block left edge = inventory left edge (35).
+     */
     private static final int GROUP_LEFT_X = INVENTORY_LEFT_X;
     private static final int BUTTON_UP_X = GROUP_LEFT_X + ARROW_GROUP_WIDTH / 2 - BUTTON_W / 2;
     private static final int BUTTON_LEFT_X = GROUP_LEFT_X;
@@ -63,7 +71,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int BUTTON_RIGHT_X = GROUP_LEFT_X + 2 * (BUTTON_W + GAP);
     private static final int WARNING_X = GROUP_LEFT_X;
 
-    /** 6 buttons: 12px from GUI right edge; gap between arrow block and this block. */
+    /**
+     * 6 buttons: 12px from GUI right edge; gap between arrow block and this block.
+     */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
     private static final int RIGHT_BLOCK_X = GUI_WIDTH - RIGHT_EDGE_INSET - (2 * RIGHT_BUTTON_W + GAP);
@@ -96,7 +106,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonLeft;
     private Button buttonRight;
     private Button buttonDown;
-    /** Right block buttons, index 0–5 (displayed as 1–6). */
+    /**
+     * Right block buttons, index 0–5 (displayed as 1–6).
+     */
     private final Button[] rightBlockButtons = new Button[6];
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
@@ -127,8 +139,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(buttonRight);
 
         // Right block: 2 cols x 3 rows. 0=Heat Sink, 5=Preview, others 1–4, 6 reserved.
-        int[] rowY = { RIGHT_ROW0_Y, RIGHT_ROW1_Y, RIGHT_ROW2_Y };
-        int[] colX = { RIGHT_COL0_X, RIGHT_COL1_X };
+        int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y, RIGHT_ROW2_Y};
+        int[] colX = {RIGHT_COL0_X, RIGHT_COL1_X};
         for (int i = 0; i < 6; i++) {
             int row = i / 2;
             int col = i % 2;
@@ -193,13 +205,26 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int x = (int) mouseX;
         int y = (int) mouseY;
         if (button == 1) {
-            if (isInBounds(x, y, leftPos + BUTTON_UP_X, topPos + ROW1_Y)) { sendSize(0, false); return true; }
-            if (isInBounds(x, y, leftPos + BUTTON_LEFT_X, topPos + ROW2_Y)) { sendSize(1, false); return true; }
-            if (isInBounds(x, y, leftPos + BUTTON_DOWN_X, topPos + ROW2_Y)) { sendSize(3, false); return true; }
-            if (isInBounds(x, y, leftPos + BUTTON_RIGHT_X, topPos + ROW2_Y)) { sendSize(2, false); return true; }
+            if (isInBounds(x, y, leftPos + BUTTON_UP_X, topPos + ROW1_Y)) {
+                sendSize(0, false);
+                return true;
+            }
+            if (isInBounds(x, y, leftPos + BUTTON_LEFT_X, topPos + ROW2_Y)) {
+                sendSize(1, false);
+                return true;
+            }
+            if (isInBounds(x, y, leftPos + BUTTON_DOWN_X, topPos + ROW2_Y)) {
+                sendSize(3, false);
+                return true;
+            }
+            if (isInBounds(x, y, leftPos + BUTTON_RIGHT_X, topPos + ROW2_Y)) {
+                sendSize(2, false);
+                return true;
+            }
             if (isInRightBlockButton(x, y, 0)) {
                 BlockPos pos = menu.getBlockPos();
-                if (!pos.equals(BlockPos.ZERO)) PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // right click = next
+                if (!pos.equals(BlockPos.ZERO))
+                    PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // right click = next
                 return true;
             }
         }
