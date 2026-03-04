@@ -39,13 +39,13 @@ public class Config {
 
     public static final ModConfigSpec.IntValue MAX_REACTOR_WIDTH = BUILDER
             .comment("Maximum reactor width (X or Z). Default: 64")
-            .defineInRange("000_maxReactorWidth", 64, 1, 64);
+            .defineInRange("000_maxReactorWidth", 65, 1, 1024);
     public static final ModConfigSpec.IntValue MAX_REACTOR_LENGTH = BUILDER
             .comment("Maximum reactor length (X or Z). Default: 64")
-            .defineInRange("001_maxReactorLength", 64, 1, 64);
+            .defineInRange("001_maxReactorLength", 65, 1, 1024);
     public static final ModConfigSpec.IntValue MAX_REACTOR_HEIGHT = BUILDER
-            .comment("Maximum reactor height (Y). Default: 32")
-            .defineInRange("002_maxReactorHeight", 32, 1, 32);
+            .comment("Maximum reactor height (Y). Default: 64")
+            .defineInRange("002_maxReactorHeight", 65, 1, 1024);
 
     static {
         BUILDER.pop();
