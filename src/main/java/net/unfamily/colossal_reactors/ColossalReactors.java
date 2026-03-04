@@ -33,8 +33,12 @@ import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.docs.ScriptsDocsGenerator;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 @Mod(ColossalReactors.MODID)
@@ -81,6 +85,25 @@ public class ColossalReactors {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.debug("Colossal Reactors server starting");
+        // Always overwrite README in scripts directory so docs stay up to date when we change them
+        String basePath = Config.EXTERNAL_SCRIPTS_PATH.get();
+        if (basePath == null || basePath.trim().isEmpty()) {
+            basePath = "kubejs/external_scripts/colossal_reactors";
+        }
+        Path base = Paths.get(basePath);
+        Path reactorDir = base.resolve("reactor");
+        try {
+            ScriptsDocsGenerator.generateReadme(base);
+        } catch (Exception e) {
+            LOGGER.warn("Could not write scripts README: {}", e.getMessage());
+        }
+        try {
+            FuelLoader.dumpDefaultFile(reactorDir);
+            CoolantLoader.dumpDefaultFile(reactorDir);
+            HeatSinkLoader.dumpDefaultFile(reactorDir);
+        } catch (Exception e) {
+            LOGGER.warn("Could not write default script files: {}", e.getMessage());
+        }
         FuelLoader.scanConfigDirectory();
         CoolantLoader.scanConfigDirectory();
         HeatSinkLoader.scanConfigDirectory();

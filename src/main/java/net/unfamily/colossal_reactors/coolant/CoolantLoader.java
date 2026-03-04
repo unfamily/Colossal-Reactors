@@ -88,7 +88,7 @@ public class CoolantLoader {
         Path reactorPath = Paths.get(basePath, "reactor");
         if (!Files.exists(reactorPath)) {
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Reactor config directory does not exist ({}). Using internal defaults only. Run dump to create it.", reactorPath.toAbsolutePath());
+                LOGGER.info("Reactor config directory does not exist ({}). Using internal defaults only. README is generated in scripts directory on startup.", reactorPath.toAbsolutePath());
             }
             return;
         }
@@ -299,7 +299,8 @@ public class CoolantLoader {
     }
 
     /**
-     * Writes the default coolant JSON into the given directory (e.g. reactor). Called by dump command.
+     * Writes the default coolant JSON into the given reactor directory. Called on every startup.
+     * Edits to the file override internal defaults when the mod loads.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
         Files.createDirectories(reactorDir);
@@ -312,9 +313,7 @@ public class CoolantLoader {
                 {
                   "disable": false,
                   "coolant_id": "colossal_reactors:water",
-                  "inputs": [
-                    "minecraft:water"
-                  ],
+                  "inputs": ["minecraft:water", "#forge:water"],
                   "output": "#c:steam",
                   "rf_increment_percent": 0,
                   "mb_decrement_percent": 100,
@@ -332,4 +331,5 @@ public class CoolantLoader {
             LOGGER.info("Dumped default coolant to {}", file.toAbsolutePath());
         }
     }
+
 }

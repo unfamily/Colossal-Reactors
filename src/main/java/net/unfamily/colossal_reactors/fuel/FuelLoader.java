@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 /**
  * Loads fuel definitions from external JSON (external_scripts_path/reactor/*.json with type colossal_reactors:fuel).
  * Internal default (uranium) is registered first; JSON entries can add or override by fuel_id.
- * Use dump command to write default JSON into the reactor directory.
+ * README with examples is auto-generated in the scripts directory on every startup.
  * "disable" is optional (default false). When true, the entry means "these tags/items: no" (excluded inputs).
  */
 public class FuelLoader {
@@ -81,7 +81,7 @@ public class FuelLoader {
         Path reactorPath = Paths.get(basePath, REACTOR_CONFIG_DIR);
         if (!Files.exists(reactorPath)) {
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Reactor config directory does not exist ({}). Using internal defaults only. Run dump to create it.", reactorPath.toAbsolutePath());
+                LOGGER.info("Reactor config directory does not exist ({}). Using internal defaults only. README is generated in scripts directory on startup.", reactorPath.toAbsolutePath());
             }
             return;
         }
@@ -267,8 +267,8 @@ public class FuelLoader {
     }
 
     /**
-     * Writes the default fuel JSON into the given directory so users can see and override the base fuel.
-     * Called by the dump_default command.
+     * Writes the default fuel JSON into the given reactor directory. Called on every startup.
+     * Edits to the file override internal defaults when the mod loads.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
         Files.createDirectories(reactorDir);
@@ -281,10 +281,7 @@ public class FuelLoader {
                 {
                   "disable": false,
                   "fuel_id": "colossal_reactors:uranium",
-                  "inputs": [
-                    "#c:ingots/uranium",
-                    "colossal_reactors:uranium_ingot"
-                  ],
+                  "inputs": ["#c:ingots/uranium", "colossal_reactors:uranium_ingot"],
                   "output": "colossal_reactors:nuclear_waste",
                   "units_per_item": 1000,
                   "base_rf_per_tick": 200.0,
@@ -298,4 +295,5 @@ public class FuelLoader {
             LOGGER.info("Dumped default fuel to {}", file.toAbsolutePath());
         }
     }
+
 }

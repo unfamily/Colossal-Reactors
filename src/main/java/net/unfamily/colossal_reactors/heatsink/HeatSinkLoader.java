@@ -273,12 +273,12 @@ public final class HeatSinkLoader {
     }
 
     /**
-     * Writes the default heat_sink.json into the given directory (e.g. reactor). Called by dump command.
-     * Tags only (no block/liquid ids) so you can verify tag resolution.
+     * Writes the default heat sink JSON into the given reactor directory. Called on every startup.
+     * Edits to the file override internal defaults when the mod loads.
      */
     public static void dumpDefaultFile(Path reactorDir) throws IOException {
         Files.createDirectories(reactorDir);
-        Path file = reactorDir.resolve("heat_sink.json");
+        Path file = reactorDir.resolve("default_heat_sinks.json");
         String content = """
             {
               "type": "colossal_reactors:heat_sinks",
