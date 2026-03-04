@@ -111,14 +111,8 @@ public final class ReactorValidation {
                     BlockState state = level.getBlockState(p);
 
                     if (onBorder) {
-                        if (y == maxY || y == minY) {
-                            if (!state.is(ModBlocks.REACTOR_CASING.get()) && !isRodController(state)) {
-                                return invalid(level, start, "border top/bottom must be casing or rod_controller at " + p + " = " + state.getBlock().getDescriptionId());
-                            }
-                        } else {
-                            if (!isShellBlock(state) && !isRodController(state)) {
-                                return invalid(level, start, "border must be shell or rod_controller at " + p + " = " + state.getBlock().getDescriptionId());
-                            }
+                        if (!isShellBlock(state) && !isRodController(state)) {
+                            return invalid(level, start, "border must be shell or rod_controller at " + p + " = " + state.getBlock().getDescriptionId());
                         }
                     } else {
                         if (state.is(ModBlocks.REACTOR_ROD.get())) {

@@ -14,6 +14,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.Config;
 import org.slf4j.Logger;
@@ -57,7 +58,7 @@ public final class HeatSinkLoader {
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of(),
                 List.of("#c:water"),
-                1.05, 1.15, 1.05, true));
+                1.05, 1.15, 1.05, false)); // water: source and flowing both valid
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/diamond"),
                 List.of(),
@@ -169,7 +170,7 @@ public final class HeatSinkLoader {
     }
 
     /**
-     * True if this block state is allowed as interior coolant: air, any block matching valid_blocks, or a liquid block whose fluid matches valid_liquids (with must_source).
+     * True if this block state is allowed as interior coolant: air, any block matching valid_blocks, or a liquid block (using fluid type/source identity for valid_liquids). Flowing or unknown liquid is allowed and treated as air (does not block the reactor).
      */
     public static boolean isHeatSinkBlock(BlockState state, RegistryAccess registryAccess) {
         if (state.isAir()) return true;
@@ -177,7 +178,7 @@ public final class HeatSinkLoader {
     }
 
     /**
-     * Returns fuel and energy multipliers for this block (air = 1.0, 1.0). Checks valid_blocks first, then if the state is a liquid block (fluid in world) checks valid_liquids using the fluid's tags; must_source uses the actual fluid state in the world (source vs flowing).
+     * Returns fuel and energy multipliers for this block (air = 1.0, 1.0). Checks valid_blocks first, then if the state is a liquid block uses the fluid type (source identity) for valid_liquids/tag checks; flowing blocks use that same identity. When must_source is true, flowing is not counted as heat sink but is allowed and treated as air (1.0, 1.0, 1.0). Non-source that cannot be counted as valid heat sink (unknown liquid or flowing when must_source) does not block the reactor and is treated as air.
      */
     public static HeatSinkModifiers getModifiersForBlock(BlockState state, RegistryAccess registryAccess) {
         if (state.isAir()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
@@ -190,17 +191,21 @@ public final class HeatSinkLoader {
         }
         FluidState fluidState = state.getFluidState();
         if (!fluidState.isEmpty()) {
-            Fluid fluid = fluidState.getType();
+            // Always resolve to source for id/tag checks (flowing -> getSource())
+            Fluid fluid = resolveToSource(fluidState.getType());
             for (HeatSinkDefinition def : DEFINITIONS) {
                 for (String selector : def.validLiquids()) {
                     if (fluidMatches(fluid, selector, registryAccess)) {
+                        // must_source and flowing: do not count as heat sink, but allow block (treat as air)
                         if (def.mustSource() && !fluidState.isSource()) {
-                            continue;
+                            return new HeatSinkModifiers(1.0, 1.0, 1.0);
                         }
                         return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier(), def.overheatingMultiplier());
                     }
                 }
             }
+            // Unknown liquid (no valid_liquids match): do not block reactor, treat as air
+            return new HeatSinkModifiers(1.0, 1.0, 1.0);
         }
         return null;
     }
@@ -242,8 +247,16 @@ public final class HeatSinkLoader {
         return List.copyOf(DEFINITIONS);
     }
 
+    /** Resolves flowing fluid to its source for id/tag lookup. For safety, identity checks always use the source. */
+    private static Fluid resolveToSource(Fluid fluid) {
+        if (fluid == null || fluid == Fluids.EMPTY) return fluid;
+        if (fluid instanceof FlowingFluid flowing) return flowing.getSource();
+        return fluid;
+    }
+
     private static boolean fluidMatches(Fluid fluid, String selector, RegistryAccess registryAccess) {
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        Fluid source = resolveToSource(fluid);
+        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(source);
         if (selector.startsWith("#")) {
             ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
             if (tagId == null) return false;
@@ -295,7 +308,7 @@ public final class HeatSinkLoader {
               "entries": [
                 {
                   "valid_liquids": ["#c:water"],
-                  "must_source": true,
+                  "must_source": false,
                   "fuel": 1.05,
                   "energy": 1.15,
                   "overheating": 1.05
