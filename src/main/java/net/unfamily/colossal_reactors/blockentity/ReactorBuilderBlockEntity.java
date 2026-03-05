@@ -27,6 +27,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
+import net.unfamily.colossal_reactors.reactor.ReactorBuildLogic;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -47,6 +48,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_OPEN_TOP = "OpenTop";
     private static final String TAG_ROD_PATTERN = "RodPattern";
     private static final String TAG_PATTERN_MODE = "PatternMode";
+    private static final String TAG_BUILDING = "Building";
     private static final int BUFFER_SLOTS = 9 * 3;
     private static final int MIN_SIZE = 1;
 
@@ -124,6 +126,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int rodPattern = 0;
     /** Pattern mode: 0=OPTIMIZED (-2 inset), 1=PRODUCTION (no inset), 2=ECONOMY (like optimized, border fill differs). */
     private int patternMode = 0;
+    /** True when build is in progress (button shows Stop). */
+    private boolean building = false;
 
     private static final int ROD_PATTERN_COUNT = 4;
     private static final int PATTERN_MODE_COUNT = 3;
@@ -143,13 +147,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 8 -> openTop ? 1 : 0;
                 case 9 -> rodPattern;
                 case 10 -> patternMode;
+                case 11 -> building ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -165,13 +170,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 8 -> openTop = value != 0;
                 case 9 -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, value));
                 case 10 -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, value));
+                case 11 -> building = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 11;
+            return 12;
         }
     };
 
@@ -203,6 +209,29 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public boolean isOpenTop() { return openTop; }
     public int getRodPattern() { return rodPattern; }
     public int getPatternMode() { return patternMode; }
+    public boolean isBuilding() { return building; }
+
+    /** Start building: only if no red zone. Called from server when user presses Build. */
+    public void startBuild() {
+        if (level == null || level.isClientSide()) return;
+        if (ReactorBuildLogic.hasRedZone((net.minecraft.server.level.ServerLevel) level, this)) return;
+        building = true;
+        setChanged();
+    }
+
+    /** Stop building. Called when user presses Stop or when build finishes/aborts. */
+    public void stopBuild() {
+        building = false;
+        setChanged();
+    }
+
+    /** Server tick: advance build one step. Called from block ticker. */
+    public void serverTick() {
+        if (!building || level == null || level.isClientSide()) return;
+        if (!ReactorBuildLogic.tick(this)) {
+            stopBuild();
+        }
+    }
 
     /** Toggle open top (reactor top open when built). */
     public void cycleOpenTop() {
@@ -339,6 +368,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putBoolean(TAG_OPEN_TOP, openTop);
         tag.putInt(TAG_ROD_PATTERN, rodPattern);
         tag.putInt(TAG_PATTERN_MODE, patternMode);
+        tag.putBoolean(TAG_BUILDING, building);
     }
 
     @Override
@@ -376,6 +406,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_OPEN_TOP)) openTop = tag.getBoolean(TAG_OPEN_TOP);
         if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
         if (tag.contains(TAG_PATTERN_MODE)) patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, tag.getInt(TAG_PATTERN_MODE)));
+        if (tag.contains(TAG_BUILDING)) building = tag.getBoolean(TAG_BUILDING);
     }
 
     @Override

@@ -73,7 +73,7 @@
   "gui.colossal_reactors.reactor_builder.tooltip.shift_10": "Shift: ±10",
   "gui.colossal_reactors.reactor_builder.tooltip.alt_ctrl_5": "Alt/Ctrl: ±5",
   "gui.colossal_reactors.reactor_builder.warning": "XXXXX",
-  "gui.colossal_reactors.reactor_builder.size": "Size: (%s+%s=%s) x %s x %s",
+  "gui.colossal_reactors.reactor_builder.size": "Size: (1|+%s+%s=%s) x %s x %s",
   "gui.colossal_reactors.reactor_builder.preview": "Preview",
   "gui.colossal_reactors.reactor_builder.preview.tooltip": "Show reactor footprint in the world. Purple = border, Yellow = rod positions, Red = occupied blocks",
   "gui.colossal_reactors.reactor_builder.pattern.0": "Dots",
@@ -96,5 +96,9 @@
   "gui.colossal_reactors.reactor_builder.tooltip.pattern.3": "Does not place any rods or heat sinks.",
   "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value": "Heat Sink: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left": "Left click: previous",
-  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right": "Right click: next"
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right": "Right click: next",
+  "gui.colossal_reactors.reactor_builder.build": "Build",
+  "gui.colossal_reactors.reactor_builder.build.tooltip": "Start building the reactor from buffer inventory and tank. Stops if red zones appear.",
+  "gui.colossal_reactors.reactor_builder.stop": "Stop",
+  "gui.colossal_reactors.reactor_builder.stop.tooltip": "Stop building the reactor."
 }

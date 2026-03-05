@@ -73,7 +73,7 @@
   "gui.colossal_reactors.reactor_builder.tooltip.shift_10": "Shift: ±10",
   "gui.colossal_reactors.reactor_builder.tooltip.alt_ctrl_5": "Alt/Ctrl: ±5",
   "gui.colossal_reactors.reactor_builder.warning": "XXXXX",
-  "gui.colossal_reactors.reactor_builder.size": "Dimensioni: (%s+%s=%s) x %s x %s",
+  "gui.colossal_reactors.reactor_builder.size": "Dimensioni: (1|+%s+%s=%s) x %s x %s",
   "gui.colossal_reactors.reactor_builder.preview": "Anteprima",
   "gui.colossal_reactors.reactor_builder.preview.tooltip": "Mostra l'ingombro del reattore nel mondo. Viola = bordo, Giallo = posizioni rod, Rosso = blocchi occupati",
   "gui.colossal_reactors.reactor_builder.pattern.0": "Punti",
@@ -96,5 +96,9 @@
   "gui.colossal_reactors.reactor_builder.tooltip.pattern.3": "Non piazza nessuna rod né refrigerante.",
   "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_value": "Dissipatore: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left": "Tasto sinistro: precedente",
-  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right": "Tasto destro: successivo"
+  "gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right": "Tasto destro: successivo",
+  "gui.colossal_reactors.reactor_builder.build": "Costruisci",
+  "gui.colossal_reactors.reactor_builder.build.tooltip": "Avvia la costruzione del reattore da inventario e tank. Si ferma se compaiono zone rosse.",
+  "gui.colossal_reactors.reactor_builder.stop": "Stop",
+  "gui.colossal_reactors.reactor_builder.stop.tooltip": "Interrompi la costruzione del reattore."
 }

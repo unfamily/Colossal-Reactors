@@ -69,7 +69,7 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
         this.fluidData = new SimpleContainerData(3);
-        this.sizeData = new SimpleContainerData(11);
+        this.sizeData = new SimpleContainerData(12);
         addDataSlots(fluidData);
         addDataSlots(sizeData);
         ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
@@ -113,6 +113,8 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public int getRodPattern() { return sizeData.get(9); }
     /** Pattern mode (index 10): 0=OPTIMIZED, 1=PRODUCTION, 2=ECONOMY. */
     public int getPatternMode() { return sizeData.get(10); }
+    /** Building in progress (index 11): 0=Build, 1=Stop. */
+    public boolean isBuilding() { return sizeData.get(11) != 0; }
 
     @Override
     public boolean stillValid(Player player) {
