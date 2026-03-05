@@ -1,0 +1,17 @@
+{
+  "type": "synergy:alloy_smelter",
+  "energy": 500,
+  "left": {
+    "count": 1,
+    "item": "colossal_reactors:unrefined_tough_alloy"
+  },
+  "output": {
+    "count": 1,
+    "id": "colossal_reactors:tough_alloy_ingot"
+  },
+  "right": {
+    "count": 1,
+    "tag": "c:ingots/boron"
+  },
+  "ticks": 80
+}
