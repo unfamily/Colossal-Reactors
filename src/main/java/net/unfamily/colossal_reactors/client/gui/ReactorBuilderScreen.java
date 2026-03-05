@@ -115,13 +115,14 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int SIM_LINE_HEIGHT = 12;
     private static final int SIM_TEXT_COLOR = 0xFFFFFF;
 
-    /** Coolant/Fuel cycle buttons: width chosen so both fit from SIM_PANEL_X to (imageWidth - RIGHT_INSET). */
-    private static final int COOLANT_BUTTON_W = 99;
-    private static final int FUEL_BUTTON_W = 99;
+    /** Coolant/Fuel cycle buttons: same horizontal inset each side (12px), reduced gap, width split equally. */
+    private static final int SIM_BUTTONS_HORIZONTAL_INSET = 12;
+    private static final int SIM_BUTTONS_GAP = 2;
+    private static final int COOLANT_BUTTON_W = (GUI_WIDTH - SIM_BUTTONS_HORIZONTAL_INSET * 2 - SIM_BUTTONS_GAP) / 2;
+    private static final int FUEL_BUTTON_W = COOLANT_BUTTON_W;
     private static final int COOLANT_BUTTON_H = 20;
-    private static final int COOLANT_BUTTON_RIGHT_INSET = 12;
+    private static final int COOLANT_BUTTON_RIGHT_INSET = SIM_BUTTONS_HORIZONTAL_INSET;
     private static final int COOLANT_BUTTON_BOTTOM_INSET = 13;
-    private static final int SIM_BUTTONS_GAP = 4;
 
     /** Simulation view mode: same screen, different content (like Deep Drawer how to use / valid keys). */
     private boolean isSimulationView = false;
@@ -216,7 +217,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             addRenderableWidget(rightBlockButtons[i]);
         }
         int coolantY = topPos + imageHeight - COOLANT_BUTTON_H - COOLANT_BUTTON_BOTTOM_INSET;
-        int fuelX = leftPos + SIM_PANEL_X;
+        int fuelX = leftPos + SIM_BUTTONS_HORIZONTAL_INSET;
         int coolantX = fuelX + FUEL_BUTTON_W + SIM_BUTTONS_GAP;
         coolantCycleButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_none"), b -> cycleSimulationCoolant(true))
                 .bounds(coolantX, coolantY, COOLANT_BUTTON_W, COOLANT_BUTTON_H)
