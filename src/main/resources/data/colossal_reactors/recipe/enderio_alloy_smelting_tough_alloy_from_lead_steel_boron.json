@@ -1,0 +1,27 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "enderio_machines"
+    },
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/steel"
+      }
+    }
+  ],
+  "type": "enderio:alloy_smelting",
+  "energy": 4800,
+  "experience": 0.3,
+  "inputs": [
+    { "count": 1, "tag": "c:ingots/lead" },
+    { "count": 1, "tag": "c:ingots/steel" },
+    { "count": 1, "tag": "c:ingots/boron" }
+  ],
+  "output": {
+    "count": 3,
+    "id": "colossal_reactors:tough_alloy_ingot"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "cookingtime": 200,
+  "experience": 0.2,
+  "ingredient": { "item": "colossal_reactors:unrefined_tough_alloy" },
+  "result": { "id": "colossal_reactors:tough_alloy_ingot", "count": 1 }
+}

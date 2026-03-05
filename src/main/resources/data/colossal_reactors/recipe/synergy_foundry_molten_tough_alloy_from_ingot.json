@@ -1,0 +1,11 @@
+{
+  "type": "synergy:foundry",
+  "fluid": {
+    "amount": 90,
+    "id": "colossal_reactors:molten_tough_alloy_source"
+  },
+  "input": {
+    "tag": "c:ingots/tough_alloy"
+  },
+  "ticks": 100
+}
