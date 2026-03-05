@@ -183,7 +183,9 @@ public final class ReactorBuildLogic {
                 for (int ly = 1; ly < h - 1; ly++) {
                     for (int lz = 1; lz < d - 1; lz++) {
                         if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                        if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                        if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
+                            if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                        } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                         BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                         if (!canReplace(level, pos)) continue;
                         BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
@@ -202,7 +204,9 @@ public final class ReactorBuildLogic {
             for (int ly = 1; ly < h - 1; ly++) {
                 for (int lz = 1; lz < d - 1; lz++) {
                     if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                    if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
+                        if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                     if (!canReplace(level, pos)) continue;
                     if (builder.getSelectedHeatSinkIndex() == 0) continue; // Air: leave empty
@@ -216,11 +220,33 @@ public final class ReactorBuildLogic {
         return false; // done
     }
 
+    /** True if (lx, ly, lz) lies inside rod space (the -2 X/Z area). */
+    private static boolean isInRodSpace(int lx, int ly, int lz, int w, int h, int d, int insetXZ) {
+        return lx >= insetXZ && lx < w - insetXZ && ly >= 1 && ly < h - 1 && lz >= insetXZ && lz < d - insetXZ;
+    }
+
     /** True if (lx, ly, lz) lies inside rod space and is a rod position. Used to skip rod cells when placing coolant in full interior. */
     private static boolean isInteriorCellRod(int lx, int ly, int lz, int w, int h, int d, int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
-        if (lx < insetXZ || lx >= w - insetXZ || ly < 1 || ly >= h - 1 || lz < insetXZ || lz >= d - insetXZ) return false;
+        if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ)) return false;
         int rx = lx - insetXZ, ry = ly - 1, rz = lz - insetXZ;
         return RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter);
+    }
+
+    /** True if cell (lx, ly, lz) has at least one neighbor in rod space (6 directions) that is a rod. Used for Super Economy (coolant only in rod space, only adjacent to rods). */
+    private static boolean isRodSpaceCellAdjacentToRod(int lx, int ly, int lz, int w, int h, int d, int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        for (int dx = -1; dx <= 1; dx += 2) {
+            int nx = lx + dx;
+            if (nx >= insetXZ && nx < w - insetXZ && isInteriorCellRod(nx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+        }
+        for (int dy = -1; dy <= 1; dy += 2) {
+            int ny = ly + dy;
+            if (ny >= 1 && ny < h - 1 && isInteriorCellRod(lx, ny, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+        }
+        for (int dz = -1; dz <= 1; dz += 2) {
+            int nz = lz + dz;
+            if (nz >= insetXZ && nz < d - insetXZ && isInteriorCellRod(lx, ly, nz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+        }
+        return false;
     }
 
     /** True if interior cell (lx, ly, lz) has at least one neighbor (6 directions) that is a rod. Used for Economy mode (coolant only on sides of rods). Neighbors evaluated in full interior. */

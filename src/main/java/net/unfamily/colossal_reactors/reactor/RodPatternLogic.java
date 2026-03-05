@@ -34,11 +34,13 @@ public final class RodPatternLogic {
     public static final int MODE_OPTIMIZED = 0;
     public static final int MODE_PRODUCTION = 1;
     public static final int MODE_ECONOMY = 2;
+    /** Like Economy but coolant/heat sink only in rod space (extra -2 on X and Z), only cells adjacent to a rod. */
+    public static final int MODE_SUPER_ECONOMY = 3;
 
     private RodPatternLogic() {}
 
     /**
-     * Rod space dimensions. X and Z: first -2 for frame (1 per side), then -2 for mode in OPTIMIZED/ECONOMY.
+     * Rod space dimensions. X and Z: first -2 for frame (1 per side), then -2 for mode in OPTIMIZED/ECONOMY/SUPER_ECONOMY.
      * Y: -2 for frame (1 top, 1 bottom); rod controllers sit in the top frame. Reactor volume: w, h, d.
      */
     public static int rodSpaceWidth(int reactorWidth, int patternMode) {
@@ -57,7 +59,7 @@ public final class RodPatternLogic {
         return Math.max(0, afterFrame - 2 * MODE_INSET_XZ);
     }
 
-    /** Inset from reactor volume edge to rod space start (X and Z). PRODUCTION=1 (frame only), OPTIMIZED/ECONOMY=2 (frame+mode). */
+    /** Inset from reactor volume edge to rod space start (X and Z). PRODUCTION=1 (frame only), OPTIMIZED/ECONOMY/SUPER_ECONOMY=2 (frame+mode). */
     public static int rodSpaceInsetXZ(int patternMode) {
         return patternMode == MODE_PRODUCTION ? FRAME_INSET_XZ : FRAME_INSET_XZ + MODE_INSET_XZ;
     }
