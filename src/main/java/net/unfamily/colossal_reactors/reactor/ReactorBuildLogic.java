@@ -125,13 +125,14 @@ public final class ReactorBuildLogic {
         if (hasRedZone(level, builder)) return false;
 
         // Try to place one block per tick in order: frame (skip top if openTop), rod controllers, rods, liquids, heat sink
-        // Frame: all border positions except top face when openTop
+        // Frame: all border positions except top face when openTop; reserve top-face rod controller positions (no frame there)
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     if (y == maxY && openTop) continue;
                     boolean onBorder = (x == minX || x == maxX || y == minY || y == maxY || z == minZ || z == maxZ);
                     if (!onBorder) continue;
+                    if (y == maxY && isRodControllerPos(x, z, minX, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter)) continue; // reserve for rod controller
                     BlockPos pos = new BlockPos(x, y, z);
                     if (!canReplace(level, pos)) continue;
                     ItemStack frame = findFrameBlock(builder);

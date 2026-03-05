@@ -322,9 +322,13 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Warning (red) between the two rows of the 6 right buttons
-        Component warning = Component.translatable("gui.colossal_reactors.reactor_builder.warning");
-        guiGraphics.drawString(font, warning, WARNING_RIGHT_X, WARNING_RIGHT_Y, 0xFF0000, false);
+        // Warning (red): empty by default; when build found invalid blocks, show message
+        Component warning = menu.isInvalidBlocksDetected()
+                ? Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks")
+                : Component.translatable("gui.colossal_reactors.reactor_builder.warning");
+        if (!warning.getString().isEmpty()) {
+            guiGraphics.drawString(font, warning, WARNING_RIGHT_X, WARNING_RIGHT_Y, 0xFF0000, false);
+        }
     }
 
     @Override

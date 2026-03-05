@@ -49,6 +49,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_ROD_PATTERN = "RodPattern";
     private static final String TAG_PATTERN_MODE = "PatternMode";
     private static final String TAG_BUILDING = "Building";
+    private static final String TAG_INVALID_BLOCKS = "InvalidBlocks";
     private static final int BUFFER_SLOTS = 9 * 3;
     private static final int MIN_SIZE = 1;
 
@@ -128,6 +129,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int patternMode = 0;
     /** True when build is in progress (button shows Stop). */
     private boolean building = false;
+    /** True when build stopped because one or more invalid blocks were found (red zone). Cleared on start/stop. */
+    private boolean invalidBlocksDetected = false;
 
     private static final int ROD_PATTERN_COUNT = 4;
     private static final int PATTERN_MODE_COUNT = 3;
@@ -148,13 +151,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 9 -> rodPattern;
                 case 10 -> patternMode;
                 case 11 -> building ? 1 : 0;
+                case 12 -> invalidBlocksDetected ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -171,13 +175,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 9 -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, value));
                 case 10 -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, value));
                 case 11 -> building = value != 0;
+                case 12 -> invalidBlocksDetected = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 12;
+            return 13;
         }
     };
 
@@ -210,25 +215,38 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getRodPattern() { return rodPattern; }
     public int getPatternMode() { return patternMode; }
     public boolean isBuilding() { return building; }
+    public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
 
     /** Start building: only if no red zone. Called from server when user presses Build. */
     public void startBuild() {
         if (level == null || level.isClientSide()) return;
         if (ReactorBuildLogic.hasRedZone((net.minecraft.server.level.ServerLevel) level, this)) return;
         building = true;
+        invalidBlocksDetected = false;
         setChanged();
     }
 
-    /** Stop building. Called when user presses Stop or when build finishes/aborts. */
+    /** Stop building. Called when user presses Stop or when build finishes/aborts. Does not clear invalidBlocksDetected (so warning stays until next start or stop). */
     public void stopBuild() {
         building = false;
         setChanged();
+    }
+
+    /** Clear invalid-blocks warning. Called when user presses Build (start) or Stop so the message is dismissed. */
+    public void clearInvalidBlocksFlag() {
+        if (invalidBlocksDetected) {
+            invalidBlocksDetected = false;
+            setChanged();
+        }
     }
 
     /** Server tick: advance build one step. Called from block ticker. */
     public void serverTick() {
         if (!building || level == null || level.isClientSide()) return;
         if (!ReactorBuildLogic.tick(this)) {
+            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel && ReactorBuildLogic.hasRedZone(serverLevel, this)) {
+                invalidBlocksDetected = true;
+            }
             stopBuild();
         }
     }
@@ -369,6 +387,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_ROD_PATTERN, rodPattern);
         tag.putInt(TAG_PATTERN_MODE, patternMode);
         tag.putBoolean(TAG_BUILDING, building);
+        tag.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
     }
 
     @Override
@@ -407,6 +426,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
         if (tag.contains(TAG_PATTERN_MODE)) patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, tag.getInt(TAG_PATTERN_MODE)));
         if (tag.contains(TAG_BUILDING)) building = tag.getBoolean(TAG_BUILDING);
+        if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
     }
 
     @Override

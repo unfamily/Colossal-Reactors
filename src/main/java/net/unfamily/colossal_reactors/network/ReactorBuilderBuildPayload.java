@@ -39,6 +39,7 @@ public record ReactorBuilderBuildPayload(BlockPos pos) implements CustomPacketPa
             if (!(be instanceof ReactorBuilderBlockEntity builder)) return;
             if (builder.isBuilding()) {
                 builder.stopBuild();
+                builder.clearInvalidBlocksFlag();
             } else {
                 builder.startBuild();
             }
