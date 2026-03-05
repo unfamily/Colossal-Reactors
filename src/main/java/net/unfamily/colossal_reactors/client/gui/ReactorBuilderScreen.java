@@ -88,8 +88,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_ROW0_Y = 32;
     /** Second row kept where the old third row was (60). */
     private static final int RIGHT_ROW1_Y = 60;
-    /** Warning text at same height as the arrow row (right button). */
-    private static final int WARNING_RIGHT_Y = ROW2_Y;
+    /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.left_click";
@@ -322,12 +321,13 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Warning (red): empty by default; when build found invalid blocks, show message
+        // Warning (red): empty by default; when build found invalid blocks, show message. Bottom aligned with right arrow button.
         Component warning = menu.isInvalidBlocksDetected()
                 ? Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks")
                 : Component.translatable("gui.colossal_reactors.reactor_builder.warning");
         if (!warning.getString().isEmpty()) {
-            guiGraphics.drawString(font, warning, WARNING_RIGHT_X, WARNING_RIGHT_Y, 0xFF0000, false);
+            int warningY = ROW2_Y + BUTTON_H - font.lineHeight;
+            guiGraphics.drawString(font, warning, WARNING_RIGHT_X, warningY, 0xFF0000, false);
         }
     }
 

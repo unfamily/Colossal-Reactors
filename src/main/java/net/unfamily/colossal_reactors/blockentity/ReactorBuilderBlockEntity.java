@@ -217,10 +217,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public boolean isBuilding() { return building; }
     public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
 
-    /** Start building: only if no red zone. Called from server when user presses Build. */
+    /** Start building: only if no red zone. Called from server when user presses Build. Sets invalidBlocksDetected when refusing so GUI shows warning. */
     public void startBuild() {
         if (level == null || level.isClientSide()) return;
-        if (ReactorBuildLogic.hasRedZone((net.minecraft.server.level.ServerLevel) level, this)) return;
+        if (ReactorBuildLogic.hasRedZone((net.minecraft.server.level.ServerLevel) level, this)) {
+            invalidBlocksDetected = true;
+            setChanged();
+            return;
+        }
         building = true;
         invalidBlocksDetected = false;
         setChanged();

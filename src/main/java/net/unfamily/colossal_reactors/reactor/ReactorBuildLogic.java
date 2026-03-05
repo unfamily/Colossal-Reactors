@@ -135,7 +135,12 @@ public final class ReactorBuildLogic {
                     if (y == maxY && isRodControllerPos(x, z, minX, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter)) continue; // reserve for rod controller
                     BlockPos pos = new BlockPos(x, y, z);
                     if (!canReplace(level, pos)) continue;
-                    ItemStack frame = findFrameBlock(builder);
+                    // Cornice (edges/corners) and top/bottom faces: prefer casing. Lateral faces only: prefer glass.
+                    boolean edgeOrCorner = isEdgeOrCorner(x, y, z, minX, minY, minZ, maxX, maxY, maxZ);
+                    boolean topOrBottomFace = (y == minY || y == maxY);
+                    boolean preferCasing = edgeOrCorner || topOrBottomFace;
+                    ItemStack frame = preferCasing ? findCasingBlock(builder) : findGlassBlock(builder);
+                    if (frame.isEmpty()) frame = preferCasing ? findGlassBlock(builder) : findCasingBlock(builder);
                     if (frame.isEmpty()) return true; // wait for materials
                     if (tryPlaceFrame(builder, level, pos, frame)) return true;
                 }
@@ -215,13 +220,29 @@ public final class ReactorBuildLogic {
         return state.isAir() || state.canBeReplaced();
     }
 
-    private static ItemStack findFrameBlock(ReactorBuilderBlockEntity builder) {
+    /** True if position is on frame/cornice (edge or corner: at least 2 dimensions on boundary). */
+    private static boolean isEdgeOrCorner(int x, int y, int z, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        int onBoundary = 0;
+        if (x == minX || x == maxX) onBoundary++;
+        if (y == minY || y == maxY) onBoundary++;
+        if (z == minZ || z == maxZ) onBoundary++;
+        return onBoundary >= 2;
+    }
+
+    private static ItemStack findCasingBlock(ReactorBuilderBlockEntity builder) {
+        Block casing = ModBlocks.REACTOR_CASING.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-            Block block = Block.byItem(stack.getItem());
-            if (block != Blocks.AIR && ReactorValidation.isShellBlock(block.defaultBlockState()))
-                return stack;
+            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == casing) return stack;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack findGlassBlock(ReactorBuilderBlockEntity builder) {
+        Block glass = ModBlocks.REACTOR_GLASS.get();
+        for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
+            ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
+            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == glass) return stack;
         }
         return ItemStack.EMPTY;
     }
