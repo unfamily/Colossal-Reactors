@@ -29,6 +29,7 @@ import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -505,35 +506,83 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         Component statusLine = Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey);
         guiGraphics.drawString(font, statusLine, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
+
+        // Simulator is always "ON": run virtual tick and show computed stats
+        ReactorSimulation.SimulationResult result = getSimulationResult();
+        int rodCount = result.rodCount();
+        int rodColumns = result.rodColumns();
+        int coolantBlocks = result.coolantBlockCount();
+        int energyPerTick = result.rfPerTick();
+        int coolantConsumed = result.coolantConsumedPerTick();
+        int steamPerTick = result.steamPerTick();
+        String fuelStr = formatFuelPerTickSim(result.fuelPerTickHundredths());
+        int stabilityPermille = result.stabilityPermille();
+
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.rods", 0, 0),
+                Component.translatable("gui.colossal_reactors.reactor_controller.rods", rodCount, rodColumns),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", 0),
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", coolantBlocks),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", 0),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", energyPerTick),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", 0),
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", coolantConsumed),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", 0),
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", steamPerTick),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", "0"),
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
             Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
             guiGraphics.drawString(font, label, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-            guiGraphics.drawString(font, "100.0%", leftPos + SIM_PANEL_X + font.width(label), y, 0x00FF00, false);
+            String stabilityStr = String.format("%.1f%%", stabilityPermille / 10.0);
+            int stabilityColor = stabilityPermille >= 1000 ? 0x00FF00 : (stabilityPermille <= 0 ? 0xFF0000 : 0xFFFF00);
+            guiGraphics.drawString(font, stabilityStr, leftPos + SIM_PANEL_X + font.width(label), y, stabilityColor, false);
         }
+    }
+
+    /** Current coolant for simulation: null = None (index 0), else the selected definition. */
+    private CoolantDefinition getSimulationCoolantDef() {
+        if (simulationCoolantIndex <= 0) return null;
+        List<ResourceLocation> ids = getOrderedCoolantIds();
+        int idx = simulationCoolantIndex - 1;
+        if (idx >= ids.size()) return null;
+        return CoolantLoader.get(ids.get(idx));
+    }
+
+    /** Runs virtual simulation from builder params; simulator is always "ON". Returns zeroed result if level unavailable.
+     * Uses same parameter order as build: entity sizeLeft/sizeRight (menu getSizeRight=get(0)=sizeLeft, getSizeLeft=get(1)=sizeRight for display). */
+    private ReactorSimulation.SimulationResult getSimulationResult() {
+        if (minecraft == null || minecraft.level == null) {
+            return new ReactorSimulation.SimulationResult(0, 0, 0, 0, 0, 0, 0, 1000);
+        }
+        var ra = minecraft.level.registryAccess();
+        CoolantDefinition coolantDef = getSimulationCoolantDef();
+        int sizeLeft = menu.getSizeRight();  // entity sizeLeft = sizeData.get(0)
+        int sizeRight = menu.getSizeLeft();  // entity sizeRight = sizeData.get(1)
+        return ReactorSimulation.simulateFromBuilderParams(ra,
+                sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
+                menu.getRodPattern(), menu.getPatternMode(), menu.getHeatSinkIndex(),
+                coolantDef);
+    }
+
+    private static String formatFuelPerTickSim(int hundredths) {
+        if (hundredths <= 0) return "0";
+        int intPart = hundredths / 100;
+        int frac = hundredths % 100;
+        if (frac == 0) return String.valueOf(intPart);
+        String fracStr = String.format("%02d", frac).replaceFirst("0+$", "");
+        return intPart + "." + fracStr;
     }
 
     @Override

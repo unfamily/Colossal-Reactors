@@ -175,7 +175,8 @@ public final class ReactorBuildLogic {
             }
         }
 
-        // Interior: liquids (1000mb = 1 block)
+        // Interior: liquids (1000mb = 1 block). Optimized/Production: all non-rod. Economy: only cells adjacent to a rod.
+        int patternMode = builder.getPatternMode();
         Fluid fluid = builder.getFluidTank().getFluid().getFluid();
         if (fluid != null && fluid != net.minecraft.world.level.material.Fluids.EMPTY && builder.getFluidTank().getFluidAmount() >= MB_PER_LIQUID_BLOCK) {
             for (int lx = insetXZ; lx < w - insetXZ; lx++) {
@@ -183,6 +184,7 @@ public final class ReactorBuildLogic {
                     for (int lz = insetXZ; lz < d - insetXZ; lz++) {
                         int rx = lx - insetXZ, ry = ly - 1, rz = lz - insetXZ;
                         if (RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                        if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                         BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                         if (!canReplace(level, pos)) continue;
                         BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
@@ -196,12 +198,13 @@ public final class ReactorBuildLogic {
             }
         }
 
-        // Interior: heat sink blocks (non-rod, non-liquid positions)
+        // Interior: heat sink blocks. Optimized/Production: all non-rod. Economy: only cells adjacent to a rod. Always use selected heatSink.
         for (int lx = insetXZ; lx < w - insetXZ; lx++) {
             for (int ly = 1; ly < h - 1; ly++) {
                 for (int lz = insetXZ; lz < d - insetXZ; lz++) {
                     int rx = lx - insetXZ, ry = ly - 1, rz = lz - insetXZ;
                     if (RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                     if (!canReplace(level, pos)) continue;
                     if (builder.getSelectedHeatSinkIndex() == 0) continue; // Air: leave empty
@@ -213,6 +216,38 @@ public final class ReactorBuildLogic {
         }
 
         return false; // done
+    }
+
+    /** True if interior cell (lx, ly, lz) has at least one neighbor (6 directions) that is a rod position. Used for Economy mode (coolant only on sides of rods). */
+    private static boolean isInteriorCellAdjacentToRod(int lx, int ly, int lz, int w, int h, int d, int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        // +X, -X
+        for (int dx = -1; dx <= 1; dx += 2) {
+            int nx = lx + dx;
+            if (nx >= insetXZ && nx < w - insetXZ) {
+                int rx = nx - insetXZ, ry = ly - 1, rz = lz - insetXZ;
+                if (ry >= 0 && ry < rh && rz >= 0 && rz < rd && RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter))
+                    return true;
+            }
+        }
+        // +Y, -Y
+        for (int dy = -1; dy <= 1; dy += 2) {
+            int ny = ly + dy;
+            if (ny >= 1 && ny < h - 1) {
+                int rx = lx - insetXZ, ry = ny - 1, rz = lz - insetXZ;
+                if (rx >= 0 && rx < rw && rz >= 0 && rz < rd && RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter))
+                    return true;
+            }
+        }
+        // +Z, -Z
+        for (int dz = -1; dz <= 1; dz += 2) {
+            int nz = lz + dz;
+            if (nz >= insetXZ && nz < d - insetXZ) {
+                int rx = lx - insetXZ, ry = ly - 1, rz = nz - insetXZ;
+                if (rx >= 0 && rx < rw && ry >= 0 && ry < rh && RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter))
+                    return true;
+            }
+        }
+        return false;
     }
 
     private static boolean canReplace(ServerLevel level, BlockPos pos) {

@@ -19,6 +19,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.Config;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,6 +243,59 @@ public final class HeatSinkLoader {
     public static HeatSinkModifiers getModifiersForFluidOrDefault(Fluid fluid, RegistryAccess registryAccess) {
         HeatSinkModifiers m = getModifiersForFluid(fluid, registryAccess);
         return m != null ? m : new HeatSinkModifiers(1.0, 1.0, 1.0);
+    }
+
+    /**
+     * Returns modifiers for the builder heat sink option index (0 = Air = 1,1,1; 1.. = definition by order).
+     * Used by GUI simulation when all heat sink positions are the same selected type.
+     */
+    public static HeatSinkModifiers getModifiersForHeatSinkIndex(RegistryAccess registryAccess, int index) {
+        if (index <= 0) return new HeatSinkModifiers(1.0, 1.0, 1.0);
+        int defIdx = index - 1;
+        if (defIdx >= DEFINITIONS.size()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
+        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        if (!def.validBlocks().isEmpty()) {
+            BlockState state = getFirstBlockStateFromSelector(def.validBlocks().getFirst(), registryAccess);
+            return state != null ? getModifiersForBlockOrDefault(state, registryAccess) : new HeatSinkModifiers(1.0, 1.0, 1.0);
+        }
+        if (!def.validLiquids().isEmpty()) {
+            Fluid fluid = getFirstFluidFromSelector(def.validLiquids().getFirst(), registryAccess);
+            return getModifiersForFluidOrDefault(fluid, registryAccess);
+        }
+        return new HeatSinkModifiers(1.0, 1.0, 1.0);
+    }
+
+    @Nullable
+    private static BlockState getFirstBlockStateFromSelector(String selector, RegistryAccess registryAccess) {
+        var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+        if (selector.startsWith("#")) {
+            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            if (tagId == null) return null;
+            TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
+            return blockReg.getTag(tagKey)
+                    .flatMap(holders -> holders.stream().findFirst())
+                    .map(h -> h.value().defaultBlockState())
+                    .orElse(null);
+        }
+        ResourceLocation id = ResourceLocation.tryParse(selector);
+        if (id == null || !blockReg.containsKey(id)) return null;
+        return blockReg.get(id).defaultBlockState();
+    }
+
+    @Nullable
+    private static Fluid getFirstFluidFromSelector(String selector, RegistryAccess registryAccess) {
+        if (selector.startsWith("#")) {
+            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            if (tagId == null) return null;
+            TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+            return registryAccess.lookup(Registries.FLUID)
+                    .flatMap(l -> l.get(tagKey))
+                    .flatMap(holders -> holders.stream().findFirst())
+                    .map(h -> h.value())
+                    .orElse(null);
+        }
+        ResourceLocation id = ResourceLocation.tryParse(selector);
+        return id != null ? BuiltInRegistries.FLUID.get(id) : null;
     }
 
     /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */

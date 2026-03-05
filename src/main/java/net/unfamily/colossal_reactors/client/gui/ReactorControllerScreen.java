@@ -114,29 +114,36 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
+        // Production/consumption only when reactor is actually running (ON and redstone satisfied)
+        boolean reactorRunning = (stateId == 2 && !effectivelyOff);
+        int energyPerTick = reactorRunning ? menu.getEnergyPerTick() : 0;
+        int waterPerTick = reactorRunning ? menu.getWaterPerTick() : 0;
+        int steamPerTick = reactorRunning ? menu.getSteamPerTick() : 0;
+        int fuelHundredths = reactorRunning ? menu.getFuelPerTickHundredths() : 0;
+
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", menu.getEnergyPerTick()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", energyPerTick),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", menu.getWaterPerTick()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", waterPerTick),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", menu.getSteamPerTick()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", steamPerTick),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        String fuelStr = formatFuelPerTick(menu.getFuelPerTickHundredths());
+        String fuelStr = formatFuelPerTick(fuelHundredths);
         guiGraphics.drawString(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         if (menu.isUnstabilityEnabled()) {
-            int permille = menu.getStabilityPermille();
+            int permille = reactorRunning ? menu.getStabilityPermille() : 1000;
             String stabilityStr = String.format("%.1f%%", permille / 10.0);
             Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
             guiGraphics.drawString(font, label, PANEL_X, y, TEXT_COLOR, false);

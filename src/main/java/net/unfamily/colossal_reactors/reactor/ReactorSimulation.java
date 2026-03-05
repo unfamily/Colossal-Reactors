@@ -32,6 +32,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Consumption and production cycle when reactor is ON: consume fuel from rods (produce solid waste),
  * produce RF and/or steam depending on coolant mode.
@@ -42,10 +44,25 @@ import java.util.Set;
  * Example: 5x5 interior with 5 rods, water in rods → only steam (no RF). If water runs out → RF for the remainder.
  *
  * <p><b>Normal mode</b> (other coolants): RF to power ports only; steam conversion is defined per coolant in scripts (rf_to_coolant_factor, steam_per_coolant).
+ *
+ * <p><b>GUI simulation</b>: {@link #simulateFromBuilderParams} runs the same formulas without a level, assuming
+ * a virtual reactor with the builder's dimensions/pattern and a single heat sink type everywhere. No consumption; stability 100%.
  */
 public final class ReactorSimulation {
 
     private ReactorSimulation() {}
+
+    /** Result of GUI simulation: stats that would be shown per tick (no actual consumption). */
+    public record SimulationResult(
+            int rodCount,
+            int rodColumns,
+            int coolantBlockCount,
+            int rfPerTick,
+            int steamPerTick,
+            int coolantConsumedPerTick,
+            int fuelPerTickHundredths,
+            int stabilityPermille
+    ) {}
 
     /**
      * Runs one tick of consumption and production. Call when reactor is ON and valid.
@@ -540,5 +557,160 @@ public final class ReactorSimulation {
             }
             rodIndex++;
         }
+    }
+
+    /**
+     * Simulates one tick of reactor stats from builder parameters only (no level, no consumption).
+     * Parameters must match ReactorBuilderBlockEntity (sizeLeft, sizeRight, sizeHeight, sizeDepth, rodPattern, patternMode, selectedHeatSinkIndex)
+     * and the same layout as ReactorBuildLogic / RodPatternLogic so the simulated reactor is exactly what would be built.
+     * Assumes all heat sink positions use the same heat sink type (heatSinkIndex). Coolant = selected simulation coolant or null for "none".
+     * Stability is always 100% (reactor does not explode in simulation).
+     */
+    public static SimulationResult simulateFromBuilderParams(
+            RegistryAccess registryAccess,
+            int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
+            int rodPattern, int patternMode, int heatSinkIndex,
+            @Nullable CoolantDefinition coolantDef) {
+        int w = sizeLeft + sizeRight + 1;
+        int h = sizeHeight + 1;
+        int d = sizeDepth + 1;
+        int rw = RodPatternLogic.rodSpaceWidth(w, patternMode);
+        int rh = RodPatternLogic.rodSpaceHeight(h, patternMode);
+        int rd = RodPatternLogic.rodSpaceDepth(d, patternMode);
+        int insetXZ = RodPatternLogic.rodSpaceInsetXZ(patternMode);
+        boolean expansionRodAtCenter = (rodPattern == RodPatternLogic.PATTERN_EXPANSION)
+                ? RodPatternLogic.getExpansionRodAtCenterForPreview(rw, rd)
+                : false;
+
+        Set<Long> rodSet = new HashSet<>();
+        Set<Long> rodColumnSet = new HashSet<>();
+        int rodCount = 0;
+        for (int rx = 0; rx < rw; rx++) {
+            for (int ry = 0; ry < rh; ry++) {
+                for (int rz = 0; rz < rd; rz++) {
+                    if (!RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, rodPattern, expansionRodAtCenter)) continue;
+                    rodSet.add(key(rx, ry, rz));
+                    rodColumnSet.add(((long) rx << 8) | (rz & 0xFF));
+                    rodCount++;
+                }
+            }
+        }
+        int rodColumns = rodColumnSet.size();
+
+        int countAdj = 0, countNon = 0;
+        for (int rx = 0; rx < rw; rx++) {
+            for (int ry = 0; ry < rh; ry++) {
+                for (int rz = 0; rz < rd; rz++) {
+                    if (rodSet.contains(key(rx, ry, rz))) continue;
+                    boolean adjacentToRod = isRodSpaceCellAdjacentToRod(rx, ry, rz, rw, rh, rd, rodSet);
+                    // Economy: only count heat sink in cells adjacent to a rod. Optimized/Production: count all non-rod cells.
+                    if (patternMode == RodPatternLogic.MODE_ECONOMY && !adjacentToRod) continue;
+                    if (adjacentToRod) countAdj++;
+                    else countNon++;
+                }
+            }
+        }
+        int coolantBlockCount = countAdj + countNon;
+
+        double effectiveRodCount = 0;
+        double penalty = Config.ROD_ADJACENCY_PENALTY.get();
+        for (int rx = 0; rx < rw; rx++) {
+            for (int ry = 0; ry < rh; ry++) {
+                for (int rz = 0; rz < rd; rz++) {
+                    if (!rodSet.contains(key(rx, ry, rz))) continue;
+                    int adjacentCount = 0;
+                    if (rx > 0 && rodSet.contains(key(rx - 1, ry, rz))) adjacentCount++;
+                    if (rx < rw - 1 && rodSet.contains(key(rx + 1, ry, rz))) adjacentCount++;
+                    if (rz > 0 && rodSet.contains(key(rx, ry, rz - 1))) adjacentCount++;
+                    if (rz < rd - 1 && rodSet.contains(key(rx, ry, rz + 1))) adjacentCount++;
+                    if (rx == 0 || rx == rw - 1 || rz == 0 || rz == rd - 1) adjacentCount++;
+                    effectiveRodCount += Math.max(0.0, 1.0 - penalty * adjacentCount);
+                }
+            }
+        }
+
+        if (rodCount == 0) {
+            return new SimulationResult(0, 0, coolantBlockCount, 0, 0, 0, 0, 1000);
+        }
+
+        Fluid coolantFluidFromPorts = (coolantDef != null) ? CoolantLoader.getFirstFluidFromDefinition(coolantDef, registryAccess) : null;
+        HeatSinkLoader.HeatSinkModifiers rodMod = HeatSinkLoader.getModifiersForFluidOrDefault(coolantFluidFromPorts, registryAccess);
+        HeatSinkLoader.HeatSinkModifiers heatSinkMod = HeatSinkLoader.getModifiersForHeatSinkIndex(registryAccess, heatSinkIndex);
+        double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
+        double wNon = Config.HEAT_SINK_NON_ADJACENT_WEIGHT.get();
+        double sumFuelRod = rodCount * rodMod.fuelMultiplier();
+        double sumEnergyRod = rodCount * rodMod.energyMultiplier();
+        double sumFuelAdj = countAdj * heatSinkMod.fuelMultiplier();
+        double sumEnergyAdj = countAdj * heatSinkMod.energyMultiplier();
+        double sumFuelNon = countNon * heatSinkMod.fuelMultiplier();
+        double sumEnergyNon = countNon * heatSinkMod.energyMultiplier();
+        double totalWeightedFuel = sumFuelRod + sumFuelAdj * wAdj + sumFuelNon * wNon;
+        double totalWeightedEnergy = sumEnergyRod + sumEnergyAdj * wAdj + sumEnergyNon * wNon;
+        double totalWeight = rodCount + countAdj * wAdj + countNon * wNon;
+        double heatSinkFuelMult = (totalWeight > 0) ? (totalWeightedFuel / totalWeight) : 1.0;
+        double heatSinkEnergyMult = (totalWeight > 0) ? (totalWeightedEnergy / totalWeight) : 1.0;
+        double sumOverheatingAdj = countAdj * heatSinkMod.overheatingMultiplier();
+        double sumOverheatingNon = countNon * heatSinkMod.overheatingMultiplier();
+
+        double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
+        double mbMultiplier = coolantDef != null && coolantDef.mbMultiplier() > 0 ? coolantDef.mbMultiplier() : 1.0;
+        double baseRf = Config.BASE_RF_PER_TICK.get();
+        double baseFuelUnitsPerTick = Config.BASE_FUEL_UNITS_PER_TICK.get();
+        double rfEfficiency = 1.0 - Config.RF_EFFICIENCY_LOSS.get();
+        double fuelEfficiency = Config.FUEL_EFFICIENCY_LOSS.get();
+        double productionMult = Config.PRODUCTION_MULTIPLIER.get();
+        double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
+        double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
+        double decayRods = Math.max(0.0, Config.CONSUMPTION_CURVE_DECAY_RODS.get());
+        double curveStrength = (decayRods <= 0) ? 1.0 : decayRods / (effectiveRodCount + decayRods);
+        double curveStrengthAdjusted = 0.4 + 0.50 * curveStrength;
+        double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.pow(effectiveRodCount + 1, 0.5 * curveStrengthAdjusted);
+        double consumptionDivisor = Math.max(0.1, Config.HEAT_SINK_CONSUMPTION_DIVISOR.get());
+        double fuelConsumptionRate = baseFuelUnitsPerTick * consumptionMult * fuelEfficiency * effectiveRodCount * consumptionScale / mbMultiplier / heatSinkFuelMult / consumptionDivisor;
+        if (countAdj + countNon > 0) {
+            fuelConsumptionRate *= Math.max(0.1, Config.HEAT_SINK_FUEL_UNITS_MULTIPLIER.get());
+        }
+        fuelConsumptionRate = Math.max(fuelConsumptionRate, Config.MIN_FUEL_UNITS_PER_TICK.get());
+
+        double rfProduced;
+        if (countAdj + countNon > 0 && effectiveRodCount > 0) {
+            double heatSinkRfFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
+            rfProduced = baseRf * productionMult * rfEfficiency * heatSinkRfFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
+        } else {
+            rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
+        }
+        rfProduced = Math.max(rfProduced, Config.MIN_RF_PER_TICK.get());
+
+        boolean waterMode = coolantDef != null
+                && (coolantDef.reduceRfProduction() || CoolantLoader.WATER_COOLANT_ID.equals(coolantDef.coolantId()));
+        int steamPerTick = 0;
+        int coolantConsumedPerTick = 0;
+        int rfPerTick = 0;
+        if (waterMode && coolantDef != null) {
+            int coolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
+            coolantConsumedPerTick = coolantToConsumeMb;
+            steamPerTick = (int) (coolantToConsumeMb * coolantDef.steamPerCoolant());
+            rfPerTick = 0;
+        } else {
+            rfPerTick = (int) Math.max(0, rfProduced);
+        }
+
+        int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
+        return new SimulationResult(rodCount, rodColumns, coolantBlockCount, rfPerTick, steamPerTick, coolantConsumedPerTick, fuelHundredths, 1000);
+    }
+
+    private static long key(int rx, int ry, int rz) {
+        return ((long) rx << 16) | ((ry & 0xFF) << 8) | (rz & 0xFF);
+    }
+
+    /** True if rod-space cell (rx, ry, rz) has at least one neighbor (6 directions) that is a rod. Used for Economy mode. */
+    private static boolean isRodSpaceCellAdjacentToRod(int rx, int ry, int rz, int rw, int rh, int rd, Set<Long> rodSet) {
+        if (rx > 0 && rodSet.contains(key(rx - 1, ry, rz))) return true;
+        if (rx < rw - 1 && rodSet.contains(key(rx + 1, ry, rz))) return true;
+        if (ry > 0 && rodSet.contains(key(rx, ry - 1, rz))) return true;
+        if (ry < rh - 1 && rodSet.contains(key(rx, ry + 1, rz))) return true;
+        if (rz > 0 && rodSet.contains(key(rx, ry, rz - 1))) return true;
+        if (rz < rd - 1 && rodSet.contains(key(rx, ry, rz + 1))) return true;
+        return false;
     }
 }
