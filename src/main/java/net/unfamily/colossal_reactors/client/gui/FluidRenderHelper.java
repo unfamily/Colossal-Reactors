@@ -5,37 +5,36 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
- * Renders fluid in GUI tanks using the fluid's still texture (no tint: tint is for in-world only).
+ * Renders fluid in GUI tanks using the fluid's still texture.
+ * Only minecraft:water gets an azure tint in GUI; other fluids use natural colors (no tint).
  * Texture is tiled to fill the area, not stretched.
  */
 public final class FluidRenderHelper {
 
     private static final int TILE_SIZE = 16;
+    /** Azure tint for minecraft:water in GUI (RGB 0x3F76E4 normalized). */
+    private static final float WATER_TINT_R = 0.247f;
+    private static final float WATER_TINT_G = 0.463f;
+    private static final float WATER_TINT_B = 0.894f;
 
     private FluidRenderHelper() {}
 
     /**
-     * Draws fluid in the given rectangle using the fluid's still texture (natural colors, no tint).
-     * The texture is tiled to fill the area (cropped on edges if needed), not stretched.
+     * Draws fluid in the given rectangle. Only minecraft:water is tinted azure; other fluids unchanged.
      * Does nothing if stack is empty or fluid has no client extensions.
-     *
-     * @param guiGraphics GUI graphics
-     * @param fluidStack   fluid to draw (amount is ignored; only type and tint matter)
-     * @param x            left edge of the fill area
-     * @param y            top edge of the fill area (bar fills upward from bottom in typical tank)
-     * @param width        width of the fill area
-     * @param height       height of the fill area
      */
     public static void drawFluidInTank(GuiGraphics guiGraphics, FluidStack fluidStack, int x, int y, int width, int height) {
         if (fluidStack.isEmpty() || fluidStack.getFluid() == Fluids.EMPTY) {
             return;
         }
-        IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fluidStack.getFluid());
+        Fluid fluid = fluidStack.getFluid();
+        IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fluid);
         ResourceLocation stillTexture = ext.getStillTexture(fluidStack);
         if (stillTexture == null) {
             return;
@@ -43,10 +42,13 @@ public final class FluidRenderHelper {
         TextureAtlasSprite sprite = Minecraft.getInstance()
                 .getTextureAtlas(TextureAtlas.LOCATION_BLOCKS)
                 .apply(stillTexture);
-        guiGraphics.setColor(1, 1, 1, 1);
 
-        // Use only the 6-param blit (no UV): same code path as single full rect, so colors stay correct.
-        // Each tile draws the full sprite scaled to (w,h); edge tiles are slightly stretched.
+        if (fluid == Fluids.WATER) {
+            guiGraphics.setColor(WATER_TINT_R, WATER_TINT_G, WATER_TINT_B, 1f);
+        } else {
+            guiGraphics.setColor(1, 1, 1, 1);
+        }
+
         for (int dy = 0; dy < height; dy += TILE_SIZE) {
             for (int dx = 0; dx < width; dx += TILE_SIZE) {
                 int w = Math.min(TILE_SIZE, width - dx);
