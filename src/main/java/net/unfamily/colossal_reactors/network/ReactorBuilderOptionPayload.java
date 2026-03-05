@@ -16,8 +16,9 @@ import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 
 /**
  * C2S: cycle a Reactor Builder option. optionType: 0=openTop, 1=rodPattern, 2=patternMode.
+ * next=true = next option, next=false = previous (same as heat sink: left click=prev, right click=next).
  */
-public record ReactorBuilderOptionPayload(BlockPos pos, int optionType) implements CustomPacketPayload {
+public record ReactorBuilderOptionPayload(BlockPos pos, int optionType, boolean next) implements CustomPacketPayload {
 
     public static final Type<ReactorBuilderOptionPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_builder_option"));
@@ -27,6 +28,8 @@ public record ReactorBuilderOptionPayload(BlockPos pos, int optionType) implemen
             ReactorBuilderOptionPayload::pos,
             net.minecraft.network.codec.ByteBufCodecs.INT,
             ReactorBuilderOptionPayload::optionType,
+            net.minecraft.network.codec.ByteBufCodecs.BOOL,
+            ReactorBuilderOptionPayload::next,
             ReactorBuilderOptionPayload::new
     );
 
@@ -42,9 +45,9 @@ public record ReactorBuilderOptionPayload(BlockPos pos, int optionType) implemen
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof ReactorBuilderBlockEntity builder) {
                 switch (Math.max(0, packet.optionType())) {
-                    case 0 -> builder.cycleOpenTop();
-                    case 1 -> builder.cycleRodPattern();
-                    case 2 -> builder.cyclePatternMode();
+                    case 0 -> builder.cycleOpenTop(packet.next());
+                    case 1 -> builder.cycleRodPattern(packet.next());
+                    case 2 -> builder.cyclePatternMode(packet.next());
                     default -> {}
                 }
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);

@@ -4,7 +4,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -13,7 +15,7 @@ import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.network.ReactorControllerRefreshPayload;
 
 /**
- * Reactor controller GUI. Background reactor_controller.png (230x230). Dark panel shows status, rods, coolant, energy, steam, water, fuel. Reboot button on the right, near bottom.
+ * Reactor controller GUI. Background reactor_controller.png (230x230). Dark panel shows status, rods, coolant blocks, energy, coolant, exhaust coolant, fuel. Reboot button on the right, near bottom.
  */
 public class ReactorControllerScreen extends AbstractContainerScreen<ReactorControllerMenu> {
 
@@ -23,11 +25,16 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private static final int GUI_WIDTH = 230;
     private static final int GUI_HEIGHT = 230;
 
-    /** Dark panel: top-left (11, 19), text offset 5px right and down */
+    /** Dark panel: top-left (11, 19), text offset 5px right and down; labels 5px lower */
     private static final int PANEL_X = 16;
-    private static final int PANEL_Y = 24;
+    private static final int PANEL_Y = 29;
     private static final int LINE_HEIGHT = 12;
     private static final int TEXT_COLOR = 0xFFFFFF;
+
+    /** Close button (X): top right, same as iskandert_utilities */
+    private static final int CLOSE_BUTTON_Y = 5;
+    private static final int CLOSE_BUTTON_SIZE = 12;
+    private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
     /** Reboot button: bottom right, slightly above edge */
     private static final int REFRESH_BUTTON_WIDTH = 50;
@@ -35,6 +42,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private static final int REFRESH_BUTTON_RIGHT_INSET = 12;
     private static final int REFRESH_BUTTON_BOTTOM_INSET = 13;
 
+    private Button closeButton;
     private Button refreshButton;
 
     public ReactorControllerScreen(ReactorControllerMenu menu, Inventory playerInventory, Component title) {
@@ -46,6 +54,14 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     @Override
     protected void init() {
         super.init();
+        closeButton = Button.builder(Component.literal("\u2715"), b -> {
+            if (minecraft != null && minecraft.getSoundManager() != null)
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
+        })
+                .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .build();
+        addRenderableWidget(closeButton);
         int refreshX = leftPos + imageWidth - REFRESH_BUTTON_WIDTH - REFRESH_BUTTON_RIGHT_INSET;
         int refreshY = topPos + imageHeight - REFRESH_BUTTON_HEIGHT - REFRESH_BUTTON_BOTTOM_INSET;
         refreshButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_controller.reboot"), b -> sendRefresh())
@@ -104,12 +120,12 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", menu.getSteamPerTick()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", menu.getWaterPerTick()),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", menu.getWaterPerTick()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", menu.getSteamPerTick()),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 

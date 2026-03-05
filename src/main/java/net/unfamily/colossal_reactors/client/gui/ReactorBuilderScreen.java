@@ -5,6 +5,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -24,20 +26,31 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
+import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Reactor Builder GUI. Background reactor_builder.png 230x230; slots offset +27px right from left edge.
+ * Like Deep Drawer Extractor: Simulation is a view mode (isSimulationView) on the same screen, not a separate Screen.
  */
 public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilderMenu> {
 
     private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/reactor_builder.png");
+    private static final ResourceLocation SIMULATION_BACKGROUND = ResourceLocation.fromNamespaceAndPath(
+            ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
     private static final int GUI_HEIGHT = 230;
+
+    /** Close button (X): top right */
+    private static final int CLOSE_BUTTON_Y = 5;
+    private static final int CLOSE_BUTTON_SIZE = 12;
+    private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
     /**
      * Tank at (12, 26), same dimensions as Resource Port: 12x54 fill with 1px inset
@@ -76,7 +89,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int PREVIEW_BUTTON_X = GROUP_LEFT_X;
 
     /**
-     * 6 buttons: 3 cols x 2 rows (Heat Sink, Pattern, PatternMode, OpenTop, Build/Stop, 8); warning between the two rows.
+     * 6 buttons: 3 cols x 2 rows (Heat Sink, Pattern, PatternMode, OpenTop, Simulation, Build/Stop); warning between the two rows.
      */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
@@ -90,6 +103,23 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_ROW1_Y = 60;
     /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
+
+    /** Simulation view panel (same layout as reactor controller). */
+    private static final int SIM_PANEL_X = 16;
+    private static final int SIM_PANEL_Y = 29;
+    private static final int SIM_LINE_HEIGHT = 12;
+    private static final int SIM_TEXT_COLOR = 0xFFFFFF;
+
+    /** Coolant cycle button: same size and position as Reboot in ReactorControllerScreen (bottom right). */
+    private static final int COOLANT_BUTTON_W = 50;
+    private static final int COOLANT_BUTTON_H = 20;
+    private static final int COOLANT_BUTTON_RIGHT_INSET = 12;
+    private static final int COOLANT_BUTTON_BOTTOM_INSET = 13;
+
+    /** Simulation view mode: same screen, different content (like Deep Drawer how to use / valid keys). */
+    private boolean isSimulationView = false;
+    /** Index into ordered coolant list for simulation view (which coolant type is shown). */
+    private int simulationCoolantIndex = 0;
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.left_click";
     private static final String TOOLTIP_RIGHT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.right_click";
@@ -109,13 +139,16 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         return Tooltip.create(full);
     }
 
+    private Button closeButton;
     private Button buttonUp;
     private Button buttonLeft;
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
-    /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Build/Stop, 5=label 8. */
+    /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
     private final Button[] rightBlockButtons = new Button[6];
+    /** Shown only in simulation view: cycles coolant type (same position as Reboot in controller). */
+    private Button coolantCycleButton;
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -126,6 +159,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     protected void init() {
         super.init();
+        closeButton = Button.builder(Component.literal("\u2715"), b -> onCloseButtonClicked())
+                .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .build();
+        addRenderableWidget(closeButton);
         BlockPos pos = menu.getBlockPos();
         buttonUp = Button.builder(Component.literal("\u2191"), b -> sendSize(0, true))  // ↑
                 .bounds(leftPos + BUTTON_UP_X, topPos + ROW1_Y, BUTTON_W, BUTTON_H)
@@ -154,7 +191,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
         addRenderableWidget(buttonPreview);
 
-        // Right block: 3 cols x 2 rows. 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Build/Stop, 5=8.
+        // Right block: 3 cols x 2 rows. 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop.
         int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y};
         int[] colX = {RIGHT_COL0_X, RIGHT_COL1_X, RIGHT_COL2_X};
         for (int i = 0; i < 6; i++) {
@@ -167,6 +204,119 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                     .build();
             addRenderableWidget(rightBlockButtons[i]);
         }
+        int coolantX = leftPos + imageWidth - COOLANT_BUTTON_W - COOLANT_BUTTON_RIGHT_INSET;
+        int coolantY = topPos + imageHeight - COOLANT_BUTTON_H - COOLANT_BUTTON_BOTTOM_INSET;
+        coolantCycleButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_none"), b -> cycleSimulationCoolant())
+                .bounds(coolantX, coolantY, COOLANT_BUTTON_W, COOLANT_BUTTON_H)
+                .build();
+        addRenderableWidget(coolantCycleButton);
+        updateWidgetVisibility();
+    }
+
+    private static List<ResourceLocation> getOrderedCoolantIds() {
+        List<ResourceLocation> ids = new ArrayList<>(CoolantLoader.getAll().keySet());
+        ids.sort(ResourceLocation::compareTo);
+        return ids;
+    }
+
+    /** Number of options: 0 = None, then one per coolant. */
+    private static int getCoolantOptionCount() {
+        return 1 + getOrderedCoolantIds().size();
+    }
+
+    private void cycleSimulationCoolant() {
+        int options = getCoolantOptionCount();
+        if (options <= 1) return;
+        if (minecraft != null && minecraft.getSoundManager() != null)
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        simulationCoolantIndex = (simulationCoolantIndex + 1) % options;
+        updateCoolantButtonLabel();
+    }
+
+    private void updateCoolantButtonLabel() {
+        if (coolantCycleButton == null) return;
+        List<ResourceLocation> ids = getOrderedCoolantIds();
+        // Index 0 = None (no coolant)
+        if (simulationCoolantIndex == 0) {
+            coolantCycleButton.setMessage(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_none"));
+            coolantCycleButton.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip", "—", "—")));
+            return;
+        }
+        int idx = simulationCoolantIndex - 1;
+        if (idx >= ids.size()) {
+            coolantCycleButton.setMessage(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_none"));
+            coolantCycleButton.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip", "—", "—")));
+            return;
+        }
+        ResourceLocation id = ids.get(idx);
+        CoolantDefinition def = CoolantLoader.get(id);
+        if (def == null) {
+            coolantCycleButton.setMessage(Component.literal(id.toString()));
+            coolantCycleButton.setTooltip(null);
+            return;
+        }
+        var level = minecraft != null ? minecraft.level : null;
+        var ra = level != null ? level.registryAccess() : null;
+        Component label = getCoolantDisplayName(def, ra);
+        Component tooltip = getCoolantTooltip(def, ra);
+        coolantCycleButton.setMessage(label);
+        coolantCycleButton.setTooltip(Tooltip.create(tooltip));
+    }
+
+    /** Display name: first input fluid (from tag = first in tag, from id = that fluid's name). */
+    private static Component getCoolantDisplayName(CoolantDefinition def, net.minecraft.core.RegistryAccess ra) {
+        if (ra == null) return Component.literal(def.coolantId().toString());
+        Fluid input = CoolantLoader.getFirstFluidFromDefinition(def, ra);
+        if (input == null || input == Fluids.EMPTY) return Component.literal(def.coolantId().toString());
+        return Component.translatable(input.getFluidType().getDescriptionId());
+    }
+
+    private static Component getCoolantTooltip(CoolantDefinition def, net.minecraft.core.RegistryAccess ra) {
+        Component consume = Component.literal("—");
+        Component produce = Component.literal("—");
+        if (ra != null) {
+            Fluid in = CoolantLoader.getFirstFluidFromDefinition(def, ra);
+            if (in != null && in != Fluids.EMPTY) consume = Component.translatable(in.getFluidType().getDescriptionId());
+            Fluid out = CoolantLoader.getFirstFluidFromTag(def.output(), ra);
+            if (out != null && out != Fluids.EMPTY) produce = Component.translatable(out.getFluidType().getDescriptionId());
+        }
+        return Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip", consume, produce);
+    }
+
+    private void onCloseButtonClicked() {
+        if (isSimulationView) {
+            if (minecraft != null && minecraft.getSoundManager() != null)
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            switchToBuilderView();
+        } else {
+            if (minecraft != null && minecraft.getSoundManager() != null)
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
+        }
+    }
+
+    private void switchToSimulationView() {
+        isSimulationView = true;
+        updateWidgetVisibility();
+    }
+
+    private void switchToBuilderView() {
+        isSimulationView = false;
+        updateWidgetVisibility();
+    }
+
+    private void updateWidgetVisibility() {
+        boolean showBuilder = !isSimulationView;
+        buttonUp.visible = showBuilder;
+        buttonLeft.visible = showBuilder;
+        buttonRight.visible = showBuilder;
+        buttonDown.visible = showBuilder;
+        buttonPreview.visible = showBuilder;
+        for (Button b : rightBlockButtons) b.visible = showBuilder;
+        if (coolantCycleButton != null) {
+            coolantCycleButton.visible = isSimulationView;
+            if (isSimulationView) updateCoolantButtonLabel();
+        }
     }
 
     private Component getRightButtonLabel(int index) {
@@ -177,10 +327,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             case 3 -> menu.isOpenTop()
                     ? Component.translatable("gui.colossal_reactors.reactor_builder.open_top.open")
                     : Component.translatable("gui.colossal_reactors.reactor_builder.open_top.closed");
-            case 4 -> menu.isBuilding()
+            case 4 -> Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
+            case 5 -> menu.isBuilding()
                     ? Component.translatable("gui.colossal_reactors.reactor_builder.stop")
                     : Component.translatable("gui.colossal_reactors.reactor_builder.build");
-            case 5 -> Component.literal("8");
             default -> Component.literal("?");
         };
     }
@@ -194,15 +344,19 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void onRightBlockClick(int index) {
         BlockPos pos = menu.getBlockPos();
+        if (index == 4) {
+            switchToSimulationView();
+            return;
+        }
         if (pos.equals(BlockPos.ZERO)) return;
         if (index == 0) {
             PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // left click = previous
             return;
         }
-        if (index == 1) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1));  // rod pattern
-        if (index == 2) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2));  // pattern mode
-        if (index == 3) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0));  // open top
-        if (index == 4) PacketDistributor.sendToServer(new ReactorBuilderBuildPayload(pos));  // Build/Stop
+        if (index == 1) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, false));  // left = previous
+        if (index == 2) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, false));
+        if (index == 3) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, false));
+        if (index == 5) PacketDistributor.sendToServer(new ReactorBuilderBuildPayload(pos));  // Build/Stop
     }
 
     private void updateButtonTooltips() {
@@ -219,22 +373,37 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                         .append(Component.literal("\n"))
                         .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[0].setMessage(getHeatSinkButtonLabel());
-        // Button 1: Pattern
-        rightBlockButtons[1].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern." + menu.getRodPattern())));
+        // Button 1: Pattern (left=previous, right=next like heat sink)
+        rightBlockButtons[1].setTooltip(Tooltip.create(
+                Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern." + menu.getRodPattern())
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[1].setMessage(getRightButtonLabel(1));
         // Button 2: Pattern mode
-        rightBlockButtons[2].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern_mode." + menu.getPatternMode())));
+        rightBlockButtons[2].setTooltip(Tooltip.create(
+                Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern_mode." + menu.getPatternMode())
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[2].setMessage(getRightButtonLabel(2));
         // Button 3: Open top
-        rightBlockButtons[3].setTooltip(Tooltip.create(Component.translatable(
-                menu.isOpenTop() ? "gui.colossal_reactors.reactor_builder.tooltip.open_top.open" : "gui.colossal_reactors.reactor_builder.tooltip.open_top.closed")));
+        rightBlockButtons[3].setTooltip(Tooltip.create(
+                Component.translatable(menu.isOpenTop() ? "gui.colossal_reactors.reactor_builder.tooltip.open_top.open" : "gui.colossal_reactors.reactor_builder.tooltip.open_top.closed")
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[3].setMessage(getRightButtonLabel(3));
-        // Button 4: Build/Stop
+        // Button 4: Simulation
         rightBlockButtons[4].setMessage(getRightButtonLabel(4));
-        rightBlockButtons[4].setTooltip(Tooltip.create(Component.translatable(
-                menu.isBuilding() ? "gui.colossal_reactors.reactor_builder.stop.tooltip" : "gui.colossal_reactors.reactor_builder.build.tooltip")));
-        // Button 5: label 8
+        rightBlockButtons[4].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.tooltip")));
+        // Button 5: Build/Stop
         rightBlockButtons[5].setMessage(getRightButtonLabel(5));
+        rightBlockButtons[5].setTooltip(Tooltip.create(Component.translatable(
+                menu.isBuilding() ? "gui.colossal_reactors.reactor_builder.stop.tooltip" : "gui.colossal_reactors.reactor_builder.build.tooltip")));
     }
 
     private void sendSize(int direction, boolean increment) {
@@ -271,6 +440,24 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                     PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // right click = next
                 return true;
             }
+            if (isInRightBlockButton(x, y, 1)) {
+                BlockPos pos = menu.getBlockPos();
+                if (!pos.equals(BlockPos.ZERO))
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, true));  // right = next
+                return true;
+            }
+            if (isInRightBlockButton(x, y, 2)) {
+                BlockPos pos = menu.getBlockPos();
+                if (!pos.equals(BlockPos.ZERO))
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, true));
+                return true;
+            }
+            if (isInRightBlockButton(x, y, 3)) {
+                BlockPos pos = menu.getBlockPos();
+                if (!pos.equals(BlockPos.ZERO))
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));  // open top
+                return true;
+            }
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
@@ -289,26 +476,75 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
-        int amount = menu.getFluidAmount();
-        int capacity = menu.getFluidCapacity();
-        int fluidId = menu.getFluidId();
-        if (capacity > 0 && amount > 0 && fluidId >= 0) {
-            Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
-            if (fluid != null && fluid != Fluids.EMPTY) {
-                int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
-                if (fillPixels > 0) {
-                    int barLeft = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
-                    int barBottom = topPos + FLUID_BAR_Y + FLUID_FILL_INSET + FLUID_FILL_HEIGHT;
-                    int fillTop = barBottom - fillPixels;
-                    FluidRenderHelper.drawFluidInTank(guiGraphics, new FluidStack(fluid, amount), barLeft, fillTop, FLUID_FILL_WIDTH, fillPixels);
+        if (isSimulationView) {
+            guiGraphics.blit(SIMULATION_BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+            renderSimulationPanel(guiGraphics);
+        } else {
+            guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+            int amount = menu.getFluidAmount();
+            int capacity = menu.getFluidCapacity();
+            int fluidId = menu.getFluidId();
+            if (capacity > 0 && amount > 0 && fluidId >= 0) {
+                Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+                if (fluid != null && fluid != Fluids.EMPTY) {
+                    int fillPixels = (FLUID_FILL_HEIGHT * amount) / capacity;
+                    if (fillPixels > 0) {
+                        int barLeft = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
+                        int barBottom = topPos + FLUID_BAR_Y + FLUID_FILL_INSET + FLUID_FILL_HEIGHT;
+                        int fillTop = barBottom - fillPixels;
+                        FluidRenderHelper.drawFluidInTank(guiGraphics, new FluidStack(fluid, amount), barLeft, fillTop, FLUID_FILL_WIDTH, fillPixels);
+                    }
                 }
             }
         }
     }
 
+    private void renderSimulationPanel(GuiGraphics guiGraphics) {
+        int y = topPos + SIM_PANEL_Y;
+        Component statusKey = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
+        Component statusLine = Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey);
+        guiGraphics.drawString(font, statusLine, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.rods", 0, 0),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", 0),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", 0),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", 0),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", 0),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", "0"),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
+            Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
+            guiGraphics.drawString(font, label, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+            guiGraphics.drawString(font, "100.0%", leftPos + SIM_PANEL_X + font.width(label), y, 0x00FF00, false);
+        }
+    }
+
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (isSimulationView) {
+            Component simTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
+            int titleX = leftPos + (imageWidth - font.width(simTitle)) / 2;
+            int titleY = topPos + 6;
+            guiGraphics.drawString(font, simTitle, titleX, titleY, 0x404040, false);
+            return;
+        }
         updateButtonTooltips();
 
         int titleX = (imageWidth - font.width(title)) / 2;
@@ -358,7 +594,28 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
+        if (isSimulationView) {
+            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+            this.renderBg(guiGraphics, partialTick, mouseX, mouseY);
+            this.renderLabels(guiGraphics, mouseX, mouseY);
+            for (var renderable : this.renderables) {
+                if (renderable instanceof net.minecraft.client.gui.components.Renderable r) {
+                    r.render(guiGraphics, mouseX, mouseY, partialTick);
+                }
+            }
+            this.renderTooltip(guiGraphics, mouseX, mouseY);
+        } else {
+            super.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.renderTooltip(guiGraphics, mouseX, mouseY);
+        }
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (isSimulationView && (keyCode == 256 || keyCode == 1)) {
+            switchToBuilderView();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

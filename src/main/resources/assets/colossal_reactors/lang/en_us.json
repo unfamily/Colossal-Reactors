@@ -48,8 +48,8 @@
   "gui.colossal_reactors.reactor_controller.stability": "Stability: %s%%",
   "gui.colossal_reactors.reactor_controller.stability.label": "Stability: ",
   "gui.colossal_reactors.reactor_controller.energy_production": "Energy: %s RF/t",
-  "gui.colossal_reactors.reactor_controller.steam_production": "Steam: %s mB/t",
-  "gui.colossal_reactors.reactor_controller.water_consume": "Water: %s mB/t",
+  "gui.colossal_reactors.reactor_controller.steam_production": "Exhaust coolant: %s mB/t",
+  "gui.colossal_reactors.reactor_controller.water_consume": "Coolant: %s mB/t",
   "gui.colossal_reactors.reactor_controller.fuel_units": "Fuel: %s fuel units/t",
   "gui.colossal_reactors.reactor_controller.reboot": "Reboot",
   "gui.colossal_reactors.reactor_controller.reboot.tooltip": "Re-validate the reactor structure to detect changes",
@@ -101,5 +101,9 @@
   "gui.colossal_reactors.reactor_builder.build": "Build",
   "gui.colossal_reactors.reactor_builder.build.tooltip": "Start building the reactor from buffer inventory and tank. Stops if red zones appear.",
   "gui.colossal_reactors.reactor_builder.stop": "Stop",
-  "gui.colossal_reactors.reactor_builder.stop.tooltip": "Stop building the reactor."
+  "gui.colossal_reactors.reactor_builder.stop.tooltip": "Stop building the reactor.",
+  "gui.colossal_reactors.reactor_builder.simulation": "Simulation",
+  "gui.colossal_reactors.reactor_builder.simulation.tooltip": "Simulate reactor stats from current builder settings.",
+  "gui.colossal_reactors.reactor_builder.simulation.coolant_none": "None",
+  "gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip": "Consumes: %s\nProduces: %s"
 }

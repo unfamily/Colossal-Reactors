@@ -1,8 +1,11 @@
 package net.unfamily.colossal_reactors.client.gui;
 
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -35,6 +38,11 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 166;
 
+    /** Close button (X): top right */
+    private static final int CLOSE_BUTTON_Y = 5;
+    private static final int CLOSE_BUTTON_SIZE = 12;
+    private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
+
     /** Fluid bar: position +1 left and +1 up from (11,15) -> (10, 14), internal fill 12x54 */
     private static final int FLUID_BAR_X = 10;
     private static final int FLUID_BAR_Y = 14;
@@ -58,6 +66,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     private static int fluidBarLeft(ResourcePortScreen screen) { return screen.leftPos + FLUID_BAR_X + FLUID_FILL_INSET; }
     private static int fluidBarTop(ResourcePortScreen screen) { return screen.topPos + FLUID_BAR_Y + FLUID_FILL_INSET; }
 
+    private Button closeButton;
     private CycleButton<PortMode> modeButton;
     private CycleButton<PortFilter> filterButton;
 
@@ -70,6 +79,14 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     @Override
     protected void init() {
         super.init();
+        closeButton = Button.builder(Component.literal("\u2715"), b -> {
+            if (minecraft != null && minecraft.getSoundManager() != null)
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
+        })
+                .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .build();
+        addRenderableWidget(closeButton);
         modeButton = CycleButton.builder(PortMode::getDisplayName)
                 .withValues(PortMode.values())
                 .withInitialValue(menu.getPortMode())

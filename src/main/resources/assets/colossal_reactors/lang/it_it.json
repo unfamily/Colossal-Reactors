@@ -48,8 +48,8 @@
   "gui.colossal_reactors.reactor_controller.stability": "Stabilità: %s%%",
   "gui.colossal_reactors.reactor_controller.stability.label": "Stabilità: ",
   "gui.colossal_reactors.reactor_controller.energy_production": "Energia: %s RF/t",
-  "gui.colossal_reactors.reactor_controller.steam_production": "Vapore: %s mB/t",
-  "gui.colossal_reactors.reactor_controller.water_consume": "Acqua: %s mB/t",
+  "gui.colossal_reactors.reactor_controller.steam_production": "Refrigerante esausto: %s mB/t",
+  "gui.colossal_reactors.reactor_controller.water_consume": "Refrigerante: %s mB/t",
   "gui.colossal_reactors.reactor_controller.fuel_units": "Combustibile: %s unità/t",
   "gui.colossal_reactors.reactor_controller.reboot": "Reboot",
   "gui.colossal_reactors.reactor_controller.reboot.tooltip": "Ri-valida la struttura del reattore per rilevare modifiche",
@@ -101,5 +101,9 @@
   "gui.colossal_reactors.reactor_builder.build": "Costruisci",
   "gui.colossal_reactors.reactor_builder.build.tooltip": "Avvia la costruzione del reattore da inventario e tank. Si ferma se compaiono zone rosse.",
   "gui.colossal_reactors.reactor_builder.stop": "Stop",
-  "gui.colossal_reactors.reactor_builder.stop.tooltip": "Interrompi la costruzione del reattore."
+  "gui.colossal_reactors.reactor_builder.stop.tooltip": "Interrompi la costruzione del reattore.",
+  "gui.colossal_reactors.reactor_builder.simulation": "Simulazione",
+  "gui.colossal_reactors.reactor_builder.simulation.tooltip": "Simula le statistiche del reattore in base alle impostazioni attuali del builder.",
+  "gui.colossal_reactors.reactor_builder.simulation.coolant_none": "Nessuno",
+  "gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip": "Consuma: %s\nProduce: %s"
 }

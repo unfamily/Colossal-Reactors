@@ -255,21 +255,23 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
     }
 
-    /** Toggle open top (reactor top open when built). */
-    public void cycleOpenTop() {
-        openTop = !openTop;
+    /** Cycle open top: next=true -> open, next=false -> closed. Same as heat sink: left=prev, right=next. */
+    public void cycleOpenTop(boolean next) {
+        openTop = next;
         setChanged();
     }
 
-    /** Cycle rod pattern: DOTS -> CHECKERBOARD -> EXPANSION -> DOTS. */
-    public void cycleRodPattern() {
-        rodPattern = (rodPattern + 1) % ROD_PATTERN_COUNT;
+    /** Cycle rod pattern: next=true next, next=false previous. */
+    public void cycleRodPattern(boolean next) {
+        if (next) rodPattern = (rodPattern + 1) % ROD_PATTERN_COUNT;
+        else rodPattern = rodPattern <= 0 ? ROD_PATTERN_COUNT - 1 : rodPattern - 1;
         setChanged();
     }
 
-    /** Cycle pattern mode: OPTIMIZED -> PRODUCTION -> ECONOMY -> OPTIMIZED. */
-    public void cyclePatternMode() {
-        patternMode = (patternMode + 1) % PATTERN_MODE_COUNT;
+    /** Cycle pattern mode: next=true next, next=false previous. */
+    public void cyclePatternMode(boolean next) {
+        if (next) patternMode = (patternMode + 1) % PATTERN_MODE_COUNT;
+        else patternMode = patternMode <= 0 ? PATTERN_MODE_COUNT - 1 : patternMode - 1;
         setChanged();
     }
 
