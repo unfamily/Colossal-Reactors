@@ -88,8 +88,8 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         int unitsPerFuel = recipe.unitsPerFuel();
         int unitsPerWaste = recipe.unitsPerWaste();
         String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(unitsPerFuel, unitsPerWaste);
-        Component consumeFuel = Component.translatable("jei.colossal_reactors.consume_fuel", ratio[0]);
-        Component produceWaste = Component.translatable("jei.colossal_reactors.produce_waste", ratio[1]);
+        Component consumeFuel = Component.translatable("jei.colossal_reactors.consume_fuel", ratio[1]);
+        Component produceWaste = Component.translatable("jei.colossal_reactors.produce_waste", ratio[0]);
         guiGraphics.drawString(font, consumeFuel, margin, textY, color, false);
         guiGraphics.drawString(font, produceWaste, margin, line2, color, false);
     }

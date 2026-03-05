@@ -33,16 +33,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        // On dedicated server the client never runs ServerStartingEvent, so loaders may be empty. Populate for JEI.
-        if (CoolantLoader.getAll().isEmpty()) {
-            CoolantLoader.scanConfigDirectory();
-        }
-        if (FuelLoader.getAll().isEmpty()) {
-            FuelLoader.scanConfigDirectory();
-        }
-        if (HeatSinkLoader.getAllDefinitions().isEmpty()) {
-            HeatSinkLoader.scanConfigDirectory();
-        }
+        // Reactor data is loaded from datapacks via ReactorDataReloadListener (server and client).
         registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, CoolantLoader.getAll().values().stream().toList());
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getAll().values().stream().toList());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());

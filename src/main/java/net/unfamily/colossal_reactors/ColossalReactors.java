@@ -16,7 +16,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
@@ -35,14 +35,10 @@ import net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen;
 import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
-import net.unfamily.colossal_reactors.coolant.CoolantLoader;
-import net.unfamily.colossal_reactors.docs.ScriptsDocsGenerator;
-import net.unfamily.colossal_reactors.fuel.FuelLoader;
-import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
@@ -90,22 +86,8 @@ public class ColossalReactors {
     }
 
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.debug("Colossal Reactors server starting");
-        // Always overwrite README in scripts directory so docs stay up to date when we change them
-        String basePath = Config.EXTERNAL_SCRIPTS_PATH.get();
-        if (basePath == null || basePath.trim().isEmpty()) {
-            basePath = "kubejs/external_scripts/colossal_reactors";
-        }
-        Path reactorDir = Paths.get(basePath).resolve("reactor");
-        try {
-            ScriptsDocsGenerator.generateReadme(reactorDir);
-        } catch (Exception e) {
-            LOGGER.warn("Could not write scripts README: {}", e.getMessage());
-        }
-        FuelLoader.scanConfigDirectory();
-        CoolantLoader.scanConfigDirectory();
-        HeatSinkLoader.scanConfigDirectory();
+    public void onAddReloadListener(AddReloadListenerEvent event) {
+        event.addListener(new ReactorDataReloadListener());
     }
 
     @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -122,6 +104,11 @@ public class ColossalReactors {
         static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
             event.registrar(ColossalReactors.MODID).versioned("1")
                     .playToClient(ReactorPreviewMarkerPayload.TYPE, ReactorPreviewMarkerPayload.STREAM_CODEC, ClientPayloadHandlers::handlePreviewMarker);
+        }
+
+        @SubscribeEvent
+        static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
+            event.registerReloadListener(new ReactorDataReloadListener());
         }
 
         @SubscribeEvent

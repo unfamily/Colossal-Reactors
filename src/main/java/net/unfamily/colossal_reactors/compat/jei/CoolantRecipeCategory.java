@@ -86,8 +86,8 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition>
         int color = 0xFF404040;
 
         String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(recipe.mbMultiplier(), recipe.steamPerCoolant());
-        Component consumeCoolant = Component.translatable("jei.colossal_reactors.consume_coolant", ratio[0]);
-        Component produceExhaust = Component.translatable("jei.colossal_reactors.produce_exhaust_coolant", ratio[1]);
+        Component consumeCoolant = Component.translatable("jei.colossal_reactors.consume_coolant", ratio[1]);
+        Component produceExhaust = Component.translatable("jei.colossal_reactors.produce_exhaust_coolant", ratio[0]);
         guiGraphics.drawString(font, consumeCoolant, margin, textY, color, false);
         guiGraphics.drawString(font, produceExhaust, margin, line2, color, false);
     }

@@ -1,8 +1,5 @@
 package net.unfamily.colossal_reactors.heatsink;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.RegistryAccess;
@@ -18,45 +15,44 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluids;
-import net.unfamily.colossal_reactors.Config;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Loads heat sink definitions from external JSON (external_scripts_path/reactor/*.json with type "colossal_reactors:heat_sinks").
- * No hardcoded defaults: only entries from JSON (and air as implicit coolant). Interior valid_blocks and rod coolant
- * valid_liquids contribute to aggregate fuel/energy multipliers in simulation.
+ * Loads heat sink definitions from datapack JSON: data/colossal_reactors/reactor_heat_sinks/*.json.
+ * Each file is one entry (valid_blocks, valid_liquids, fuel, energy, overheating, must_source).
+ * If no datapack entries are found, internal defaults are used.
  */
 public final class HeatSinkLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(HeatSinkLoader.class);
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
-    private static final String TYPE_HEAT_SINKS = "colossal_reactors:heat_sinks";
-    private static final String KEY_ENTRIES = "entries";
     private static final String KEY_VALID_BLOCKS = "valid_blocks";
     private static final String KEY_VALID_LIQUIDS = "valid_liquids";
     private static final String KEY_FUEL = "fuel";
     private static final String KEY_ENERGY = "energy";
-    /** Overheating multiplier for stability; only used when reactor instability is enabled in config. If omitted, defaults to fuel. */
     private static final String KEY_OVERHEATING = "overheating";
-    private static final String KEY_DISABLE = "disable";
-    /** Optional, default true: when true, valid_liquids only match fluid source (e.g. water source), not flowing. */
     private static final String KEY_MUST_SOURCE = "must_source";
 
     private static final List<HeatSinkDefinition> DEFINITIONS = new ArrayList<>();
 
     private HeatSinkLoader() {}
 
-    /** Internal defaults: overheating = same as fuel for each entry. JSON in reactor/ can override or add. */
+    /**
+     * Applies loaded datapack data: clears, then uses loaded list or internal defaults if empty.
+     */
+    public static void applyLoaded(List<HeatSinkDefinition> loaded) {
+        DEFINITIONS.clear();
+        if (loaded != null && !loaded.isEmpty()) {
+            DEFINITIONS.addAll(loaded);
+        } else {
+            registerInternalDefaults();
+        }
+    }
+
     private static void registerInternalDefaults() {
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of(),
@@ -84,70 +80,8 @@ public final class HeatSinkLoader {
                 2.5, -5.0, 2.5, true));
     }
 
-    /**
-     * Scans the reactor config directory for heat_sinks JSON. If any JSON with type heat_sinks exists, only those entries are used (override mode).
-     * Internal defaults are used only when the reactor directory is missing or contains no heat_sinks JSON.
-     */
-    public static void scanConfigDirectory() {
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Scanning heat sink configuration (reactor directory)...");
-        }
-        DEFINITIONS.clear();
-
-        String basePath = Config.EXTERNAL_SCRIPTS_PATH.get();
-        if (basePath == null || basePath.trim().isEmpty()) {
-            basePath = "kubejs/external_scripts/colossal_reactors";
-        }
-        Path reactorPath = Paths.get(basePath, "reactor");
-        if (Files.exists(reactorPath) && Files.isDirectory(reactorPath)) {
-            try (var stream = Files.list(reactorPath)) {
-                stream.filter(Files::isRegularFile)
-                        .filter(p -> p.toString().endsWith(".json"))
-                        .filter(p -> !p.getFileName().toString().startsWith("."))
-                        .sorted()
-                        .forEach(HeatSinkLoader::parseConfigFile);
-            } catch (IOException e) {
-                LOGGER.error("Error scanning reactor directory for heat sinks: {}", e.getMessage());
-            }
-        }
-        if (DEFINITIONS.isEmpty()) {
-            if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("No heat sink JSON found in reactor directory. Using internal defaults. Run dump to create heat_sink.json and override.");
-            }
-            registerInternalDefaults();
-        } else if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Heat sink definitions loaded from JSON (override mode): {}", DEFINITIONS.size());
-        }
-    }
-
-    private static void parseConfigFile(Path filePath) {
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            JsonElement el = GSON.fromJson(reader, JsonElement.class);
-            if (el == null || !el.isJsonObject()) return;
-            JsonObject root = el.getAsJsonObject();
-            String type = root.has("type") ? root.get("type").getAsString() : "";
-            if (!TYPE_HEAT_SINKS.equals(type)) {
-                return;
-            }
-            if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) {
-                LOGGER.warn("Heat sink config {}: missing or invalid 'entries' array", filePath.getFileName());
-                return;
-            }
-            JsonArray entries = root.getAsJsonArray(KEY_ENTRIES);
-            for (JsonElement e : entries) {
-                if (!e.isJsonObject()) continue;
-                JsonObject obj = e.getAsJsonObject();
-                boolean disable = obj.has(KEY_DISABLE) && obj.get(KEY_DISABLE).getAsBoolean();
-                if (disable) continue;
-                HeatSinkDefinition def = parseEntry(obj, filePath.toString());
-                if (def != null) DEFINITIONS.add(def);
-            }
-        } catch (Exception e) {
-            LOGGER.error("Error parsing heat sink file {}: {}", filePath, e.getMessage());
-        }
-    }
-
-    private static HeatSinkDefinition parseEntry(JsonObject json, String filePath) {
+    /** Parses a single heat sink definition from JSON (one file = one entry). Used by datapack reload listener. */
+    public static HeatSinkDefinition parseEntry(JsonObject json, String sourcePath) {
         List<String> validBlocks = new ArrayList<>();
         if (json.has(KEY_VALID_BLOCKS) && json.get(KEY_VALID_BLOCKS).isJsonArray()) {
             for (JsonElement i : json.getAsJsonArray(KEY_VALID_BLOCKS)) {
@@ -161,7 +95,7 @@ public final class HeatSinkLoader {
             }
         }
         if (validBlocks.isEmpty() && validLiquids.isEmpty()) {
-            LOGGER.debug("Heat sink entry in {}: skipped (no valid_blocks or valid_liquids)", filePath);
+            LOGGER.debug("Heat sink entry in {}: skipped (no valid_blocks or valid_liquids)", sourcePath);
             return null;
         }
         double fuel = json.has(KEY_FUEL) ? json.get(KEY_FUEL).getAsDouble() : 1.0;
@@ -402,64 +336,6 @@ public final class HeatSinkLoader {
         }
         ResourceLocation id = ResourceLocation.tryParse(selector);
         return id != null && blockId.equals(id);
-    }
-
-    /**
-     * Writes the default heat sink JSON into the given reactor directory. Called only by /colossal_reactors dump.
-     * Edits to the file override internal defaults when the mod loads.
-     */
-    public static void dumpDefaultFile(Path reactorDir) throws IOException {
-        Files.createDirectories(reactorDir);
-        Path file = reactorDir.resolve("default_heat_sinks.json");
-        String content = """
-            {
-              "type": "colossal_reactors:heat_sinks",
-              "_comment_overheating": "overheating is only used when reactor instability is enabled in config (evil_things)",
-              "entries": [
-                {
-                  "valid_liquids": ["#c:water"],
-                  "must_source": false,
-                  "fuel": 1.05,
-                  "energy": 1.15,
-                  "overheating": 1.05
-                },
-                {
-                  "valid_blocks": ["#c:storage_blocks/diamond"],
-                  "fuel": 1.8,
-                  "energy": 1.6,
-                  "overheating": 1.8
-                },
-                {
-                  "valid_blocks": ["#c:storage_blocks/emerald"],
-                  "fuel": 1.8,
-                  "energy": 1.6,
-                  "overheating": 1.8
-                },
-                {
-                  "valid_blocks": ["#c:storage_blocks/netherite"],
-                  "fuel": 1.7,
-                  "energy": 2.3,
-                  "overheating": 1.7
-                },
-                {
-                  "valid_blocks": ["#c:storage_blocks/gold"],
-                  "fuel": 1.7,
-                  "energy": 1.5,
-                  "overheating": 1.7
-                },
-                {
-                  "valid_blocks": ["#c:storage_blocks/graphite", "#minecraft:ice"],
-                  "fuel": 2.5,
-                  "energy": -5.0,
-                  "overheating": 2.5
-                }
-              ]
-            }
-            """;
-        Files.writeString(file, content);
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Dumped default heat sink config to {}", file.toAbsolutePath());
-        }
     }
 
     public record HeatSinkModifiers(double fuelMultiplier, double energyMultiplier, double overheatingMultiplier) {}
