@@ -6,7 +6,11 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Computes whether a position in the reactor rod space is a rod (part of a rod column).
  * Patterns are 2D (top view): only (rx, rz) define rod columns; the same column extends for all Y.
- * Rod space is the interior volume (inset by 1 for OPTIMIZED/ECONOMY, full for PRODUCTION).
+ * Rod space: first -2 on X and Z for the frame (casing), then optional -2 on X and Z for mode.
+ * On Y: -1 top and -1 bottom for the frame (rod controllers sit in the top frame; bottom is casing).
+ * <p>
+ * Used by preview ({@link net.unfamily.colossal_reactors.network.ReactorPreviewPayload}) and must be used
+ * the same way by the future Reactor Builder build (place rods and rod controllers to match preview).
  */
 public final class RodPatternLogic {
 
@@ -15,6 +19,11 @@ public final class RodPatternLogic {
     private static long frameCacheKey(int rw, int rd) {
         return (long) rw << 16 | (rd & 0xFFFF);
     }
+
+    /** Inset on X/Z for frame (casing): 1 block each side = 2 total on width/depth. */
+    private static final int FRAME_INSET_XZ = 1;
+    /** Extra inset on X/Z for OPTIMIZED/ECONOMY mode: 1 more block each side. */
+    private static final int MODE_INSET_XZ = 1;
 
     public static final int PATTERN_DOTS = 0;
     public static final int PATTERN_CHECKERBOARD = 1;
@@ -29,19 +38,28 @@ public final class RodPatternLogic {
     private RodPatternLogic() {}
 
     /**
-     * Rod space dimensions: for OPTIMIZED/ECONOMY use (w-2, h-2, d-2), for PRODUCTION use (w, h, d).
-     * Reactor volume in blocks is width w = sizeLeft+sizeRight+1, height h = sizeHeight+1, depth d = sizeDepth+1.
+     * Rod space dimensions. X and Z: first -2 for frame (1 per side), then -2 for mode in OPTIMIZED/ECONOMY.
+     * Y: -2 for frame (1 top, 1 bottom); rod controllers sit in the top frame. Reactor volume: w, h, d.
      */
     public static int rodSpaceWidth(int reactorWidth, int patternMode) {
-        return patternMode == MODE_PRODUCTION ? reactorWidth : Math.max(0, reactorWidth - 2);
+        int afterFrame = Math.max(0, reactorWidth - 2 * FRAME_INSET_XZ);
+        if (patternMode == MODE_PRODUCTION) return afterFrame;
+        return Math.max(0, afterFrame - 2 * MODE_INSET_XZ);
     }
 
     public static int rodSpaceHeight(int reactorHeight, int patternMode) {
-        return patternMode == MODE_PRODUCTION ? reactorHeight : Math.max(0, reactorHeight - 2);
+        return Math.max(0, reactorHeight - 2); // -1 Y top, -1 Y bottom (frame; rod controllers in top frame)
     }
 
     public static int rodSpaceDepth(int reactorDepth, int patternMode) {
-        return patternMode == MODE_PRODUCTION ? reactorDepth : Math.max(0, reactorDepth - 2);
+        int afterFrame = Math.max(0, reactorDepth - 2 * FRAME_INSET_XZ);
+        if (patternMode == MODE_PRODUCTION) return afterFrame;
+        return Math.max(0, afterFrame - 2 * MODE_INSET_XZ);
+    }
+
+    /** Inset from reactor volume edge to rod space start (X and Z). PRODUCTION=1 (frame only), OPTIMIZED/ECONOMY=2 (frame+mode). */
+    public static int rodSpaceInsetXZ(int patternMode) {
+        return patternMode == MODE_PRODUCTION ? FRAME_INSET_XZ : FRAME_INSET_XZ + MODE_INSET_XZ;
     }
 
     /**
@@ -148,5 +166,45 @@ public final class RodPatternLogic {
             }
         }
         return count;
+    }
+
+    /**
+     * For Frame (EXPANSION) pattern: compute both variants (rod at center vs heat sink at center)
+     * and return the one that places more rod columns. Used by preview so it shows the same
+     * variant that build would use (the one with more rods).
+     */
+    public static boolean getExpansionRodAtCenterForPreview(int rw, int rd) {
+        int minDim = Math.min(rw, rd);
+        if (minDim < 3) return true;
+        int layers = expansionLayerCount(rw, rd);
+        int countWithRod = countExpansionColumns(rw, rd, layers, true);
+        int countWithHeatSink = countExpansionColumns(rw, rd, layers, false);
+        return countWithRod >= countWithHeatSink;
+    }
+
+    /**
+     * Preview API: like {@link #isRodColumn(int, int, int, int, int, boolean)} but for Frame pattern
+     * uses the given variant (rod at center vs not) instead of cache. For other patterns, expansionRodAtCenter is ignored.
+     */
+    public static boolean isRodColumnForPreview(int rx, int rz, int rw, int rd, int pattern, boolean expansionRodAtCenter) {
+        if (rw <= 0 || rd <= 0) return false;
+        if (rx < 0 || rx >= rw || rz < 0 || rz >= rd) return false;
+        if (pattern == PATTERN_EXPANSION) {
+            int minDim = Math.min(rw, rd);
+            if (minDim < 3) return false;
+            int layers = expansionLayerCount(rw, rd);
+            return isRodExpansionColumnWithLayers(rx, rz, rw, rd, layers, expansionRodAtCenter);
+        }
+        return isRodColumn(rx, rz, rw, rd, pattern, false);
+    }
+
+    /**
+     * Preview API: like {@link #isRod(int, int, int, int, int, int, int, boolean)} but for Frame
+     * uses the given variant. For other patterns, expansionRodAtCenter is ignored.
+     */
+    public static boolean isRodForPreview(int rx, int ry, int rz, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        if (rw <= 0 || rh <= 0 || rd <= 0) return false;
+        if (rx < 0 || rx >= rw || ry < 0 || ry >= rh || rz < 0 || rz >= rd) return false;
+        return isRodColumnForPreview(rx, rz, rw, rd, pattern, expansionRodAtCenter);
     }
 }
