@@ -16,7 +16,7 @@ import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 
 /**
  * C2S: cycle a Reactor Builder option. optionType: 0=openTop, 1=rodPattern, 2=patternMode.
- * next=true = next option, next=false = previous (same as heat sink: left click=prev, right click=next).
+ * next=true = next option, next=false = previous (same as heat sink: left click=next, right click=previous).
  */
 public record ReactorBuilderOptionPayload(BlockPos pos, int optionType, boolean next) implements CustomPacketPayload {
 

@@ -351,12 +351,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
         if (pos.equals(BlockPos.ZERO)) return;
         if (index == 0) {
-            PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // left click = previous
+            PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // left click = next
             return;
         }
-        if (index == 1) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, false));  // left = previous
-        if (index == 2) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, false));
-        if (index == 3) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, false));
+        if (index == 1) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, true));  // left = next
+        if (index == 2) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, true));
+        if (index == 3) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));
         if (index == 5) PacketDistributor.sendToServer(new ReactorBuilderBuildPayload(pos));  // Build/Stop
     }
 
@@ -374,7 +374,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                         .append(Component.literal("\n"))
                         .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[0].setMessage(getHeatSinkButtonLabel());
-        // Button 1: Pattern (left=previous, right=next like heat sink)
+        // Button 1: Pattern (left=next, right=previous, same as heat sink)
         rightBlockButtons[1].setTooltip(Tooltip.create(
                 Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern." + menu.getRodPattern())
                         .append(Component.literal("\n"))
@@ -438,25 +438,25 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             if (isInRightBlockButton(x, y, 0)) {
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // right click = next
+                    PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // right click = previous
                 return true;
             }
             if (isInRightBlockButton(x, y, 1)) {
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, true));  // right = next
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, false));  // right = previous
                 return true;
             }
             if (isInRightBlockButton(x, y, 2)) {
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, true));
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, false));
                 return true;
             }
             if (isInRightBlockButton(x, y, 3)) {
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));  // open top
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, false));  // open top
                 return true;
             }
         }
@@ -560,17 +560,16 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         return CoolantLoader.get(ids.get(idx));
     }
 
-    /** Runs virtual simulation from builder params; simulator is always "ON". Returns zeroed result if level unavailable.
-     * Uses same parameter order as build: entity sizeLeft/sizeRight (menu getSizeRight=get(0)=sizeLeft, getSizeLeft=get(1)=sizeRight for display). */
+    /** Runs builder GUI simulation (same RF and fuel formulas as real reactor). Uses {@link ReactorBuilderSimulation}. */
     private ReactorSimulation.SimulationResult getSimulationResult() {
         if (minecraft == null || minecraft.level == null) {
             return new ReactorSimulation.SimulationResult(0, 0, 0, 0, 0, 0, 0, 1000);
         }
         var ra = minecraft.level.registryAccess();
         CoolantDefinition coolantDef = getSimulationCoolantDef();
-        int sizeLeft = menu.getSizeRight();  // entity sizeLeft = sizeData.get(0)
-        int sizeRight = menu.getSizeLeft();  // entity sizeRight = sizeData.get(1)
-        return ReactorSimulation.simulateFromBuilderParams(ra,
+        int sizeLeft = menu.getSizeRight();   // entity sizeLeft = sizeData.get(0)
+        int sizeRight = menu.getSizeLeft();   // entity sizeRight = sizeData.get(1)
+        return ReactorBuilderSimulation.run(ra,
                 sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
                 menu.getRodPattern(), menu.getPatternMode(), menu.getHeatSinkIndex(),
                 coolantDef);

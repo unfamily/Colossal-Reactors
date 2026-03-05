@@ -255,7 +255,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
     }
 
-    /** Cycle open top: next=true -> open, next=false -> closed. Same as heat sink: left=prev, right=next. */
+    /** Cycle open top: next=true -> open, next=false -> closed. Same as heat sink: left=next, right=previous. */
     public void cycleOpenTop(boolean next) {
         openTop = next;
         setChanged();
@@ -275,7 +275,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
-    /** Cycle heat sink option: next=true next, next=false previous. Left click=prev, right click=next. */
+    /** Cycle heat sink option: next=true next, next=false previous. Left click=next, right click=previous. */
     public void cycleHeatSink(boolean next) {
         int max = HeatSinkLoader.getHeatSinkOptionCount() - 1;
         if (next) selectedHeatSinkIndex = selectedHeatSinkIndex >= max ? 0 : selectedHeatSinkIndex + 1;

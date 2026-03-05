@@ -15,7 +15,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 
 /**
- * C2S: cycle heat sink option in Reactor Builder. next=true = next, next=false = previous (left=prev, right=next).
+ * C2S: cycle heat sink option in Reactor Builder. next=true = next, next=false = previous (left=next, right=previous).
  */
 public record ReactorBuilderHeatSinkPayload(BlockPos pos, boolean next) implements CustomPacketPayload {
 
