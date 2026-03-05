@@ -682,6 +682,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
         var ra = minecraft.level.registryAccess();
         CoolantDefinition coolantDef = getSimulationCoolantDef();
+        List<ResourceLocation> fuelIds = getOrderedFuelIds();
+        ResourceLocation simulationFuelId = fuelIds.isEmpty() ? null : fuelIds.get(Math.min(simulationFuelIndex, fuelIds.size() - 1));
         // Same order as ReactorBuildLogic: entity.sizeLeft, entity.sizeRight, entity.sizeHeight, entity.sizeDepth (sizeData 0,1,2,3)
         int sizeLeft = menu.getSizeRight();
         int sizeRight = menu.getSizeLeft();
@@ -690,7 +692,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         return ReactorBuilderSimulation.run(ra,
                 sizeLeft, sizeRight, sizeHeight, sizeDepth,
                 menu.getRodPattern(), menu.getPatternMode(), menu.getHeatSinkIndex(),
-                coolantDef);
+                simulationFuelId, coolantDef);
     }
 
     private static String formatFuelPerTickSim(int hundredths) {

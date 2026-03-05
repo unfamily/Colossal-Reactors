@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "tag": "c:ingots/graphite" },
+    { "tag": "c:ingots/graphite" }
+  ],
+  "result": { "id": "minecraft:gray_dye", "count": 2 }
+}

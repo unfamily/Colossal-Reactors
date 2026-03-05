@@ -53,15 +53,9 @@ public class Config {
 
     // --- reactor.base ---
     static {
-        BUILDER.comment("Base values for RF production and fuel consumption").push("base");
+        BUILDER.comment("Reactor capacity and minimums (base RF/fuel come from datapack fuel definitions)").push("base");
     }
 
-    public static final ModConfigSpec.DoubleValue BASE_RF_PER_TICK = BUILDER
-            .comment("Base RF/t for reactor formulas. Default: 200")
-            .defineInRange("100_baseRfPerTick", 200.0, 0.0, 1000000.0);
-    public static final ModConfigSpec.DoubleValue BASE_FUEL_UNITS_PER_TICK = BUILDER
-            .comment("Base fuel consumption (fuel units per tick scale). Default: 0.03")
-            .defineInRange("101_baseFuelUnitsPerTick", 0.03, 0.0, 100.0);
     public static final ModConfigSpec.DoubleValue MIN_RF_PER_TICK = BUILDER
             .comment("Minimum RF/t produced by any running reactor. Default: 500")
             .defineInRange("101b_minRfPerTick", 500.0, 0.0, 1000000.0);

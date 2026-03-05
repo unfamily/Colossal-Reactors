@@ -110,8 +110,9 @@ public final class ReactorSimulation {
         double totalFuelUnits = rods.stream().mapToDouble(ReactorRodBlockEntity::getTotalFuelUnits).sum();
         if (totalFuelUnits <= 0) return;
 
-        double baseRf = Config.BASE_RF_PER_TICK.get();
-        double baseFuelUnitsPerTick = Config.BASE_FUEL_UNITS_PER_TICK.get();
+        double[] base = computeEffectiveBaseFromRods(rods);
+        double baseRf = base[0];
+        double baseFuelUnitsPerTick = base[1];
         double rfEfficiency = 1.0 - Config.RF_EFFICIENCY_LOSS.get();
         double fuelEfficiency = Config.FUEL_EFFICIENCY_LOSS.get();
         double productionMult = Config.PRODUCTION_MULTIPLIER.get();
@@ -529,6 +530,25 @@ public final class ReactorSimulation {
         return CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
     }
 
+    /** Weighted average of base_rf_per_tick and base_fuel_units_per_tick from fuel definitions in rods (by fuel units). */
+    private static double[] computeEffectiveBaseFromRods(List<ReactorRodBlockEntity> rods) {
+        double sumRf = 0;
+        double sumFuel = 0;
+        double totalUnits = 0;
+        for (ReactorRodBlockEntity rod : rods) {
+            for (ReactorRodBlockEntity.FuelEntry e : rod.getFuelEntries()) {
+                FuelDefinition def = FuelLoader.get(e.id());
+                if (def == null) continue;
+                double u = e.units();
+                sumRf += u * def.baseRfPerTick();
+                sumFuel += u * def.baseFuelUnitsPerTick();
+                totalUnits += u;
+            }
+        }
+        if (totalUnits <= 0) return new double[] { 200.0, 0.03 };
+        return new double[] { sumRf / totalUnits, sumFuel / totalUnits };
+    }
+
     private static void consumeFuelFromRods(List<ReactorRodBlockEntity> rods, double totalUnitsToConsume, net.minecraft.core.RegistryAccess registryAccess) {
         double remaining = totalUnitsToConsume;
         int rodIndex = 0;
@@ -570,6 +590,7 @@ public final class ReactorSimulation {
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
             int rodPattern, int patternMode, int heatSinkIndex,
+            @Nullable ResourceLocation simulationFuelId,
             @Nullable CoolantDefinition coolantDef) {
         int w = sizeLeft + sizeRight + 1;
         int h = sizeHeight + 1;
@@ -661,8 +682,10 @@ public final class ReactorSimulation {
 
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null && coolantDef.mbMultiplier() > 0 ? coolantDef.mbMultiplier() : 1.0;
-        double baseRf = Config.BASE_RF_PER_TICK.get();
-        double baseFuelUnitsPerTick = Config.BASE_FUEL_UNITS_PER_TICK.get();
+        ResourceLocation fuelId = simulationFuelId != null ? simulationFuelId : ReactorRodBlockEntity.URANIUM_FUEL_ID;
+        FuelDefinition fuelDef = FuelLoader.get(fuelId);
+        double baseRf = fuelDef != null ? fuelDef.baseRfPerTick() : 200.0;
+        double baseFuelUnitsPerTick = fuelDef != null ? fuelDef.baseFuelUnitsPerTick() : 0.03;
         double rfEfficiency = 1.0 - Config.RF_EFFICIENCY_LOSS.get();
         double fuelEfficiency = Config.FUEL_EFFICIENCY_LOSS.get();
         double productionMult = Config.PRODUCTION_MULTIPLIER.get();
