@@ -597,13 +597,13 @@ public final class ReactorSimulation {
         }
         int rodColumns = rodColumnSet.size();
 
+        // Heat sink counted over FULL interior (1..w-2, 1..h-2, 1..d-2), matching ReactorBuildLogic coolant placement.
         int countAdj = 0, countNon = 0;
-        for (int rx = 0; rx < rw; rx++) {
-            for (int ry = 0; ry < rh; ry++) {
-                for (int rz = 0; rz < rd; rz++) {
-                    if (rodSet.contains(key(rx, ry, rz))) continue;
-                    boolean adjacentToRod = isRodSpaceCellAdjacentToRod(rx, ry, rz, rw, rh, rd, rodSet);
-                    // Economy: only count heat sink in cells adjacent to a rod. Optimized/Production: count all non-rod cells.
+        for (int lx = 1; lx < w - 1; lx++) {
+            for (int ly = 1; ly < h - 1; ly++) {
+                for (int lz = 1; lz < d - 1; lz++) {
+                    if (isSimInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rodSet)) continue;
+                    boolean adjacentToRod = isSimInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rodSet);
                     if (patternMode == RodPatternLogic.MODE_ECONOMY && !adjacentToRod) continue;
                     if (adjacentToRod) countAdj++;
                     else countNon++;
@@ -703,14 +703,20 @@ public final class ReactorSimulation {
         return ((long) rx << 16) | ((ry & 0xFF) << 8) | (rz & 0xFF);
     }
 
-    /** True if rod-space cell (rx, ry, rz) has at least one neighbor (6 directions) that is a rod. Used for Economy mode. */
-    private static boolean isRodSpaceCellAdjacentToRod(int rx, int ry, int rz, int rw, int rh, int rd, Set<Long> rodSet) {
-        if (rx > 0 && rodSet.contains(key(rx - 1, ry, rz))) return true;
-        if (rx < rw - 1 && rodSet.contains(key(rx + 1, ry, rz))) return true;
-        if (ry > 0 && rodSet.contains(key(rx, ry - 1, rz))) return true;
-        if (ry < rh - 1 && rodSet.contains(key(rx, ry + 1, rz))) return true;
-        if (rz > 0 && rodSet.contains(key(rx, ry, rz - 1))) return true;
-        if (rz < rd - 1 && rodSet.contains(key(rx, ry, rz + 1))) return true;
+    /** True if interior cell (lx, ly, lz) is inside rod space and is a rod. Used when counting heat sink over full interior. */
+    private static boolean isSimInteriorCellRod(int lx, int ly, int lz, int w, int h, int d, int insetXZ, Set<Long> rodSet) {
+        if (lx < insetXZ || lx >= w - insetXZ || ly < 1 || ly >= h - 1 || lz < insetXZ || lz >= d - insetXZ) return false;
+        return rodSet.contains(key(lx - insetXZ, ly - 1, lz - insetXZ));
+    }
+
+    /** True if interior cell (lx, ly, lz) has at least one neighbor (6 directions) that is a rod. Used for Economy mode over full interior. */
+    private static boolean isSimInteriorCellAdjacentToRod(int lx, int ly, int lz, int w, int h, int d, int insetXZ, Set<Long> rodSet) {
+        for (int dx = -1; dx <= 1; dx += 2)
+            if (lx + dx >= 1 && lx + dx < w - 1 && isSimInteriorCellRod(lx + dx, ly, lz, w, h, d, insetXZ, rodSet)) return true;
+        for (int dy = -1; dy <= 1; dy += 2)
+            if (ly + dy >= 1 && ly + dy < h - 1 && isSimInteriorCellRod(lx, ly + dy, lz, w, h, d, insetXZ, rodSet)) return true;
+        for (int dz = -1; dz <= 1; dz += 2)
+            if (lz + dz >= 1 && lz + dz < d - 1 && isSimInteriorCellRod(lx, ly, lz + dz, w, h, d, insetXZ, rodSet)) return true;
         return false;
     }
 }
