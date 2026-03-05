@@ -560,17 +560,24 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         return CoolantLoader.get(ids.get(idx));
     }
 
-    /** Runs builder GUI simulation (same RF and fuel formulas as real reactor). Uses {@link ReactorBuilderSimulation}. */
+    /**
+     * Same simulation as the real reactor: same formula for RF and fuel consumption (fuel units/tick, same as uranium #c:ingots/uranium).
+     * Parameters must match {@link ReactorBuildLogic}: sizeLeft/sizeRight/sizeHeight/sizeDepth from entity (menu sizeData 0,1,2,3).
+     * Menu display swaps L/R: getSizeRight() = sizeData(0) = entity.sizeLeft, getSizeLeft() = sizeData(1) = entity.sizeRight.
+     */
     private ReactorSimulation.SimulationResult getSimulationResult() {
         if (minecraft == null || minecraft.level == null) {
             return new ReactorSimulation.SimulationResult(0, 0, 0, 0, 0, 0, 0, 1000);
         }
         var ra = minecraft.level.registryAccess();
         CoolantDefinition coolantDef = getSimulationCoolantDef();
-        int sizeLeft = menu.getSizeRight();   // entity sizeLeft = sizeData.get(0)
-        int sizeRight = menu.getSizeLeft();   // entity sizeRight = sizeData.get(1)
+        // Same order as ReactorBuildLogic: entity.sizeLeft, entity.sizeRight, entity.sizeHeight, entity.sizeDepth (sizeData 0,1,2,3)
+        int sizeLeft = menu.getSizeRight();
+        int sizeRight = menu.getSizeLeft();
+        int sizeHeight = menu.getSizeH();
+        int sizeDepth = menu.getSizeD();
         return ReactorBuilderSimulation.run(ra,
-                sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
+                sizeLeft, sizeRight, sizeHeight, sizeDepth,
                 menu.getRodPattern(), menu.getPatternMode(), menu.getHeatSinkIndex(),
                 coolantDef);
     }

@@ -83,6 +83,7 @@ public final class ReactorBuilderSimulation {
                     w, h, d, patternMode, rodPattern, rodCount, countAdj, countNon, coolantBlockCount);
         }
 
+        // Match real reactor: only horizontal rod neighbors (no penalty for rod-space border; those neighbors are heat sink).
         double effectiveRodCount = 0;
         double penalty = Config.ROD_ADJACENCY_PENALTY.get();
         for (int rx = 0; rx < rw; rx++) {
@@ -94,7 +95,6 @@ public final class ReactorBuilderSimulation {
                     if (rx < rw - 1 && rodSet.contains(key(rx + 1, ry, rz))) adjacentCount++;
                     if (rz > 0 && rodSet.contains(key(rx, ry, rz - 1))) adjacentCount++;
                     if (rz < rd - 1 && rodSet.contains(key(rx, ry, rz + 1))) adjacentCount++;
-                    if (rx == 0 || rx == rw - 1 || rz == 0 || rz == rd - 1) adjacentCount++;
                     effectiveRodCount += Math.max(0.0, 1.0 - penalty * adjacentCount);
                 }
             }
