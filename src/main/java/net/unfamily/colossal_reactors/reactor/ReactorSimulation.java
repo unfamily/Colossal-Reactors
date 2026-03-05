@@ -304,7 +304,7 @@ public final class ReactorSimulation {
     }
 
     /**
-     * Pushes input material back out to EJECT ports: fuel (from rod fuel units, converted at unitsPerItem) and coolant.
+     * Pushes input material back out to EJECT ports: fuel (from rod fuel units, converted at unitsPerFuel) and coolant.
      */
     private static void pushEjectToPorts(List<ReactorRodBlockEntity> rods, List<ResourcePortBlockEntity> resourcePorts, RegistryAccess registryAccess) {
         List<ResourcePortBlockEntity> ejectPorts = resourcePorts.stream()
@@ -312,19 +312,19 @@ public final class ReactorSimulation {
                 .toList();
         if (ejectPorts.isEmpty()) return;
 
-        // Eject fuel: convert units back to items using definition's unitsPerItem
+        // Eject fuel: convert units back to items using definition's unitsPerFuel
         for (ReactorRodBlockEntity rod : rods) {
             for (var entry : rod.getFuelEntries()) {
                 if (entry.units() < 1e-6f) continue;
                 FuelDefinition def = FuelLoader.get(entry.id());
                 if (def == null) continue;
-                int unitsPerItem = Math.max(1, def.unitsPerItem());
-                int items = (int) (entry.units() / unitsPerItem);
+                int unitsPerFuel = Math.max(1, def.unitsPerFuel());
+                int items = (int) (entry.units() / unitsPerFuel);
                 if (items <= 0) continue;
-                float toConsume = items * (float) unitsPerItem;
+                float toConsume = items * (float) unitsPerFuel;
                 float consumed = rod.consumeFuel(entry.id(), toConsume);
                 if (consumed < 1e-6f) continue;
-                int actualItems = (int) (consumed / unitsPerItem);
+                int actualItems = (int) (consumed / unitsPerFuel);
                 if (actualItems <= 0) continue;
                 ItemStack template = FuelLoader.getFirstInputStack(entry.id(), registryAccess);
                 if (template.isEmpty()) continue;
@@ -337,7 +337,7 @@ public final class ReactorSimulation {
                     if (stack.isEmpty()) break;
                 }
                 if (!stack.isEmpty() && stack.getCount() > 0) {
-                    float putBack = stack.getCount() * (float) unitsPerItem;
+                    float putBack = stack.getCount() * (float) unitsPerFuel;
                     rod.addFuel(entry.id(), putBack);
                 }
             }
@@ -551,8 +551,8 @@ public final class ReactorSimulation {
             if (consumed > 0 && !def.output().isEmpty() && !def.output().startsWith("#")) {
                 ResourceLocation wasteId = ResourceLocation.tryParse(def.output());
                 if (wasteId != null) {
-                    int up = def.unitsPerItem();
-                    rod.recordConsumedAndAddWaste(wasteId, consumed, up <= 0 ? 1 : up);
+                    int unitsPerWaste = Math.max(1, def.unitsPerWaste());
+                    rod.recordConsumedAndAddWaste(wasteId, consumed, unitsPerWaste);
                 }
             }
             rodIndex++;

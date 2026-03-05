@@ -240,14 +240,14 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /**
-     * Records consumed fuel units and adds solid waste when accumulation reaches unitsPerItem.
-     * E.g. unitsPerItem=1000: every 1000 consumed units produce 1 waste item (remainder carried over).
+     * Records consumed fuel units and adds solid waste when accumulation reaches unitsPerWaste.
+     * E.g. unitsPerWaste=1000: every 1000 consumed units produce 1 waste item (remainder carried over).
      */
-    public void recordConsumedAndAddWaste(ResourceLocation wasteId, float consumedUnits, int unitsPerItem) {
-        if (consumedUnits <= 0 || unitsPerItem <= 0) return;
+    public void recordConsumedAndAddWaste(ResourceLocation wasteId, float consumedUnits, int unitsPerWaste) {
+        if (consumedUnits <= 0 || unitsPerWaste <= 0) return;
         float total = wasteAccumulator.getOrDefault(wasteId, 0f) + consumedUnits;
-        int wasteCount = (int) (total / unitsPerItem);
-        wasteAccumulator.put(wasteId, total - wasteCount * unitsPerItem);
+        int wasteCount = (int) (total / unitsPerWaste);
+        wasteAccumulator.put(wasteId, total - wasteCount * unitsPerWaste);
         if (wasteCount > 0) addSolidWaste(wasteId, wasteCount);
     }
 

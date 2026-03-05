@@ -50,6 +50,8 @@ public class FuelLoader {
     private static final String KEY_FUEL_ID = "fuel_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_UNITS_PER_ITEM = "units_per_item";
+    private static final String KEY_UNITS_PER_FUEL = "units_per_fuel";
+    private static final String KEY_UNITS_PER_WASTE = "units_per_waste";
     private static final String KEY_BASE_RF_PER_TICK = "base_rf_per_tick";
     private static final String KEY_BASE_FUEL_UNITS_PER_TICK = "base_fuel_units_per_tick";
     private static final String KEY_BASE_MB_PER_TICK_LEGACY = "base_mb_per_tick";
@@ -105,12 +107,13 @@ public class FuelLoader {
 
     private static void registerInternalDefaults() {
         ResourceLocation uraniumId = ReactorRodBlockEntity.URANIUM_FUEL_ID;
-        int unitsPerItem = 1000;
+        int unitsPerFuel = 1000;
+        int unitsPerWaste = 1000;
         double baseRf = Config.BASE_RF_PER_TICK.get();
         double baseFuelUnitsPerTick = Config.BASE_FUEL_UNITS_PER_TICK.get();
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
-        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerItem, baseRf, baseFuelUnitsPerTick, true));
+        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
     }
 
     private static void parseConfigFile(Path filePath) {
@@ -162,13 +165,18 @@ public class FuelLoader {
             }
         }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
-        int unitsPerItem = json.has(KEY_UNITS_PER_ITEM) ? json.get(KEY_UNITS_PER_ITEM).getAsInt() : 1000;
+        int unitsPerFuel = 1000;
+        int unitsPerWaste = 1000;
+        if (json.has(KEY_UNITS_PER_FUEL)) unitsPerFuel = json.get(KEY_UNITS_PER_FUEL).getAsInt();
+        else if (json.has(KEY_UNITS_PER_ITEM)) unitsPerFuel = json.get(KEY_UNITS_PER_ITEM).getAsInt();
+        if (json.has(KEY_UNITS_PER_WASTE)) unitsPerWaste = json.get(KEY_UNITS_PER_WASTE).getAsInt();
+        else if (json.has(KEY_UNITS_PER_ITEM)) unitsPerWaste = json.get(KEY_UNITS_PER_ITEM).getAsInt();
         double baseRf = json.has(KEY_BASE_RF_PER_TICK) ? json.get(KEY_BASE_RF_PER_TICK).getAsDouble() : Config.BASE_RF_PER_TICK.get();
         double baseFuelUnitsPerTick = json.has(KEY_BASE_FUEL_UNITS_PER_TICK) ? json.get(KEY_BASE_FUEL_UNITS_PER_TICK).getAsDouble()
                 : json.has(KEY_BASE_MB_PER_TICK_LEGACY) ? json.get(KEY_BASE_MB_PER_TICK_LEGACY).getAsDouble()
                 : Config.BASE_FUEL_UNITS_PER_TICK.get();
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new FuelDefinition(fuelId, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerItem, baseRf, baseFuelUnitsPerTick, overwritable);
+        return new FuelDefinition(fuelId, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
     }
 
     private static void addExcludedInputs(JsonObject obj) {
@@ -202,7 +210,7 @@ public class FuelLoader {
 
     /**
      * Finds the fuel definition that matches the given item (by item id or item tag). Returns null if excluded or no match.
-     * Prefers exact item id match over tag match so e.g. uranium_ingot gets the uranium definition (with correct unitsPerItem).
+     * Prefers exact item id match over tag match so e.g. uranium_ingot gets the uranium definition (with correct unitsPerFuel).
      */
     @Nullable
     public static FuelDefinition getDefinitionForItem(ItemStack stack, RegistryAccess registryAccess) {
@@ -234,7 +242,7 @@ public class FuelLoader {
 
     /**
      * Returns a single item stack for the first valid input of this fuel type (for eject: convert fuel units back to items).
-     * Caller must use definition's unitsPerItem when converting fuel units back to item count.
+     * Caller must use definition's unitsPerFuel when converting fuel units back to item count.
      */
     public static ItemStack getFirstInputStack(ResourceLocation fuelId, RegistryAccess registryAccess) {
         FuelDefinition def = DEFINITIONS.get(fuelId);
@@ -309,7 +317,8 @@ public class FuelLoader {
                   "fuel_id": "colossal_reactors:uranium",
                   "inputs": ["#c:ingots/uranium"],
                   "output": "colossal_reactors:nuclear_waste",
-                  "units_per_item": 1000,
+                  "units_per_fuel": 1000,
+                  "units_per_waste": 1000,
                   "base_rf_per_tick": 200.0,
                   "base_fuel_units_per_tick": 0.03
                 }

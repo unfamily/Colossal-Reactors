@@ -133,7 +133,8 @@ public final class ScriptsDocsGenerator {
             | `fuel_id` | string | required | Unique id, e.g. `colossal_reactors:uranium` |
             | `inputs` | array of string | required | Item ids or tags, e.g. `"#c:ingots/uranium"` |
             | `output` | string | optional | Item id for solid waste produced when this fuel is consumed. |
-            | `units_per_item` | number | 1000 | Fuel units one item gives (e.g. 1 ingot = 1000 units). |
+            | `units_per_fuel` | number | 1000 | Fuel units one input item gives (e.g. 1 ingot = 1000 units). |
+            | `units_per_waste` | number | 1000 | Consumed fuel units per one waste item produced (e.g. 1000 units → 1 waste). |
             | `base_rf_per_tick` | number | from config | Reference RF (used in formulas). |
             | `base_fuel_units_per_tick` | number | from config | Reference consumption rate. |
             | `disable` | boolean | false | If true, listed inputs are **excluded** from being valid fuel. |
@@ -148,7 +149,8 @@ public final class ScriptsDocsGenerator {
                   "fuel_id": "colossal_reactors:uranium",
                   "inputs": ["#c:ingots/uranium"],
                   "output": "colossal_reactors:nuclear_waste",
-                  "units_per_item": 1000
+                  "units_per_fuel": 1000,
+                  "units_per_waste": 1000
                 }
               ]
             }

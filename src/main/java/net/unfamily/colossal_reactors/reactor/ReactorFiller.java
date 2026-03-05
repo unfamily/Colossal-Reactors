@@ -66,7 +66,7 @@ public final class ReactorFiller {
             if (!stack.isEmpty()) {
                 FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
                 if (def != null) {
-                    int units = def.unitsPerItem();
+                    int units = def.unitsPerFuel();
                     if (def.fuelId().equals(ReactorRodBlockEntity.URANIUM_FUEL_ID) && units < 1000) {
                         units = 1000;
                     }
