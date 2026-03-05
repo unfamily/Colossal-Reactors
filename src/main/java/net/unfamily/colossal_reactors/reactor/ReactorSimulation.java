@@ -150,10 +150,10 @@ public final class ReactorSimulation {
             consumeFuelFromRods(rods, fuelUnitsToConsume, level.registryAccess());
         }
 
-        // RF with coolant cells: Base * (adjacent energy sum + nonAdj * rodCount) * efficiencyFactor / effectiveRodCount
+        // RF with coolant cells: only non-adjacent heat sinks contribute (adjacent to rod would decrease stats, so not counted).
         double rfProduced;
         if (countAdj + countNon > 0 && effectiveRodCount > 0) {
-            double heatSinkRfFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
+            double heatSinkRfFactor = ((double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
             rfProduced = baseRf * productionMult * rfEfficiency * heatSinkRfFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
         } else {
             rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
@@ -680,8 +680,9 @@ public final class ReactorSimulation {
         fuelConsumptionRate = Math.max(fuelConsumptionRate, Config.MIN_FUEL_UNITS_PER_TICK.get());
 
         double rfProduced;
+        // Only non-adjacent heat sinks contribute to RF; adjacent to rod do not increase (and effectively lower stats).
         if (countAdj + countNon > 0 && effectiveRodCount > 0) {
-            double heatSinkRfFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
+            double heatSinkRfFactor = ((double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
             rfProduced = baseRf * productionMult * rfEfficiency * heatSinkRfFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
         } else {
             rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
