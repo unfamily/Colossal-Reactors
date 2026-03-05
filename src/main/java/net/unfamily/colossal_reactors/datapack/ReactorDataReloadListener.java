@@ -7,6 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.unfamily.colossal_reactors.ColossalReactors;
@@ -31,8 +32,11 @@ import java.util.concurrent.Executor;
 
 /**
  * Loads reactor fuel, coolant and heat sink definitions from datapack JSON.
- * Three files: reactor_fuel.json, reactor_coolant.json, reactor_heat_sinks.json.
- * Each has "type": "colossal_reactors:fuel" (or coolant/heat_sinks) and "entries": [ ... ].
+ * Scans all namespaces under the standard path: data/&lt;namespace&gt;/recipe/ (and any subdirs).
+ * The only constant is "recipe" in the path; namespace and subdirectories are free (e.g.
+ * colossal_reactors/recipe/, kubejs/recipe/fuels/, mymod/recipe/reactor/). The "type" field in each
+ * JSON decides the kind: "colossal_reactors:fuel", "colossal_reactors:coolant", "colossal_reactors:heat_sinks".
+ * Merges from all datapacks; later packs override by fuel_id/coolant_id.
  */
 public class ReactorDataReloadListener implements PreparableReloadListener {
 
@@ -45,9 +49,8 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
     private static final String KEY_TYPE = "type";
     private static final String KEY_ENTRIES = "entries";
 
-    private static final ResourceLocation FUEL_RESOURCE = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel.json");
-    private static final ResourceLocation COOLANT_RESOURCE = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_coolant.json");
-    private static final ResourceLocation HEAT_SINKS_RESOURCE = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_heat_sinks.json");
+    /** Path prefix: only constant is "recipe"; scans data/&lt;any_namespace&gt;/recipe/ and all subdirs. */
+    private static final String REACTOR_DATA_PATH = "recipe";
 
     @Override
     public String getName() {
@@ -60,9 +63,17 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                                           Executor prepareExecutor, Executor applyExecutor) {
         return CompletableFuture.supplyAsync(() -> {
             prepareProfiler.push("Colossal Reactors reactor data");
-            Map<ResourceLocation, FuelDefinition> fuel = loadFuel(resourceManager);
-            Map<ResourceLocation, CoolantDefinition> coolant = loadCoolant(resourceManager);
-            List<HeatSinkDefinition> heatSinks = loadHeatSinks(resourceManager);
+            Map<ResourceLocation, FuelDefinition> fuel = new HashMap<>();
+            Map<ResourceLocation, CoolantDefinition> coolant = new HashMap<>();
+            List<HeatSinkDefinition> heatSinks = new ArrayList<>();
+            Map<ResourceLocation, List<Resource>> stacks = resourceManager.listResourceStacks(REACTOR_DATA_PATH,
+                    rl -> rl.getPath().endsWith(".json"));
+            for (Map.Entry<ResourceLocation, List<Resource>> entry : stacks.entrySet()) {
+                ResourceLocation location = entry.getKey();
+                for (Resource resource : entry.getValue()) {
+                    processOneResource(location, resource, fuel, coolant, heatSinks);
+                }
+            }
             prepareProfiler.pop();
             return new LoadedData(fuel, coolant, heatSinks);
         }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(data -> {
@@ -78,66 +89,43 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
         }, applyExecutor);
     }
 
-    private static Map<ResourceLocation, FuelDefinition> loadFuel(ResourceManager rm) {
-        Map<ResourceLocation, FuelDefinition> out = new HashMap<>();
-        var stack = rm.getResourceStack(FUEL_RESOURCE);
-        if (stack.isEmpty()) return out;
-        try (Reader reader = new InputStreamReader(stack.get(stack.size() - 1).open(), StandardCharsets.UTF_8)) {
+    private static void processOneResource(ResourceLocation location, Resource resource,
+                                          Map<ResourceLocation, FuelDefinition> fuel,
+                                          Map<ResourceLocation, CoolantDefinition> coolant,
+                                          List<HeatSinkDefinition> heatSinks) {
+        String source = location + " from " + resource.sourcePackId();
+        try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
-            if (root == null || !root.has(KEY_TYPE) || !TYPE_FUEL.equals(root.get(KEY_TYPE).getAsString())) return out;
-            if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return out;
+            if (root == null || !root.has(KEY_TYPE)) return;
+            String type = root.get(KEY_TYPE).getAsString();
+            if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return;
             JsonArray entries = root.getAsJsonArray(KEY_ENTRIES);
-            boolean overwritable = !root.has("overwritable") || root.get("overwritable").getAsBoolean();
-            for (JsonElement e : entries) {
-                if (!e.isJsonObject()) continue;
-                FuelDefinition def = FuelLoader.parseEntry(e.getAsJsonObject(), FUEL_RESOURCE.toString(), overwritable);
-                if (def != null) out.put(def.fuelId(), def);
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load reactor_fuel.json: {}", e.getMessage());
-        }
-        return out;
-    }
 
-    private static Map<ResourceLocation, CoolantDefinition> loadCoolant(ResourceManager rm) {
-        Map<ResourceLocation, CoolantDefinition> out = new HashMap<>();
-        var stack = rm.getResourceStack(COOLANT_RESOURCE);
-        if (stack.isEmpty()) return out;
-        try (Reader reader = new InputStreamReader(stack.get(stack.size() - 1).open(), StandardCharsets.UTF_8)) {
-            JsonObject root = GSON.fromJson(reader, JsonObject.class);
-            if (root == null || !root.has(KEY_TYPE) || !TYPE_COOLANT.equals(root.get(KEY_TYPE).getAsString())) return out;
-            if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return out;
-            JsonArray entries = root.getAsJsonArray(KEY_ENTRIES);
-            boolean overwritable = !root.has("overwritable") || root.get("overwritable").getAsBoolean();
-            for (JsonElement e : entries) {
-                if (!e.isJsonObject()) continue;
-                CoolantDefinition def = CoolantLoader.parseEntry(e.getAsJsonObject(), COOLANT_RESOURCE.toString(), overwritable);
-                if (def != null) out.put(def.coolantId(), def);
+            if (TYPE_FUEL.equals(type)) {
+                boolean overwritable = !root.has("overwritable") || root.get("overwritable").getAsBoolean();
+                for (JsonElement e : entries) {
+                    if (!e.isJsonObject()) continue;
+                    FuelDefinition def = FuelLoader.parseEntry(e.getAsJsonObject(), source, overwritable);
+                    if (def != null) fuel.put(def.fuelId(), def);
+                }
+            } else if (TYPE_COOLANT.equals(type)) {
+                boolean overwritable = !root.has("overwritable") || root.get("overwritable").getAsBoolean();
+                for (JsonElement e : entries) {
+                    if (!e.isJsonObject()) continue;
+                    CoolantDefinition def = CoolantLoader.parseEntry(e.getAsJsonObject(), source, overwritable);
+                    if (def != null) coolant.put(def.coolantId(), def);
+                }
+            } else if (TYPE_HEAT_SINKS.equals(type)) {
+                if (root.has("overwrite") && root.get("overwrite").getAsBoolean()) heatSinks.clear();
+                for (JsonElement e : entries) {
+                    if (!e.isJsonObject()) continue;
+                    HeatSinkDefinition def = HeatSinkLoader.parseEntry(e.getAsJsonObject(), source);
+                    if (def != null) heatSinks.add(def);
+                }
             }
         } catch (Exception e) {
-            LOGGER.warn("Failed to load reactor_coolant.json: {}", e.getMessage());
+            LOGGER.warn("Failed to load {} from {}: {}", location, resource.sourcePackId(), e.getMessage());
         }
-        return out;
-    }
-
-    private static List<HeatSinkDefinition> loadHeatSinks(ResourceManager rm) {
-        List<HeatSinkDefinition> out = new ArrayList<>();
-        var stack = rm.getResourceStack(HEAT_SINKS_RESOURCE);
-        if (stack.isEmpty()) return out;
-        try (Reader reader = new InputStreamReader(stack.get(stack.size() - 1).open(), StandardCharsets.UTF_8)) {
-            JsonObject root = GSON.fromJson(reader, JsonObject.class);
-            if (root == null || !root.has(KEY_TYPE) || !TYPE_HEAT_SINKS.equals(root.get(KEY_TYPE).getAsString())) return out;
-            if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return out;
-            JsonArray entries = root.getAsJsonArray(KEY_ENTRIES);
-            for (JsonElement e : entries) {
-                if (!e.isJsonObject()) continue;
-                HeatSinkDefinition def = HeatSinkLoader.parseEntry(e.getAsJsonObject(), HEAT_SINKS_RESOURCE.toString());
-                if (def != null) out.add(def);
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load reactor_heat_sinks.json: {}", e.getMessage());
-        }
-        return out;
     }
 
     private record LoadedData(
