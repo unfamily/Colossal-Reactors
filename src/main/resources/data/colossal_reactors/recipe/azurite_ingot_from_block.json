@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [{ "item": "colossal_reactors:azurite_block" }],
+  "result": { "id": "colossal_reactors:azurite_ingot", "count": 9 }
+}

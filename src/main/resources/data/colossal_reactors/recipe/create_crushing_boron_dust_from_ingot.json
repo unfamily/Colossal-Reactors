@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "create" }],
+  "type": "create:crushing",
+  "ingredients": [{ "item": "colossal_reactors:boron_ingot" }],
+  "results": [{ "item": "colossal_reactors:boron_dust", "count": 1 }],
+  "processingTime": 300
+}

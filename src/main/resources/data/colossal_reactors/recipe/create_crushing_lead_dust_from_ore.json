@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "create" }],
+  "type": "create:crushing",
+  "ingredients": [{ "tag": "c:ores/lead" }],
+  "results": [{ "item": "colossal_reactors:lead_dust", "count": 2 }],
+  "processingTime": 350
+}

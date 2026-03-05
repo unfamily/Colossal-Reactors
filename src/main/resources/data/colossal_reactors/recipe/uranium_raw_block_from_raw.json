@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["RRR", "RRR", "RRR"],
+  "key": { "R": { "tag": "c:raw_materials/uranium" } },
+  "result": { "id": "colossal_reactors:uranium_raw_block", "count": 1 }
+}

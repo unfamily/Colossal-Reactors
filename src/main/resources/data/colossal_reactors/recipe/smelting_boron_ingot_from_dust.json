@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "cookingtime": 200,
+  "experience": 0.7,
+  "ingredient": { "tag": "c:dusts/boron" },
+  "result": { "id": "colossal_reactors:boron_ingot", "count": 1 }
+}

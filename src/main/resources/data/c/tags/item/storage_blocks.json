@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "#c:storage_blocks/uranium",
+    "#c:storage_blocks/raw_uranium",
+    "#c:storage_blocks/lead",
+    "#c:storage_blocks/raw_lead",
+    "#c:storage_blocks/boron",
+    "#c:storage_blocks/raw_boron",
+    "#c:storage_blocks/graphite",
+    "#c:storage_blocks/azurite",
+    "#c:storage_blocks/tough_alloy"
+  ]
+}

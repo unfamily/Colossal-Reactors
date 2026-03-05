@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 0.7,
+  "ingredient": { "tag": "c:ores/boron" },
+  "result": { "id": "colossal_reactors:boron_ingot", "count": 1 }
+}

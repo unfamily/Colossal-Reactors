@@ -114,6 +114,19 @@ public class FuelLoader {
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
         DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
+
+        // Azurite: 500 base RF, 500 fuel units per ingot, 1500 consumed units per 1 waste (nuclear_waste)
+        ResourceLocation azuriteId = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
+        DEFINITIONS.put(azuriteId, new FuelDefinition(
+                azuriteId,
+                List.of("#c:ingots/azurite"),
+                ColossalReactors.MODID + ":nuclear_waste",
+                500,
+                1500,
+                500.0,
+                baseFuelUnitsPerTick,
+                true
+        ));
     }
 
     private static void parseConfigFile(Path filePath) {

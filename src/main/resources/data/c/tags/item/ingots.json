@@ -1,6 +1,11 @@
 {
   "replace": false,
   "values": [
-    "#c:ingots/uranium"
+    "#c:ingots/uranium",
+    "#c:ingots/lead",
+    "#c:ingots/boron",
+    "#c:ingots/graphite",
+    "#c:ingots/azurite",
+    "#c:ingots/tough_alloy"
   ]
 }

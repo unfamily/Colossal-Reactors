@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "cookingtime": 200,
+  "experience": 0.7,
+  "ingredient": { "tag": "c:dusts/uranium" },
+  "result": { "id": "colossal_reactors:uranium_ingot", "count": 1 }
+}

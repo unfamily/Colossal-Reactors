@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "cookingtime": 200,
+  "experience": 0.7,
+  "ingredient": { "tag": "c:ores/lead" },
+  "result": { "id": "colossal_reactors:lead_alloy_ingot", "count": 1 }
+}

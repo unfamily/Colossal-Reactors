@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["III", "III", "III"],
+  "key": { "I": { "item": "colossal_reactors:boron_ingot" } },
+  "result": { "id": "colossal_reactors:boron_block", "count": 1 }
+}

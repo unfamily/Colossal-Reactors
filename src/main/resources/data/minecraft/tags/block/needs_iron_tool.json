@@ -8,6 +8,21 @@
     "colossal_reactors:power_port",
     "colossal_reactors:redstone_port",
     "colossal_reactors:resource_port",
-    "colossal_reactors:rod_controller"
+    "colossal_reactors:rod_controller",
+    "colossal_reactors:uranium_ore",
+    "colossal_reactors:deep_uranium_ore",
+    "colossal_reactors:lead_ore",
+    "colossal_reactors:deep_lead_ore",
+    "colossal_reactors:boron_ore",
+    "colossal_reactors:deep_boron_ore",
+    "colossal_reactors:uranium_block",
+    "colossal_reactors:uranium_raw_block",
+    "colossal_reactors:lead_block",
+    "colossal_reactors:raw_lead_block",
+    "colossal_reactors:boron_block",
+    "colossal_reactors:raw_boron_block",
+    "colossal_reactors:graphite_block",
+    "colossal_reactors:azurite_block",
+    "colossal_reactors:tough_alloy_block"
   ]
 }

@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [{ "item": "colossal_reactors:raw_lead_block" }],
+  "result": { "id": "colossal_reactors:lead_raw", "count": 9 }
+}

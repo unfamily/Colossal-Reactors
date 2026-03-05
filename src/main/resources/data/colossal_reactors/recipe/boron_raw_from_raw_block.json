@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [{ "item": "colossal_reactors:raw_boron_block" }],
+  "result": { "id": "colossal_reactors:boron_raw", "count": 9 }
+}

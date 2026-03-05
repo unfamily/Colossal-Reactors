@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [{ "item": "colossal_reactors:uranium_block" }],
+  "result": { "id": "colossal_reactors:uranium_ingot", "count": 9 }
+}
