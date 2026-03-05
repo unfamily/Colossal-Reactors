@@ -225,7 +225,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         rightBlockButtons[2].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.pattern_mode." + menu.getPatternMode())));
         rightBlockButtons[2].setMessage(getRightButtonLabel(2));
         // Button 3: Open top
-        rightBlockButtons[3].setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.open_top")));
+        rightBlockButtons[3].setTooltip(Tooltip.create(Component.translatable(
+                menu.isOpenTop() ? "gui.colossal_reactors.reactor_builder.tooltip.open_top.open" : "gui.colossal_reactors.reactor_builder.tooltip.open_top.closed")));
         rightBlockButtons[3].setMessage(getRightButtonLabel(3));
     }
 

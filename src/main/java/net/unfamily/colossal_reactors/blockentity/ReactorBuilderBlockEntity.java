@@ -125,7 +125,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Pattern mode: 0=OPTIMIZED (-2 inset), 1=PRODUCTION (no inset), 2=ECONOMY (like optimized, border fill differs). */
     private int patternMode = 0;
 
-    private static final int ROD_PATTERN_COUNT = 3;
+    private static final int ROD_PATTERN_COUNT = 4;
     private static final int PATTERN_MODE_COUNT = 3;
 
     private final ContainerData sizeData = new ContainerData() {
