@@ -4,5 +4,5 @@
   "cookingtime": 100,
   "experience": 0.7,
   "ingredient": { "tag": "c:raw_materials/lead" },
-  "result": { "id": "colossal_reactors:lead_alloy_ingot", "count": 1 }
+  "result": { "id": "colossal_reactors:lead_ingot", "count": 1 }
 }

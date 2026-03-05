@@ -78,9 +78,11 @@ public class ModItems {
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> AZURITE_INGOT = ITEMS.register("azurite_ingot",
             () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> LEAD_ALLOY_INGOT = ITEMS.register("lead_alloy_ingot",
+    public static final DeferredItem<Item> LEAD_INGOT = ITEMS.register("lead_ingot",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> TOUGH_ALLOY_INGOT = ITEMS.register("tough_alloy_ingot",
+            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> UNREFINED_TOUGH_ALLOY = ITEMS.register("unrefined_tough_alloy",
             () -> new Item(new Item.Properties()));
 
     // Dusts (for crusher/enriching integration)

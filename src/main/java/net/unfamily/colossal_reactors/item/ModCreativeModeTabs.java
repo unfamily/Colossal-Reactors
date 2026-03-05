@@ -50,7 +50,8 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.BORON_INGOT.get());
                                 output.accept(ModItems.GRAPHITE_INGOT.get());
                                 output.accept(ModItems.AZURITE_INGOT.get());
-                                output.accept(ModItems.LEAD_ALLOY_INGOT.get());
+                                output.accept(ModItems.LEAD_INGOT.get());
+                                output.accept(ModItems.UNREFINED_TOUGH_ALLOY.get());
                                 output.accept(ModItems.TOUGH_ALLOY_INGOT.get());
                                 output.accept(ModItems.URANIUM_DUST.get());
                                 output.accept(ModItems.LEAD_DUST.get());

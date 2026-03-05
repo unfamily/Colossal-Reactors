@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "colossal_reactors:item/lead_alloy_ingot"
+    "layer0": "colossal_reactors:item/unrefined_tough_alloy"
   }
 }

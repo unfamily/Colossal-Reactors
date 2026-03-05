@@ -1,7 +1,7 @@
 {
   "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "create" }],
   "type": "create:crushing",
-  "ingredients": [{ "item": "colossal_reactors:lead_alloy_ingot" }],
+  "ingredients": [{ "tag": "c:ingots/lead" }],
   "results": [{ "item": "colossal_reactors:lead_dust", "count": 1 }],
   "processingTime": 300
 }

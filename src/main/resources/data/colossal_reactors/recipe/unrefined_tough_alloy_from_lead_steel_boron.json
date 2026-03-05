@@ -1,0 +1,18 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/steel"
+      }
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "tag": "c:ingots/lead" },
+    { "tag": "c:ingots/steel" },
+    { "tag": "c:ingots/boron" }
+  ],
+  "result": { "id": "colossal_reactors:unrefined_tough_alloy", "count": 3 }
+}

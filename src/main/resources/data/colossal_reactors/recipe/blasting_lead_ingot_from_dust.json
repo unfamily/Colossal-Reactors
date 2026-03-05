@@ -2,7 +2,7 @@
   "type": "minecraft:blasting",
   "category": "misc",
   "cookingtime": 100,
-  "experience": 0.7,
+  "experience": 0.1,
   "ingredient": { "tag": "c:dusts/lead" },
-  "result": { "id": "colossal_reactors:lead_alloy_ingot", "count": 1 }
+  "result": { "id": "colossal_reactors:lead_ingot", "count": 1 }
 }
