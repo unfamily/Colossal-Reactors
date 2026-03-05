@@ -264,6 +264,36 @@ public class FuelLoader {
     }
 
     /**
+     * Returns a single item stack for the waste output of this fuel type (for tooltip display).
+     * Output is either "#tag" (first item in tag) or "namespace:item_id".
+     */
+    public static ItemStack getFirstOutputStack(ResourceLocation fuelId, RegistryAccess registryAccess) {
+        FuelDefinition def = DEFINITIONS.get(fuelId);
+        if (def == null) return ItemStack.EMPTY;
+        String output = def.output();
+        if (output == null || output.isEmpty()) return ItemStack.EMPTY;
+        if (output.startsWith("#")) {
+            ResourceLocation tagId = ResourceLocation.tryParse(output.substring(1));
+            if (tagId == null) return ItemStack.EMPTY;
+            TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
+            var optItem = registryAccess.lookup(Registries.ITEM)
+                    .flatMap(l -> l.get(tagKey))
+                    .stream()
+                    .flatMap(holders -> holders.stream())
+                    .findFirst()
+                    .map(h -> h.value());
+            if (optItem.isPresent()) return new ItemStack(optItem.get(), 1);
+        } else {
+            ResourceLocation id = ResourceLocation.tryParse(output);
+            if (id != null) {
+                Item item = BuiltInRegistries.ITEM.get(id);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) return new ItemStack(item, 1);
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /**
      * Writes the default fuel JSON into the given reactor directory. Called only by /colossal_reactors dump.
      * Edits to the file override internal defaults when the mod loads.
      */
