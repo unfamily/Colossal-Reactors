@@ -35,7 +35,7 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
     private final IDrawable icon;
 
     public HeatSinkRecipeCategory(IGuiHelper helper) {
-        this.background = new JeiRecipeBackgroundDrawable(WIDTH, HEIGHT, true);
+        this.background = new JeiRecipeBackgroundDrawable(WIDTH, HEIGHT, false);
         this.icon = helper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(ModBlocks.REACTOR_GLASS.get()));
     }
 
@@ -65,20 +65,16 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
+        int slotX = JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X;
+        int slotY = JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y;
+
         List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacks(recipe.validBlocks(), registryAccess);
         List<FluidStack> liquidFluids = JeiIngredientsHelper.getLiquidFluidStacks(recipe.validLiquids(), registryAccess);
 
         if (!blocks.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.INPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addItemStacks(blocks);
-        }
-        if (!liquidFluids.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.INPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addIngredients(NeoForgeTypes.FLUID_STACK, liquidFluids);
+            builder.addSlot(RecipeIngredientRole.INPUT, slotX, slotY).addItemStacks(blocks);
+        } else if (!liquidFluids.isEmpty()) {
+            builder.addSlot(RecipeIngredientRole.INPUT, slotX, slotY).addIngredients(NeoForgeTypes.FLUID_STACK, liquidFluids);
         }
     }
 

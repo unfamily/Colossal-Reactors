@@ -2,10 +2,12 @@ package net.unfamily.colossal_reactors.compat.jei;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import net.minecraft.resources.ResourceLocation;
+import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.ColossalReactors;
@@ -52,6 +54,13 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
                 })
                 .toList();
         registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
+    }
+
+    @Override
+    public void registerGuiHandlers(IGuiHandlerRegistration registration) {
+        // Click on Melter progress bar (77, 34, 24x16) opens JEI to Melter recipe category
+        registration.addRecipeClickArea(MelterScreen.class, MelterScreen.getProgressBarX(), MelterScreen.getProgressBarY(),
+                MelterScreen.getProgressBarWidth(), MelterScreen.getProgressBarHeight(), MelterRecipeCategory.RECIPE_TYPE);
     }
 
     @Override

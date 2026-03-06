@@ -73,6 +73,12 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private static final int PROGRESS_BAR_X = 77;
     private static final int PROGRESS_BAR_Y = SLOT_Y + (18 - PROGRESS_BAR_HEIGHT) / 2;
 
+    /** Exposed for JEI recipe click area (click on progress bar opens Melter recipes). */
+    public static int getProgressBarX() { return PROGRESS_BAR_X; }
+    public static int getProgressBarY() { return PROGRESS_BAR_Y; }
+    public static int getProgressBarWidth() { return PROGRESS_BAR_WIDTH; }
+    public static int getProgressBarHeight() { return PROGRESS_BAR_HEIGHT; }
+
     private Button closeButton;
     private int redstoneButtonScreenX;
     private int redstoneButtonScreenY;

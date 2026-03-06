@@ -340,13 +340,16 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     /**
-     * Fill tank from item or drain tank to item (same rules as Resource Port: always allow both when interacting with bucket).
+     * Fill tank from item or drain tank to item. Only accepts fluids that are valid reactor coolant (heat sink valid_liquids).
      */
     public boolean interactWithItemFluidHandler(IFluidHandlerItem itemHandler, Player player) {
         if (itemHandler.getTanks() == 0) return false;
         IFluidHandler blockHandler = fluidTank;
         FluidStack inItem = itemHandler.getFluidInTank(0);
         if (!inItem.isEmpty()) {
+            if (getLevel() == null) return false;
+            if (HeatSinkLoader.getModifiersForFluid(inItem.getFluid(), getLevel().registryAccess()) == null)
+                return false;
             if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
                 int filled = blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.EXECUTE);
                 if (filled > 0) {

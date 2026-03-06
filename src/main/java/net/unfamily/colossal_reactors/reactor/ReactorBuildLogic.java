@@ -7,6 +7,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
@@ -176,9 +178,12 @@ public final class ReactorBuildLogic {
         }
 
         // Interior: liquids and heat sinks use FULL interior (1..w-2, 1..h-2, 1..d-2). Rods use only rod space (insetXZ area).
+        // Only use tank fluid if it is a valid reactor coolant (heat sink valid_liquids).
         int patternMode = builder.getPatternMode();
         Fluid fluid = builder.getFluidTank().getFluid().getFluid();
-        if (fluid != null && fluid != net.minecraft.world.level.material.Fluids.EMPTY && builder.getFluidTank().getFluidAmount() >= MB_PER_LIQUID_BLOCK) {
+        if (fluid != null && fluid != Fluids.EMPTY
+                && HeatSinkLoader.getModifiersForFluid(fluid, level.registryAccess()) != null
+                && builder.getFluidTank().getFluidAmount() >= MB_PER_LIQUID_BLOCK) {
             for (int lx = 1; lx < w - 1; lx++) {
                 for (int ly = 1; ly < h - 1; ly++) {
                     for (int lz = 1; lz < d - 1; lz++) {
@@ -187,7 +192,7 @@ public final class ReactorBuildLogic {
                             if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                         } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                         BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
-                        if (!canReplace(level, pos)) continue;
+                        if (!canReplaceForLiquid(level, pos, fluid)) continue;
                         BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
                         if (liquidBlock.isAir()) continue;
                         level.setBlock(pos, liquidBlock, 3);
@@ -269,6 +274,28 @@ public final class ReactorBuildLogic {
     private static boolean canReplace(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         return state.isAir() || state.canBeReplaced();
+    }
+
+    /**
+     * True if we can place a liquid block at pos: air, or replaceable block that is not already the same fluid source.
+     * Prevents repeatedly "placing" on the same liquid source block (which would drain tank without changing the world).
+     */
+    private static boolean canReplaceForLiquid(ServerLevel level, BlockPos pos, Fluid fluidToPlace) {
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return true;
+        if (!state.canBeReplaced()) return false;
+        FluidState fluidState = state.getFluidState();
+        if (fluidState.isEmpty()) return true;
+        Fluid existingSource = resolveFluidToSource(fluidState.getType());
+        Fluid placeSource = resolveFluidToSource(fluidToPlace);
+        if (existingSource == placeSource && fluidState.isSource()) return false;
+        return true;
+    }
+
+    private static Fluid resolveFluidToSource(Fluid fluid) {
+        if (fluid == null || fluid == Fluids.EMPTY) return fluid;
+        if (fluid instanceof net.minecraft.world.level.material.FlowingFluid flowing) return flowing.getSource();
+        return fluid;
     }
 
     /** True if position is on frame/cornice (edge or corner: at least 2 dimensions on boundary). */
