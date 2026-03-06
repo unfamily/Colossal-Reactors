@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Melter GUI. Slot at (43,32), tank at (117,14), progress bar between them (left to right).
+ * Melter GUI. Slot at (44,33), tank at (118,15), progress bar between them (left to right).
  * Empty bar always visible on top of fill. Close button X. Tooltips for tank and default slot.
  */
 public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
@@ -41,22 +41,22 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    /** Input slot (43, 32) */
-    private static final int SLOT_X = 43;
-    private static final int SLOT_Y = 32;
+    /** Input slot (44, 33) — +1 from border position */
+    private static final int SLOT_X = 44;
+    private static final int SLOT_Y = 33;
 
-    /** Tank at (117, 14); same dimensions as resource port fluid bar */
+    /** Tank at (117, 14) — 1px left and 1px up from previous */
     private static final int FLUID_BAR_X = 117;
     private static final int FLUID_BAR_Y = 14;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
 
-    /** Progress bar 24x16, between slot and tank */
+    /** Progress bar 24x16, between slot and tank; vertically centered with slot (slot center Y = 32 + 9 = 41) */
     private static final int PROGRESS_BAR_WIDTH = 24;
     private static final int PROGRESS_BAR_HEIGHT = 16;
     private static final int PROGRESS_BAR_X = 77;
-    private static final int PROGRESS_BAR_Y = 24;
+    private static final int PROGRESS_BAR_Y = SLOT_Y + (18 - PROGRESS_BAR_HEIGHT) / 2;
 
     private Button closeButton;
 
@@ -85,17 +85,18 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
         int y = topPos;
         guiGraphics.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
 
-        int progress = menu.getMaxProgress() > 0 ? menu.getProgress() : 0;
+        // Progress bar: left to right (like Pattern-Crafter style). Draw background first, then fill on top.
+        int progress = menu.getProgress();
         int maxProgress = menu.getMaxProgress();
         int fillWidth = (maxProgress > 0 && progress > 0) ? (progress * PROGRESS_BAR_WIDTH) / maxProgress : 0;
+        guiGraphics.blit(PROGRESS_EMPTY, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
+                0, 0, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT,
+                PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
         if (fillWidth > 0) {
             guiGraphics.blit(PROGRESS_FILLED, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
                     0, 0, fillWidth, PROGRESS_BAR_HEIGHT,
                     PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
         }
-        guiGraphics.blit(PROGRESS_EMPTY, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
-                0, 0, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT,
-                PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
 
         int amount = menu.getFluidAmount();
         int capacity = menu.getFluidCapacity();

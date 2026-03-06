@@ -1,7 +1,8 @@
 {
   "variants": {
-    "": {
-      "model": "colossal_reactors:block/melter"
-    }
+    "facing=north": { "model": "colossal_reactors:block/melter", "y": 0 },
+    "facing=south": { "model": "colossal_reactors:block/melter", "y": 180 },
+    "facing=east": { "model": "colossal_reactors:block/melter", "y": 90 },
+    "facing=west": { "model": "colossal_reactors:block/melter", "y": 270 }
   }
 }

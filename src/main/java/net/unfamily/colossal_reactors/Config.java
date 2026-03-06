@@ -23,6 +23,10 @@ public class Config {
             .comment("Log reactor simulation (heat sink rod/adj/nonAdj, weights, fuel/energy mult) each tick. Default: false")
             .define("002_reactor_simulation_debug", false);
 
+    public static final ModConfigSpec.ConfigValue<Boolean> MELTER_DEBUG = BUILDER
+            .comment("Log why the Melter is not advancing when it has input (no recipe, fluid not found, heat product). Default: false")
+            .define("003_melter_debug", false);
+
     static {
         BUILDER.pop();
     }

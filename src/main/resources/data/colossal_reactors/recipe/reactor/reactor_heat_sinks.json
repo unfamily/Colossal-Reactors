@@ -37,6 +37,12 @@
       "fuel": 2.5,
       "energy": -5.0,
       "overheating": 2.5
+    },
+    {
+      "valid_blocks": ["colossal_reactors:gelid_breezium"],
+      "fuel": 2.0,
+      "energy": 5.0,
+      "overheating": 5.0
     }
   ]
 }

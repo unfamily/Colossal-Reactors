@@ -3,7 +3,7 @@
   "entries": [
     {
       "input": "#c:rods/breeze",
-      "output": "colossal_reactors:gelid_breezium", 
+      "output": "colossal_reactors:gelid_breezium",
       "amount": 100,
       "time": 200
     }

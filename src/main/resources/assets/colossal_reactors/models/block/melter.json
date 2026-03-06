@@ -1,6 +1,8 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/orientable",
   "textures": {
-    "all": "colossal_reactors:block/melter_side"
+    "top": "colossal_reactors:block/melter_side",
+    "front": "colossal_reactors:block/melter_front",
+    "side": "colossal_reactors:block/melter_side"
   }
 }

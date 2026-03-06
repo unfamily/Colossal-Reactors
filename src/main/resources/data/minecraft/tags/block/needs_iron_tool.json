@@ -8,6 +8,7 @@
     "colossal_reactors:power_port",
     "colossal_reactors:redstone_port",
     "colossal_reactors:resource_port",
+    "colossal_reactors:melter",
     "colossal_reactors:rod_controller",
     "colossal_reactors:uranium_ore",
     "colossal_reactors:deep_uranium_ore",

@@ -404,6 +404,20 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         return hasItemRequirement() ? itemHandler : NoItemHandler.INSTANCE;
     }
 
+    /** Drops all items from the input slot into the world. Call when the block is broken. */
+    public void dropAllContents() {
+        Level level = getLevel();
+        if (level == null || level.isClientSide()) return;
+        BlockPos pos = getBlockPos();
+        for (int i = 0; i < itemHandler.getSlots(); i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                Block.popResource(level, pos, stack);
+                itemHandler.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
+    }
+
     public IFluidHandler getFluidHandler() {
         return fluidTank;
     }

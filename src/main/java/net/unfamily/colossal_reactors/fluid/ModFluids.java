@@ -90,7 +90,7 @@ public final class ModFluids {
                     }
                 });
 
-        return registerTintedFluid(name, type, 7);
+        return registerTintedFluid(name, type, 7, false);
     }
 
     /**
@@ -132,13 +132,14 @@ public final class ModFluids {
                     }
                 });
 
-        return registerTintedFluid("gelid_breezium", type, 0);
+        return registerTintedFluid("gelid_breezium", type, 0, true);
     }
 
     /**
      * Shared registration for a tinted fluid (block, bucket, source, flowing).
+     * @param sourceIdIsBaseName if true, register source fluid as {@code name} (so recipe id matches); if false, as {@code name + "_source"} (e.g. for Synergy).
      */
-    private static TintedFluid registerTintedFluid(String name, DeferredHolder<FluidType, FluidType> type, int blockLightLevel) {
+    private static TintedFluid registerTintedFluid(String name, DeferredHolder<FluidType, FluidType> type, int blockLightLevel, boolean sourceIdIsBaseName) {
         var refs = new Object() {
             DeferredHolder<Fluid, BaseFlowingFluid.Source> source;
             DeferredHolder<Fluid, FlowingFluid> flowing;
@@ -153,7 +154,8 @@ public final class ModFluids {
                 .block(() -> (LiquidBlock) refs.block.get())
                 .bucket(() -> refs.bucket.get());
 
-        refs.source = FLUIDS.register(name + "_source", () -> new BaseFlowingFluid.Source(prop));
+        String sourceId = sourceIdIsBaseName ? name : (name + "_source");
+        refs.source = FLUIDS.register(sourceId, () -> new BaseFlowingFluid.Source(prop));
         refs.flowing = FLUIDS.register(name + "_flowing", () -> new BaseFlowingFluid.Flowing(prop));
         refs.block = ModBlocks.BLOCKS.register(name,
                 () -> new LiquidBlock(refs.flowing.get(), BlockBehaviour.Properties.of()

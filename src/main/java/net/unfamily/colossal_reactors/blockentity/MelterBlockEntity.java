@@ -23,11 +23,16 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 import net.unfamily.colossal_reactors.menu.MelterMenu;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Melter: no direct fuel; heated by adjacent blocks/fluids (melter_heats).
@@ -35,7 +40,10 @@ import org.jetbrains.annotations.Nullable;
  */
 public class MelterBlockEntity extends BlockEntity implements MenuProvider {
 
-    private static final int TANK_CAPACITY_MB = 10_000;
+    private static final Logger LOGGER = LoggerFactory.getLogger(MelterBlockEntity.class);
+    private static final int TANK_CAPACITY_MB = 4000;
+    /** Log at most every this many ticks when melter has input but does not advance (debug). */
+    private static final int DEBUG_LOG_INTERVAL = 80;
     private static final String TAG_ITEMS = "Items";
     private static final String TAG_FLUID = "Fluid";
     private static final String TAG_FLUID_AMOUNT = "FluidAmount";
@@ -98,19 +106,29 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
 
     private void serverTick(Level level, BlockPos pos) {
         ItemStack input = itemHandler.getStackInSlot(0);
+        boolean hasInput = !input.isEmpty();
+        long gt = level.getGameTime();
+
         MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(input, level.registryAccess());
         if (recipe == null) {
             progress = 0;
+            if (Config.MELTER_DEBUG.get() && hasInput && gt % DEBUG_LOG_INTERVAL == 0) {
+                LOGGER.info("[Melter {}] No recipe for item {} (loaded recipes: {})",
+                        pos, BuiltInRegistries.ITEM.getKey(input.getItem()), MelterRecipesLoader.getAll().size());
+            }
             return;
         }
         if (input.getCount() < recipe.count()) {
             progress = 0;
             return;
         }
-        Fluid fluid = level.registryAccess().registry(net.minecraft.core.registries.Registries.FLUID)
-                .map(r -> r.get(recipe.outputFluidId())).orElse(null);
+        // Resolve recipe output fluid: use mod's DeferredHolder for our fluids so server always finds them
+        Fluid fluid = resolveOutputFluid(recipe.outputFluidId());
         if (fluid == null || fluid.equals(Fluids.EMPTY)) {
             progress = 0;
+            if (Config.MELTER_DEBUG.get() && gt % DEBUG_LOG_INTERVAL == 0) {
+                LOGGER.info("[Melter {}] Output fluid not found: {}", pos, recipe.outputFluidId());
+            }
             return;
         }
         FluidStack current = fluidTank.getFluid();
@@ -132,17 +150,33 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         double product = up * down * east * west * north * south;
         if (product <= 0) {
             progress = 0;
+            if (Config.MELTER_DEBUG.get() && gt % DEBUG_LOG_INTERVAL == 0) {
+                LOGGER.info("[Melter {}] Heat product <= 0 (up={} down={} e={} w={} n={} s={})",
+                        pos, up, down, east, west, north, south);
+            }
             return;
         }
         int finalTime = (int) Math.max(1, Math.floor((double) recipe.timeTicks() / product));
 
         progress++;
+        setChanged(); // so client receives progress updates (menu sync / BE update)
         if (progress >= finalTime) {
             progress = 0;
             itemHandler.extractItem(0, recipe.count(), false);
             fluidTank.fill(new FluidStack(fluid, recipe.amountMb()), IFluidHandler.FluidAction.EXECUTE);
             setChanged();
         }
+    }
+
+    /** Resolve recipe output fluid by id. Uses mod's fluids for our namespace; otherwise registry. */
+    @Nullable
+    private Fluid resolveOutputFluid(ResourceLocation fluidId) {
+        if (ColossalReactors.MODID.equals(fluidId.getNamespace())) {
+            String path = fluidId.getPath();
+            if ("gelid_breezium".equals(path)) return ModFluids.GELID_BREEZIUM.getSource();
+            if ("molten_tough_alloy".equals(path) || "molten_tough_alloy_source".equals(path)) return ModFluids.MOLTEN_TOUGH_ALLOY.getSource();
+        }
+        return BuiltInRegistries.FLUID.get(fluidId);
     }
 
     /** Max progress (final time) for current recipe; 0 if none. */
@@ -183,6 +217,20 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
 
     public ContainerData getData() {
         return data;
+    }
+
+    /** Drops all items from the input slot into the world. Call when the block is broken. */
+    public void dropAllContents() {
+        Level level = getLevel();
+        if (level == null || level.isClientSide()) return;
+        BlockPos pos = getBlockPos();
+        for (int i = 0; i < itemHandler.getSlots(); i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                net.minecraft.world.level.block.Block.popResource(level, pos, stack);
+                itemHandler.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
     }
 
     @Override

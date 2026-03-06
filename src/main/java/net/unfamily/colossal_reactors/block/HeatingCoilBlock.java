@@ -89,6 +89,17 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
         return new HeatingCoilBlockEntity(pos, state);
     }
 
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof HeatingCoilBlockEntity coil) {
+                coil.dropAllContents();
+            }
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

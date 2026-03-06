@@ -82,6 +82,27 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                     processOneResource(location, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats);
                 }
             }
+            // Fallback: load mod's builtin melter JSON if not found via listResourceStacks
+            ResourceLocation builtinRecipes = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/melter/melter_recipes.json");
+            ResourceLocation builtinHeats = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/melter/melter_heats.json");
+            if (melterRecipes.isEmpty() || !stacks.containsKey(builtinRecipes)) {
+                try {
+                    for (Resource resource : resourceManager.getResourceStack(builtinRecipes)) {
+                        processOneResource(builtinRecipes, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats);
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Could not load builtin melter_recipes.json: {}", e.getMessage());
+                }
+            }
+            if (melterHeats.isEmpty() || !stacks.containsKey(builtinHeats)) {
+                try {
+                    for (Resource resource : resourceManager.getResourceStack(builtinHeats)) {
+                        processOneResource(builtinHeats, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats);
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Could not load builtin melter_heats.json: {}", e.getMessage());
+                }
+            }
             prepareProfiler.pop();
             return new LoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats);
         }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(data -> {

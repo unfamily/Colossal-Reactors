@@ -14,7 +14,7 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
 
 /**
- * Melter container. Input slot at (43, 32), player inventory at (8, 84), hotbar at (8, 142).
+ * Melter container. Input slot at (44, 33), player inventory at (8, 84), hotbar at (8, 142).
  */
 public class MelterMenu extends AbstractContainerMenu {
 
@@ -27,7 +27,7 @@ public class MelterMenu extends AbstractContainerMenu {
         this.data = data;
         addDataSlots(data);
 
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 43, 32));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 33));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
@@ -45,7 +45,7 @@ public class MelterMenu extends AbstractContainerMenu {
         this.data = new SimpleContainerData(8);
         addDataSlots(data);
 
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 43, 32));
+        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 44, 33));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {

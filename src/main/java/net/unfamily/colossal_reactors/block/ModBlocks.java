@@ -53,7 +53,8 @@ public class ModBlocks {
     public static final DeferredBlock<MelterBlock> MELTER = BLOCKS.register("melter",
             () -> new MelterBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
-                    .strength(2.0f)));
+                    .strength(2.0f)
+                    .requiresCorrectToolForDrops()));
 
     public static final DeferredBlock<Block> ROD_CONTROLLER = BLOCKS.register("rod_controller",
             () -> new Block(BlockBehaviour.Properties.of()
