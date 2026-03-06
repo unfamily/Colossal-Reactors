@@ -25,9 +25,7 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
-import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.MelterBlock;
-import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
@@ -145,13 +143,12 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
             setActiveState(level, pos, false);
             return;
         }
-        // Resolve recipe output fluid: use mod's DeferredHolder for our fluids so server always finds them
-        Fluid fluid = resolveOutputFluid(recipe.outputFluidId());
+        Fluid fluid = MelterRecipesLoader.getOutputFluid(recipe, level.registryAccess());
         if (fluid == null || fluid.equals(Fluids.EMPTY)) {
             progress = 0;
             setActiveState(level, pos, false);
             if (Config.MELTER_DEBUG.get() && gt % DEBUG_LOG_INTERVAL == 0) {
-                LOGGER.info("[Melter {}] Output fluid not found: {}", pos, recipe.outputFluidId());
+                LOGGER.info("[Melter {}] Output fluid not found: {} (tag={})", pos, recipe.outputFluidId(), recipe.outputIsTag());
             }
             return;
         }
@@ -236,17 +233,6 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         if (!(state.getBlock() instanceof MelterBlock) || !state.hasProperty(MelterBlock.ACTIVE)) return;
         if (state.getValue(MelterBlock.ACTIVE) == active) return;
         level.setBlock(pos, state.setValue(MelterBlock.ACTIVE, active), 3);
-    }
-
-    /** Resolve recipe output fluid by id. Uses mod's fluids for our namespace; otherwise registry. */
-    @Nullable
-    private Fluid resolveOutputFluid(ResourceLocation fluidId) {
-        if (ColossalReactors.MODID.equals(fluidId.getNamespace())) {
-            String path = fluidId.getPath();
-            if ("gelid_breezium".equals(path)) return ModFluids.GELID_BREEZIUM.getSource();
-            if ("molten_tough_alloy".equals(path) || "molten_tough_alloy_source".equals(path)) return ModFluids.MOLTEN_TOUGH_ALLOY.getSource();
-        }
-        return BuiltInRegistries.FLUID.get(fluidId);
     }
 
     /** Max progress (final time) for current recipe; 0 if none. */

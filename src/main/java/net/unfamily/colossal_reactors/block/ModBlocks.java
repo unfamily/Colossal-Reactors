@@ -66,6 +66,15 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
 
+    public static final DeferredBlock<LightningGeneratorBlock> LIGHTNING_GENERATOR = BLOCKS.register("lightning_generator",
+            () -> new LightningGeneratorBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<HighPowerLightningRodBlock> HIGH_POWER_LIGHTNING_ROD = BLOCKS.register("high_power_lightning_rod",
+            () -> new HighPowerLightningRodBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+
     // Resource ores (stone + deepslate)
     public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.register("uranium_ore",
             () -> new Block(BlockBehaviour.Properties.of()

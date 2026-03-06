@@ -22,6 +22,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
+import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -77,7 +78,7 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
             ).addItemStacks(inputs);
         }
 
-        var fluid = net.minecraft.core.registries.BuiltInRegistries.FLUID.get(recipe.outputFluidId());
+        var fluid = MelterRecipesLoader.getOutputFluid(recipe, registryAccess);
         if (fluid != null && fluid != Fluids.EMPTY) {
             // Display as 1000 mB so JEI shows a full tank; real amount is in the text below
             FluidStack out = new FluidStack(fluid, 1000);

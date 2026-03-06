@@ -22,6 +22,7 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
+import net.unfamily.colossal_reactors.blockentity.LightningGeneratorBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
@@ -95,6 +96,9 @@ public class ColossalReactors {
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandlerForCapability());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.LIGHTNING_GENERATOR_BE.get(),
+                (be, direction) -> direction == be.getBlockState().getValue(net.unfamily.colossal_reactors.block.LightningGeneratorBlock.FACING)
+                        ? ((LightningGeneratorBlockEntity) be).getEnergyStorageForCapability() : null);
     }
 
     private void gatherData(GatherDataEvent event) {

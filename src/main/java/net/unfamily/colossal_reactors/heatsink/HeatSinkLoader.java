@@ -232,6 +232,26 @@ public final class HeatSinkLoader {
         return id != null ? BuiltInRegistries.FLUID.get(id) : null;
     }
 
+    /**
+     * True if the builder's selected heat sink filter (index 1..) is a liquid type and the given fluid matches it.
+     * Used by reactor builder: place liquid from tank only when the coolant filter is set to that liquid.
+     */
+    public static boolean isFluidMatchingSelectedHeatSink(RegistryAccess registryAccess, int selectedHeatSinkIndex, Fluid fluid) {
+        if (fluid == null || fluid == Fluids.EMPTY) return false;
+        if (selectedHeatSinkIndex <= 0) return false;
+        int defIdx = selectedHeatSinkIndex - 1;
+        if (defIdx >= DEFINITIONS.size()) return false;
+        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        if (def.validLiquids().isEmpty()) return false;
+        for (String selector : def.validLiquids()) {
+            if (fluidMatches(fluid, selector, registryAccess)) {
+                if (def.mustSource() && !fluid.defaultFluidState().isSource()) continue;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */
     public static List<HeatSinkDefinition> getAllDefinitions() {
         return List.copyOf(DEFINITIONS);

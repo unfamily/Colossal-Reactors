@@ -1,7 +1,12 @@
 package net.unfamily.colossal_reactors.melter;
 
 import com.google.gson.JsonObject;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +70,9 @@ public final class MelterRecipesLoader {
             LOGGER.warn("Melter recipe in {}: invalid input", source);
             return null;
         }
-        ResourceLocation outputFluidId = ResourceLocation.tryParse(json.get(KEY_OUTPUT).getAsString());
+        String outputStr = json.get(KEY_OUTPUT).getAsString();
+        boolean outputIsTag = outputStr.startsWith("#");
+        ResourceLocation outputFluidId = ResourceLocation.tryParse(outputIsTag ? outputStr.substring(1) : outputStr);
         if (outputFluidId == null) {
             LOGGER.warn("Melter recipe in {}: invalid output", source);
             return null;
@@ -78,6 +85,22 @@ public final class MelterRecipesLoader {
         }
         int count = json.has(KEY_COUNT) ? json.get(KEY_COUNT).getAsInt() : MelterRecipe.DEFAULT_COUNT;
         if (count <= 0) count = MelterRecipe.DEFAULT_COUNT;
-        return new MelterRecipe(inputId, inputIsTag, outputFluidId, amount, time, count);
+        return new MelterRecipe(inputId, inputIsTag, outputFluidId, outputIsTag, amount, time, count);
+    }
+
+    /** Resolve recipe output to a fluid (from direct id or first fluid in tag). Returns null if not found. */
+    @Nullable
+    public static Fluid getOutputFluid(MelterRecipe recipe, RegistryAccess registryAccess) {
+        if (recipe.outputIsTag()) {
+            TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, recipe.outputFluidId());
+            return registryAccess.lookup(Registries.FLUID)
+                    .flatMap(l -> l.get(tagKey))
+                    .flatMap(holders -> holders.stream().findFirst())
+                    .map(h -> h.value())
+                    .orElse(null);
+        }
+        return registryAccess.registry(Registries.FLUID)
+                .map(reg -> reg.get(recipe.outputFluidId()))
+                .orElse(null);
     }
 }

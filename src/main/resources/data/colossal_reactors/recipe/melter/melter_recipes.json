@@ -3,8 +3,38 @@
   "entries": [
     {
       "input": "#c:rods/breeze",
-      "output": "colossal_reactors:gelid_breezium",
+      "output": "#c:breezium",
       "amount": 100,
+      "time": 200
+    },
+    {
+      "input": "#c:catalysts/breezium",
+      "output": "#c:breezium",
+      "amount": 100,
+      "time": 200
+    },
+    {
+      "input": "#c:ender_pearls",
+      "output": "#c:ender",
+      "amount": 250,
+      "time": 200
+    },
+    {
+      "input": "#c:cobblestones",
+      "output": "#c:lava",
+      "amount": 100,
+      "time": 200
+    },
+    {
+      "input": "#c:netherracks",
+      "output": "#c:lava",
+      "amount": 250,
+      "time": 200
+    },
+    {
+      "input": "#c:obsidians",
+      "output": "#c:lava",
+      "amount": 1000,
       "time": 200
     }
   ]
