@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "colossal_reactors:heating_coil_resource"
+          "name": "colossal_reactors:heating_coil_resource_off"
         }
       ],
       "conditions": [

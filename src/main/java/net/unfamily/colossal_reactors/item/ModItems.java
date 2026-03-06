@@ -114,7 +114,7 @@ public class ModItems {
     static {
         for (ResourceLocation coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
             String path = coilId.getPath();
-            DeferredItem<BlockItem> offItem = ITEMS.register(path,
+            DeferredItem<BlockItem> offItem = ITEMS.register(path + "_off",
                     () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, false), new Item.Properties()));
             HEATING_COIL_ITEMS.add(offItem);
             HEATING_COIL_OFF_ITEMS.add(offItem);

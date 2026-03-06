@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["ABA", "BCB", "ABA"],
+  "key": {
+    "A": { "tag": "c:ingots/iron" },
+    "B": { "tag": "c:ingots/copper" },
+    "C": { "item": "minecraft:hopper" }
+  },
+  "result": { "id": "colossal_reactors:heating_coil_energy_off", "count": 1 }
+}
