@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "pattern": ["ABA", "BCB", "ABA"],
   "key": {
-    "A": { "tag": "c:ingots/iron" },
+    "A": { "tag": "c:ingots/graphite" },
     "B": { "tag": "c:ingots/copper" },
     "C": { "item": "minecraft:hopper" }
   },
