@@ -79,7 +79,8 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
 
         var fluid = net.minecraft.core.registries.BuiltInRegistries.FLUID.get(recipe.outputFluidId());
         if (fluid != null && fluid != Fluids.EMPTY) {
-            FluidStack out = new FluidStack(fluid, recipe.amountMb());
+            // Display as 1000 mB so JEI shows a full tank; real amount is in the text below
+            FluidStack out = new FluidStack(fluid, 1000);
             builder.addSlot(RecipeIngredientRole.OUTPUT,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y

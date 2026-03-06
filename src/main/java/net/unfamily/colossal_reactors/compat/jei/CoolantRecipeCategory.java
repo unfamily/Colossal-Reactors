@@ -5,6 +5,7 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
+import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
@@ -14,6 +15,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
@@ -63,17 +65,19 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition>
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        List<ItemStack> inputs = JeiIngredientsHelper.getCoolantInputBuckets(recipe.inputs(), registryAccess);
-        List<ItemStack> outputs = JeiIngredientsHelper.getOutputBuckets(recipe.output(), registryAccess);
-        if (!inputs.isEmpty()) {
+        List<FluidStack> inputFluids = JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputs(), registryAccess);
+        List<FluidStack> outputFluids = JeiIngredientsHelper.getOutputFluidStacks(recipe.output(), registryAccess);
+        if (!inputFluids.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y).addItemStacks(inputs);
+                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
         }
-        if (!outputs.isEmpty()) {
+        if (!outputFluids.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.OUTPUT,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y).addItemStacks(outputs);
+                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
         }
     }
 

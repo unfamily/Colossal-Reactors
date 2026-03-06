@@ -105,8 +105,11 @@ public class ModItems {
 
     static {
         for (ResourceLocation coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
-            HEATING_COIL_ITEMS.add(ITEMS.register(coilId.getPath(),
+            String path = coilId.getPath();
+            HEATING_COIL_ITEMS.add(ITEMS.register(path,
                     () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, false), new Item.Properties())));
+            HEATING_COIL_ITEMS.add(ITEMS.register(path + "_on",
+                    () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, true), new Item.Properties())));
         }
     }
 

@@ -5,6 +5,7 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
+import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
@@ -33,7 +34,8 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil");
     private static final int WIDTH = 170;
-    private static final int HEIGHT = 72;
+    private static final int HEIGHT = 112;
+    private static final int FLUID_DISPLAY_AMOUNT_MB = 1000;
 
     public static final RecipeType<HeatingCoilJeiRecipe> RECIPE_TYPE = new RecipeType<>(UID, HeatingCoilJeiRecipe.class);
 
@@ -91,12 +93,12 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
 
         if (opt.fluid() != null) {
             ConsumeOption.FluidRequirement fluidReq = opt.fluid();
-            List<ItemStack> buckets = resolveFluidSelectorToBuckets(fluidReq, registryAccess);
-            if (!buckets.isEmpty()) {
+            List<FluidStack> fluidStacks = resolveFluidRequirementToStacks(fluidReq, registryAccess);
+            if (!fluidStacks.isEmpty()) {
                 int x = getInputSlotX(slotIdx++);
                 builder.addSlot(RecipeIngredientRole.INPUT, x + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
                         JeiHeatingCoilBackgroundDrawable.IN_Y + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_Y)
-                        .addItemStacks(buckets);
+                        .addIngredients(NeoForgeTypes.FLUID_STACK, fluidStacks);
             }
         }
 
@@ -150,25 +152,37 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
         if (opt.fluid() != null) {
             ConsumeOption.FluidRequirement fluidReq = opt.fluid();
             guiGraphics.drawString(font,
-                    Component.translatable("jei.colossal_reactors.coil.fluid", fluidReq.activation(), fluidReq.substain()),
+                    Component.translatable("jei.colossal_reactors.coil.activate", fluidReq.activation() + " mB"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+            guiGraphics.drawString(font,
+                    Component.translatable("jei.colossal_reactors.coil.substain", fluidReq.substain() + " mB"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.item() != null) {
             ConsumeOption.ItemRequirement itemReq = opt.item();
             guiGraphics.drawString(font,
-                    Component.translatable("jei.colossal_reactors.coil.item", itemReq.activation(), itemReq.substain()),
+                    Component.translatable("jei.colossal_reactors.coil.activate", itemReq.activation()),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+            guiGraphics.drawString(font,
+                    Component.translatable("jei.colossal_reactors.coil.substain", itemReq.substain()),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.burnable() != null) {
             ConsumeOption.BurnableRequirement burnReq = opt.burnable();
             guiGraphics.drawString(font,
-                    Component.translatable("jei.colossal_reactors.coil.burnable_any", burnReq.activation(), burnReq.substain()),
+                    Component.translatable("jei.colossal_reactors.coil.activate", burnReq.activation() + " t"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+            guiGraphics.drawString(font,
+                    Component.translatable("jei.colossal_reactors.coil.substain", burnReq.substain() + " t"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.energy() != null) {
             ConsumeOption.EnergyRequirement energyReq = opt.energy();
             guiGraphics.drawString(font,
-                    Component.translatable("jei.colossal_reactors.coil.energy", energyReq.activation(), energyReq.substain()),
+                    Component.translatable("jei.colossal_reactors.coil.activate", energyReq.activation() + " RF"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+            guiGraphics.drawString(font,
+                    Component.translatable("jei.colossal_reactors.coil.substain", energyReq.substain() + " RF"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
     }
@@ -196,39 +210,20 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
         return out;
     }
 
-    private static List<ItemStack> resolveFluidSelectorToBuckets(ConsumeOption.FluidRequirement req, net.minecraft.core.RegistryAccess registryAccess) {
-        List<ItemStack> out = new ArrayList<>();
+    private static List<FluidStack> resolveFluidRequirementToStacks(ConsumeOption.FluidRequirement req, net.minecraft.core.RegistryAccess registryAccess) {
+        List<FluidStack> out = new ArrayList<>();
         if (req.isTag()) {
             TagKey<Fluid> tagKey = TagKey.create(net.minecraft.core.registries.Registries.FLUID, req.tagOrId());
             registryAccess.lookup(net.minecraft.core.registries.Registries.FLUID).ifPresent(lookup ->
                     lookup.get(tagKey).ifPresent(holders ->
-                            holders.forEach(h -> {
-                                ItemStack bucket = fluidToBucket(h.value());
-                                if (!bucket.isEmpty()) out.add(bucket);
-                            })));
+                            holders.forEach(h -> out.add(new FluidStack(h.value(), FLUID_DISPLAY_AMOUNT_MB)))));
         } else {
             Fluid fluid = net.minecraft.core.registries.BuiltInRegistries.FLUID.get(req.tagOrId());
             if (fluid != null && fluid != Fluids.EMPTY) {
-                ItemStack bucket = fluidToBucket(fluid);
-                if (!bucket.isEmpty()) out.add(bucket);
+                out.add(new FluidStack(fluid, FLUID_DISPLAY_AMOUNT_MB));
             }
         }
         return out;
-    }
-
-    private static ItemStack fluidToBucket(Fluid fluid) {
-        if (fluid == null || fluid == Fluids.EMPTY) return ItemStack.EMPTY;
-        for (Item item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
-            ItemStack stack = new ItemStack(item, 1);
-            var cap = stack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM);
-            if (cap != null) {
-                FluidStack in = cap.getFluidInTank(0);
-                if (!in.isEmpty() && in.getFluid() == fluid) {
-                    return new ItemStack(item, 1);
-                }
-            }
-        }
-        return ItemStack.EMPTY;
     }
 }
 

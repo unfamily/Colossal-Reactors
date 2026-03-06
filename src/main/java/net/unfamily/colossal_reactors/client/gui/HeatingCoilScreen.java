@@ -73,6 +73,8 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
             ColossalReactors.MODID, "textures/gui/redstone_gui.png");
     private static final int REDSTONE_BUTTON_SIZE = 16;
     private static final int REDSTONE_BUTTON_X = CLOSE_BUTTON_X - REDSTONE_BUTTON_SIZE - 4;
+    /** Redstone button Y: vertically centered with input item slot (slot center = SLOT_Y + SLOT_SIZE/2) */
+    private static final int REDSTONE_BUTTON_Y = SLOT_Y + (SLOT_SIZE - REDSTONE_BUTTON_SIZE) / 2;
 
     private Button closeButton;
     private int redstoneButtonScreenX;
@@ -96,7 +98,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 .build();
         addRenderableWidget(closeButton);
         redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
-        redstoneButtonScreenY = topPos + CLOSE_BUTTON_Y;
+        redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
     }
 
     @Override

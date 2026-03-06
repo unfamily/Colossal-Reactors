@@ -20,6 +20,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
@@ -288,8 +289,78 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         return itemHandler;
     }
 
+    /** Raw tank for internal use (recipe output). */
     public IFluidHandler getFluidHandler() {
         return fluidTank;
+    }
+
+    /** Fluid handler for capability: drain only (bucket/pipes can extract, not insert). */
+    public IFluidHandler getFluidHandlerForCapability() {
+        return new DrainOnlyFluidHandler();
+    }
+
+    /**
+     * Handles bucket/fluid container: drain only (empty bucket fills from tank; full bucket does not fill tank).
+     * Returns true if a transfer occurred; caller must update player hand with itemHandler.getContainer().
+     */
+    public boolean interactWithItemFluidHandlerDrainOnly(IFluidHandlerItem itemHandler, Player player) {
+        if (itemHandler.getTanks() == 0) return false;
+        FluidStack inItem = itemHandler.getFluidInTank(0);
+        if (!inItem.isEmpty()) {
+            // Item has fluid: do not allow filling the melter
+            return false;
+        }
+        // Item empty: drain from melter to item
+        FluidStack inBlock = fluidTank.getFluid();
+        if (inBlock.isEmpty() || !itemHandler.isFluidValid(0, inBlock)) return false;
+        int capacity = itemHandler.getTankCapacity(0);
+        FluidStack toFill = inBlock.copy();
+        toFill.setAmount(Math.min(inBlock.getAmount(), capacity));
+        int filled = itemHandler.fill(toFill, IFluidHandler.FluidAction.EXECUTE);
+        if (filled > 0) {
+            fluidTank.drain(filled, IFluidHandler.FluidAction.EXECUTE);
+            var soundEvent = inBlock.getFluid().getFluidType().getSound(net.neoforged.neoforge.common.SoundActions.BUCKET_FILL);
+            if (soundEvent != null) player.playSound(soundEvent);
+            return true;
+        }
+        return false;
+    }
+
+    private final class DrainOnlyFluidHandler implements IFluidHandler {
+        @Override
+        public int getTanks() {
+            return fluidTank.getTanks();
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            return fluidTank.getFluidInTank(tank);
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return fluidTank.getTankCapacity(tank);
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return fluidTank.isFluidValid(tank, stack);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return 0;
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            return fluidTank.drain(resource, action);
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            return fluidTank.drain(maxDrain, action);
+        }
     }
 
     public ContainerData getData() {

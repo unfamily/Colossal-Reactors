@@ -117,6 +117,8 @@
   "jei.colossal_reactors.coil.item": "Oggetto: attiva %s, sostiene %s",
   "jei.colossal_reactors.coil.burnable_any": "Bruciabile (qualunque): attiva %s t, sostiene %s t",
   "jei.colossal_reactors.coil.energy": "Energia: attiva %s RF, sostiene %s RF",
+  "jei.colossal_reactors.coil.activate": "Attiva: %s",
+  "jei.colossal_reactors.coil.substain": "Sostiene: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.up_value": "Sopra: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.left_value": "Sinistra: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.right_value": "Destra: %s",

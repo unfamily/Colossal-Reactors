@@ -56,10 +56,26 @@ public final class JeiIngredientsHelper {
         return list;
     }
 
+    /** Resolves coolant input selectors to fluid stacks (1000 mB display) for JEI (excluded inputs skipped). */
+    public static List<FluidStack> getCoolantInputFluidStacks(List<String> inputs, RegistryAccess registryAccess) {
+        List<FluidStack> list = new ArrayList<>();
+        for (String input : inputs) {
+            if (CoolantLoader.isInputExcluded(input)) continue;
+            list.addAll(selectorToFluidStacks(input, registryAccess));
+        }
+        return list;
+    }
+
     /** Resolves one output selector (e.g. "#c:steam") to bucket item stacks for JEI. */
     public static List<ItemStack> getOutputBuckets(String output, RegistryAccess registryAccess) {
         if (output == null || output.isEmpty()) return List.of();
         return selectorToBucketStacks(output, registryAccess);
+    }
+
+    /** Resolves one output selector to fluid stacks (1000 mB display) for JEI. */
+    public static List<FluidStack> getOutputFluidStacks(String output, RegistryAccess registryAccess) {
+        if (output == null || output.isEmpty()) return List.of();
+        return selectorToFluidStacks(output, registryAccess);
     }
 
     /** Resolves fuel input selectors to item stacks (excluded inputs skipped). */

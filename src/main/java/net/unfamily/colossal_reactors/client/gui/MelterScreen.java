@@ -56,6 +56,9 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     /** Input slot (44, 33) — +1 from border position */
     private static final int SLOT_X = 44;
     private static final int SLOT_Y = 33;
+    private static final int SLOT_SIZE = 18;
+    /** Redstone button Y: vertically centered with input item slot */
+    private static final int REDSTONE_BUTTON_Y = SLOT_Y + (SLOT_SIZE - REDSTONE_BUTTON_SIZE) / 2;
 
     /** Tank at (117, 14) — 1px left and 1px up from previous */
     private static final int FLUID_BAR_X = 117;
@@ -92,7 +95,7 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
                 .build();
         addRenderableWidget(closeButton);
         redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
-        redstoneButtonScreenY = topPos + CLOSE_BUTTON_Y;
+        redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
     }
 
     @Override

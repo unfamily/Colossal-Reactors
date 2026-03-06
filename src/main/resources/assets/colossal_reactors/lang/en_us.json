@@ -117,6 +117,8 @@
   "jei.colossal_reactors.coil.item": "Item: activate %s, sustain %s",
   "jei.colossal_reactors.coil.burnable_any": "Burnable (any): activate %s t, sustain %s t",
   "jei.colossal_reactors.coil.energy": "Energy: activate %s RF, sustain %s RF",
+  "jei.colossal_reactors.coil.activate": "Activate: %s",
+  "jei.colossal_reactors.coil.substain": "Sustain: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.up_value": "Up: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.left_value": "Left: %s",
   "gui.colossal_reactors.reactor_builder.tooltip.right_value": "Right: %s",

@@ -94,7 +94,7 @@ public class ColossalReactors {
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandler());
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandlerForCapability());
     }
 
     private void gatherData(GatherDataEvent event) {
