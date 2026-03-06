@@ -119,6 +119,11 @@ public class LightningGeneratorBlockEntity extends BlockEntity {
         return min + (int) (Math.random() * (max - min + 1));
     }
 
+    /** Called by Ice and Fire integration when a lightning dragon strikes the rod/generator. Returns RF actually added. */
+    public int receiveDragonStrikeEnergy(int maxReceive) {
+        return energyStorage.receiveEnergyInternal(maxReceive);
+    }
+
     public IEnergyStorage getEnergyStorageForCapability() {
         return new OutputOnlyEnergyWrapper(energyStorage);
     }

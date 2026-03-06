@@ -17,7 +17,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
  */
 public class PowerPortBlockEntity extends BlockEntity {
 
-    /** Max FE to push out per tick in total (distributed across adjacent receivers). */
+    /** Max RF to push out per tick in total (distributed across adjacent receivers). */
     private int getMaxExtractPerTick() {
         return net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
     }
@@ -70,7 +70,7 @@ public class PowerPortBlockEntity extends BlockEntity {
     /**
      * Called by the reactor controller to push produced energy into this port.
      *
-     * @param maxAmount max FE to accept this call
+     * @param maxAmount max RF to accept this call
      * @return amount actually accepted
      */
     public int receiveEnergyFromReactor(int maxAmount) {
