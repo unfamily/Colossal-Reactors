@@ -40,10 +40,6 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.ROD_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> REACTOR_BUILDER = ITEMS.register("reactor_builder",
             () -> new BlockItem(ModBlocks.REACTOR_BUILDER.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> LIGHTNING_GENERATOR = ITEMS.register("lightning_generator",
-            () -> new BlockItem(ModBlocks.LIGHTNING_GENERATOR.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> HIGH_POWER_LIGHTNING_ROD = ITEMS.register("high_power_lightning_rod",
-            () -> new BlockItem(ModBlocks.HIGH_POWER_LIGHTNING_ROD.get(), new Item.Properties()));
     public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.register("uranium_ingot",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.register("nuclear_waste",

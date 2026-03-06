@@ -252,6 +252,21 @@ public final class HeatSinkLoader {
         return false;
     }
 
+    /**
+     * True if the given block state matches the valid_blocks of the selected heat sink definition (index 1..).
+     * Used by reactor builder to place only the chosen block type.
+     */
+    public static boolean isBlockMatchingSelectedHeatSink(BlockState state, int selectedHeatSinkIndex, RegistryAccess registryAccess) {
+        if (selectedHeatSinkIndex <= 0) return false;
+        int defIdx = selectedHeatSinkIndex - 1;
+        if (defIdx >= DEFINITIONS.size()) return false;
+        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        for (String selector : def.validBlocks()) {
+            if (blockMatches(state, selector, registryAccess)) return true;
+        }
+        return false;
+    }
+
     /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */
     public static List<HeatSinkDefinition> getAllDefinitions() {
         return List.copyOf(DEFINITIONS);

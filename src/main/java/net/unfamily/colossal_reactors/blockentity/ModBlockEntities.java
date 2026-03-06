@@ -52,10 +52,6 @@ public class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register("melter",
                     () -> BlockEntityType.Builder.of(MelterBlockEntity::new, ModBlocks.MELTER.get()).build(null));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LightningGeneratorBlockEntity>> LIGHTNING_GENERATOR_BE =
-            BLOCK_ENTITY_TYPES.register("lightning_generator",
-                    () -> BlockEntityType.Builder.of(LightningGeneratorBlockEntity::new, ModBlocks.LIGHTNING_GENERATOR.get()).build(null));
-
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

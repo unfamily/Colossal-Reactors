@@ -10,7 +10,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -23,7 +22,6 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
-import net.unfamily.colossal_reactors.blockentity.LightningGeneratorBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
@@ -97,9 +95,6 @@ public class ColossalReactors {
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandlerForCapability());
-        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.LIGHTNING_GENERATOR_BE.get(),
-                (be, direction) -> direction == be.getBlockState().getValue(net.unfamily.colossal_reactors.block.LightningGeneratorBlock.FACING)
-                        ? ((LightningGeneratorBlockEntity) be).getEnergyStorageForCapability() : null);
     }
 
     private void gatherData(GatherDataEvent event) {
@@ -112,9 +107,6 @@ public class ColossalReactors {
         LOGGER.debug("Colossal Reactors common setup");
         LOGGER.info("Reactor validation debug (dev.001_reactor_validation_debug): {}", Config.REACTOR_VALIDATION_DEBUG.get());
         LOGGER.info("Reactor simulation debug (dev.002_reactor_simulation_debug): {}", Config.REACTOR_SIMULATION_DEBUG.get());
-        if (ModList.get().isLoaded("iceandfire")) {
-            net.unfamily.colossal_reactors.integration.iceandfire.IceAndFireIntegration.register();
-        }
     }
 
     @SubscribeEvent

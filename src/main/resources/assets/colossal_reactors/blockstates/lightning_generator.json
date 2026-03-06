@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "colossal_reactors:block/lightning_generator", "y": 0 },
-    "facing=south": { "model": "colossal_reactors:block/lightning_generator", "y": 180 },
-    "facing=east": { "model": "colossal_reactors:block/lightning_generator", "y": 90 },
-    "facing=west": { "model": "colossal_reactors:block/lightning_generator", "y": 270 }
-  }
-}

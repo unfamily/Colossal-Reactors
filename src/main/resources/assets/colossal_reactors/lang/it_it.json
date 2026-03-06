@@ -9,8 +9,6 @@
   "block.colossal_reactors.redstone_port": "Porta redstone",
   "block.colossal_reactors.resource_port": "Porta risorse",
   "block.colossal_reactors.melter": "Fonditore",
-  "block.colossal_reactors.lightning_generator": "Generatore di fulmini",
-  "block.colossal_reactors.high_power_lightning_rod": "Parafulmine ad alto potenziale",
   "block.colossal_reactors.rod_controller": "Controller barre",
   "block.colossal_reactors.heating_coil": "Bobina riscaldante",
   "block.colossal_reactors.heating_coil_resource_off": "Bobina riscaldante risorse",

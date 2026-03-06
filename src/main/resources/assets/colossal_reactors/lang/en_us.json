@@ -9,8 +9,6 @@
   "block.colossal_reactors.redstone_port": "Redstone Port",
   "block.colossal_reactors.resource_port": "Resource Port",
   "block.colossal_reactors.melter": "Melter",
-  "block.colossal_reactors.lightning_generator": "Lightning Generator",
-  "block.colossal_reactors.high_power_lightning_rod": "High-Power Lightning Rod",
   "block.colossal_reactors.rod_controller": "Rod Controller",
   "block.colossal_reactors.heating_coil": "Heating Coil",
   "block.colossal_reactors.heating_coil_resource_off": "Resource Heating Coil",

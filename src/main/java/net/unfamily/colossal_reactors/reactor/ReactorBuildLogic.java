@@ -213,7 +213,7 @@ public final class ReactorBuildLogic {
                         if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
-                    if (!canReplace(level, pos)) continue;
+                    if (!canReplaceForSolidBlock(level, pos)) continue;
                     if (builder.getSelectedHeatSinkIndex() == 0) continue; // Air: leave empty
                     ItemStack heatSink = findHeatSinkBlock(builder);
                     if (heatSink.isEmpty()) return true;
@@ -274,6 +274,19 @@ public final class ReactorBuildLogic {
     private static boolean canReplace(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         return state.isAir() || state.canBeReplaced();
+    }
+
+    /**
+     * True if we can place a solid (non-liquid) block at pos: air, or replaceable block that is NOT a liquid source.
+     * Prevents overwriting already-placed coolant sources with heat sink blocks.
+     */
+    private static boolean canReplaceForSolidBlock(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return true;
+        if (!state.canBeReplaced()) return false;
+        FluidState fluidState = state.getFluidState();
+        if (fluidState.isSource()) return false;
+        return true;
     }
 
     /**
@@ -361,20 +374,22 @@ public final class ReactorBuildLogic {
         var defs = HeatSinkLoader.getAllDefinitions();
         int defIdx = idx - 1;
         if (defIdx >= defs.size()) return ItemStack.EMPTY;
+        var registryAccess = builder.getLevel().registryAccess();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
             if (stack.isEmpty()) continue;
             Block block = Block.byItem(stack.getItem());
-            if (block != Blocks.AIR && HeatSinkLoader.isHeatSinkBlock(block.defaultBlockState(), builder.getLevel().registryAccess()))
+            if (block != Blocks.AIR && HeatSinkLoader.isBlockMatchingSelectedHeatSink(block.defaultBlockState(), idx, registryAccess))
                 return stack;
         }
         return ItemStack.EMPTY;
     }
 
     private static boolean tryPlaceHeatSink(ReactorBuilderBlockEntity builder, ServerLevel level, BlockPos pos, ItemStack stack) {
+        int idx = builder.getSelectedHeatSinkIndex();
         Block block = Block.byItem(stack.getItem());
         if (block == Blocks.AIR) return false;
-        if (!HeatSinkLoader.isHeatSinkBlock(block.defaultBlockState(), level.registryAccess())) return false;
+        if (!HeatSinkLoader.isBlockMatchingSelectedHeatSink(block.defaultBlockState(), idx, level.registryAccess())) return false;
         level.setBlock(pos, block.defaultBlockState(), 3);
         consumeOne(builder, stack);
         return true;
