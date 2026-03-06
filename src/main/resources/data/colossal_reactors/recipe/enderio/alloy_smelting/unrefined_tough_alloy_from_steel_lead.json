@@ -1,0 +1,17 @@
+{
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "enderio_machines" },
+    {
+      "type": "neoforge:not",
+      "value": { "type": "neoforge:tag_empty", "tag": "c:ingots/steel" }
+    }
+  ],
+  "type": "enderio:alloy_smelting",
+  "energy": 2800,
+  "experience": 0.1,
+  "inputs": [
+    { "count": 2, "tag": "c:ingots/steel" },
+    { "count": 2, "tag": "c:ingots/lead" }
+  ],
+  "output": { "count": 1, "id": "colossal_reactors:unrefined_tough_alloy" }
+}

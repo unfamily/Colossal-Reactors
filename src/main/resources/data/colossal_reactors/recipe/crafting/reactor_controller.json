@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["AAA", "BCB", "AAA"],
+  "key": {
+    "A": { "tag": "c:ingots/tough_alloy" },
+    "B": { "tag": "c:glass_blocks/colorless" },
+    "C": { "tag": "c:dusts/redstone" }
+  },
+  "result": { "id": "colossal_reactors:reactor_controller", "count": 1 }
+}

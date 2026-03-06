@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "colossal_reactors:reactor_casing" },
+    { "tag": "c:ingots/iron" }
+  ],
+  "result": { "id": "colossal_reactors:resource_port", "count": 1 }
+}

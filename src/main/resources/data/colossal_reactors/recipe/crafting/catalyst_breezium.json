@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "tag": "c:gunpowders" },
+    { "tag": "c:dusts/redstone" },
+    { "tag": "c:gems/lapis" },
+    { "item": "minecraft:wind_charge" },
+    { "item": "minecraft:wind_charge" },
+    { "item": "minecraft:wind_charge" },
+    { "item": "minecraft:wind_charge" },
+    { "item": "minecraft:wind_charge" }
+  ],
+  "result": { "id": "colossal_reactors:catalyst_breezium", "count": 3 }
+}

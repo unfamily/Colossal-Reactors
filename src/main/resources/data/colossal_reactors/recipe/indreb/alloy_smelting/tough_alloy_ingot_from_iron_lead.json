@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "indreb" }
+  ],
+  "type": "indreb:alloy_smelting",
+  "ingredients": [
+    { "tag": "c:ingots/iron", "count": 3 },
+    { "tag": "c:ingots/lead", "count": 2 }
+  ],
+  "result": { "item": "colossal_reactors:tough_alloy_ingot", "count": 1 },
+  "experience": 0.15,
+  "duration": 400,
+  "power_cost": 16
+}
