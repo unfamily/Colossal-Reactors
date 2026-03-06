@@ -36,7 +36,11 @@ import net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen;
 import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
+import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
+import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
+import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
+import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
 
 import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
@@ -74,6 +78,23 @@ public class ColossalReactors {
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
+        // Heating coil: only front face accepts items/fluids/energy; no_* flags disable that type (no pipe connection)
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
+                (be, direction) -> direction == be.getBlockState().getValue(HeatingCoilBlock.FACING)
+                        && ((HeatingCoilBlockEntity) be).acceptsItemCapability()
+                        ? ((HeatingCoilBlockEntity) be).getItemHandler() : null);
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
+                (be, direction) -> direction == be.getBlockState().getValue(HeatingCoilBlock.FACING)
+                        && ((HeatingCoilBlockEntity) be).acceptsFluidCapability()
+                        ? ((HeatingCoilBlockEntity) be).getFluidHandler() : null);
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
+                (be, direction) -> direction == be.getBlockState().getValue(HeatingCoilBlock.FACING)
+                        && ((HeatingCoilBlockEntity) be).acceptsEnergyCapability()
+                        ? ((HeatingCoilBlockEntity) be).getEnergyStorage() : null);
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandler());
     }
 
     private void gatherData(GatherDataEvent event) {
@@ -91,6 +112,7 @@ public class ColossalReactors {
     @SubscribeEvent
     public void onAddReloadListener(AddReloadListenerEvent event) {
         event.addListener(new ReactorDataReloadListener());
+        event.addListener(new LoadDataReloadListener());
     }
 
     @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -122,6 +144,8 @@ public class ColossalReactors {
             event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
             event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
             event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
+            event.register(ModMenuTypes.HEATING_COIL_MENU.get(), HeatingCoilScreen::new);
+            event.register(ModMenuTypes.MELTER_MENU.get(), net.unfamily.colossal_reactors.client.gui.MelterScreen::new);
         }
     }
 }

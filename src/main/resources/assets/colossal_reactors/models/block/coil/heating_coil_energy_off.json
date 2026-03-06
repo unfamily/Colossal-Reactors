@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "#south",
+    "north": "colossal_reactors:block/coil/heating_coil_energy",
+    "south": "colossal_reactors:block/coil/heating_coil_side_off",
+    "east": "colossal_reactors:block/coil/heating_coil_side_off",
+    "west": "colossal_reactors:block/coil/heating_coil_side_off",
+    "up": "colossal_reactors:block/coil/heating_coil_side_off",
+    "down": "colossal_reactors:block/coil/heating_coil_side_off"
+  }
+}

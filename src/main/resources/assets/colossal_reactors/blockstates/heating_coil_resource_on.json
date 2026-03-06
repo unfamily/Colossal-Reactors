@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down": { "model": "colossal_reactors:block/coil/heating_coil_resource_on", "x": 90 },
+    "facing=up": { "model": "colossal_reactors:block/coil/heating_coil_resource_on", "x": -90 },
+    "facing=north": { "model": "colossal_reactors:block/coil/heating_coil_resource_on" },
+    "facing=south": { "model": "colossal_reactors:block/coil/heating_coil_resource_on", "y": 180 },
+    "facing=west": { "model": "colossal_reactors:block/coil/heating_coil_resource_on", "y": 270 },
+    "facing=east": { "model": "colossal_reactors:block/coil/heating_coil_resource_on", "y": 90 }
+  }
+}

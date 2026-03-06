@@ -43,6 +43,15 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(ReactorBuilderBlockEntity::new,
                             ModBlocks.REACTOR_BUILDER.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HeatingCoilBlockEntity>> HEATING_COIL_BE =
+            BLOCK_ENTITY_TYPES.register("heating_coil",
+                    () -> BlockEntityType.Builder.of(HeatingCoilBlockEntity::new,
+                            ModBlocks.HEATING_COIL_BLOCKS.stream().map(b -> b.get()).toArray(net.minecraft.world.level.block.Block[]::new)).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MelterBlockEntity>> MELTER_BE =
+            BLOCK_ENTITY_TYPES.register("melter",
+                    () -> BlockEntityType.Builder.of(MelterBlockEntity::new, ModBlocks.MELTER.get()).build(null));
+
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

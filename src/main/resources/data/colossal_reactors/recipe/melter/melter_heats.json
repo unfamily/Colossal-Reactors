@@ -1,0 +1,26 @@
+
+{
+  "type": "colossal_reactors:melter_heats",
+  "valid_blocks":[
+    {
+      "blocks": ["minecraft:torch"],
+      "factor": 0.01
+    },
+    {
+      "blocks": ["#minecraft:campfires"],
+      "factor": 0.5
+    },
+    {
+      "fluids": ["#c:lava"],
+      "factor": 1.0
+    },
+    {
+      "blocks": ["colossal_reactors:heating_coil_resource_on"],
+      "factor": 2.0
+    },
+    {
+      "blocks": ["colossal_reactors:heating_coil_energy_on"],
+      "factor": 3.0
+    }
+  ]
+}

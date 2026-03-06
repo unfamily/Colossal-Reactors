@@ -17,6 +17,10 @@ import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
+import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
+import net.unfamily.colossal_reactors.melter.MelterRecipe;
+import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +50,8 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
     private static final String TYPE_FUEL = "colossal_reactors:fuel";
     private static final String TYPE_COOLANT = "colossal_reactors:coolant";
     private static final String TYPE_HEAT_SINKS = "colossal_reactors:heat_sinks";
+    private static final String TYPE_MELTER_RECIPES = "colossal_reactors:melter_recipes";
+    private static final String TYPE_MELTER_HEATS = "colossal_reactors:melter_heats";
     private static final String KEY_TYPE = "type";
     private static final String KEY_ENTRIES = "entries";
 
@@ -66,25 +72,30 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
             Map<ResourceLocation, FuelDefinition> fuel = new HashMap<>();
             Map<ResourceLocation, CoolantDefinition> coolant = new HashMap<>();
             List<HeatSinkDefinition> heatSinks = new ArrayList<>();
+            List<MelterRecipe> melterRecipes = new ArrayList<>();
+            List<MelterHeatEntry> melterHeats = new ArrayList<>();
             Map<ResourceLocation, List<Resource>> stacks = resourceManager.listResourceStacks(REACTOR_DATA_PATH,
                     rl -> rl.getPath().endsWith(".json"));
             for (Map.Entry<ResourceLocation, List<Resource>> entry : stacks.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 for (Resource resource : entry.getValue()) {
-                    processOneResource(location, resource, fuel, coolant, heatSinks);
+                    processOneResource(location, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats);
                 }
             }
             prepareProfiler.pop();
-            return new LoadedData(fuel, coolant, heatSinks);
+            return new LoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats);
         }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(data -> {
             applyProfiler.push("Colossal Reactors apply");
             FuelLoader.applyLoaded(data.fuel());
             CoolantLoader.applyLoaded(data.coolant());
             HeatSinkLoader.applyLoaded(data.heatSinks());
+            MelterRecipesLoader.applyLoaded(data.melterRecipes());
+            MelterHeatsLoader.applyLoaded(data.melterHeats());
             applyProfiler.pop();
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink entries",
-                        data.fuel().size(), data.coolant().size(), data.heatSinks().size());
+                LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink, {} melter recipe, {} melter heat entries",
+                        data.fuel().size(), data.coolant().size(), data.heatSinks().size(),
+                        data.melterRecipes().size(), data.melterHeats().size());
             }
         }, applyExecutor);
     }
@@ -92,12 +103,30 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
     private static void processOneResource(ResourceLocation location, Resource resource,
                                           Map<ResourceLocation, FuelDefinition> fuel,
                                           Map<ResourceLocation, CoolantDefinition> coolant,
-                                          List<HeatSinkDefinition> heatSinks) {
+                                          List<HeatSinkDefinition> heatSinks,
+                                          List<MelterRecipe> melterRecipes,
+                                          List<MelterHeatEntry> melterHeats) {
         String source = location + " from " + resource.sourcePackId();
         try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
             if (root == null || !root.has(KEY_TYPE)) return;
             String type = root.get(KEY_TYPE).getAsString();
+
+            if (TYPE_MELTER_RECIPES.equals(type)) {
+                if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return;
+                for (JsonElement e : root.getAsJsonArray(KEY_ENTRIES)) {
+                    if (!e.isJsonObject()) continue;
+                    MelterRecipe r = MelterRecipesLoader.parseEntry(e.getAsJsonObject(), source);
+                    if (r != null) melterRecipes.add(r);
+                }
+                return;
+            }
+            if (TYPE_MELTER_HEATS.equals(type)) {
+                List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(root, source);
+                if (list != null) melterHeats.addAll(list);
+                return;
+            }
+
             if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return;
             JsonArray entries = root.getAsJsonArray(KEY_ENTRIES);
 
@@ -131,6 +160,8 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
     private record LoadedData(
             Map<ResourceLocation, FuelDefinition> fuel,
             Map<ResourceLocation, CoolantDefinition> coolant,
-            List<HeatSinkDefinition> heatSinks
+            List<HeatSinkDefinition> heatSinks,
+            List<MelterRecipe> melterRecipes,
+            List<MelterHeatEntry> melterHeats
     ) {}
 }

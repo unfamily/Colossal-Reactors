@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "colossal_reactors:heating_coil_resource_off",
+    "colossal_reactors:heating_coil_resource_on",
+    "colossal_reactors:heating_coil_energy_off",
+    "colossal_reactors:heating_coil_energy_on"
+  ]
+}

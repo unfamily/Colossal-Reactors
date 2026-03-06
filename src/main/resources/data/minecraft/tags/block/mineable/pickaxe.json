@@ -24,6 +24,7 @@
     "colossal_reactors:raw_boron_block",
     "colossal_reactors:graphite_block",
     "colossal_reactors:azurite_block",
-    "colossal_reactors:tough_alloy_block"
+    "colossal_reactors:tough_alloy_block",
+    "#colossal_reactors:heating_coils"
   ]
 }
