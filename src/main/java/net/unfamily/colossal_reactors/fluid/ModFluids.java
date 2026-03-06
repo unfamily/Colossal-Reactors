@@ -49,6 +49,10 @@ public final class ModFluids {
     public static final TintedFluid MOLTEN_TOUGH_ALLOY = registerMolten("molten_tough_alloy", 0xFF5A6A7A,
             "fluid.colossal_reactors.molten_tough_alloy");
 
+    /** Ender goo: same molten texture base as tough alloy, dark teal tint #2c4742. */
+    public static final TintedFluid ENDER_GOO = registerMolten("ender_goo", 0xFF2c4742,
+            "fluid.colossal_reactors.ender_goo");
+
     /** Gelid breezium: vanilla water recolored bright cyan, cold coolant. */
     public static final TintedFluid GELID_BREEZIUM = registerGelidBreezium();
 

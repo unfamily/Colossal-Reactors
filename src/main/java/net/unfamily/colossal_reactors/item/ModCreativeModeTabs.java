@@ -7,6 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.fluid.ModFluids;
 
 public class ModCreativeModeTabs {
 
@@ -59,6 +60,9 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.LEAD_DUST.get());
                                 output.accept(ModItems.BORON_DUST.get());
                                 output.accept(ModItems.NUCLEAR_WASTE.get());
+                                output.accept(ModFluids.MOLTEN_TOUGH_ALLOY.bucket().get());
+                                output.accept(ModFluids.ENDER_GOO.bucket().get());
+                                output.accept(ModFluids.GELID_BREEZIUM.bucket().get());
                             })
                             .build());
 
