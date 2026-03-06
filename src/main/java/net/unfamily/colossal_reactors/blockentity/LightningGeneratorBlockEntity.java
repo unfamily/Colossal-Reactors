@@ -65,6 +65,12 @@ public class LightningGeneratorBlockEntity extends BlockEntity {
             if (processedBoltIds.size() > 100) processedBoltIds.clear();
         }
 
+        // High-power lightning rod: lure Ice and Fire lightning dragons (same as dragon forge input)
+        if (aboveState.is(ModBlocks.HIGH_POWER_LIGHTNING_ROD.get())) {
+            var lure = net.unfamily.colossal_reactors.integration.iceandfire.DragonLureCallbackHolder.get();
+            if (lure != null) lure.tick(level, worldPosition, above);
+        }
+
         // High-power lightning rod: also create lightning on a timer when raining/thundering
         if (aboveState.is(ModBlocks.HIGH_POWER_LIGHTNING_ROD.get())) {
             boolean thunder = level.isThundering();
