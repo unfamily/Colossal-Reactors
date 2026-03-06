@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "colossal_reactors:item/molten_tough_alloy_bucket"
+  }
+}

@@ -112,6 +112,15 @@ public final class JeiIngredientsHelper {
         return list;
     }
 
+    /** Resolves liquid selectors (valid_liquids) to fluid stacks (1000 mB display) for JEI. */
+    public static List<FluidStack> getLiquidFluidStacks(List<String> validLiquids, RegistryAccess registryAccess) {
+        List<FluidStack> list = new ArrayList<>();
+        for (String selector : validLiquids) {
+            list.addAll(selectorToFluidStacks(selector, registryAccess));
+        }
+        return list;
+    }
+
     /** Converts fluid selectors to bucket ItemStacks (one bucket per fluid) for JEI display. */
     private static List<ItemStack> selectorToBucketStacks(String selector, RegistryAccess registryAccess) {
         List<ItemStack> list = new ArrayList<>();

@@ -39,6 +39,12 @@
       "overheating": 2.5
     },
     {
+      "valid_blocks": ["colossal_reactors:ender_goo"],
+      "fuel": 2.0,
+      "energy": 3.0,
+      "overheating": 3.0
+    },
+    {
       "valid_blocks": ["colossal_reactors:gelid_breezium"],
       "fuel": 2.0,
       "energy": 5.0,

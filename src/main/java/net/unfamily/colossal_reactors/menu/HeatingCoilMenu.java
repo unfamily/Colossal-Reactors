@@ -51,10 +51,11 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
         return menuBlockPos != null && menuBlockPos.equals(pos);
     }
 
-    /** Block pos when opened from block entity (null for client fallback menu). Used for redstone payload. */
+    /** Block pos when opened from block entity (server), or from synced data (client). Used for redstone payload. */
     @Nullable
     public BlockPos getBlockPos() {
-        return menuBlockPos;
+        if (menuBlockPos != null) return menuBlockPos;
+        return new BlockPos(data.get(8), data.get(9), data.get(10));
     }
 
     private void addPlayerSlots(Inventory playerInventory) {

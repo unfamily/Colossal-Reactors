@@ -5,6 +5,7 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
+import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
@@ -14,12 +15,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinition> {
@@ -34,7 +35,7 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
     private final IDrawable icon;
 
     public HeatSinkRecipeCategory(IGuiHelper helper) {
-        this.background = new JeiRecipeBackgroundDrawable(WIDTH, HEIGHT, false);
+        this.background = new JeiRecipeBackgroundDrawable(WIDTH, HEIGHT, true);
         this.icon = helper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(ModBlocks.REACTOR_GLASS.get()));
     }
 
@@ -65,13 +66,19 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
         var registryAccess = level.registryAccess();
 
         List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacks(recipe.validBlocks(), registryAccess);
-        List<ItemStack> liquidBuckets = JeiIngredientsHelper.getLiquidBuckets(recipe.validLiquids(), registryAccess);
-        List<ItemStack> merged = new ArrayList<>(blocks);
-        merged.addAll(liquidBuckets);
-        if (!merged.isEmpty()) {
+        List<FluidStack> liquidFluids = JeiIngredientsHelper.getLiquidFluidStacks(recipe.validLiquids(), registryAccess);
+
+        if (!blocks.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y).addItemStacks(merged);
+                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addItemStacks(blocks);
+        }
+        if (!liquidFluids.isEmpty()) {
+            builder.addSlot(RecipeIngredientRole.INPUT,
+                    JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, liquidFluids);
         }
     }
 

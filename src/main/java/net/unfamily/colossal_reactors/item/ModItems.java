@@ -15,8 +15,10 @@ import java.util.List;
 public class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(ColossalReactors.MODID);
 
-    /** Heating coil items (only _off block, one per coil id); filled in static block. */
+    /** Heating coil items: OFF and ON per coil (for registration). */
     public static final List<DeferredItem<BlockItem>> HEATING_COIL_ITEMS = new ArrayList<>();
+    /** Heating coil OFF items only (for creative tab; ON items are not shown there). */
+    public static final List<DeferredItem<BlockItem>> HEATING_COIL_OFF_ITEMS = new ArrayList<>();
 
     public static final DeferredItem<BlockItem> REACTOR_GLASS = ITEMS.register("reactor_glass",
             () -> new BlockItem(ModBlocks.REACTOR_GLASS.get(), new Item.Properties()));
@@ -106,8 +108,10 @@ public class ModItems {
     static {
         for (ResourceLocation coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
             String path = coilId.getPath();
-            HEATING_COIL_ITEMS.add(ITEMS.register(path,
-                    () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, false), new Item.Properties())));
+            DeferredItem<BlockItem> offItem = ITEMS.register(path,
+                    () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, false), new Item.Properties()));
+            HEATING_COIL_ITEMS.add(offItem);
+            HEATING_COIL_OFF_ITEMS.add(offItem);
             HEATING_COIL_ITEMS.add(ITEMS.register(path + "_on",
                     () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, true), new Item.Properties())));
         }

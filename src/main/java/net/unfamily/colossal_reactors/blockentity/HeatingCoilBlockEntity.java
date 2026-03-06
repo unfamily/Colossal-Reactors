@@ -301,8 +301,10 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     public int getRedstoneMode() { return redstoneMode; }
+    /** Heating coil has no PULSE mode; PULSE is normalized to NONE. */
     public void setRedstoneMode(int mode) {
-        this.redstoneMode = RedstoneMode.fromId(mode).getId();
+        RedstoneMode m = RedstoneMode.fromId(mode);
+        this.redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
         setChanged();
     }
 
@@ -583,7 +585,8 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         activeOptionIndex = tag.getInt(TAG_ACTIVE_OPTION_INDEX);
         ticksUntilSubstain = tag.getInt(TAG_TICKS_UNTIL_SUBSTAIN);
         freeOn = tag.getBoolean(TAG_FREE_ON);
-        redstoneMode = RedstoneMode.fromId(tag.getInt(TAG_REDSTONE_MODE)).getId();
+        RedstoneMode m = RedstoneMode.fromId(tag.getInt(TAG_REDSTONE_MODE));
+        redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
         lastRedstoneSignal = tag.getBoolean(TAG_LAST_REDSTONE);
         pulseAllowed = tag.getBoolean(TAG_PULSE_ALLOWED);
     }
