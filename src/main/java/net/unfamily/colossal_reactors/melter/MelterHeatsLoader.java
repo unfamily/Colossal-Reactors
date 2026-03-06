@@ -22,6 +22,7 @@ public final class MelterHeatsLoader {
     private static final String KEY_BLOCKS = "blocks";
     private static final String KEY_FLUIDS = "fluids";
     private static final String KEY_FACTOR = "factor";
+    private static final String KEY_NOT_VALID = "not_valid";
 
     private static final List<MelterHeatEntry> ENTRIES = new ArrayList<>();
 
@@ -32,6 +33,51 @@ public final class MelterHeatsLoader {
 
     public static List<MelterHeatEntry> getAll() {
         return Collections.unmodifiableList(ENTRIES);
+    }
+
+    /**
+     * True if the adjacent block/fluid in the given direction matches any heat entry (regardless of factor value).
+     * Used to require at least one heating source for the melter to run.
+     */
+    public static boolean hasHeatingSource(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos melterPos, net.minecraft.core.Direction direction) {
+        net.minecraft.core.BlockPos adjacent = melterPos.relative(direction);
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(adjacent);
+        net.minecraft.world.level.block.Block block = state.getBlock();
+        ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+
+        // Check block matches first; only count as valid if entry does not have not_valid: true
+        for (MelterHeatEntry e : ENTRIES) {
+            if (e.notValid()) continue;
+            if (!e.blockIds().isEmpty()) {
+                for (int i = 0; i < e.blockIds().size(); i++) {
+                    if (e.blockIdIsTag().get(i)) {
+                        var tagKey = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.BLOCK, e.blockIds().get(i));
+                        if (state.is(tagKey)) return true;
+                    } else {
+                        if (e.blockIds().get(i).equals(blockId)) return true;
+                    }
+                }
+            }
+        }
+
+        // If no block match, check fluid matches
+        net.minecraft.world.level.material.FluidState fluidState = level.getFluidState(adjacent);
+        if (fluidState.isEmpty()) return false;
+        net.minecraft.world.level.material.Fluid fluid = fluidState.getType();
+        ResourceLocation fluidId = net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(fluid);
+        for (MelterHeatEntry e : ENTRIES) {
+            if (e.notValid()) continue;
+            if (e.fluidIds().isEmpty()) continue;
+            for (int i = 0; i < e.fluidIds().size(); i++) {
+                if (e.fluidIdIsTag().get(i)) {
+                    var tagKey = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.FLUID, e.fluidIds().get(i));
+                    if (fluid.is(tagKey)) return true;
+                } else {
+                    if (e.fluidIds().get(i).equals(fluidId)) return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -139,6 +185,7 @@ public final class MelterHeatsLoader {
             }
         }
         if (blockIds.isEmpty() && fluidIds.isEmpty()) return null;
-        return new MelterHeatEntry(blockIds, blockIdIsTag, fluidIds, fluidIdIsTag, factor);
+        boolean notValid = o.has(KEY_NOT_VALID) && o.get(KEY_NOT_VALID).getAsBoolean();
+        return new MelterHeatEntry(blockIds, blockIdIsTag, fluidIds, fluidIdIsTag, factor, notValid);
     }
 }

@@ -7,6 +7,11 @@
       "factor": 0.01
     },
     {
+      "blocks": ["#minecraft:ice"],
+      "factor": 0.001,
+      "not_valid":true
+    },
+    {
       "blocks": ["#minecraft:campfires"],
       "factor": 0.5
     },

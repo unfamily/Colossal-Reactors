@@ -25,6 +25,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.block.MelterBlock;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
@@ -105,6 +106,13 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void serverTick(Level level, BlockPos pos) {
+        // Redstone control: powered = disabled
+        if (level.hasNeighborSignal(pos)) {
+            progress = 0;
+            setActiveState(level, pos, false);
+            return;
+        }
+
         ItemStack input = itemHandler.getStackInSlot(0);
         boolean hasInput = !input.isEmpty();
         long gt = level.getGameTime();
@@ -112,6 +120,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(input, level.registryAccess());
         if (recipe == null) {
             progress = 0;
+            setActiveState(level, pos, false);
             if (Config.MELTER_DEBUG.get() && hasInput && gt % DEBUG_LOG_INTERVAL == 0) {
                 LOGGER.info("[Melter {}] No recipe for item {} (loaded recipes: {})",
                         pos, BuiltInRegistries.ITEM.getKey(input.getItem()), MelterRecipesLoader.getAll().size());
@@ -120,12 +129,14 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         }
         if (input.getCount() < recipe.count()) {
             progress = 0;
+            setActiveState(level, pos, false);
             return;
         }
         // Resolve recipe output fluid: use mod's DeferredHolder for our fluids so server always finds them
         Fluid fluid = resolveOutputFluid(recipe.outputFluidId());
         if (fluid == null || fluid.equals(Fluids.EMPTY)) {
             progress = 0;
+            setActiveState(level, pos, false);
             if (Config.MELTER_DEBUG.get() && gt % DEBUG_LOG_INTERVAL == 0) {
                 LOGGER.info("[Melter {}] Output fluid not found: {}", pos, recipe.outputFluidId());
             }
@@ -134,10 +145,25 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         FluidStack current = fluidTank.getFluid();
         if (!current.isEmpty() && !current.getFluid().equals(fluid)) {
             progress = 0;
+            setActiveState(level, pos, false);
             return;
         }
         if (fluidTank.getFluidAmount() + recipe.amountMb() > fluidTank.getCapacity()) {
             progress = 0;
+            setActiveState(level, pos, false);
+            return;
+        }
+
+        boolean anyHeat =
+                MelterHeatsLoader.hasHeatingSource(level, pos, Direction.UP)
+                        || MelterHeatsLoader.hasHeatingSource(level, pos, Direction.DOWN)
+                        || MelterHeatsLoader.hasHeatingSource(level, pos, Direction.EAST)
+                        || MelterHeatsLoader.hasHeatingSource(level, pos, Direction.WEST)
+                        || MelterHeatsLoader.hasHeatingSource(level, pos, Direction.NORTH)
+                        || MelterHeatsLoader.hasHeatingSource(level, pos, Direction.SOUTH);
+        if (!anyHeat) {
+            progress = 0;
+            setActiveState(level, pos, false);
             return;
         }
 
@@ -150,6 +176,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         double product = up * down * east * west * north * south;
         if (product <= 0) {
             progress = 0;
+            setActiveState(level, pos, false);
             if (Config.MELTER_DEBUG.get() && gt % DEBUG_LOG_INTERVAL == 0) {
                 LOGGER.info("[Melter {}] Heat product <= 0 (up={} down={} e={} w={} n={} s={})",
                         pos, up, down, east, west, north, south);
@@ -158,6 +185,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         }
         int finalTime = (int) Math.max(1, Math.floor((double) recipe.timeTicks() / product));
 
+        setActiveState(level, pos, true);
         progress++;
         setChanged(); // so client receives progress updates (menu sync / BE update)
         if (progress >= finalTime) {
@@ -166,6 +194,13 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
             fluidTank.fill(new FluidStack(fluid, recipe.amountMb()), IFluidHandler.FluidAction.EXECUTE);
             setChanged();
         }
+    }
+
+    private void setActiveState(Level level, BlockPos pos, boolean active) {
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof MelterBlock) || !state.hasProperty(MelterBlock.ACTIVE)) return;
+        if (state.getValue(MelterBlock.ACTIVE) == active) return;
+        level.setBlock(pos, state.setValue(MelterBlock.ACTIVE, active), 3);
     }
 
     /** Resolve recipe output fluid by id. Uses mod's fluids for our namespace; otherwise registry. */
@@ -185,6 +220,14 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         if (level == null) return 0;
         MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(itemHandler.getStackInSlot(0), level.registryAccess());
         if (recipe == null) return 0;
+        boolean anyHeat =
+                MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.UP)
+                        || MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.DOWN)
+                        || MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.EAST)
+                        || MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.WEST)
+                        || MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.NORTH)
+                        || MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.SOUTH);
+        if (!anyHeat) return 0;
         double up = MelterHeatsLoader.getFactorFor(level, worldPosition, Direction.UP);
         double down = MelterHeatsLoader.getFactorFor(level, worldPosition, Direction.DOWN);
         double east = MelterHeatsLoader.getFactorFor(level, worldPosition, Direction.EAST);

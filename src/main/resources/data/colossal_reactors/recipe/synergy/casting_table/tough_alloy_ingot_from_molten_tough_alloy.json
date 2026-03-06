@@ -1,0 +1,16 @@
+{
+  "type": "synergy:casting_table",
+  "fluid": {
+    "amount": 90,
+    "id": "colossal_reactors:molten_tough_alloy_source"
+  },
+  "input": {
+    "item": "synergy:ingot_mold"
+  },
+  "consume_input": false,
+  "ticks": 80,
+  "output": {
+    "id": "colossal_reactors:tough_alloy_ingot",
+    "count": 1
+  }
+}

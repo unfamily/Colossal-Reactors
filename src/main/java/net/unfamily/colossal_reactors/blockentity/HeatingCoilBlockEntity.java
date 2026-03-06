@@ -39,8 +39,6 @@ import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
-
 /**
  * Heating coil block entity. Only front face accepts inputs (enforced in capability registration).
  * Tracks activation progress; when any consume option is satisfied, block switches to ON.
@@ -58,6 +56,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     private static final String TAG_BURNABLE_TICKS = "BurnableTicks";
     private static final String TAG_ACTIVE_OPTION_INDEX = "ActiveOption";
     private static final String TAG_TICKS_UNTIL_SUBSTAIN = "TicksUntilSubstain";
+    private static final String TAG_FREE_ON = "FreeOn";
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(1) {
         @Override
@@ -74,6 +73,11 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     private int activeOptionIndex = -1;
     /** While ON: countdown ticks until next substain consumption. */
     private int ticksUntilSubstain;
+    /**
+     * Set to true when coil is forced OFF by redstone. When redstone allows again, it will switch back ON
+     * without consuming activation (only if it was previously ON and has a valid activeOptionIndex).
+     */
+    private boolean freeOn;
 
     private final ContainerData data;
 
@@ -195,6 +199,24 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     public static void tick(Level level, BlockPos pos, BlockState state, HeatingCoilBlockEntity be) {
         if (level.isClientSide()) return;
+        // Redstone control: powered = forced OFF (no activation/substain consumption).
+        // When redstone is released, if the coil was previously ON it will resume for free (freeOn=true).
+        if (level.hasNeighborSignal(pos)) {
+            if (((HeatingCoilBlock) state.getBlock()).isOn()) {
+                be.freeOn = true;
+                be.switchToOff(level, pos);
+            }
+            return;
+        } else if (!((HeatingCoilBlock) state.getBlock()).isOn() && be.freeOn) {
+            HeatingCoilDefinition def = HeatingCoilRegistry.get(((HeatingCoilBlock) state.getBlock()).getCoilId());
+            if (def != null && be.activeOptionIndex >= 0 && be.activeOptionIndex < def.consume().size()) {
+                be.freeOn = false;
+                be.switchToOn(level, pos);
+                return;
+            }
+            be.freeOn = false;
+        }
+
         HeatingCoilBlock block = (HeatingCoilBlock) state.getBlock();
         HeatingCoilDefinition def = HeatingCoilRegistry.get(block.getCoilId());
         if (def == null) return;
@@ -502,6 +524,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         tag.putInt(TAG_BURNABLE_TICKS, burnableTicksAccumulated);
         tag.putInt(TAG_ACTIVE_OPTION_INDEX, activeOptionIndex);
         tag.putInt(TAG_TICKS_UNTIL_SUBSTAIN, ticksUntilSubstain);
+        tag.putBoolean(TAG_FREE_ON, freeOn);
     }
 
     @Override
@@ -521,6 +544,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         burnableTicksAccumulated = tag.getInt(TAG_BURNABLE_TICKS);
         activeOptionIndex = tag.getInt(TAG_ACTIVE_OPTION_INDEX);
         ticksUntilSubstain = tag.getInt(TAG_TICKS_UNTIL_SUBSTAIN);
+        freeOn = tag.getBoolean(TAG_FREE_ON);
     }
 
     public ContainerData getData() {
