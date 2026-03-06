@@ -11,22 +11,17 @@ import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtension
 import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
- * Renders fluid in GUI tanks using the fluid's still texture.
- * Only minecraft:water gets an azure tint in GUI; other fluids use natural colors (no tint).
+ * Renders fluid in GUI tanks using the fluid's still texture and its tint from IClientFluidTypeExtensions.
  * Texture is tiled to fill the area, not stretched.
  */
 public final class FluidRenderHelper {
 
     private static final int TILE_SIZE = 16;
-    /** Azure tint for minecraft:water in GUI (RGB 0x3F76E4 normalized). */
-    private static final float WATER_TINT_R = 0.247f;
-    private static final float WATER_TINT_G = 0.463f;
-    private static final float WATER_TINT_B = 0.894f;
 
     private FluidRenderHelper() {}
 
     /**
-     * Draws fluid in the given rectangle. Only minecraft:water is tinted azure; other fluids unchanged.
+     * Draws fluid in the given rectangle using the fluid's tint (getTintColor() from client extensions).
      * Does nothing if stack is empty or fluid has no client extensions.
      */
     public static void drawFluidInTank(GuiGraphics guiGraphics, FluidStack fluidStack, int x, int y, int width, int height) {
@@ -43,11 +38,11 @@ public final class FluidRenderHelper {
                 .getTextureAtlas(TextureAtlas.LOCATION_BLOCKS)
                 .apply(stillTexture);
 
-        if (fluid == Fluids.WATER) {
-            guiGraphics.setColor(WATER_TINT_R, WATER_TINT_G, WATER_TINT_B, 1f);
-        } else {
-            guiGraphics.setColor(1, 1, 1, 1);
-        }
+        int tint = ext.getTintColor();
+        float r = ((tint >> 16) & 0xFF) / 255f;
+        float g = ((tint >> 8) & 0xFF) / 255f;
+        float b = (tint & 0xFF) / 255f;
+        guiGraphics.setColor(r, g, b, 1f);
 
         for (int dy = 0; dy < height; dy += TILE_SIZE) {
             for (int dx = 0; dx < width; dx += TILE_SIZE) {
