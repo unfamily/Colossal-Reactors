@@ -204,39 +204,39 @@ public class Config {
         BUILDER.pop();
     }
 
-    // --- ports.lightning_generator ---
     static {
-        BUILDER.comment("Lightning Generator").push("lightning_generator");
+        BUILDER.pop(); // ports
+    }
+
+    // ========== lightning_generator ==========
+    static {
+        BUILDER.comment("Lightning Generator: production, energy buffer and auto-lightning time ranges.").push("lightning_generator");
     }
 
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_RF_PER_STRIKE = BUILDER
-            .comment("RF added when a normal lightning rod above the generator is struck. Default: 10000")
+            .comment("FE produced per lightning strike (vanilla rod or high-power rod). Default: 10000")
             .defineInRange("000_rf_per_strike", 10000, 1, 1000000);
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_CAPACITY = BUILDER
             .comment("Energy buffer capacity in FE. Default: 1000000")
             .defineInRange("010_capacity", 1000000, 1000, 100000000);
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_MAX_EXTRACT = BUILDER
-            .comment("Max energy extractable per tick from the front face (FE/t). Default: 10000")
+            .comment("Max FE extractable per tick from the front face. Default: 10000")
             .defineInRange("020_max_extract", 10000, 1, 1000000);
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_RAIN_INTERVAL_MIN = BUILDER
-            .comment("Min ticks between auto-lightning with high-power rod when raining (e.g. 300 = 15s). Default: 300")
+            .comment("Min ticks between auto-lightning (high-power rod) when raining. 300 = 15s. Default: 300")
             .defineInRange("030_rain_interval_min", 300, 20, 12000);
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_RAIN_INTERVAL_MAX = BUILDER
-            .comment("Max ticks between auto-lightning when raining (e.g. 600 = 30s). Default: 600")
+            .comment("Max ticks between auto-lightning when raining. 600 = 30s. Default: 600")
             .defineInRange("031_rain_interval_max", 600, 20, 12000);
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_THUNDER_INTERVAL_MIN = BUILDER
-            .comment("Min ticks between auto-lightning with thunderstorm (e.g. 60 = 3s). Default: 60")
+            .comment("Min ticks between auto-lightning in thunderstorm. 60 = 3s. Default: 60")
             .defineInRange("040_thunder_interval_min", 60, 10, 600);
     public static final ModConfigSpec.IntValue LIGHTNING_GENERATOR_THUNDER_INTERVAL_MAX = BUILDER
-            .comment("Max ticks between auto-lightning in thunderstorm (e.g. 100 = 5s). Default: 100")
+            .comment("Max ticks between auto-lightning in thunderstorm. 100 = 5s. Default: 100")
             .defineInRange("041_thunder_interval_max", 100, 10, 600);
 
     static {
         BUILDER.pop();
-    }
-
-    static {
-        BUILDER.pop(); // ports
     }
 
     // ========== evil_things ==========

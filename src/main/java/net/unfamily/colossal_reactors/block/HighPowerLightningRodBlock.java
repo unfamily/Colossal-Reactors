@@ -1,14 +1,13 @@
 package net.unfamily.colossal_reactors.block;
 
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.LightningRodBlock;
 
 /**
- * Lightning rod block placed on top of the Lightning Generator.
- * When present, the generator creates lightning by itself when it rains (15–30s) or thunders (3–5s).
+ * Extension of the vanilla lightning rod. Same model and behaviour (attracts lightning).
+ * When placed on top of the Lightning Generator, the generator also creates lightning by itself
+ * when it rains (15–30s) or thunders (3–5s).
  */
-public class HighPowerLightningRodBlock extends Block {
+public class HighPowerLightningRodBlock extends LightningRodBlock {
 
     public HighPowerLightningRodBlock(Properties properties) {
         super(properties);

@@ -50,8 +50,9 @@ public class LightningGeneratorBlockEntity extends BlockEntity {
         BlockPos above = worldPosition.above();
         BlockState aboveState = level.getBlockState(above);
 
-        // Vanilla lightning rod: detect lightning bolts at rod position and add RF
-        if (aboveState.is(Blocks.LIGHTNING_ROD)) {
+        // Any valid rod above (vanilla or high-power): detect lightning bolts at rod position and add RF
+        boolean hasRod = aboveState.is(Blocks.LIGHTNING_ROD) || aboveState.is(ModBlocks.HIGH_POWER_LIGHTNING_ROD.get());
+        if (hasRod) {
             int rfPerStrike = Config.LIGHTNING_GENERATOR_RF_PER_STRIKE.get();
             AABB aabb = new AABB(above).inflate(0.5);
             for (LightningBolt bolt : level.getEntities(EntityType.LIGHTNING_BOLT, aabb, e -> true)) {
@@ -61,10 +62,10 @@ public class LightningGeneratorBlockEntity extends BlockEntity {
                     processedBoltIds.add(bolt.getUUID());
                 }
             }
-            processedBoltIds.removeIf(uuid -> level.getEntity(level.getEntities().getEntity(uuid)) == null);
+            if (processedBoltIds.size() > 100) processedBoltIds.clear();
         }
 
-        // High-power lightning rod: create lightning on a timer when raining/thundering
+        // High-power lightning rod: also create lightning on a timer when raining/thundering
         if (aboveState.is(ModBlocks.HIGH_POWER_LIGHTNING_ROD.get())) {
             boolean thunder = level.isThundering();
             boolean rain = level.isRaining();

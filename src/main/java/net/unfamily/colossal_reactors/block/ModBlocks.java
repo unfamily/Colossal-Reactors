@@ -72,8 +72,9 @@ public class ModBlocks {
                     .strength(2.0f)));
     public static final DeferredBlock<HighPowerLightningRodBlock> HIGH_POWER_LIGHTNING_ROD = BLOCKS.register("high_power_lightning_rod",
             () -> new HighPowerLightningRodBlock(BlockBehaviour.Properties.of()
-                    .sound(SoundType.METAL)
-                    .strength(2.0f)));
+                    .sound(SoundType.COPPER)
+                    .strength(2.0f)
+                    .noOcclusion()));
 
     // Resource ores (stone + deepslate)
     public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.register("uranium_ore",
@@ -130,12 +131,12 @@ public class ModBlocks {
                     .requiresCorrectToolForDrops()));
     public static final DeferredBlock<Block> BORON_BLOCK = BLOCKS.register("boron_block",
             () -> new Block(BlockBehaviour.Properties.of()
-                    .sound(SoundType.METAL)
+                    .sound(SoundType.COPPER)
                     .strength(5.0f, 6.0f)
                     .requiresCorrectToolForDrops()));
     public static final DeferredBlock<Block> RAW_BORON_BLOCK = BLOCKS.register("raw_boron_block",
             () -> new Block(BlockBehaviour.Properties.of()
-                    .sound(SoundType.STONE)
+                    .sound(SoundType.COPPER)
                     .strength(5.0f, 6.0f)
                     .requiresCorrectToolForDrops()));
     public static final DeferredBlock<Block> GRAPHITE_BLOCK = BLOCKS.register("graphite_block",

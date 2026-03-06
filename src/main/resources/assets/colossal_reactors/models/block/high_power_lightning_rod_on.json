@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:block/lightning_rod",
+  "parent": "minecraft:block/lightning_rod_on",
   "textures": {
     "texture": "colossal_reactors:block/high_power_lightning_rod",
     "particle": "colossal_reactors:block/high_power_lightning_rod"
