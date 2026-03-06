@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.FlowingFluid;
@@ -43,7 +44,7 @@ public class BreeziumBlock extends LiquidBlock {
 
     private void scheduleTick(Level level, BlockPos pos) {
         if (!level.isClientSide) {
-            level.scheduleTick(pos, this, 1);
+            level.scheduleTick(pos, this, 20);
         }
     }
 
@@ -58,12 +59,12 @@ public class BreeziumBlock extends LiquidBlock {
         BlockState belowState = level.getBlockState(below);
         FluidState belowFluid = belowState.getFluidState();
 
-        // Gravity: if below is air or flowing breezium (not source), fall one block
+        // Gravity: only SOURCE blocks fall; if below is air or flowing breezium, drop one block
+        // (Source and Flowing are different Fluid instances so compare by block, not getType())
         boolean belowIsAir = belowState.isAir();
-        boolean belowIsFlowingBreezium = !belowFluid.isEmpty()
-                && belowFluid.getType() == ourFluid.getType()
-                && !belowFluid.isSource();
-        if (belowIsAir || belowIsFlowingBreezium) {
+        boolean belowIsOurBreezium = belowState.getBlock() == this;
+        boolean belowIsFlowingBreezium = belowIsOurBreezium && !belowFluid.isSource();
+        if (ourFluid.isSource() && (belowIsAir || belowIsFlowingBreezium)) {
             level.setBlock(below, ourFluid.createLegacyBlock(), Block.UPDATE_ALL);
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
             scheduleTick(level, below);
@@ -82,11 +83,12 @@ public class BreeziumBlock extends LiquidBlock {
             }
         }
 
-        // Water contact: freeze adjacent water to ice (flowing) or packed ice (source)
+        // Water contact: freeze adjacent water (source or flowing) to packed ice (source) or normal ice (flowing)
         for (Direction dir : Direction.values()) {
             BlockPos adj = pos.relative(dir);
             BlockState adjState = level.getBlockState(adj);
-            if (adjState.getFluidState().getType() == Fluids.WATER) {
+            Fluid adjFluid = adjState.getFluidState().getType();
+            if (adjFluid == Fluids.WATER || adjFluid == Fluids.FLOWING_WATER) {
                 boolean isSource = adjState.getFluidState().isSource();
                 level.setBlock(adj, (isSource ? Blocks.PACKED_ICE : Blocks.ICE).defaultBlockState(), Block.UPDATE_ALL);
             }
