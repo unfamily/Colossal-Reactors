@@ -42,7 +42,7 @@ public class MelterMenu extends AbstractContainerMenu {
     public MelterMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.MELTER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(8);
+        this.data = new SimpleContainerData(9);
         addDataSlots(data);
 
         addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 44, 33));
@@ -88,6 +88,10 @@ public class MelterMenu extends AbstractContainerMenu {
 
     public boolean isForPosition(BlockPos pos) {
         return data.get(5) == pos.getX() && data.get(6) == pos.getY() && data.get(7) == pos.getZ();
+    }
+
+    public int getRedstoneMode() {
+        return data.get(8);
     }
 
     @Override

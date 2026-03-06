@@ -39,7 +39,7 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     public HeatingCoilMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.HEATING_COIL_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(14);
+        this.data = new SimpleContainerData(15);
         this.menuBlockPos = null;
         addDataSlots(data);
         addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 37, 33));
@@ -49,6 +49,12 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     /** True if this menu is for the given block pos (used to close it when coil state changes). */
     public boolean isForPosition(BlockPos pos) {
         return menuBlockPos != null && menuBlockPos.equals(pos);
+    }
+
+    /** Block pos when opened from block entity (null for client fallback menu). Used for redstone payload. */
+    @Nullable
+    public BlockPos getBlockPos() {
+        return menuBlockPos;
     }
 
     private void addPlayerSlots(Inventory playerInventory) {
@@ -95,4 +101,6 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     public boolean showFluidInGui() { return data.get(11) != 0; }
     public boolean showEnergyInGui() { return data.get(12) != 0; }
     public boolean showItemInGui() { return data.get(13) != 0; }
+
+    public int getRedstoneMode() { return data.get(14); }
 }

@@ -44,12 +44,15 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
             case NONE -> true;
             case LOW -> !hasSignal;
             case HIGH -> hasSignal;
+            case PULSE -> true; // Port does not use PULSE; treat as NONE if ever set
             case DISABLED -> false;
         };
     }
 
     public void setRedstoneMode(int mode) {
-        this.redstoneMode = RedstoneMode.fromId(mode).getId();
+        // Keep only NONE, LOW, HIGH, DISABLED (no PULSE for port)
+        RedstoneMode m = RedstoneMode.fromId(mode);
+        this.redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
         setChanged();
     }
 

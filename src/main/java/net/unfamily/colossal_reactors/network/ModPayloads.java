@@ -32,6 +32,16 @@ public class ModPayloads {
                 RedstonePortRedstoneModePayload::handle
         );
         registrar.playToServer(
+                MelterRedstoneModePayload.TYPE,
+                MelterRedstoneModePayload.STREAM_CODEC,
+                MelterRedstoneModePayload::handle
+        );
+        registrar.playToServer(
+                HeatingCoilRedstoneModePayload.TYPE,
+                HeatingCoilRedstoneModePayload.STREAM_CODEC,
+                HeatingCoilRedstoneModePayload::handle
+        );
+        registrar.playToServer(
                 ReactorControllerRefreshPayload.TYPE,
                 ReactorControllerRefreshPayload.STREAM_CODEC,
                 ReactorControllerRefreshPayload::handle

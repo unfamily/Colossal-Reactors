@@ -26,7 +26,6 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.minecraft.resources.ResourceLocation;
-import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -91,7 +90,12 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
 
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock())) {
+        // Do not drop contents when switching to the twin block (same coilId, opposite on/off):
+        // switchToOn/switchToOff transfer NBT to the new block entity; dropping here would duplicate items.
+        boolean isTwinSwitch = newState.getBlock() instanceof HeatingCoilBlock other
+                && other.getCoilId().equals(this.coilId)
+                && other.isOn() != this.isOn;
+        if (!state.is(newState.getBlock()) && !isTwinSwitch) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof HeatingCoilBlockEntity coil) {
                 coil.dropAllContents();

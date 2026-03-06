@@ -12,6 +12,8 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
+import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 
 @JeiPlugin
 public class ColossalReactorsJeiPlugin implements IModPlugin {
@@ -27,7 +29,9 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipeCategories(
                 new CoolantRecipeCategory(helper),
                 new FuelRecipeCategory(helper),
-                new HeatSinkRecipeCategory(helper)
+                new HeatSinkRecipeCategory(helper),
+                new MelterRecipeCategory(helper),
+                new HeatingCoilRecipeCategory(helper)
         );
     }
 
@@ -37,6 +41,17 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, CoolantLoader.getAll().values().stream().toList());
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getAll().values().stream().toList());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
+        registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
+
+        var coilRecipes = HeatingCoilRegistry.getAll().values().stream()
+                .flatMap(def -> {
+                    var opts = def.consume();
+                    if (opts == null || opts.isEmpty()) return java.util.stream.Stream.empty();
+                    return java.util.stream.IntStream.range(0, opts.size())
+                            .mapToObj(i -> new HeatingCoilJeiRecipe(def.id(), def.duration(), i, opts.get(i)));
+                })
+                .toList();
+        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
     }
 
     @Override
@@ -45,5 +60,14 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(controller, CoolantRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(controller, FuelRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(controller, HeatSinkRecipeCategory.RECIPE_TYPE);
+
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterRecipeCategory.RECIPE_TYPE);
+
+        for (var id : HeatingCoilRegistry.getAll().keySet()) {
+            var off = ModBlocks.getHeatingCoilBlock(id, false);
+            if (off != null) {
+                registration.addRecipeCatalyst(new ItemStack(off), HeatingCoilRecipeCategory.RECIPE_TYPE);
+            }
+        }
     }
 }

@@ -65,6 +65,13 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     };
 
     private int progress; // ticks toward current recipe completion
+    private int redstoneMode = RedstoneMode.NONE.getId();
+    private boolean lastRedstoneSignal;
+    private boolean pulseAllowed; // for PULSE mode: one craft per rising edge
+
+    private static final String TAG_REDSTONE_MODE = "RedstoneMode";
+    private static final String TAG_LAST_REDSTONE = "LastRedstone";
+    private static final String TAG_PULSE_ALLOWED = "PulseAllowed";
 
     private final ContainerData data = new ContainerData() {
         @Override
@@ -80,6 +87,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
                 case 5 -> worldPosition.getX();
                 case 6 -> worldPosition.getY();
                 case 7 -> worldPosition.getZ();
+                case 8 -> redstoneMode;
                 default -> 0;
             };
         }
@@ -92,7 +100,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
 
         @Override
         public int getCount() {
-            return 8;
+            return 9;
         }
     };
 
@@ -106,12 +114,16 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void serverTick(Level level, BlockPos pos) {
-        // Redstone control: powered = disabled
-        if (level.hasNeighborSignal(pos)) {
+        boolean hasSignal = level.hasNeighborSignal(pos);
+        boolean shouldRun = isRedstoneRunAllowed(hasSignal);
+        if (!shouldRun) {
+            if (RedstoneMode.fromId(redstoneMode) == RedstoneMode.PULSE) pulseAllowed = false;
             progress = 0;
             setActiveState(level, pos, false);
+            lastRedstoneSignal = hasSignal;
             return;
         }
+        lastRedstoneSignal = hasSignal;
 
         ItemStack input = itemHandler.getStackInSlot(0);
         boolean hasInput = !input.isEmpty();
@@ -190,10 +202,32 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         setChanged(); // so client receives progress updates (menu sync / BE update)
         if (progress >= finalTime) {
             progress = 0;
+            if (RedstoneMode.fromId(redstoneMode) == RedstoneMode.PULSE) pulseAllowed = false;
             itemHandler.extractItem(0, recipe.count(), false);
             fluidTank.fill(new FluidStack(fluid, recipe.amountMb()), IFluidHandler.FluidAction.EXECUTE);
             setChanged();
         }
+    }
+
+    /** Whether the melter is allowed to run this tick based on redstone mode and current signal. */
+    private boolean isRedstoneRunAllowed(boolean hasSignal) {
+        switch (RedstoneMode.fromId(redstoneMode)) {
+            case NONE: return true;
+            case LOW: return !hasSignal;
+            case HIGH: return hasSignal;
+            case PULSE:
+                if (!lastRedstoneSignal && hasSignal) pulseAllowed = true; // rising edge = low->high
+                if (!pulseAllowed) return false;
+                return true; // allow until one craft completes (then pulseAllowed cleared)
+            case DISABLED: return false;
+            default: return true;
+        }
+    }
+
+    public int getRedstoneMode() { return redstoneMode; }
+    public void setRedstoneMode(int mode) {
+        this.redstoneMode = RedstoneMode.fromId(mode).getId();
+        setChanged();
     }
 
     private void setActiveState(Level level, BlockPos pos, boolean active) {
@@ -285,6 +319,9 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
             tag.putString(TAG_FLUID, BuiltInRegistries.FLUID.getKey(fluidTank.getFluid().getFluid()).toString());
         }
         tag.putInt(TAG_PROGRESS, progress);
+        tag.putInt(TAG_REDSTONE_MODE, redstoneMode);
+        tag.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
+        tag.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
     }
 
     @Override
@@ -299,5 +336,8 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
             }
         }
         progress = tag.getInt(TAG_PROGRESS);
+        redstoneMode = RedstoneMode.fromId(tag.getInt(TAG_REDSTONE_MODE)).getId();
+        lastRedstoneSignal = tag.getBoolean(TAG_LAST_REDSTONE);
+        pulseAllowed = tag.getBoolean(TAG_PULSE_ALLOWED);
     }
 }

@@ -1,8 +1,6 @@
 package net.unfamily.colossal_reactors.melter;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.material.Fluid;
 
 import java.util.List;
 

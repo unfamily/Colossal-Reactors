@@ -12,21 +12,21 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
-import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
 
 /**
- * C2S packet: cycle Redstone Port mode (same pattern as iskandert_utilities). No PULSE.
+ * C2S: cycle Heating Coil redstone mode (NONE, LOW, HIGH, PULSE, DISABLED).
  */
-public record RedstonePortRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
+public record HeatingCoilRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
 
-    public static final Type<RedstonePortRedstoneModePayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "redstone_port_redstone_mode"));
+    public static final Type<HeatingCoilRedstoneModePayload> TYPE = new Type<>(
+            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil_redstone_mode"));
 
-    public static final StreamCodec<FriendlyByteBuf, RedstonePortRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
+    public static final StreamCodec<FriendlyByteBuf, HeatingCoilRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
-            RedstonePortRedstoneModePayload::pos,
-            RedstonePortRedstoneModePayload::new
+            HeatingCoilRedstoneModePayload::pos,
+            HeatingCoilRedstoneModePayload::new
     );
 
     @Override
@@ -34,14 +34,14 @@ public record RedstonePortRedstoneModePayload(BlockPos pos) implements CustomPac
         return TYPE;
     }
 
-    public static void handle(RedstonePortRedstoneModePayload packet, IPayloadContext context) {
+    public static void handle(HeatingCoilRedstoneModePayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
             ServerLevel level = player.serverLevel();
             BlockEntity be = level.getBlockEntity(packet.pos());
-            if (be instanceof RedstonePortBlockEntity port) {
-                RedstoneMode current = RedstoneMode.fromId(port.getRedstoneMode());
-                port.setRedstoneMode(current.nextNoPulse().getId());
+            if (be instanceof HeatingCoilBlockEntity coil) {
+                RedstoneMode current = RedstoneMode.fromId(coil.getRedstoneMode());
+                coil.setRedstoneMode(current.next().getId());
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });

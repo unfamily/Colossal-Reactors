@@ -57,6 +57,13 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     private static final String TAG_ACTIVE_OPTION_INDEX = "ActiveOption";
     private static final String TAG_TICKS_UNTIL_SUBSTAIN = "TicksUntilSubstain";
     private static final String TAG_FREE_ON = "FreeOn";
+    private static final String TAG_REDSTONE_MODE = "RedstoneMode";
+    private static final String TAG_LAST_REDSTONE = "LastRedstone";
+    private static final String TAG_PULSE_ALLOWED = "PulseAllowed";
+
+    private int redstoneMode = RedstoneMode.NONE.getId();
+    private boolean lastRedstoneSignal;
+    private boolean pulseAllowed; // PULSE mode: allow one activation per rising edge
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(1) {
         @Override
@@ -138,6 +145,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
                     case 11 -> hasFluidRequirement() ? 1 : 0;
                     case 12 -> hasEnergyRequirement() ? 1 : 0;
                     case 13 -> hasItemRequirement() ? 1 : 0;
+                    case 14 -> redstoneMode;
                     default -> 0;
                 };
             }
@@ -150,7 +158,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
             @Override
             public int getCount() {
-                return 14;
+                return 15;
             }
         };
         if (def != null && !def.consume().isEmpty()) {
@@ -199,15 +207,20 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     public static void tick(Level level, BlockPos pos, BlockState state, HeatingCoilBlockEntity be) {
         if (level.isClientSide()) return;
-        // Redstone control: powered = forced OFF (no activation/substain consumption).
-        // When redstone is released, if the coil was previously ON it will resume for free (freeOn=true).
-        if (level.hasNeighborSignal(pos)) {
+        boolean hasSignal = level.hasNeighborSignal(pos);
+        boolean shouldRun = be.isRedstoneRunAllowed(hasSignal);
+        be.lastRedstoneSignal = hasSignal;
+
+        // When redstone says "don't run": force OFF (freeOn so it can resume for free when signal allows again).
+        if (!shouldRun) {
+            if (RedstoneMode.fromId(be.redstoneMode) == RedstoneMode.PULSE) be.pulseAllowed = false;
             if (((HeatingCoilBlock) state.getBlock()).isOn()) {
                 be.freeOn = true;
                 be.switchToOff(level, pos);
             }
             return;
-        } else if (!((HeatingCoilBlock) state.getBlock()).isOn() && be.freeOn) {
+        }
+        if (!((HeatingCoilBlock) state.getBlock()).isOn() && be.freeOn) {
             HeatingCoilDefinition def = HeatingCoilRegistry.get(((HeatingCoilBlock) state.getBlock()).getCoilId());
             if (def != null && be.activeOptionIndex >= 0 && be.activeOptionIndex < def.consume().size()) {
                 be.freeOn = false;
@@ -259,16 +272,38 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     private void tickOff(Level level, BlockPos pos, HeatingCoilDefinition def) {
         tryAcceptOneBurnableFromSlot(def);
+        if (RedstoneMode.fromId(redstoneMode) == RedstoneMode.PULSE && !pulseAllowed) return;
         // Check if any option is satisfied; then consume activation and switch to ON
         for (int i = 0; i < def.consume().size(); i++) {
             ConsumeOption opt = def.consume().get(i);
             if (isOptionSatisfied(opt)) {
                 activeOptionIndex = i;
                 consumeActivation(opt);
+                if (RedstoneMode.fromId(redstoneMode) == RedstoneMode.PULSE) pulseAllowed = false;
                 switchToOn(level, pos);
                 return;
             }
         }
+    }
+
+    /** Whether the coil is allowed to run (tick) based on redstone mode and current signal. */
+    private boolean isRedstoneRunAllowed(boolean hasSignal) {
+        switch (RedstoneMode.fromId(redstoneMode)) {
+            case NONE: return true;
+            case LOW: return !hasSignal;
+            case HIGH: return hasSignal;
+            case PULSE:
+                if (!lastRedstoneSignal && hasSignal) pulseAllowed = true; // rising edge
+                return pulseAllowed;
+            case DISABLED: return false;
+            default: return true;
+        }
+    }
+
+    public int getRedstoneMode() { return redstoneMode; }
+    public void setRedstoneMode(int mode) {
+        this.redstoneMode = RedstoneMode.fromId(mode).getId();
+        setChanged();
     }
 
     private void consumeActivation(ConsumeOption opt) {
@@ -525,6 +560,9 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         tag.putInt(TAG_ACTIVE_OPTION_INDEX, activeOptionIndex);
         tag.putInt(TAG_TICKS_UNTIL_SUBSTAIN, ticksUntilSubstain);
         tag.putBoolean(TAG_FREE_ON, freeOn);
+        tag.putInt(TAG_REDSTONE_MODE, redstoneMode);
+        tag.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
+        tag.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
     }
 
     @Override
@@ -545,6 +583,9 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         activeOptionIndex = tag.getInt(TAG_ACTIVE_OPTION_INDEX);
         ticksUntilSubstain = tag.getInt(TAG_TICKS_UNTIL_SUBSTAIN);
         freeOn = tag.getBoolean(TAG_FREE_ON);
+        redstoneMode = RedstoneMode.fromId(tag.getInt(TAG_REDSTONE_MODE)).getId();
+        lastRedstoneSignal = tag.getBoolean(TAG_LAST_REDSTONE);
+        pulseAllowed = tag.getBoolean(TAG_PULSE_ALLOWED);
     }
 
     public ContainerData getData() {

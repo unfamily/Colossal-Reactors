@@ -3,14 +3,15 @@ package net.unfamily.colossal_reactors.blockentity;
 import net.minecraft.network.chat.Component;
 
 /**
- * Redstone mode for Redstone Port. Same semantics as iskandert_utilities (NONE, LOW, HIGH, DISABLED).
- * PULSE is not used.
+ * Redstone mode. Same semantics as iskandert_utilities: NONE, LOW, HIGH, PULSE, DISABLED.
+ * Used by Redstone Port (cycle skips PULSE), Melter and Heating Coil (full cycle including PULSE).
  */
 public enum RedstoneMode {
     NONE(0),
     LOW(1),
     HIGH(2),
-    DISABLED(3);
+    PULSE(3),
+    DISABLED(4);
 
     private final int id;
 
@@ -31,18 +32,26 @@ public enum RedstoneMode {
             case 0 -> NONE;
             case 1 -> LOW;
             case 2 -> HIGH;
-            case 3 -> DISABLED;
+            case 3 -> PULSE;
+            case 4 -> DISABLED;
             default -> NONE;
         };
     }
 
-    /** Cycle to next mode (NONE -> LOW -> HIGH -> DISABLED -> NONE). */
+    /** Full cycle including PULSE (for Melter, Heating Coil). */
     public RedstoneMode next() {
         return switch (this) {
             case NONE -> LOW;
             case LOW -> HIGH;
-            case HIGH -> DISABLED;
+            case HIGH -> PULSE;
+            case PULSE -> DISABLED;
             case DISABLED -> NONE;
         };
+    }
+
+    /** Cycle without PULSE (for Redstone Port). */
+    public RedstoneMode nextNoPulse() {
+        RedstoneMode n = next();
+        return n == PULSE ? next() : n;
     }
 }
