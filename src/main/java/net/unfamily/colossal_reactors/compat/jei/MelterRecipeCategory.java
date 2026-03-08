@@ -32,7 +32,7 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "melter");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 52;
+    private static final int HEIGHT = 64;
 
     public static final RecipeType<MelterRecipe> RECIPE_TYPE = new RecipeType<>(UID, MelterRecipe.class);
 
@@ -94,11 +94,15 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        int lineHeight = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
         int color = 0xFF404040;
 
         guiGraphics.drawString(font,
                 Component.translatable("jei.colossal_reactors.melter.amount", recipe.amountMb()),
                 margin, textY, color, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter.heat_required_1"), margin, textY + lineHeight, color, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter.heat_required_2"), margin, textY + lineHeight * 2, color, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter.heat_required_3"), margin, textY + lineHeight * 3, color, false);
     }
 
     private static List<ItemStack> resolveItemSelector(ResourceLocation id, boolean isTag, int count, net.minecraft.core.RegistryAccess registryAccess) {

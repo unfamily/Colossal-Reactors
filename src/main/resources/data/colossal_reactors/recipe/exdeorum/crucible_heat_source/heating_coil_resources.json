@@ -1,0 +1,7 @@
+{
+  "type": "exdeorum:crucible_heat_source",
+  "block_predicate": {
+    "block": "colossal_reactors:heating_coil_resources_on"
+  },
+  "heat_value": 30
+}

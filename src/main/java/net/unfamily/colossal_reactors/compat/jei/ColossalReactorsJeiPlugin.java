@@ -15,6 +15,7 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
+import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 
 @JeiPlugin
@@ -33,6 +34,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
                 new FuelRecipeCategory(helper),
                 new HeatSinkRecipeCategory(helper),
                 new MelterRecipeCategory(helper),
+                new MelterHeatSourceRecipeCategory(helper),
                 new HeatingCoilRecipeCategory(helper)
         );
     }
@@ -44,6 +46,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getAll().values().stream().toList());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
         registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
+        registration.addRecipes(MelterHeatSourceRecipeCategory.RECIPE_TYPE, MelterHeatsLoader.getAll());
 
         var coilRecipes = HeatingCoilRegistry.getAll().values().stream()
                 .flatMap(def -> {
@@ -71,6 +74,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(controller, HeatSinkRecipeCategory.RECIPE_TYPE);
 
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterHeatSourceRecipeCategory.RECIPE_TYPE);
 
         for (var id : HeatingCoilRegistry.getAll().keySet()) {
             var off = ModBlocks.getHeatingCoilBlock(id, false);

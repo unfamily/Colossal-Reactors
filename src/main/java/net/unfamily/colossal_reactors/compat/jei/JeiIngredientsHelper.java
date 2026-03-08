@@ -6,11 +6,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.core.RegistryAccess;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
@@ -193,7 +195,7 @@ public final class JeiIngredientsHelper {
         if (selector.startsWith("#")) {
             ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
             if (tagId == null) return list;
-            TagKey<net.minecraft.world.level.block.Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
+            TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
             registryAccess.lookup(Registries.BLOCK).ifPresent(lookup ->
                     lookup.get(tagKey).ifPresent(holders ->
                             holders.forEach(h -> {
@@ -203,9 +205,58 @@ public final class JeiIngredientsHelper {
         } else {
             ResourceLocation id = ResourceLocation.tryParse(selector);
             if (id != null) {
-                net.minecraft.world.level.block.Block block = BuiltInRegistries.BLOCK.get(id);
+                Block block = BuiltInRegistries.BLOCK.get(id);
                 if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
+                }
+            }
+        }
+        return list;
+    }
+
+    /** Resolves MelterHeatEntry block ids/tags to item stacks (block as item) for JEI. */
+    public static List<ItemStack> getBlockStacksFromMelterEntry(MelterHeatEntry entry, RegistryAccess registryAccess) {
+        List<ItemStack> list = new ArrayList<>();
+        var blockIds = entry.blockIds();
+        var blockIdIsTag = entry.blockIdIsTag();
+        for (int i = 0; i < blockIds.size(); i++) {
+            ResourceLocation id = blockIds.get(i);
+            boolean isTag = i < blockIdIsTag.size() && blockIdIsTag.get(i);
+            if (isTag) {
+                TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, id);
+                registryAccess.lookup(Registries.BLOCK).ifPresent(lookup ->
+                        lookup.get(tagKey).ifPresent(holders ->
+                                holders.forEach(h -> {
+                                    ItemStack stack = new ItemStack(h.value().asItem(), DISPLAY_AMOUNT_ITEMS);
+                                    if (!stack.isEmpty()) list.add(stack);
+                                })));
+            } else {
+                Block block = BuiltInRegistries.BLOCK.get(id);
+                if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
+                    list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
+                }
+            }
+        }
+        return list;
+    }
+
+    /** Resolves MelterHeatEntry fluid ids/tags to fluid stacks (1000 mB) for JEI. */
+    public static List<FluidStack> getFluidStacksFromMelterEntry(MelterHeatEntry entry, RegistryAccess registryAccess) {
+        List<FluidStack> list = new ArrayList<>();
+        var fluidIds = entry.fluidIds();
+        var fluidIdIsTag = entry.fluidIdIsTag();
+        for (int i = 0; i < fluidIds.size(); i++) {
+            ResourceLocation id = fluidIds.get(i);
+            boolean isTag = i < fluidIdIsTag.size() && fluidIdIsTag.get(i);
+            if (isTag) {
+                TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, id);
+                registryAccess.lookup(Registries.FLUID).ifPresent(lookup ->
+                        lookup.get(tagKey).ifPresent(holders ->
+                                holders.forEach(h -> list.add(new FluidStack(h.value(), DISPLAY_AMOUNT_MB)))));
+            } else {
+                Fluid fluid = BuiltInRegistries.FLUID.get(id);
+                if (fluid != null && fluid != Fluids.EMPTY) {
+                    list.add(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
                 }
             }
         }
