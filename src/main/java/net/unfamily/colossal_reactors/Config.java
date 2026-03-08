@@ -27,6 +27,20 @@ public class Config {
             .comment("Log why the Melter is not advancing when it has input (no recipe, fluid not found, heat product). Default: false")
             .define("003_melter_debug", false);
 
+    public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_RADIATION_MANAGEMENT = BUILDER
+            .comment("Does not enable radiation in Colossal Reactors reactors. Enable radiation management features (Radiation Scrubber, Radiation Cure). When true and Mekanism is installed, items and recipes appear in creative tab and are craftable. Default: false")
+            .define("004_enable_radiation_management", false);
+
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_URANIUM_OREGEN = BUILDER
+            .comment("When true, disables uranium ore generation in the world. Default: false")
+            .define("100_disable_uranium_oregen", false);
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_LEAD_OREGEN = BUILDER
+            .comment("When true, disables lead ore generation in the world. Default: false")
+            .define("101_disable_lead_oregen", false);
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_BORON_OREGEN = BUILDER
+            .comment("When true, disables boron ore generation in the world. Few mods add boron; useful to keep only boron. Default: false")
+            .define("102_disable_boron_oregen", false);
+
     static {
         BUILDER.pop();
     }

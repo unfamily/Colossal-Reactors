@@ -8,6 +8,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 
 public class ModCreativeModeTabs {
@@ -31,7 +32,7 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.REDSTONE_PORT.get());
                                 output.accept(ModItems.RESOURCE_PORT.get());
                                 output.accept(ModItems.MELTER.get());
-                                if (ModList.get().isLoaded("mekanism")) {
+                                if (ModList.get().isLoaded("mekanism") && Config.ENABLE_RADIATION_MANAGEMENT.get()) {
                                     output.accept(ModItems.RADIATION_SCRUBBER.get());
                                     output.accept(ModItems.RADIATION_CURE.get());
                                 }

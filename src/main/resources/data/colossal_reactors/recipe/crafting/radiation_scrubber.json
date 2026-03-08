@@ -1,5 +1,8 @@
 {
-  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "mekanism" }],
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "mekanism" },
+    { "type": "colossal_reactors:radiation_management_enabled" }
+  ],
   "type": "minecraft:crafting_shaped",
   "pattern": ["ABA", "BCB", "ABA"],
   "key": {

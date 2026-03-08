@@ -67,6 +67,8 @@ public class ColossalReactors {
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
         ModPayloads.register(modEventBus);
+        net.unfamily.colossal_reactors.data.ModConditions.CONDITION_CODECS.register(modEventBus);
+        net.unfamily.colossal_reactors.world.ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::gatherData);
         modEventBus.addListener(this::registerCapabilities);
