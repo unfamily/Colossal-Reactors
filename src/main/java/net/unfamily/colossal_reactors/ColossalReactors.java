@@ -95,6 +95,10 @@ public class ColossalReactors {
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandlerForCapability());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getItemHandler());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getEnergyStorage());
     }
 
     private void gatherData(GatherDataEvent event) {
@@ -146,6 +150,7 @@ public class ColossalReactors {
             event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
             event.register(ModMenuTypes.HEATING_COIL_MENU.get(), HeatingCoilScreen::new);
             event.register(ModMenuTypes.MELTER_MENU.get(), net.unfamily.colossal_reactors.client.gui.MelterScreen::new);
+            event.register(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen::new);
         }
     }
 }

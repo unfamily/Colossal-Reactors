@@ -56,6 +56,12 @@ public class ModBlocks {
                     .strength(2.0f)
                     .requiresCorrectToolForDrops()));
 
+    public static final DeferredBlock<RadiationScrubberBlock> RADIATION_SCRUBBER = BLOCKS.register("radiation_scrubber",
+            () -> new RadiationScrubberBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)
+                    .requiresCorrectToolForDrops()));
+
     public static final DeferredBlock<Block> ROD_CONTROLLER = BLOCKS.register("rod_controller",
             () -> new Block(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)

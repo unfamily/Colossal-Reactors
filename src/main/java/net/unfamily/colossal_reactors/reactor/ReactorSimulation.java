@@ -300,7 +300,7 @@ public final class ReactorSimulation {
         } else {
             // Recover at same scale as drop (so increase speed matches decrease speed)
             int addPermille = Math.max(1, (int) Math.ceil(sizeFactor));
-            controller.setStabilityPermille(Math.min(1000, current + addPermille));
+            controller.setStabilityPermille(Math.min(Config.REACTOR_UNSTABILITY_MAX_STABILITY_PERMILLE.get(), current + addPermille));
         }
     }
 

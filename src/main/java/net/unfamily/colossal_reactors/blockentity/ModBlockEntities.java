@@ -52,6 +52,10 @@ public class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register("melter",
                     () -> BlockEntityType.Builder.of(MelterBlockEntity::new, ModBlocks.MELTER.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RadiationScrubberBlockEntity>> RADIATION_SCRUBBER_BE =
+            BLOCK_ENTITY_TYPES.register("radiation_scrubber",
+                    () -> BlockEntityType.Builder.of(RadiationScrubberBlockEntity::new, ModBlocks.RADIATION_SCRUBBER.get()).build(null));
+
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

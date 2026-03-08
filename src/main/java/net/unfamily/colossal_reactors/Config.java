@@ -208,6 +208,31 @@ public class Config {
         BUILDER.pop(); // ports
     }
 
+    // ========== radiation_scrubber ==========
+    static {
+        BUILDER.comment("Radiation Scrubber (Mekanism integration). Energy, scrub range, interval and catalyst.").push("radiation_scrubber");
+    }
+
+    public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_ENERGY_PER_TICK = BUILDER
+            .comment("Energy (RF) consumed per scrub tick when the machine runs. Default: 100")
+            .defineInRange("000_energyPerTick", 100, 0, 100000);
+    public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_ENERGY_CAPACITY = BUILDER
+            .comment("Energy buffer capacity in RF. Default: 10000")
+            .defineInRange("010_energyCapacity", 10000, 100, 10000000);
+    public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_RADIUS_BLOCKS = BUILDER
+            .comment("Scrub radius in blocks (distance from machine)")
+            .defineInRange("020_radiusBlocks", 50, 0, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_INTERVAL_TICKS = BUILDER
+            .comment("Ticks between each scrub pass. Default: 10")
+            .defineInRange("030_intervalTicks", 10, 1, 200);
+    public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_BASE_RADIATION_REMOVAL = BUILDER
+            .comment("Base multiplier for how much radiation is removed per scrub (applied to datapack effectiveness). 1000 Default: 1000")
+            .defineInRange("040_baseRadiationRemoval", 100, 1, Integer.MAX_VALUE);
+
+    static {
+        BUILDER.pop();
+    }
+
     // ========== evil_things ==========
     static {
         BUILDER.comment("Optional integrations that may be considered overpowered or disruptive. All default: false.",
@@ -217,18 +242,21 @@ public class Config {
     public static final ModConfigSpec.BooleanValue REACTOR_UNSTABILITY = BUILDER
             .comment("Reactor unstability. Default: false")
             .define("000_reactor_unstability", false);
+    public static final ModConfigSpec.IntValue REACTOR_UNSTABILITY_MAX_STABILITY_PERMILLE = BUILDER
+            .comment("Maximum stability when reactor unstability is enabled. Default: 1000")
+            .defineInRange("001_reactor_unstability_max_stability", 1000, 1, Integer.MAX_VALUE);
 
     public static final ModConfigSpec.BooleanValue MEKANISM_RADIATION_INTEGRATION = BUILDER
             .comment("Mekanism radiation integration. Default: false")
-            .define("001_mekanism_radiation_integration", false);
+            .define("002_mekanism_radiation_integration", false);
 
     public static final ModConfigSpec.BooleanValue ISKA_UTILS_EXPLOSION_INTEGRATION = BUILDER
             .comment("Iska Utils explosion integration. Default: false")
-            .define("002_iska_utils_explosion_integration", false);
+            .define("003_iska_utils_explosion_integration", false);
 
     public static final ModConfigSpec.BooleanValue ALEXS_CAVES_EXPLOSION_INTEGRATION = BUILDER
             .comment("Alex's Caves explosion integration. Default: false")
-            .define("003_alexs_caves_explosion_integration", false);
+            .define("004_alexs_caves_explosion_integration", false);
 
     static {
         BUILDER.pop(); // evil_things

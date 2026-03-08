@@ -36,6 +36,8 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> MELTER = ITEMS.register("melter",
             () -> new BlockItem(ModBlocks.MELTER.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> RADIATION_SCRUBBER = ITEMS.register("radiation_scrubber",
+            () -> new BlockItem(ModBlocks.RADIATION_SCRUBBER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> ROD_CONTROLLER = ITEMS.register("rod_controller",
             () -> new BlockItem(ModBlocks.ROD_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> REACTOR_BUILDER = ITEMS.register("reactor_builder",

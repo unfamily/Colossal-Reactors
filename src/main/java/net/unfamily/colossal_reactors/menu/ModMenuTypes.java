@@ -36,6 +36,10 @@ public class ModMenuTypes {
             MENUS.register("melter", () ->
                     new MenuType<>(MelterMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<RadiationScrubberMenu>> RADIATION_SCRUBBER_MENU =
+            MENUS.register("radiation_scrubber", () ->
+                    new MenuType<>(RadiationScrubberMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+
     public static void register(IEventBus eventBus) {
         MENUS.register(eventBus);
     }

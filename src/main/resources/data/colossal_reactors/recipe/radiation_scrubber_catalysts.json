@@ -1,0 +1,9 @@
+{
+  "type": "colossal_reactors:radiation_scrubber_catalysts",
+  "entries": [
+    {
+      "catalysts": ["#c:dusts/boron"],
+      "mult": 100
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 
@@ -30,6 +31,7 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.REDSTONE_PORT.get());
                                 output.accept(ModItems.RESOURCE_PORT.get());
                                 output.accept(ModItems.MELTER.get());
+                                if (ModList.get().isLoaded("mekanism")) output.accept(ModItems.RADIATION_SCRUBBER.get());
                                 for (var item : ModItems.HEATING_COIL_OFF_ITEMS) output.accept(item.get());
                                 output.accept(ModItems.URANIUM_ORE.get());
                                 output.accept(ModItems.DEEPSLATE_URANIUM_ORE.get());
