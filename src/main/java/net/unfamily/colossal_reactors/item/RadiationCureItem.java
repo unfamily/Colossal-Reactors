@@ -7,7 +7,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
 import java.lang.reflect.Method;
@@ -33,10 +32,6 @@ public class RadiationCureItem extends Item {
         }
         if (clearPlayerRadiation(player)) {
             stack.shrink(1);
-            ItemStack bottle = new ItemStack(Items.GLASS_BOTTLE);
-            if (!player.getInventory().add(bottle)) {
-                player.drop(bottle, false);
-            }
             return InteractionResultHolder.success(stack);
         }
         return InteractionResultHolder.pass(stack);
