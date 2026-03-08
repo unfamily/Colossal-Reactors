@@ -31,7 +31,10 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.REDSTONE_PORT.get());
                                 output.accept(ModItems.RESOURCE_PORT.get());
                                 output.accept(ModItems.MELTER.get());
-                                if (ModList.get().isLoaded("mekanism")) output.accept(ModItems.RADIATION_SCRUBBER.get());
+                                if (ModList.get().isLoaded("mekanism")) {
+                                    output.accept(ModItems.RADIATION_SCRUBBER.get());
+                                    output.accept(ModItems.RADIATION_CURE.get());
+                                }
                                 for (var item : ModItems.HEATING_COIL_OFF_ITEMS) output.accept(item.get());
                                 output.accept(ModItems.URANIUM_ORE.get());
                                 output.accept(ModItems.DEEPSLATE_URANIUM_ORE.get());

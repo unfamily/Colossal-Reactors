@@ -17,6 +17,8 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.minecraft.core.Direction;
+import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
@@ -41,6 +43,7 @@ import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
+import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 
 import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
@@ -99,6 +102,24 @@ public class ColossalReactors {
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getEnergyStorage());
+        registerRadiationScrubberChemicalCapability(event);
+    }
+
+    /** Registers Mekanism CHEMICAL block capability for Radiation Scrubber when Mekanism is loaded (reflection). */
+    @SuppressWarnings("unchecked")
+    private static void registerRadiationScrubberChemicalCapability(RegisterCapabilitiesEvent event) {
+        try {
+            if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) return;
+            Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
+            Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
+            Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
+            event.registerBlockEntity(
+                    (BlockCapability<Object, Direction>) blockCap,
+                    ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
+                    (RadiationScrubberBlockEntity be, Direction direction) -> be.getChemicalHandler());
+        } catch (Throwable t) {
+            LOGGER.debug("Could not register Radiation Scrubber chemical capability: {}", t.getMessage());
+        }
     }
 
     private void gatherData(GatherDataEvent event) {

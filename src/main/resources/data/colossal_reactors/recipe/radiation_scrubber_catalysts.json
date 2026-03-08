@@ -3,7 +3,8 @@
   "entries": [
     {
       "catalysts": ["#c:dusts/boron"],
-      "mult": 100
+      "mult": 100,
+      "gas_mult": 10
     }
   ]
 }

@@ -226,8 +226,11 @@ public class Config {
             .comment("Ticks between each scrub pass. Default: 10")
             .defineInRange("030_intervalTicks", 10, 1, 200);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_BASE_RADIATION_REMOVAL = BUILDER
-            .comment("Base multiplier for how much radiation is removed per scrub (applied to datapack effectiveness). 1000 Default: 1000")
+            .comment("Base multiplier for how much radiation is removed per scrub (applied to datapack effectiveness). Default: 100")
             .defineInRange("040_baseRadiationRemoval", 100, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_BASE_GAS_DESTRUCTION = BUILDER
+            .comment("Base mB of radioactive gas destroyed per tick (100 RF per tick). With catalyst: base * gas_mult from datapack. Default: 10")
+            .defineInRange("050_baseGasDestruction", 10, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();

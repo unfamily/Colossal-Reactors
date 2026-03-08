@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
+import net.unfamily.colossal_reactors.item.RadiationCureItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -48,6 +49,8 @@ public class ModItems {
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> CATALYST_BREEZIUM = ITEMS.register("catalyst_breezium",
             () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> RADIATION_CURE = ITEMS.register("radiation_cure",
+            () -> new RadiationCureItem(new Item.Properties().stacksTo(16)));
 
     // Resource block items
     public static final DeferredItem<BlockItem> URANIUM_ORE = ITEMS.register("uranium_ore",

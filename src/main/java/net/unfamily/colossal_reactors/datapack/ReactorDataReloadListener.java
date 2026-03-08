@@ -78,13 +78,14 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
             List<MelterHeatEntry> melterHeats = new ArrayList<>();
             List<String> radiationScrubberCatalysts = new ArrayList<>();
             int[] rsMult = new int[]{10}; // mult; last file wins
+            int[] rsGasMult = new int[]{1}; // gas_mult; last file wins
             Map<ResourceLocation, List<Resource>> stacks = resourceManager.listResourceStacks(REACTOR_DATA_PATH,
                     rl -> rl.getPath().endsWith(".json"));
             for (Map.Entry<ResourceLocation, List<Resource>> entry : stacks.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 for (Resource resource : entry.getValue()) {
                     processOneResource(location, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
-                            radiationScrubberCatalysts, rsMult);
+                            radiationScrubberCatalysts, rsMult, rsGasMult);
                 }
             }
             // Fallback: load mod's builtin melter / radiation_scrubber_catalysts JSON if not found via listResourceStacks
@@ -94,7 +95,7 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                 try {
                     for (Resource resource : resourceManager.getResourceStack(builtinRecipes)) {
                         processOneResource(builtinRecipes, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
-                                radiationScrubberCatalysts, rsMult);
+                                radiationScrubberCatalysts, rsMult, rsGasMult);
                     }
                 } catch (Exception e) {
                     LOGGER.debug("Could not load builtin melter_recipes.json: {}", e.getMessage());
@@ -104,7 +105,7 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                 try {
                     for (Resource resource : resourceManager.getResourceStack(builtinHeats)) {
                         processOneResource(builtinHeats, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
-                                radiationScrubberCatalysts, rsMult);
+                                radiationScrubberCatalysts, rsMult, rsGasMult);
                     }
                 } catch (Exception e) {
                     LOGGER.debug("Could not load builtin melter_heats.json: {}", e.getMessage());
@@ -115,14 +116,14 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                 try {
                     for (Resource resource : resourceManager.getResourceStack(builtinCatalysts)) {
                         processOneResource(builtinCatalysts, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
-                                radiationScrubberCatalysts, rsMult);
+                                radiationScrubberCatalysts, rsMult, rsGasMult);
                     }
                 } catch (Exception e) {
                     LOGGER.debug("Could not load builtin radiation_scrubber_catalysts.json: {}", e.getMessage());
                 }
             }
             prepareProfiler.pop();
-            return new LoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats, radiationScrubberCatalysts, rsMult[0]);
+            return new LoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats, radiationScrubberCatalysts, rsMult[0], rsGasMult[0]);
         }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(data -> {
             applyProfiler.push("Colossal Reactors apply");
             FuelLoader.applyLoaded(data.fuel());
@@ -130,7 +131,7 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
             HeatSinkLoader.applyLoaded(data.heatSinks());
             MelterRecipesLoader.applyLoaded(data.melterRecipes());
             MelterHeatsLoader.applyLoaded(data.melterHeats());
-            RadiationScrubberCatalystsLoader.applyLoaded(data.radiationScrubberCatalysts(), data.radiationScrubberMult());
+            RadiationScrubberCatalystsLoader.applyLoaded(data.radiationScrubberCatalysts(), data.radiationScrubberMult(), data.radiationScrubberGasMult());
             applyProfiler.pop();
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s)",
@@ -147,7 +148,8 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                                           List<MelterRecipe> melterRecipes,
                                           List<MelterHeatEntry> melterHeats,
                                           List<String> radiationScrubberCatalysts,
-                                          int[] radiationScrubberMult) {
+                                          int[] radiationScrubberMult,
+                                          int[] radiationScrubberGasMult) {
         String source = location + " from " + resource.sourcePackId();
         try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
@@ -173,6 +175,7 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                 if (parsed != null) {
                     radiationScrubberCatalysts.addAll(parsed.catalysts());
                     if (parsed.mult() >= 0) radiationScrubberMult[0] = parsed.mult();
+                    if (parsed.gasMult() >= 0) radiationScrubberGasMult[0] = parsed.gasMult();
                 }
                 return;
             }
@@ -214,6 +217,7 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
             List<MelterRecipe> melterRecipes,
             List<MelterHeatEntry> melterHeats,
             List<String> radiationScrubberCatalysts,
-            int radiationScrubberMult
+            int radiationScrubberMult,
+            int radiationScrubberGasMult
     ) {}
 }

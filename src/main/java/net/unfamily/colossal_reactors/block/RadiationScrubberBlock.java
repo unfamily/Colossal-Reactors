@@ -67,6 +67,7 @@ public class RadiationScrubberBlock extends BaseEntityBlock {
         if (!state.is(newState.getBlock())) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof RadiationScrubberBlockEntity scrubber) {
+                RadiationScrubberBlockEntity.dumpRadiationOnBreak(level, pos, scrubber);
                 scrubber.dropAllContents();
             }
         }

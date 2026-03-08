@@ -13,9 +13,11 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 
+import javax.annotation.Nullable;
+
 /**
  * Radiation Scrubber container. Slot 0 (catalyst) at (44, 33), Slot 1 at (80, 33), player inventory at (8, 84), hotbar at (8, 142).
- * Data indices 3,4 = energy, energyCapacity.
+ * Data indices 0-2 pos, 3-4 energy, 5-6 tank amount/cap, 7 = gas type length, 8-23 = gas type string (packed).
  */
 public class RadiationScrubberMenu extends AbstractContainerMenu {
 
@@ -44,7 +46,7 @@ public class RadiationScrubberMenu extends AbstractContainerMenu {
     public RadiationScrubberMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(5);
+        this.data = new SimpleContainerData(24);
         addDataSlots(data);
 
         var emptyHandler = new net.neoforged.neoforge.items.ItemStackHandler(2);
@@ -76,6 +78,30 @@ public class RadiationScrubberMenu extends AbstractContainerMenu {
 
     public int getEnergyCapacity() {
         return data.get(4);
+    }
+
+    public int getChemicalTankAmount() {
+        return data.get(5);
+    }
+
+    public int getChemicalTankCapacity() {
+        return data.get(6);
+    }
+
+    /** Decodes gas type registry name from synced container data (from server). Returns null if empty. */
+    @Nullable
+    public String getChemicalTypeRegistryName() {
+        int len = data.get(7);
+        if (len <= 0 || len > 64) return null;
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++) {
+            int slot = 8 + (i >> 2);
+            int shift = (i & 3) * 8;
+            int ch = (data.get(slot) >> shift) & 0xFF;
+            if (ch == 0) break;
+            sb.append((char) ch);
+        }
+        return sb.length() > 0 ? sb.toString() : null;
     }
 
     @Override
