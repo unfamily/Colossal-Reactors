@@ -7,15 +7,20 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 
 import java.lang.reflect.Method;
 
 /**
  * Consumable item that fully clears Mekanism radiation from the player when used.
+ * Must be held for 3 seconds (like the scanner) before the effect applies.
  * Only effective when Mekanism is loaded; uses reflection to avoid hard dependency.
  */
 public class RadiationCureItem extends Item {
+
+    /** Ticks to hold (20 ticks = 1 second). */
+    private static final int USE_DURATION_TICKS = 60;
 
     public RadiationCureItem(Properties properties) {
         super(properties);
@@ -24,17 +29,30 @@ public class RadiationCureItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (level.isClientSide()) {
-            return InteractionResultHolder.success(stack);
+        player.startUsingItem(hand);
+        return InteractionResultHolder.consume(stack);
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.BOW;
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+        return USE_DURATION_TICKS;
+    }
+
+    @Override
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int remainingUseTicks) {
+        if (level.isClientSide() || !(entity instanceof ServerPlayer player)) {
+            return;
         }
-        if (!(player instanceof ServerPlayer)) {
-            return InteractionResultHolder.pass(stack);
-        }
-        if (clearPlayerRadiation(player)) {
+        int totalDuration = getUseDuration(stack, entity);
+        int timeUsed = totalDuration - remainingUseTicks;
+        if (timeUsed >= USE_DURATION_TICKS && clearPlayerRadiation(player)) {
             stack.shrink(1);
-            return InteractionResultHolder.success(stack);
         }
-        return InteractionResultHolder.pass(stack);
     }
 
     /**
