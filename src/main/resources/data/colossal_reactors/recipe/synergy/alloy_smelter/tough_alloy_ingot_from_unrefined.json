@@ -6,12 +6,12 @@
     "item": "colossal_reactors:unrefined_tough_alloy"
   },
   "output": {
-    "count": 1,
+    "count": 2,
     "id": "colossal_reactors:tough_alloy_ingot"
   },
   "right": {
     "count": 1,
-    "tag": "c:ingots/boron"
+    "item": "colossal_reactors:unrefined_tough_alloy"
   },
   "ticks": 80
 }

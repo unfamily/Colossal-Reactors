@@ -7,7 +7,7 @@
     }
   ],
   "type": "create:mixing",
-  "heat_requirement": "superheated",
+  "heat_requirement": "heated",
   "ingredients": [
     { "tag": "c:ingots/steel" },
     { "tag": "c:ingots/steel" },
