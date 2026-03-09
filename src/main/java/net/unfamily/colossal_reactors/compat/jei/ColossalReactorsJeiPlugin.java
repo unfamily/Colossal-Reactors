@@ -75,12 +75,6 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterHeatSourceRecipeCategory.RECIPE_TYPE);
-
-        for (var id : HeatingCoilRegistry.getAll().keySet()) {
-            var off = ModBlocks.getHeatingCoilBlock(id, false);
-            if (off != null) {
-                registration.addRecipeCatalyst(new ItemStack(off), HeatingCoilRecipeCategory.RECIPE_TYPE);
-            }
-        }
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), HeatingCoilRecipeCategory.RECIPE_TYPE);
     }
 }
