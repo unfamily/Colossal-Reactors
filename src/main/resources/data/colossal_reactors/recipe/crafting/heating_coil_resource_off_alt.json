@@ -4,7 +4,7 @@
   "key": {
     "A": { "tag": "c:ingots/graphite" },
     "B": { "tag": "c:ingots/copper" },
-    "C": { "tag": "c:storage_blocks/redstone" }
+    "C": { "item": "minecraft:hopper" }
   },
   "result": { "id": "colossal_reactors:heating_coil_resource_off", "count": 1 }
 }
