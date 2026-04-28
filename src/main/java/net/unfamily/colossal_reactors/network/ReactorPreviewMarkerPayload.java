@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
 
 /**
@@ -14,7 +14,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 public record ReactorPreviewMarkerPayload(BlockPos pos, int color, int durationTicks) implements CustomPacketPayload {
 
     public static final Type<ReactorPreviewMarkerPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_preview_marker"));
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_preview_marker"));
 
     public static final StreamCodec<FriendlyByteBuf, ReactorPreviewMarkerPayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,

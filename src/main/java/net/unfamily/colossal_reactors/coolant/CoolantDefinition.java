@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.coolant;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -11,7 +11,7 @@ import java.util.List;
  * fluidColor and outputColor are ARGB (0 = use game default) for simple GUI rendering.
  */
 public record CoolantDefinition(
-        ResourceLocation coolantId,
+        Identifier coolantId,
         List<String> inputs,
         String output,
         int rfIncrementPercent,

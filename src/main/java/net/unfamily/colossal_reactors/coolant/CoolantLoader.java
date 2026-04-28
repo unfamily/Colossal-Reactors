@@ -6,7 +6,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -46,15 +46,15 @@ public class CoolantLoader {
     private static final int DEFAULT_WATER_COLOR = 0xFF3498DB;
     private static final int DEFAULT_STEAM_COLOR = 0xFFE8F0F0;
 
-    private static final Map<ResourceLocation, CoolantDefinition> DEFINITIONS = new HashMap<>();
+    private static final Map<Identifier, CoolantDefinition> DEFINITIONS = new HashMap<>();
 
     /** Default coolant id for water. */
-    public static final ResourceLocation WATER_COOLANT_ID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "water");
+    public static final Identifier WATER_COOLANT_ID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "water");
 
     /**
      * Applies loaded datapack data: clears, registers internal defaults, then merges in loaded map.
      */
-    public static void applyLoaded(Map<ResourceLocation, CoolantDefinition> loaded) {
+    public static void applyLoaded(Map<Identifier, CoolantDefinition> loaded) {
         DEFINITIONS.clear();
         registerInternalDefaults();
         if (loaded != null) {
@@ -77,7 +77,7 @@ public class CoolantLoader {
             LOGGER.warn("Coolant entry in {}: missing 'coolant_id'", sourcePath);
             return null;
         }
-        ResourceLocation coolantId = ResourceLocation.tryParse(json.get(KEY_COOLANT_ID).getAsString());
+        Identifier coolantId = Identifier.tryParse(json.get(KEY_COOLANT_ID).getAsString());
         if (coolantId == null) {
             LOGGER.warn("Coolant entry in {}: invalid coolant_id", sourcePath);
             return null;
@@ -130,11 +130,11 @@ public class CoolantLoader {
         DEFINITIONS.put(def.coolantId(), def);
     }
 
-    public static CoolantDefinition get(ResourceLocation coolantId) {
+    public static CoolantDefinition get(Identifier coolantId) {
         return DEFINITIONS.get(coolantId);
     }
 
-    public static Map<ResourceLocation, CoolantDefinition> getAll() {
+    public static Map<Identifier, CoolantDefinition> getAll() {
         return new HashMap<>(DEFINITIONS);
     }
 
@@ -147,7 +147,7 @@ public class CoolantLoader {
     @Nullable
     public static Fluid getFirstFluidFromTag(String outputSelector, net.minecraft.core.RegistryAccess registryAccess) {
         if (outputSelector == null || !outputSelector.startsWith("#")) return null;
-        ResourceLocation tagId = ResourceLocation.tryParse(outputSelector.substring(1));
+        Identifier tagId = Identifier.tryParse(outputSelector.substring(1));
         if (tagId == null) return null;
         var tagKey = TagKey.create(Registries.FLUID, tagId);
         return registryAccess.lookup(Registries.FLUID)
@@ -163,7 +163,7 @@ public class CoolantLoader {
         if (def == null || def.inputs().isEmpty()) return null;
         String first = def.inputs().get(0);
         if (first.startsWith("#")) return getFirstFluidFromTag(first, registryAccess);
-        ResourceLocation id = ResourceLocation.tryParse(first);
+        Identifier id = Identifier.tryParse(first);
         return id != null ? BuiltInRegistries.FLUID.get(id) : null;
     }
 
@@ -173,12 +173,12 @@ public class CoolantLoader {
     @Nullable
     public static CoolantDefinition getDefinitionForFluid(Fluid fluid, RegistryAccess registryAccess) {
         if (fluid == null || fluid == Fluids.EMPTY) return null;
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        Identifier fluidId = BuiltInRegistries.FLUID.getKey(fluid);
         for (CoolantDefinition def : DEFINITIONS.values()) {
             for (String input : def.inputs()) {
                 if (isInputExcluded(input)) continue;
                 if (input.startsWith("#")) {
-                    ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+                    Identifier tagId = Identifier.tryParse(input.substring(1));
                     if (tagId == null) continue;
                     TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
                     var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID).getHolder(ResourceKey.create(Registries.FLUID, fluidId)).orElse(null);
@@ -189,7 +189,7 @@ public class CoolantLoader {
                             .orElse(false);
                     if (inTag) return def;
                 } else {
-                    if (ResourceLocation.tryParse(input).equals(fluidId)) return def;
+                    if (Identifier.tryParse(input).equals(fluidId)) return def;
                 }
             }
         }

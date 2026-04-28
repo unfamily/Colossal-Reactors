@@ -3,7 +3,7 @@ package net.unfamily.colossal_reactors.melter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +43,7 @@ public final class MelterHeatsLoader {
         net.minecraft.core.BlockPos adjacent = melterPos.relative(direction);
         net.minecraft.world.level.block.state.BlockState state = level.getBlockState(adjacent);
         net.minecraft.world.level.block.Block block = state.getBlock();
-        ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+        Identifier blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
 
         // Check block matches first; only count as valid if entry does not have not_valid: true
         for (MelterHeatEntry e : ENTRIES) {
@@ -64,7 +64,7 @@ public final class MelterHeatsLoader {
         net.minecraft.world.level.material.FluidState fluidState = level.getFluidState(adjacent);
         if (fluidState.isEmpty()) return false;
         net.minecraft.world.level.material.Fluid fluid = fluidState.getType();
-        ResourceLocation fluidId = net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(fluid);
+        Identifier fluidId = net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(fluid);
         for (MelterHeatEntry e : ENTRIES) {
             if (e.notValid()) continue;
             if (e.fluidIds().isEmpty()) continue;
@@ -89,7 +89,7 @@ public final class MelterHeatsLoader {
         net.minecraft.core.BlockPos adjacent = melterPos.relative(direction);
         net.minecraft.world.level.block.state.BlockState state = level.getBlockState(adjacent);
         net.minecraft.world.level.block.Block block = state.getBlock();
-        ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+        Identifier blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
         for (MelterHeatEntry e : ENTRIES) {
             if (e.blockIds().isEmpty()) continue;
             for (int i = 0; i < e.blockIds().size(); i++) {
@@ -113,7 +113,7 @@ public final class MelterHeatsLoader {
         net.minecraft.world.level.material.FluidState fluidState = level.getFluidState(adjacent);
         if (fluidState.isEmpty()) return 1.0;
         net.minecraft.world.level.material.Fluid fluid = fluidState.getType();
-        ResourceLocation fluidId = net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(fluid);
+        Identifier fluidId = net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(fluid);
         for (MelterHeatEntry e : ENTRIES) {
             if (e.fluidIds().isEmpty()) continue;
             for (int i = 0; i < e.fluidIds().size(); i++) {

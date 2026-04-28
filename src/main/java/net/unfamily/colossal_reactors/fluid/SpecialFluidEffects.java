@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>Ender goo: random teleport (source or flowing) with cooldown.</li>
  * </ul>
  */
-@EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class SpecialFluidEffects {
 
     /** Like iskautils freeze plate: set directly to 200 so damage (threshold 140) applies immediately. Stronger than plate. */

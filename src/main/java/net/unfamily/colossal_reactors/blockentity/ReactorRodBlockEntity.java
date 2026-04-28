@@ -5,7 +5,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,7 +30,7 @@ import java.util.List;
 public class ReactorRodBlockEntity extends BlockEntity {
 
     /** Default uranium fuel type id (colossal_reactors:uranium). */
-    public static final ResourceLocation URANIUM_FUEL_ID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "uranium");
+    public static final Identifier URANIUM_FUEL_ID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "uranium");
 
     private static final String TAG_FUEL = "Fuel";
     private static final String TAG_FUEL_ID = "Id";
@@ -56,11 +56,11 @@ public class ReactorRodBlockEntity extends BlockEntity {
     /** Liquid waste: same structure as coolant, total <= LIQUID_WASTE_CAPACITY_MB. */
     private final List<FluidEntry> liquidWasteEntries = new ArrayList<>();
     /** Accumulated consumed units per waste type (float, for fractional waste: 1000 units -> 1 item). */
-    private final java.util.Map<ResourceLocation, Float> wasteAccumulator = new java.util.HashMap<>();
+    private final java.util.Map<Identifier, Float> wasteAccumulator = new java.util.HashMap<>();
 
-    public record FuelEntry(ResourceLocation id, float units) {}
+    public record FuelEntry(Identifier id, float units) {}
     public record FluidEntry(Fluid fluid, int amount) {}
-    public record SolidWasteEntry(ResourceLocation id, int count) {}
+    public record SolidWasteEntry(Identifier id, int count) {}
 
     public ReactorRodBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_ROD_BE.get(), pos, state);
@@ -76,7 +76,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         return (float) fuelEntries.stream().mapToDouble(FuelEntry::units).sum();
     }
 
-    public float getFuelUnits(ResourceLocation fuelId) {
+    public float getFuelUnits(Identifier fuelId) {
         return (float) fuelEntries.stream()
                 .filter(e -> e.id().equals(fuelId))
                 .mapToDouble(FuelEntry::units)
@@ -89,7 +89,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Add units of a fuel type. Clamps to max total capacity; returns actual amount added. */
-    public float addFuel(ResourceLocation fuelId, float units) {
+    public float addFuel(Identifier fuelId, float units) {
         if (units <= 0) return 0;
         float total = getTotalFuelUnits();
         int max = getMaxFuelUnits();
@@ -102,7 +102,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Consumes up to `units` of the given fuel type. Returns the amount actually consumed. */
-    public float consumeFuel(ResourceLocation fuelId, float units) {
+    public float consumeFuel(Identifier fuelId, float units) {
         if (units <= 0) return 0;
         for (int i = 0; i < fuelEntries.size(); i++) {
             if (fuelEntries.get(i).id().equals(fuelId)) {
@@ -124,7 +124,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Set units for a fuel type (replaces that type). Total is clamped to max. */
-    public void setFuel(ResourceLocation fuelId, float units) {
+    public void setFuel(Identifier fuelId, float units) {
         fuelEntries.removeIf(e -> e.id().equals(fuelId));
         if (units > 0) {
             float totalOthers = getTotalFuelUnits();
@@ -138,7 +138,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         updateBlockState();
     }
 
-    private void mergeFuel(ResourceLocation fuelId, float add) {
+    private void mergeFuel(Identifier fuelId, float add) {
         for (int i = 0; i < fuelEntries.size(); i++) {
             if (fuelEntries.get(i).id().equals(fuelId)) {
                 FuelEntry e = fuelEntries.get(i);
@@ -218,7 +218,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         return solidWasteEntries.stream().mapToInt(SolidWasteEntry::count).sum();
     }
 
-    public int addSolidWaste(ResourceLocation itemId, int count) {
+    public int addSolidWaste(Identifier itemId, int count) {
         if (count <= 0) return 0;
         int total = getTotalSolidWasteCount();
         int add = Math.min(count, SOLID_WASTE_CAPACITY - total);
@@ -228,7 +228,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         return add;
     }
 
-    private void mergeSolidWaste(ResourceLocation id, int add) {
+    private void mergeSolidWaste(Identifier id, int add) {
         for (int i = 0; i < solidWasteEntries.size(); i++) {
             if (solidWasteEntries.get(i).id().equals(id)) {
                 SolidWasteEntry e = solidWasteEntries.get(i);
@@ -243,7 +243,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
      * Records consumed fuel units and adds solid waste when accumulation reaches unitsPerWaste.
      * E.g. unitsPerWaste=1000: every 1000 consumed units produce 1 waste item (remainder carried over).
      */
-    public void recordConsumedAndAddWaste(ResourceLocation wasteId, float consumedUnits, int unitsPerWaste) {
+    public void recordConsumedAndAddWaste(Identifier wasteId, float consumedUnits, int unitsPerWaste) {
         if (consumedUnits <= 0 || unitsPerWaste <= 0) return;
         float total = wasteAccumulator.getOrDefault(wasteId, 0f) + consumedUnits;
         int wasteCount = (int) (total / unitsPerWaste);
@@ -252,7 +252,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /** Takes up to count of the given waste item from this rod. Returns amount actually taken. */
-    public int takeSolidWaste(ResourceLocation itemId, int count) {
+    public int takeSolidWaste(Identifier itemId, int count) {
         if (count <= 0) return 0;
         for (int i = 0; i < solidWasteEntries.size(); i++) {
             SolidWasteEntry e = solidWasteEntries.get(i);
@@ -412,7 +412,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
             ListTag list = tag.getList(TAG_FUEL, Tag.TAG_COMPOUND);
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag c = list.getCompound(i);
-                ResourceLocation id = ResourceLocation.tryParse(c.getString(TAG_FUEL_ID));
+                Identifier id = Identifier.tryParse(c.getString(TAG_FUEL_ID));
                 float units = c.contains(TAG_FUEL_UNITS, Tag.TAG_FLOAT) ? c.getFloat(TAG_FUEL_UNITS) : c.getInt(TAG_FUEL_UNITS);
                 if (id != null && units > 0) {
                     fuelEntries.add(new FuelEntry(id, units));
@@ -433,7 +433,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
             ListTag list = tag.getList(TAG_SOLID_WASTE, Tag.TAG_COMPOUND);
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag c = list.getCompound(i);
-                ResourceLocation id = ResourceLocation.tryParse(c.getString(TAG_FUEL_ID));
+                Identifier id = Identifier.tryParse(c.getString(TAG_FUEL_ID));
                 int count = c.getInt(TAG_COUNT);
                 if (id != null && count > 0) {
                     solidWasteEntries.add(new SolidWasteEntry(id, count));
@@ -446,7 +446,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         if (tag.contains(TAG_WASTE_ACCUMULATOR, Tag.TAG_COMPOUND)) {
             CompoundTag accTag = tag.getCompound(TAG_WASTE_ACCUMULATOR);
             for (String key : accTag.getAllKeys()) {
-                ResourceLocation id = ResourceLocation.tryParse(key);
+                Identifier id = Identifier.tryParse(key);
                 float val = accTag.getTagType(key) == Tag.TAG_FLOAT ? accTag.getFloat(key) : accTag.getInt(key);
                 if (id != null && val > 0) wasteAccumulator.put(id, val);
             }
@@ -459,7 +459,7 @@ public class ReactorRodBlockEntity extends BlockEntity {
         ListTag nbtList = tag.getList(key, Tag.TAG_COMPOUND);
         for (int i = 0; i < nbtList.size(); i++) {
             CompoundTag c = nbtList.getCompound(i);
-            Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(c.getString(TAG_FLUID_ID)));
+            Fluid fluid = BuiltInRegistries.FLUID.get(Identifier.parse(c.getString(TAG_FLUID_ID)));
             int amount = c.getInt(TAG_AMOUNT);
             if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
                 list.add(new FluidEntry(fluid, amount));

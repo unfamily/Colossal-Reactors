@@ -2,9 +2,8 @@ package net.unfamily.colossal_reactors.fluid;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -21,7 +20,6 @@ import net.unfamily.colossal_reactors.block.BreeziumBlock;
 import net.unfamily.colossal_reactors.block.EnderGooBlock;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.item.ModItems;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.common.SoundActions;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 import net.neoforged.neoforge.fluids.FluidType;
@@ -30,7 +28,6 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
 /**
  * Registers fluid types and fluids. Molten metals use custom block/fluid textures with tint.
@@ -42,11 +39,6 @@ public final class ModFluids {
             DeferredRegister.create(net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.FLUID_TYPES, ColossalReactors.MODID);
     public static final DeferredRegister<Fluid> FLUIDS =
             DeferredRegister.create(BuiltInRegistries.FLUID, ColossalReactors.MODID);
-
-    /** Custom molten texture path (assets/.../textures/block/fluid/still.png and flow.png) */
-    private static final ResourceLocation MOLTEN_STILL = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/fluid/still");
-    private static final ResourceLocation MOLTEN_FLOW = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/fluid/flow");
-    private static final ResourceLocation WATER_OVERLAY = ResourceLocation.withDefaultNamespace("block/water_overlay");
 
     /** Molten tough alloy (Synergy does not provide this). Uses custom molten textures. */
     public static final TintedFluid MOLTEN_TOUGH_ALLOY = registerMolten("molten_tough_alloy", 0xFF5A6A7A,
@@ -76,25 +68,7 @@ public final class ModFluids {
                         .canPushEntity(true)
                         .canConvertToSource(false)
                         .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)) {
-                    @Override
-                    public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
-                        consumer.accept(new IClientFluidTypeExtensions() {
-                            @Override
-                            public ResourceLocation getStillTexture() { return MOLTEN_STILL; }
-                            @Override
-                            public ResourceLocation getFlowingTexture() { return MOLTEN_FLOW; }
-                            @Override
-                            public ResourceLocation getOverlayTexture() { return WATER_OVERLAY; }
-                            @Override
-                            public int getTintColor() { return tintColor; }
-                            @Override
-                            public int getTintColor(FluidState state, BlockAndTintGetter getter, BlockPos pos) {
-                                return tintColor;
-                            }
-                        });
-                    }
-                });
+                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
 
         return registerTintedFluid(name, type, 7, false);
     }
@@ -103,8 +77,6 @@ public final class ModFluids {
      * Gelid breezium: water-like fluid with bright cyan tint. Cold, swimmable.
      */
     private static TintedFluid registerGelidBreezium() {
-        ResourceLocation stillTex = ResourceLocation.withDefaultNamespace("block/water_still");
-        ResourceLocation flowingTex = ResourceLocation.withDefaultNamespace("block/water_flow");
         int tintColor = 0xFF00E5FF; // bright cyan
 
         DeferredHolder<FluidType, FluidType> type = FLUID_TYPES.register("gelid_breezium_type",
@@ -118,25 +90,7 @@ public final class ModFluids {
                         .canPushEntity(true)
                         .canConvertToSource(false)
                         .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)) {
-                    @Override
-                    public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
-                        consumer.accept(new IClientFluidTypeExtensions() {
-                            @Override
-                            public ResourceLocation getStillTexture() { return stillTex; }
-                            @Override
-                            public ResourceLocation getFlowingTexture() { return flowingTex; }
-                            @Override
-                            public ResourceLocation getOverlayTexture() { return WATER_OVERLAY; }
-                            @Override
-                            public int getTintColor() { return tintColor; }
-                            @Override
-                            public int getTintColor(FluidState state, BlockAndTintGetter getter, BlockPos pos) {
-                                return tintColor;
-                            }
-                        });
-                    }
-                });
+                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
 
         return registerTintedFluid("gelid_breezium", type, 0, true, BreeziumBlock::new);
     }
@@ -154,25 +108,7 @@ public final class ModFluids {
                         .canPushEntity(true)
                         .canConvertToSource(false)
                         .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)) {
-                    @Override
-                    public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
-                        consumer.accept(new IClientFluidTypeExtensions() {
-                            @Override
-                            public ResourceLocation getStillTexture() { return MOLTEN_STILL; }
-                            @Override
-                            public ResourceLocation getFlowingTexture() { return MOLTEN_FLOW; }
-                            @Override
-                            public ResourceLocation getOverlayTexture() { return WATER_OVERLAY; }
-                            @Override
-                            public int getTintColor() { return 0xFF2c4742; }
-                            @Override
-                            public int getTintColor(FluidState state, BlockAndTintGetter getter, BlockPos pos) {
-                                return 0xFF2c4742;
-                            }
-                        });
-                    }
-                });
+                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
         return registerTintedFluid("ender_goo", type, 7, false, EnderGooBlock::new);
     }
 

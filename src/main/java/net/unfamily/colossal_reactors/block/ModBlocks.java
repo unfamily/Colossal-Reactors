@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.block;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.minecraft.world.level.block.SoundType;
@@ -152,7 +152,7 @@ public class ModBlocks {
                     .requiresCorrectToolForDrops()));
 
     static {
-        for (ResourceLocation coilId : net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry.getBuiltinCoilIds()) {
+        for (Identifier coilId : net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry.getBuiltinCoilIds()) {
             String path = coilId.getPath();
             BlockBehaviour.Properties props = BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
@@ -166,7 +166,7 @@ public class ModBlocks {
     }
 
     /** Returns the heating coil block for the given id and on state, or null. */
-    public static Block getHeatingCoilBlock(ResourceLocation coilId, boolean isOn) {
+    public static Block getHeatingCoilBlock(Identifier coilId, boolean isOn) {
         for (DeferredBlock<HeatingCoilBlock> db : HEATING_COIL_BLOCKS) {
             HeatingCoilBlock b = db.get();
             if (b.getCoilId().equals(coilId) && b.isOn() == isOn) return b;

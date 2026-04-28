@@ -3,7 +3,7 @@ package net.unfamily.colossal_reactors.datapack;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -48,17 +48,17 @@ public class LoadDataReloadListener implements PreparableReloadListener {
                                           Executor prepareExecutor, Executor applyExecutor) {
         return CompletableFuture.supplyAsync(() -> {
             prepareProfiler.push("Colossal Reactors load data");
-            Map<ResourceLocation, HeatingCoilDefinition> coils = new HashMap<>();
-            Map<ResourceLocation, List<Resource>> stacks = resourceManager.listResourceStacks(LOAD_PATH,
+            Map<Identifier, HeatingCoilDefinition> coils = new HashMap<>();
+            Map<Identifier, List<Resource>> stacks = resourceManager.listResourceStacks(LOAD_PATH,
                     rl -> rl.getPath().endsWith(".json"));
-            for (Map.Entry<ResourceLocation, List<Resource>> entry : stacks.entrySet()) {
-                ResourceLocation location = entry.getKey();
+            for (Map.Entry<Identifier, List<Resource>> entry : stacks.entrySet()) {
+                Identifier location = entry.getKey();
                 for (Resource resource : entry.getValue()) {
                     processOne(location, resource, coils);
                 }
             }
             // Fallback: ensure mod's builtin path is loaded if listResourceStacks did not find it
-            ResourceLocation builtinLocation = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "load/heating_coils.json");
+            Identifier builtinLocation = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "load/heating_coils.json");
             if (coils.isEmpty() || !stacks.containsKey(builtinLocation)) {
                 try {
                     List<Resource> builtinStack = resourceManager.getResourceStack(builtinLocation);
@@ -81,8 +81,8 @@ public class LoadDataReloadListener implements PreparableReloadListener {
         }, applyExecutor);
     }
 
-    private static void processOne(ResourceLocation location, Resource resource,
-                                  Map<ResourceLocation, HeatingCoilDefinition> coils) {
+    private static void processOne(Identifier location, Resource resource,
+                                  Map<Identifier, HeatingCoilDefinition> coils) {
         String source = location + " from " + resource.sourcePackId();
         try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);

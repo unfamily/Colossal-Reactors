@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -71,26 +71,26 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                                           Executor prepareExecutor, Executor applyExecutor) {
         return CompletableFuture.supplyAsync(() -> {
             prepareProfiler.push("Colossal Reactors reactor data");
-            Map<ResourceLocation, FuelDefinition> fuel = new HashMap<>();
-            Map<ResourceLocation, CoolantDefinition> coolant = new HashMap<>();
+            Map<Identifier, FuelDefinition> fuel = new HashMap<>();
+            Map<Identifier, CoolantDefinition> coolant = new HashMap<>();
             List<HeatSinkDefinition> heatSinks = new ArrayList<>();
             List<MelterRecipe> melterRecipes = new ArrayList<>();
             List<MelterHeatEntry> melterHeats = new ArrayList<>();
             List<String> radiationScrubberCatalysts = new ArrayList<>();
             int[] rsMult = new int[]{10}; // mult; last file wins
             int[] rsGasMult = new int[]{1}; // gas_mult; last file wins
-            Map<ResourceLocation, List<Resource>> stacks = resourceManager.listResourceStacks(REACTOR_DATA_PATH,
+            Map<Identifier, List<Resource>> stacks = resourceManager.listResourceStacks(REACTOR_DATA_PATH,
                     rl -> rl.getPath().endsWith(".json"));
-            for (Map.Entry<ResourceLocation, List<Resource>> entry : stacks.entrySet()) {
-                ResourceLocation location = entry.getKey();
+            for (Map.Entry<Identifier, List<Resource>> entry : stacks.entrySet()) {
+                Identifier location = entry.getKey();
                 for (Resource resource : entry.getValue()) {
                     processOneResource(location, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
                             radiationScrubberCatalysts, rsMult, rsGasMult);
                 }
             }
             // Fallback: load mod's builtin melter / radiation_scrubber_catalysts JSON if not found via listResourceStacks
-            ResourceLocation builtinRecipes = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/melter/melter_recipes.json");
-            ResourceLocation builtinHeats = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/melter/melter_heats.json");
+            Identifier builtinRecipes = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/melter/melter_recipes.json");
+            Identifier builtinHeats = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/melter/melter_heats.json");
             if (melterRecipes.isEmpty() || !stacks.containsKey(builtinRecipes)) {
                 try {
                     for (Resource resource : resourceManager.getResourceStack(builtinRecipes)) {
@@ -111,7 +111,7 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                     LOGGER.debug("Could not load builtin melter_heats.json: {}", e.getMessage());
                 }
             }
-            ResourceLocation builtinCatalysts = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/radiation_scrubber_catalysts.json");
+            Identifier builtinCatalysts = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/radiation_scrubber_catalysts.json");
             if (radiationScrubberCatalysts.isEmpty() || !stacks.containsKey(builtinCatalysts)) {
                 try {
                     for (Resource resource : resourceManager.getResourceStack(builtinCatalysts)) {
@@ -141,9 +141,9 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
         }, applyExecutor);
     }
 
-    private static void processOneResource(ResourceLocation location, Resource resource,
-                                          Map<ResourceLocation, FuelDefinition> fuel,
-                                          Map<ResourceLocation, CoolantDefinition> coolant,
+    private static void processOneResource(Identifier location, Resource resource,
+                                          Map<Identifier, FuelDefinition> fuel,
+                                          Map<Identifier, CoolantDefinition> coolant,
                                           List<HeatSinkDefinition> heatSinks,
                                           List<MelterRecipe> melterRecipes,
                                           List<MelterHeatEntry> melterHeats,
@@ -211,8 +211,8 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
     }
 
     private record LoadedData(
-            Map<ResourceLocation, FuelDefinition> fuel,
-            Map<ResourceLocation, CoolantDefinition> coolant,
+            Map<Identifier, FuelDefinition> fuel,
+            Map<Identifier, CoolantDefinition> coolant,
             List<HeatSinkDefinition> heatSinks,
             List<MelterRecipe> melterRecipes,
             List<MelterHeatEntry> melterHeats,

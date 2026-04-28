@@ -11,12 +11,9 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -28,25 +25,14 @@ import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
-import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
-import net.unfamily.colossal_reactors.network.ModPayloads;
-import net.unfamily.colossal_reactors.network.ReactorPreviewMarkerPayload;
-import net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen;
-import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
-import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
-import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
-import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 
-import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 @Mod(ColossalReactors.MODID)
@@ -65,7 +51,7 @@ public class ColossalReactors {
         ModFluids.FLUIDS.register(modEventBus);
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
-        ModPayloads.register(modEventBus);
+        // networking temporarily disabled for 26.x boot-first milestone
         net.unfamily.colossal_reactors.data.ModConditions.CONDITION_CODECS.register(modEventBus);
         net.unfamily.colossal_reactors.world.ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
@@ -129,7 +115,7 @@ public class ColossalReactors {
     private void gatherData(GatherDataEvent event) {
         var generator = event.getGenerator();
         var packOutput = generator.getPackOutput();
-        generator.addProvider(event.includeClient(), new ColossalReactorsFusionModelProvider(packOutput));
+        // Fusion models are currently disabled until Fusion is updated for 26.x.
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -138,44 +124,6 @@ public class ColossalReactors {
         LOGGER.info("Reactor simulation debug (dev.002_reactor_simulation_debug): {}", Config.REACTOR_SIMULATION_DEBUG.get());
     }
 
-    @SubscribeEvent
-    public void onAddReloadListener(AddReloadListenerEvent event) {
-        event.addListener(new ReactorDataReloadListener());
-        event.addListener(new LoadDataReloadListener());
-    }
-
-    @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    static class ClientModEvents {
-        @SubscribeEvent
-        static void onClientSetup(FMLClientSetupEvent event) {
-            event.enqueueWork(() -> {
-                ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
-                ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
-                ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());
-                ItemBlockRenderTypes.setRenderLayer(ModFluids.GELID_BREEZIUM.block().get(), RenderType.translucent());
-            });
-        }
-
-        @SubscribeEvent
-        static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
-            event.registrar(ColossalReactors.MODID).versioned("1")
-                    .playToClient(ReactorPreviewMarkerPayload.TYPE, ReactorPreviewMarkerPayload.STREAM_CODEC, ClientPayloadHandlers::handlePreviewMarker);
-        }
-
-        @SubscribeEvent
-        static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener(new ReactorDataReloadListener());
-        }
-
-        @SubscribeEvent
-        static void registerMenuScreens(RegisterMenuScreensEvent event) {
-            event.register(ModMenuTypes.RESOURCE_PORT_MENU.get(), ResourcePortScreen::new);
-            event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
-            event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
-            event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
-            event.register(ModMenuTypes.HEATING_COIL_MENU.get(), HeatingCoilScreen::new);
-            event.register(ModMenuTypes.MELTER_MENU.get(), net.unfamily.colossal_reactors.client.gui.MelterScreen::new);
-            event.register(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen::new);
-        }
-    }
+    // NOTE: client integration + reload listeners need updating for 26.x and are temporarily disabled
+    // to reach a boot-first milestone with minimal dependencies.
 }

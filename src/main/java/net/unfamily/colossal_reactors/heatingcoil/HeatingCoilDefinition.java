@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.heatingcoil;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -13,7 +13,7 @@ import java.util.List;
  * all_sides: when true, accepts inputs from any side; otherwise only the front face.
  */
 public record HeatingCoilDefinition(
-        ResourceLocation id,
+        Identifier id,
         int duration,
         List<ConsumeOption> consume,
         boolean allSides,
@@ -21,7 +21,7 @@ public record HeatingCoilDefinition(
         boolean noFluid,
         boolean noEnergy
 ) {
-    public HeatingCoilDefinition(ResourceLocation id, int duration, List<ConsumeOption> consume) {
+    public HeatingCoilDefinition(Identifier id, int duration, List<ConsumeOption> consume) {
         this(id, duration, consume, false, false, false, false);
     }
 }

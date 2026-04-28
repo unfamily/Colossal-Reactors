@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class RadiationScrubberBlock extends BaseEntityBlock {
 
-    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final EnumProperty<net.minecraft.core.Direction> FACING = HorizontalDirectionalBlock.FACING;
     public static final MapCodec<RadiationScrubberBlock> CODEC = simpleCodec(RadiationScrubberBlock::new);
 
     public RadiationScrubberBlock(Properties properties) {

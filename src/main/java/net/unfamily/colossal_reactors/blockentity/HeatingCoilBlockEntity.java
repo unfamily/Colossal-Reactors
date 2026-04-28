@@ -8,7 +8,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -333,8 +333,8 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         }
         Fluid required = level.registryAccess().registry(Registries.FLUID).map(r -> r.get(req.tagOrId())).orElse(null);
         if (required == null || required.equals(Fluids.EMPTY)) return false;
-        ResourceLocation requiredKey = BuiltInRegistries.FLUID.getKey(required);
-        ResourceLocation stackKey = BuiltInRegistries.FLUID.getKey(stack.getFluid());
+        Identifier requiredKey = BuiltInRegistries.FLUID.getKey(required);
+        Identifier stackKey = BuiltInRegistries.FLUID.getKey(stack.getFluid());
         return requiredKey.equals(stackKey);
     }
 
@@ -412,7 +412,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     private void switchToOn(Level level, BlockPos pos) {
-        ResourceLocation id = getCoilId();
+        Identifier id = getCoilId();
         if (id == null) return;
         Block other = ModBlocks.getHeatingCoilBlock(id, true);
         if (other == null) return;
@@ -428,7 +428,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     private void switchToOff(Level level, BlockPos pos) {
-        ResourceLocation id = getCoilId();
+        Identifier id = getCoilId();
         if (id == null) return;
         Block other = ModBlocks.getHeatingCoilBlock(id, false);
         if (other == null) return;
@@ -455,7 +455,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         }
     }
 
-    private ResourceLocation getCoilId() {
+    private Identifier getCoilId() {
         return getBlockState().getBlock() instanceof HeatingCoilBlock hb ? hb.getCoilId() : null;
     }
 
@@ -584,7 +584,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         if (tag.contains(TAG_ITEMS)) itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
         fluidTank.setFluid(FluidStack.EMPTY);
         if (tag.contains(TAG_FLUID)) {
-            Fluid f = BuiltInRegistries.FLUID.get(ResourceLocation.parse(tag.getString(TAG_FLUID)));
+            Fluid f = BuiltInRegistries.FLUID.get(Identifier.parse(tag.getString(TAG_FLUID)));
             if (f != null && f != Fluids.EMPTY) {
                 fluidTank.setFluid(new FluidStack(f, tag.getInt(TAG_FLUID_AMOUNT)));
             }

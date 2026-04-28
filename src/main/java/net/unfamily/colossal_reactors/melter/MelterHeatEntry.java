@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.melter;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -11,9 +11,9 @@ import java.util.List;
  * but does not count as a valid heating source to start the melter (at least one valid source required).
  */
 public record MelterHeatEntry(
-        List<ResourceLocation> blockIds,
+        List<Identifier> blockIds,
         List<Boolean> blockIdIsTag,
-        List<ResourceLocation> fluidIds,
+        List<Identifier> fluidIds,
         List<Boolean> fluidIdIsTag,
         double factor,
         boolean notValid

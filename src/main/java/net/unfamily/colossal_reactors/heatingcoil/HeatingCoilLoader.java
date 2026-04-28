@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +82,7 @@ public final class HeatingCoilLoader {
             LOGGER.warn("Heating coil in {}: missing 'id'", source);
             return null;
         }
-        ResourceLocation id = ResourceLocation.tryParse(json.get(KEY_ID).getAsString());
+        Identifier id = Identifier.tryParse(json.get(KEY_ID).getAsString());
         if (id == null) {
             LOGGER.warn("Heating coil in {}: invalid id", source);
             return null;
@@ -122,7 +122,7 @@ public final class HeatingCoilLoader {
         if (!o.has("id")) return null;
         String idStr = o.get("id").getAsString();
         boolean isTag = idStr.startsWith("#");
-        ResourceLocation tagOrId = parseId(idStr);
+        Identifier tagOrId = parseId(idStr);
         if (tagOrId == null) return null;
         int activation = o.has(KEY_ACTIVATION) ? o.get(KEY_ACTIVATION).getAsInt() : 0;
         int substain = o.has(KEY_SUBSTAIN) ? o.get(KEY_SUBSTAIN).getAsInt() : 0;
@@ -136,7 +136,7 @@ public final class HeatingCoilLoader {
         if (!o.has("id")) return null;
         String idStr = o.get("id").getAsString();
         boolean isTag = idStr.startsWith("#");
-        ResourceLocation tagOrId = parseId(idStr);
+        Identifier tagOrId = parseId(idStr);
         if (tagOrId == null) return null;
         int activation = o.has(KEY_ACTIVATION) ? o.get(KEY_ACTIVATION).getAsInt() : 0;
         int substain = o.has(KEY_SUBSTAIN) ? o.get(KEY_SUBSTAIN).getAsInt() : 0;
@@ -161,11 +161,11 @@ public final class HeatingCoilLoader {
         return new ConsumeOption.BurnableRequirement(activation, substain);
     }
 
-    /** "#namespace:path" -> namespace:path; else parse as ResourceLocation. */
+    /** "#namespace:path" -> namespace:path; else parse as Identifier. */
     @Nullable
-    private static ResourceLocation parseId(String s) {
+    private static Identifier parseId(String s) {
         if (s == null || s.isEmpty()) return null;
         if (s.startsWith("#")) s = s.substring(1);
-        return ResourceLocation.tryParse(s);
+        return Identifier.tryParse(s);
     }
 }

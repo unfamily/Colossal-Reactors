@@ -3,7 +3,7 @@ package net.unfamily.colossal_reactors.melter;
 import com.google.gson.JsonObject;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -65,14 +65,14 @@ public final class MelterRecipesLoader {
         }
         String inputStr = json.get(KEY_INPUT).getAsString();
         boolean inputIsTag = inputStr.startsWith("#");
-        ResourceLocation inputId = ResourceLocation.tryParse(inputIsTag ? inputStr.substring(1) : inputStr);
+        Identifier inputId = Identifier.tryParse(inputIsTag ? inputStr.substring(1) : inputStr);
         if (inputId == null) {
             LOGGER.warn("Melter recipe in {}: invalid input", source);
             return null;
         }
         String outputStr = json.get(KEY_OUTPUT).getAsString();
         boolean outputIsTag = outputStr.startsWith("#");
-        ResourceLocation outputFluidId = ResourceLocation.tryParse(outputIsTag ? outputStr.substring(1) : outputStr);
+        Identifier outputFluidId = Identifier.tryParse(outputIsTag ? outputStr.substring(1) : outputStr);
         if (outputFluidId == null) {
             LOGGER.warn("Melter recipe in {}: invalid output", source);
             return null;

@@ -5,7 +5,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -21,7 +21,7 @@ import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 public record ReactorBuilderSizePayload(BlockPos pos, int direction, boolean increment, int amount) implements CustomPacketPayload {
 
     public static final Type<ReactorBuilderSizePayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_builder_size"));
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_builder_size"));
 
     public static final StreamCodec<FriendlyByteBuf, ReactorBuilderSizePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,

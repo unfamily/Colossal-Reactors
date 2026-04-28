@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -18,7 +18,7 @@ import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 public record ReactorBuilderBuildPayload(BlockPos pos) implements CustomPacketPayload {
 
     public static final Type<ReactorBuilderBuildPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_builder_build"));
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_builder_build"));
 
     public static final StreamCodec<FriendlyByteBuf, ReactorBuilderBuildPayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,

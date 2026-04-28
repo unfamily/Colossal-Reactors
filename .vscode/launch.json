@@ -6,17 +6,17 @@
       "request": "launch",
       "name": "Client",
       "presentation": {
-        "group": "Mod Development - Colossal-Reactors",
+        "group": "Mod Development - Colossal-Reactors-26",
         "order": 0
       },
-      "projectName": "Colossal-Reactors",
+      "projectName": "Colossal-Reactors-26",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/clientRunProgramArgs.txt"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/clientRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/clientRunVmArgs.txt",
-        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors/bin/main"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors-26/bin/main"
       ],
       "cwd": "${workspaceFolder}/run",
       "env": {},
@@ -26,19 +26,19 @@
     {
       "type": "java",
       "request": "launch",
-      "name": "Data",
+      "name": "ClientData",
       "presentation": {
-        "group": "Mod Development - Colossal-Reactors",
+        "group": "Mod Development - Colossal-Reactors-26",
         "order": 1
       },
-      "projectName": "Colossal-Reactors",
+      "projectName": "Colossal-Reactors-26",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/dataRunProgramArgs.txt"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/clientDataRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/dataRunVmArgs.txt",
-        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors/bin/main"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/clientDataRunVmArgs.txt",
+        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors-26/bin/main"
       ],
       "cwd": "${workspaceFolder}/run",
       "env": {},
@@ -50,17 +50,17 @@
       "request": "launch",
       "name": "GameTestServer",
       "presentation": {
-        "group": "Mod Development - Colossal-Reactors",
+        "group": "Mod Development - Colossal-Reactors-26",
         "order": 2
       },
-      "projectName": "Colossal-Reactors",
+      "projectName": "Colossal-Reactors-26",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/gameTestServerRunProgramArgs.txt"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/gameTestServerRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/gameTestServerRunVmArgs.txt",
-        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors/bin/main"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/gameTestServerRunVmArgs.txt",
+        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors-26/bin/main"
       ],
       "cwd": "${workspaceFolder}/run",
       "env": {},
@@ -72,17 +72,17 @@
       "request": "launch",
       "name": "Server",
       "presentation": {
-        "group": "Mod Development - Colossal-Reactors",
+        "group": "Mod Development - Colossal-Reactors-26",
         "order": 3
       },
-      "projectName": "Colossal-Reactors",
+      "projectName": "Colossal-Reactors-26",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/serverRunProgramArgs.txt"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/serverRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@/home/unfamily/IdeaProjects/Colossal-Reactors/build/moddev/serverRunVmArgs.txt",
-        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors/bin/main"
+        "@/home/unfamily/IdeaProjects/Colossal-Reactors-26/build/moddev/serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dcolossal_reactors%%/home/unfamily/IdeaProjects/Colossal-Reactors-26/bin/main"
       ],
       "cwd": "${workspaceFolder}/run",
       "env": {},

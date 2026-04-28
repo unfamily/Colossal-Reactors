@@ -6,9 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DirectionalBlock;
@@ -19,13 +17,11 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -34,19 +30,19 @@ import org.jetbrains.annotations.Nullable;
  */
 public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
 
-    public static final DirectionProperty FACING = DirectionalBlock.FACING;
+    public static final EnumProperty<Direction> FACING = DirectionalBlock.FACING;
 
-    private final ResourceLocation coilId;
+    private final Identifier coilId;
     private final boolean isOn;
 
-    public HeatingCoilBlock(Properties properties, ResourceLocation coilId, boolean isOn) {
+    public HeatingCoilBlock(Properties properties, Identifier coilId, boolean isOn) {
         super(properties);
         this.coilId = coilId;
         this.isOn = isOn;
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
 
-    public static MapCodec<HeatingCoilBlock> codec(ResourceLocation coilId, boolean isOn) {
+    public static MapCodec<HeatingCoilBlock> codec(Identifier coilId, boolean isOn) {
         return simpleCodec(properties -> new HeatingCoilBlock(properties, coilId, isOn));
     }
 
@@ -74,7 +70,7 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
         return RenderShape.MODEL;
     }
 
-    public ResourceLocation getCoilId() {
+    public Identifier getCoilId() {
         return coilId;
     }
 
@@ -115,30 +111,6 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
     private static <E extends BlockEntity, A extends BlockEntity> BlockEntityTicker<A> createTickerHelper(
             BlockEntityType<A> type, BlockEntityType<E> expected, BlockEntityTicker<? super E> ticker) {
         return expected == type ? (BlockEntityTicker<A>) ticker : null;
-    }
-
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (level.isClientSide()) return ItemInteractionResult.SUCCESS;
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof HeatingCoilBlockEntity coil)) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (!coil.acceptsFluidCapability()) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        ItemStack singleStack = stack.copyWithCount(1);
-        IFluidHandlerItem fluidHandler = singleStack.getCapability(Capabilities.FluidHandler.ITEM);
-        if (fluidHandler == null) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (coil.interactWithItemFluidHandler(fluidHandler, player)) {
-            stack.shrink(1);
-            if (stack.isEmpty()) {
-                player.setItemInHand(hand, fluidHandler.getContainer());
-            } else {
-                player.setItemInHand(hand, stack);
-                if (!player.getInventory().add(fluidHandler.getContainer())) {
-                    player.drop(fluidHandler.getContainer(), false);
-                }
-            }
-            return ItemInteractionResult.SUCCESS;
-        }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
 
     @Override

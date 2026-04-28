@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.item;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
@@ -113,7 +113,7 @@ public class ModItems {
             () -> new Item(new Item.Properties()));
 
     static {
-        for (ResourceLocation coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
+        for (Identifier coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
             String path = coilId.getPath();
             DeferredItem<BlockItem> offItem = ITEMS.register(path + "_off",
                     () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, false), new Item.Properties()));

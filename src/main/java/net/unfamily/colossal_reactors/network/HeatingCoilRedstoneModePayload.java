@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -21,7 +21,7 @@ import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 public record HeatingCoilRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
 
     public static final Type<HeatingCoilRedstoneModePayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil_redstone_mode"));
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil_redstone_mode"));
 
     public static final StreamCodec<FriendlyByteBuf, HeatingCoilRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,

@@ -6,7 +6,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -40,12 +40,12 @@ public class FuelLoader {
     private static final String KEY_OUTPUT = "output";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
-    private static final Map<ResourceLocation, FuelDefinition> DEFINITIONS = new HashMap<>();
+    private static final Map<Identifier, FuelDefinition> DEFINITIONS = new HashMap<>();
 
     /**
      * Applies loaded datapack data: clears, registers internal defaults, then merges in loaded map (later overwrites by fuel_id).
      */
-    public static void applyLoaded(Map<ResourceLocation, FuelDefinition> loaded) {
+    public static void applyLoaded(Map<Identifier, FuelDefinition> loaded) {
         DEFINITIONS.clear();
         registerInternalDefaults();
         if (loaded != null) {
@@ -56,7 +56,7 @@ public class FuelLoader {
     }
 
     private static void registerInternalDefaults() {
-        ResourceLocation uraniumId = ReactorRodBlockEntity.URANIUM_FUEL_ID;
+        Identifier uraniumId = ReactorRodBlockEntity.URANIUM_FUEL_ID;
         int unitsPerFuel = 1000;
         int unitsPerWaste = 1000;
         double baseRf = 200.0;
@@ -66,7 +66,7 @@ public class FuelLoader {
         DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
 
         // Azurite: 500 base RF, 500 fuel units per ingot, 1500 consumed units per 1 waste (nuclear_waste)
-        ResourceLocation azuriteId = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
+        Identifier azuriteId = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
         DEFINITIONS.put(azuriteId, new FuelDefinition(
                 azuriteId,
                 List.of("#c:ingots/azurite"),
@@ -85,7 +85,7 @@ public class FuelLoader {
             LOGGER.warn("Fuel entry in {}: missing 'fuel_id'", sourcePath);
             return null;
         }
-        ResourceLocation fuelId = ResourceLocation.tryParse(json.get(KEY_FUEL_ID).getAsString());
+        Identifier fuelId = Identifier.tryParse(json.get(KEY_FUEL_ID).getAsString());
         if (fuelId == null) {
             LOGGER.warn("Fuel entry in {}: invalid fuel_id", sourcePath);
             return null;
@@ -120,11 +120,11 @@ public class FuelLoader {
         DEFINITIONS.put(def.fuelId(), def);
     }
 
-    public static FuelDefinition get(ResourceLocation fuelId) {
+    public static FuelDefinition get(Identifier fuelId) {
         return DEFINITIONS.get(fuelId);
     }
 
-    public static Map<ResourceLocation, FuelDefinition> getAll() {
+    public static Map<Identifier, FuelDefinition> getAll() {
         return new HashMap<>(DEFINITIONS);
     }
 
@@ -141,24 +141,18 @@ public class FuelLoader {
     public static FuelDefinition getDefinitionForItem(ItemStack stack, RegistryAccess registryAccess) {
         if (stack == null || stack.isEmpty()) return null;
         Item item = stack.getItem();
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        Identifier itemId = BuiltInRegistries.ITEM.getKey(item);
         FuelDefinition tagMatch = null;
         for (FuelDefinition def : DEFINITIONS.values()) {
             for (String input : def.inputs()) {
                 if (isInputExcluded(input)) continue;
                 if (input.startsWith("#")) {
-                    ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+                    Identifier tagId = Identifier.tryParse(input.substring(1));
                     if (tagId == null) continue;
                     TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
-                    var itemHolder = registryAccess.registryOrThrow(Registries.ITEM).getHolder(ResourceKey.create(Registries.ITEM, itemId)).orElse(null);
-                    if (itemHolder == null) continue;
-                    boolean inTag = registryAccess.lookup(Registries.ITEM)
-                            .flatMap(l -> l.get(tagKey))
-                            .map(holders -> holders.contains(itemHolder))
-                            .orElse(false);
-                    if (inTag) tagMatch = def;
+                    if (stack.is(tagKey)) tagMatch = def;
                 } else {
-                    if (ResourceLocation.tryParse(input).equals(itemId)) return def;
+                    if (Identifier.tryParse(input).equals(itemId)) return def;
                 }
             }
         }
@@ -169,13 +163,13 @@ public class FuelLoader {
      * Returns a single item stack for the first valid input of this fuel type (for eject: convert fuel units back to items).
      * Caller must use definition's unitsPerFuel when converting fuel units back to item count.
      */
-    public static ItemStack getFirstInputStack(ResourceLocation fuelId, RegistryAccess registryAccess) {
+    public static ItemStack getFirstInputStack(Identifier fuelId, RegistryAccess registryAccess) {
         FuelDefinition def = DEFINITIONS.get(fuelId);
         if (def == null || def.inputs().isEmpty()) return ItemStack.EMPTY;
         for (String input : def.inputs()) {
             if (isInputExcluded(input)) continue;
             if (input.startsWith("#")) {
-                ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+                Identifier tagId = Identifier.tryParse(input.substring(1));
                 if (tagId == null) continue;
                 TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
                 var optItem = registryAccess.lookup(Registries.ITEM)
@@ -186,9 +180,9 @@ public class FuelLoader {
                         .map(h -> h.value());
                 if (optItem.isPresent()) return new ItemStack(optItem.get(), 1);
             } else {
-                ResourceLocation id = ResourceLocation.tryParse(input);
+                Identifier id = Identifier.tryParse(input);
                 if (id != null) {
-                    Item item = BuiltInRegistries.ITEM.get(id);
+                    Item item = BuiltInRegistries.ITEM.get(id).map(h -> h.value()).orElse(net.minecraft.world.item.Items.AIR);
                     if (item != null && item != net.minecraft.world.item.Items.AIR) return new ItemStack(item, 1);
                 }
             }
@@ -200,13 +194,13 @@ public class FuelLoader {
      * Returns a single item stack for the waste output of this fuel type (for tooltip display).
      * Output is either "#tag" (first item in tag) or "namespace:item_id".
      */
-    public static ItemStack getFirstOutputStack(ResourceLocation fuelId, RegistryAccess registryAccess) {
+    public static ItemStack getFirstOutputStack(Identifier fuelId, RegistryAccess registryAccess) {
         FuelDefinition def = DEFINITIONS.get(fuelId);
         if (def == null) return ItemStack.EMPTY;
         String output = def.output();
         if (output == null || output.isEmpty()) return ItemStack.EMPTY;
         if (output.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(output.substring(1));
+            Identifier tagId = Identifier.tryParse(output.substring(1));
             if (tagId == null) return ItemStack.EMPTY;
             TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
             var optItem = registryAccess.lookup(Registries.ITEM)
@@ -217,9 +211,9 @@ public class FuelLoader {
                     .map(h -> h.value());
             if (optItem.isPresent()) return new ItemStack(optItem.get(), 1);
         } else {
-            ResourceLocation id = ResourceLocation.tryParse(output);
+            Identifier id = Identifier.tryParse(output);
             if (id != null) {
-                Item item = BuiltInRegistries.ITEM.get(id);
+                Item item = BuiltInRegistries.ITEM.get(id).map(h -> h.value()).orElse(net.minecraft.world.item.Items.AIR);
                 if (item != null && item != net.minecraft.world.item.Items.AIR) return new ItemStack(item, 1);
             }
         }

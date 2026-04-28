@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.melter;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 
@@ -9,9 +9,9 @@ import net.minecraft.world.level.material.Fluid;
  * final_time = time / (UP * DOWN * EAST * WEST * NORTH * SOUTH); sides without heat source = 1.
  */
 public record MelterRecipe(
-        ResourceLocation inputId,
+        Identifier inputId,
         boolean inputIsTag,
-        ResourceLocation outputFluidId,
+        Identifier outputFluidId,
         boolean outputIsTag,
         int amountMb,
         int timeTicks,

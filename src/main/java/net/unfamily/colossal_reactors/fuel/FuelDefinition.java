@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.fuel;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import java.util.List;
  * Input: 1 item = unitsPerFuel fuel units. Output: every unitsPerWaste consumed units = 1 waste item.
  */
 public record FuelDefinition(
-        ResourceLocation fuelId,
+        Identifier fuelId,
         List<String> inputs,
         String output,
         int unitsPerFuel,

@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.heatingcoil;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +23,8 @@ public final class HeatingCoilRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(HeatingCoilRegistry.class);
     private static final String BUILTIN_PATH = "data/colossal_reactors/load/heating_coils.json";
 
-    private static final Map<ResourceLocation, HeatingCoilDefinition> DEFINITIONS = new HashMap<>();
-    private static List<ResourceLocation> builtinCoilIds;
+    private static final Map<Identifier, HeatingCoilDefinition> DEFINITIONS = new HashMap<>();
+    private static List<Identifier> builtinCoilIds;
 
     private HeatingCoilRegistry() {}
 
@@ -32,7 +32,7 @@ public final class HeatingCoilRegistry {
      * Loads builtin heating_coils.json from the mod jar and caches coil ids for block registration.
      * Call once at mod init (before registering blocks).
      */
-    public static synchronized List<ResourceLocation> getBuiltinCoilIds() {
+    public static synchronized List<Identifier> getBuiltinCoilIds() {
         if (builtinCoilIds != null) return builtinCoilIds;
         try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
             if (stream == null) {
@@ -60,7 +60,7 @@ public final class HeatingCoilRegistry {
      * Replaces definitions from datapack reload (called by LoadDataReloadListener).
      * Only applies when loaded is non-empty so we never wipe the registry (builtin stays if reload finds no files).
      */
-    public static synchronized void setFromReload(Map<ResourceLocation, HeatingCoilDefinition> loaded) {
+    public static synchronized void setFromReload(Map<Identifier, HeatingCoilDefinition> loaded) {
         if (loaded == null || loaded.isEmpty()) {
             LOGGER.debug("Load data reload: no heating coil definitions, keeping existing registry");
             return;
@@ -70,11 +70,11 @@ public final class HeatingCoilRegistry {
     }
 
     @Nullable
-    public static HeatingCoilDefinition get(ResourceLocation id) {
+    public static HeatingCoilDefinition get(Identifier id) {
         return DEFINITIONS.get(id);
     }
 
-    public static Map<ResourceLocation, HeatingCoilDefinition> getAll() {
+    public static Map<Identifier, HeatingCoilDefinition> getAll() {
         return Collections.unmodifiableMap(new HashMap<>(DEFINITIONS));
     }
 }
