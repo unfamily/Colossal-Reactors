@@ -3,6 +3,7 @@
   "coils": [
     {
       "id": "colossal_reactors:heating_coil_resource",
+      "all_sides": true,
       "no_energy": true,
       "duration": 60,
       "consume": [

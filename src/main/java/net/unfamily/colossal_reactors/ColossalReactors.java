@@ -40,7 +40,6 @@ import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
-import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
@@ -83,19 +82,22 @@ public class ColossalReactors {
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
-        // Heating coil: only front face accepts items/fluids/energy; no_* flags disable that type (no pipe connection)
+        // Heating coil: by default only front face accepts items/fluids/energy; all_sides overrides that; no_* disables type
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
-                (be, direction) -> direction == be.getBlockState().getValue(HeatingCoilBlock.FACING)
+                (be, direction) -> ((HeatingCoilBlockEntity) be).allowsCapabilityOnSide(direction)
                         && ((HeatingCoilBlockEntity) be).acceptsItemCapability()
-                        ? ((HeatingCoilBlockEntity) be).getItemHandler() : null);
+                        ? ((HeatingCoilBlockEntity) be).getItemHandler()
+                        : null);
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
-                (be, direction) -> direction == be.getBlockState().getValue(HeatingCoilBlock.FACING)
+                (be, direction) -> ((HeatingCoilBlockEntity) be).allowsCapabilityOnSide(direction)
                         && ((HeatingCoilBlockEntity) be).acceptsFluidCapability()
-                        ? ((HeatingCoilBlockEntity) be).getFluidHandler() : null);
+                        ? ((HeatingCoilBlockEntity) be).getFluidHandler()
+                        : null);
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
-                (be, direction) -> direction == be.getBlockState().getValue(HeatingCoilBlock.FACING)
+                (be, direction) -> ((HeatingCoilBlockEntity) be).allowsCapabilityOnSide(direction)
                         && ((HeatingCoilBlockEntity) be).acceptsEnergyCapability()
-                        ? ((HeatingCoilBlockEntity) be).getEnergyStorage() : null);
+                        ? ((HeatingCoilBlockEntity) be).getEnergyStorage()
+                        : null);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),

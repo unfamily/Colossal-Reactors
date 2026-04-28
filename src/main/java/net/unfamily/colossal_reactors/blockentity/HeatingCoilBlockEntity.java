@@ -504,6 +504,17 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     /**
+     * True if a capability query from the given side should be allowed.
+     * When definition.allSides is true, accepts from any side; otherwise only from the front face.
+     */
+    public boolean allowsCapabilityOnSide(@Nullable net.minecraft.core.Direction side) {
+        if (side == null) return true;
+        HeatingCoilDefinition def = getDefinition();
+        if (def != null && def.allSides()) return true;
+        return side == getBlockState().getValue(HeatingCoilBlock.FACING);
+    }
+
+    /**
      * Handles bucket/fluid container: fill tank from item or drain tank to item (same as resource port).
      * Call only when acceptsFluidCapability() is true.
      */

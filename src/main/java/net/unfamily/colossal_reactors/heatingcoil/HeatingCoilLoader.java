@@ -38,6 +38,7 @@ public final class HeatingCoilLoader {
     private static final String KEY_NO_ITEM = "no_item";
     private static final String KEY_NO_FLUID = "no_fluid";
     private static final String KEY_NO_ENERGY = "no_energy";
+    private static final String KEY_ALL_SIDES = "all_sides";
 
     private HeatingCoilLoader() {}
 
@@ -100,7 +101,8 @@ public final class HeatingCoilLoader {
         boolean noItem = json.has(KEY_NO_ITEM) && json.get(KEY_NO_ITEM).getAsBoolean();
         boolean noFluid = json.has(KEY_NO_FLUID) && json.get(KEY_NO_FLUID).getAsBoolean();
         boolean noEnergy = json.has(KEY_NO_ENERGY) && json.get(KEY_NO_ENERGY).getAsBoolean();
-        return new HeatingCoilDefinition(id, duration, consume, noItem, noFluid, noEnergy);
+        boolean allSides = json.has(KEY_ALL_SIDES) && json.get(KEY_ALL_SIDES).getAsBoolean();
+        return new HeatingCoilDefinition(id, duration, consume, allSides, noItem, noFluid, noEnergy);
     }
 
     @Nullable
