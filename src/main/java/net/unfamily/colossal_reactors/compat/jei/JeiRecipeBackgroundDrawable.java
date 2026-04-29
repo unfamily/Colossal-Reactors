@@ -1,9 +1,9 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mezz.jei.api.gui.drawable.IDrawable;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
 
 /**
@@ -12,8 +12,8 @@ import net.unfamily.colossal_reactors.ColossalReactors;
  */
 public class JeiRecipeBackgroundDrawable implements IDrawable {
 
-    public static final ResourceLocation SLOT_TEXTURE = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/jei/slot.png");
-    public static final ResourceLocation ARROW_TEXTURE = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/jei/arrow.png");
+    public static final Identifier SLOT_TEXTURE = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/jei/slot.png");
+    public static final Identifier ARROW_TEXTURE = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/jei/arrow.png");
 
     /** Full slot size 18x18 (slot.png size) so border is not cropped */
     public static final int SLOT_SIZE = 18;
@@ -59,13 +59,14 @@ public class JeiRecipeBackgroundDrawable implements IDrawable {
     }
 
     @Override
-    public void draw(GuiGraphics guiGraphics, int xOffset, int yOffset) {
-        RenderSystem.enableBlend();
-        guiGraphics.blit(SLOT_TEXTURE, xOffset + SLOT_IN_X, yOffset + SLOT_IN_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+    public void draw(GuiGraphicsExtractor guiGraphics, int xOffset, int yOffset) {
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SLOT_TEXTURE, xOffset + SLOT_IN_X, yOffset + SLOT_IN_Y,
+                0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
         if (twoSlotsWithArrow) {
-            guiGraphics.blit(ARROW_TEXTURE, xOffset + ARROW_X, yOffset + ARROW_Y, 0, 0, ARROW_W, ARROW_H, ARROW_W, ARROW_H);
-            guiGraphics.blit(SLOT_TEXTURE, xOffset + SLOT_OUT_X, yOffset + SLOT_OUT_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ARROW_TEXTURE, xOffset + ARROW_X, yOffset + ARROW_Y,
+                    0.0F, 0.0F, ARROW_W, ARROW_H, ARROW_W, ARROW_H);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SLOT_TEXTURE, xOffset + SLOT_OUT_X, yOffset + SLOT_OUT_Y,
+                    0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
         }
-        RenderSystem.disableBlend();
     }
 }

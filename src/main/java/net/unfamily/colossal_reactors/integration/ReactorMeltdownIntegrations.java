@@ -2,9 +2,11 @@ package net.unfamily.colossal_reactors.integration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.unfamily.colossal_reactors.Config;
 
@@ -81,10 +83,13 @@ public final class ReactorMeltdownIntegrations {
         boolean largeReactor = sizeX > 10 && sizeY > 10 && sizeZ > 10;
         float size = largeReactor ? 3.0f : 1.0f; // bomb vs nucleeper
         try {
-            ResourceLocation id = ResourceLocation.fromNamespaceAndPath("alexscaves", "nuclear_explosion");
-            EntityType<?> type = level.registryAccess().registryOrThrow(Registries.ENTITY_TYPE).get(id);
+            Identifier id = Identifier.fromNamespaceAndPath("alexscaves", "nuclear_explosion");
+            EntityType<?> type = level.registryAccess().lookupOrThrow(Registries.ENTITY_TYPE)
+                    .get(ResourceKey.create(Registries.ENTITY_TYPE, id))
+                    .map(net.minecraft.core.Holder::value)
+                    .orElse(null);
             if (type == null) return;
-            Entity explosion = type.create(level);
+            Entity explosion = type.create(level, EntitySpawnReason.TRIGGERED);
             if (explosion == null) return;
             explosion.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
             explosion.getClass().getMethod("setSize", float.class).invoke(explosion, size);

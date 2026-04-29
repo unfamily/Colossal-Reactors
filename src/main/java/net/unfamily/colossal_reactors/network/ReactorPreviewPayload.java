@@ -49,7 +49,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
     public static void handle(ReactorPreviewPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (!(be instanceof ReactorBuilderBlockEntity builder)) return;
             var state = level.getBlockState(packet.pos());

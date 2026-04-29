@@ -1,6 +1,15 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": ["III", "III", "III"],
-  "key": { "I": { "tag": "c:ingots/lead" } },
-  "result": { "id": "colossal_reactors:lead_block", "count": 1 }
+  "pattern": [
+    "III",
+    "III",
+    "III"
+  ],
+  "key": {
+    "I": "#c:ingots/lead"
+  },
+  "result": {
+    "id": "colossal_reactors:lead_block",
+    "count": 1
+  }
 }

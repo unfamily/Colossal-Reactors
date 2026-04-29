@@ -8,12 +8,12 @@ import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
@@ -25,11 +25,11 @@ import java.util.List;
 
 public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHeatEntry> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "melter_heat_source");
+    public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "melter_heat_source");
     private static final int WIDTH = 180;
     private static final int HEIGHT = 52;
 
-    public static final RecipeType<MelterHeatEntry> RECIPE_TYPE = new RecipeType<>(UID, MelterHeatEntry.class);
+    public static final IRecipeType<MelterHeatEntry> RECIPE_TYPE = IRecipeType.create(UID, MelterHeatEntry.class);
 
     private final IDrawable background;
     private final IDrawable icon;
@@ -40,8 +40,18 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
     }
 
     @Override
-    public RecipeType<MelterHeatEntry> getRecipeType() {
+    public IRecipeType<MelterHeatEntry> getRecipeType() {
         return RECIPE_TYPE;
+    }
+
+    @Override
+    public int getWidth() {
+        return WIDTH;
+    }
+
+    @Override
+    public int getHeight() {
+        return HEIGHT;
     }
 
     @Override
@@ -52,11 +62,6 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
     @Override
     public @Nullable IDrawable getIcon() {
         return icon;
-    }
-
-    @Override
-    public IDrawable getBackground() {
-        return background;
     }
 
     @Override
@@ -81,22 +86,23 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
     }
 
     @Override
-    public void draw(MelterHeatEntry recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+    public void draw(MelterHeatEntry recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+        background.draw(guiGraphics);
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
 
         String factorStr = formatFactor(recipe.factor());
-        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter_heat_source.factor", factorStr), margin, textY, color, false);
+        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter_heat_source.factor", factorStr), margin, textY, color, false);
         if (recipe.notValid()) {
-            guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter_heat_source.not_valid"), margin, textY + 10, 0xFF808080, false);
+            guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter_heat_source.not_valid"), margin, textY + 10, 0xFF808080, false);
         }
     }
 
     private static String formatFactor(double value) {
         if (value == (long) value) return String.valueOf((long) value);
-        if (value < 0.01) return String.format("%.3f", value); // e.g. 0.001 stays visible
+        if (value < 0.01) return String.format("%.3f", value);
         return String.format("%.2f", value);
     }
 }

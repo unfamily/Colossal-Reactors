@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -53,7 +54,10 @@ public final class MelterRecipesLoader {
             var tagKey = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM, r.inputId());
             return stack.is(tagKey);
         }
-        var item = registryAccess.registry(net.minecraft.core.registries.Registries.ITEM).map(reg -> reg.get(r.inputId())).orElse(null);
+        var item = registryAccess.lookupOrThrow(net.minecraft.core.registries.Registries.ITEM)
+                .get(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ITEM, r.inputId()))
+                .map(net.minecraft.core.Holder::value)
+                .orElse(null);
         return item != null && !item.equals(net.minecraft.world.item.Items.AIR) && stack.is(item);
     }
 
@@ -99,8 +103,9 @@ public final class MelterRecipesLoader {
                     .map(h -> h.value())
                     .orElse(null);
         }
-        return registryAccess.registry(Registries.FLUID)
-                .map(reg -> reg.get(recipe.outputFluidId()))
+        return registryAccess.lookupOrThrow(Registries.FLUID)
+                .get(ResourceKey.create(Registries.FLUID, recipe.outputFluidId()))
+                .map(net.minecraft.core.Holder::value)
                 .orElse(null);
     }
 }

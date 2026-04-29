@@ -84,22 +84,6 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
         return new HeatingCoilBlockEntity(pos, state);
     }
 
-    @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        // Do not drop contents when switching to the twin block (same coilId, opposite on/off):
-        // switchToOn/switchToOff transfer NBT to the new block entity; dropping here would duplicate items.
-        boolean isTwinSwitch = newState.getBlock() instanceof HeatingCoilBlock other
-                && other.getCoilId().equals(this.coilId)
-                && other.isOn() != this.isOn;
-        if (!state.is(newState.getBlock()) && !isTwinSwitch) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof HeatingCoilBlockEntity coil) {
-                coil.dropAllContents();
-            }
-        }
-        super.onRemove(state, level, pos, newState, movedByPiston);
-    }
-
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

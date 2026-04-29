@@ -8,12 +8,12 @@ import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -32,19 +32,18 @@ import java.util.List;
 
 public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJeiRecipe> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil");
+    public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil");
     private static final int WIDTH = 170;
     private static final int HEIGHT = 112;
     private static final int FLUID_DISPLAY_AMOUNT_MB = 1000;
 
-    public static final RecipeType<HeatingCoilJeiRecipe> RECIPE_TYPE = new RecipeType<>(UID, HeatingCoilJeiRecipe.class);
+    public static final IRecipeType<HeatingCoilJeiRecipe> RECIPE_TYPE = IRecipeType.create(UID, HeatingCoilJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable icon;
 
     public HeatingCoilRecipeCategory(IGuiHelper helper) {
         this.background = new JeiHeatingCoilBackgroundDrawable(WIDTH, HEIGHT);
-        // Pick the first registered coil block as icon (fallback to MELTER if none).
         ItemStack stack = ModBlocks.HEATING_COIL_BLOCKS.isEmpty()
                 ? new ItemStack(ModBlocks.MELTER.get())
                 : new ItemStack(ModBlocks.HEATING_COIL_BLOCKS.get(0).get());
@@ -52,8 +51,18 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
     }
 
     @Override
-    public RecipeType<HeatingCoilJeiRecipe> getRecipeType() {
+    public IRecipeType<HeatingCoilJeiRecipe> getRecipeType() {
         return RECIPE_TYPE;
+    }
+
+    @Override
+    public int getWidth() {
+        return WIDTH;
+    }
+
+    @Override
+    public int getHeight() {
+        return HEIGHT;
     }
 
     @Override
@@ -67,11 +76,6 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
     }
 
     @Override
-    public IDrawable getBackground() {
-        return background;
-    }
-
-    @Override
     public void setRecipe(IRecipeLayoutBuilder builder, HeatingCoilJeiRecipe recipe, IFocusGroup focuses) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;
@@ -81,13 +85,12 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
         Block onBlock = ModBlocks.getHeatingCoilBlock(recipe.coilId(), true);
 
         if (offBlock != null) {
-            builder.addSlot(RecipeIngredientRole.CATALYST,
+            builder.addSlot(RecipeIngredientRole.CRAFTING_STATION,
                     JeiHeatingCoilBackgroundDrawable.OFF_X + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
                     JeiHeatingCoilBackgroundDrawable.OFF_Y + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_Y
             ).addItemStack(new ItemStack(offBlock));
         }
 
-        // Requirement slots in order: fluid, item, burnable
         int slotIdx = 0;
         ConsumeOption opt = recipe.option();
 
@@ -130,58 +133,58 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
     }
 
     @Override
-    public void draw(HeatingCoilJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+    public void draw(HeatingCoilJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+        background.draw(guiGraphics);
         var font = Minecraft.getInstance().font;
         int color = 0xFF404040;
 
-        // First row markers: '+' always; 'RF' only if energy requirement exists
-        guiGraphics.drawString(font, "+", JeiHeatingCoilBackgroundDrawable.PLUS_X, JeiHeatingCoilBackgroundDrawable.PLUS_Y, color, false);
+        guiGraphics.text(font, Component.literal("+"), JeiHeatingCoilBackgroundDrawable.PLUS_X, JeiHeatingCoilBackgroundDrawable.PLUS_Y, color, false);
         if (recipe.option().energy() != null) {
-            guiGraphics.drawString(font, "RF", JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
+            guiGraphics.text(font, Component.literal("RF"), JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
         }
 
         int textY = JeiHeatingCoilBackgroundDrawable.TEXT_Y;
         int margin = JeiHeatingCoilBackgroundDrawable.TEXT_MARGIN;
         int line = 0;
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("jei.colossal_reactors.coil.duration", recipe.durationTicks()),
                 margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
 
         ConsumeOption opt = recipe.option();
         if (opt.fluid() != null) {
             ConsumeOption.FluidRequirement fluidReq = opt.fluid();
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.activate", fluidReq.activation() + " mB"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.substain", fluidReq.substain() + " mB"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.item() != null) {
             ConsumeOption.ItemRequirement itemReq = opt.item();
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.activate", itemReq.activation()),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.substain", itemReq.substain()),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.burnable() != null) {
             ConsumeOption.BurnableRequirement burnReq = opt.burnable();
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.activate", burnReq.activation() + " t"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.substain", burnReq.substain() + " t"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.energy() != null) {
             ConsumeOption.EnergyRequirement energyReq = opt.energy();
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.activate", energyReq.activation() + " RF"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
-            guiGraphics.drawString(font,
+            guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.substain", energyReq.substain() + " RF"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
@@ -204,8 +207,8 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
                     lookup.get(tagKey).ifPresent(holders ->
                             holders.forEach(h -> out.add(new ItemStack(h.value(), count)))));
         } else {
-            Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(req.tagOrId());
-            if (item != null && item != Items.AIR) out.add(new ItemStack(item, count));
+            Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(req.tagOrId()).map(h -> h.value()).orElse(Items.AIR);
+            if (item != Items.AIR) out.add(new ItemStack(item, count));
         }
         return out;
     }
@@ -218,12 +221,11 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
                     lookup.get(tagKey).ifPresent(holders ->
                             holders.forEach(h -> out.add(new FluidStack(h.value(), FLUID_DISPLAY_AMOUNT_MB)))));
         } else {
-            Fluid fluid = net.minecraft.core.registries.BuiltInRegistries.FLUID.get(req.tagOrId());
-            if (fluid != null && fluid != Fluids.EMPTY) {
+            Fluid fluid = net.minecraft.core.registries.BuiltInRegistries.FLUID.get(req.tagOrId()).map(h -> h.value()).orElse(Fluids.EMPTY);
+            if (fluid != Fluids.EMPTY) {
                 out.add(new FluidStack(fluid, FLUID_DISPLAY_AMOUNT_MB));
             }
         }
         return out;
     }
 }
-

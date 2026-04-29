@@ -28,45 +28,58 @@ public final class HeatingCoilRegistry {
 
     private HeatingCoilRegistry() {}
 
+    /** Parses {@value #BUILTIN_PATH} from the mod jar (same content used at init and after reload merge). */
+    private static List<HeatingCoilDefinition> parseBuiltinFile() {
+        try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
+            if (stream == null) {
+                LOGGER.warn("Builtin heating coils not found: {}", BUILTIN_PATH);
+                return List.of();
+            }
+            try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                return HeatingCoilLoader.parse(reader, "builtin");
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load builtin heating coils: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     /**
      * Loads builtin heating_coils.json from the mod jar and caches coil ids for block registration.
      * Call once at mod init (before registering blocks).
      */
     public static synchronized List<Identifier> getBuiltinCoilIds() {
         if (builtinCoilIds != null) return builtinCoilIds;
-        try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
-            if (stream == null) {
-                LOGGER.warn("Builtin heating coils not found: {}", BUILTIN_PATH);
-                builtinCoilIds = List.of();
-                return builtinCoilIds;
-            }
-            try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                List<HeatingCoilDefinition> list = HeatingCoilLoader.parse(reader, "builtin");
-                for (HeatingCoilDefinition def : list) {
-                    DEFINITIONS.put(def.id(), def);
-                }
-                builtinCoilIds = list.stream().map(HeatingCoilDefinition::id).toList();
-                LOGGER.info("Loaded {} builtin heating coil(s)", builtinCoilIds.size());
-                return new ArrayList<>(builtinCoilIds);
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load builtin heating coils: {}", e.getMessage());
+        List<HeatingCoilDefinition> list = parseBuiltinFile();
+        if (list.isEmpty()) {
             builtinCoilIds = List.of();
             return builtinCoilIds;
         }
+        for (HeatingCoilDefinition def : list) {
+            DEFINITIONS.put(def.id(), def);
+        }
+        builtinCoilIds = list.stream().map(HeatingCoilDefinition::id).toList();
+        LOGGER.info("Loaded {} builtin heating coil(s)", builtinCoilIds.size());
+        return new ArrayList<>(builtinCoilIds);
     }
 
     /**
-     * Replaces definitions from datapack reload (called by LoadDataReloadListener).
-     * Only applies when loaded is non-empty so we never wipe the registry (builtin stays if reload finds no files).
+     * Applies datapack reload (called by LoadDataReloadListener).
+     * Builtin jar definitions are merged first, then {@code loaded} overrides per id — same id from datapack wins.
+     * This avoids losing flags like {@code all_sides} when reload aggregation omits or partially replaces entries.
      */
     public static synchronized void setFromReload(Map<Identifier, HeatingCoilDefinition> loaded) {
         if (loaded == null || loaded.isEmpty()) {
             LOGGER.debug("Load data reload: no heating coil definitions, keeping existing registry");
             return;
         }
+        Map<Identifier, HeatingCoilDefinition> merged = new HashMap<>();
+        for (HeatingCoilDefinition def : parseBuiltinFile()) {
+            merged.put(def.id(), def);
+        }
+        merged.putAll(loaded);
         DEFINITIONS.clear();
-        DEFINITIONS.putAll(loaded);
+        DEFINITIONS.putAll(merged);
     }
 
     @Nullable

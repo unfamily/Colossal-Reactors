@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -21,7 +21,7 @@ import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 public record MelterRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
 
     public static final Type<MelterRedstoneModePayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "melter_redstone_mode"));
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "melter_redstone_mode"));
 
     public static final StreamCodec<FriendlyByteBuf, MelterRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
@@ -37,7 +37,7 @@ public record MelterRedstoneModePayload(BlockPos pos) implements CustomPacketPay
     public static void handle(MelterRedstoneModePayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof MelterBlockEntity melter) {
                 RedstoneMode current = RedstoneMode.fromId(melter.getRedstoneMode());

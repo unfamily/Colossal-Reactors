@@ -1,15 +1,14 @@
 package net.unfamily.colossal_reactors.client.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.network.ReactorControllerRefreshPayload;
@@ -19,7 +18,7 @@ import net.unfamily.colossal_reactors.network.ReactorControllerRefreshPayload;
  */
 public class ReactorControllerScreen extends AbstractContainerScreen<ReactorControllerMenu> {
 
-    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
@@ -29,7 +28,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private static final int PANEL_X = 16;
     private static final int PANEL_Y = 29;
     private static final int LINE_HEIGHT = 12;
-    private static final int TEXT_COLOR = 0xFFFFFF;
+    private static final int TEXT_COLOR = GuiTextColors.PANEL_WHITE;
 
     /** Close button (X): top right, same as iskandert_utilities */
     private static final int CLOSE_BUTTON_Y = 5;
@@ -46,17 +45,13 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private Button refreshButton;
 
     public ReactorControllerScreen(ReactorControllerMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        imageWidth = GUI_WIDTH;
-        imageHeight = GUI_HEIGHT;
+        super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
     }
 
     @Override
     protected void init() {
         super.init();
         closeButton = Button.builder(Component.literal("\u2715"), b -> {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         })
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
@@ -72,19 +67,20 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     }
 
     private void sendRefresh() {
-        PacketDistributor.sendToServer(new ReactorControllerRefreshPayload(menu.getControllerBlockPos()));
+        ClientPacketDistributor.sendToServer(new ReactorControllerRefreshPayload(menu.getControllerBlockPos()));
     }
 
     @Override
-    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+    public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
     }
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.drawString(font, title, titleX, 5, 0x404040, false);
+        guiGraphics.text(font, title, titleX, 5, GuiTextColors.TITLE, false);
 
         int y = PANEL_Y;
         int stateId = menu.getControllerStateId();
@@ -101,15 +97,15 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         if (!menu.hasRedstonePort()) {
             statusLine = statusLine.copy().append(Component.literal(" ")).append(Component.translatable("gui.colossal_reactors.reactor_controller.status.requires_redstone_port"));
         }
-        guiGraphics.drawString(font, statusLine, PANEL_X, y, TEXT_COLOR, false);
+        guiGraphics.text(font, statusLine, PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.rods", menu.getRodCount(), menu.getRodColumns()),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", menu.getCoolantCount()),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
@@ -121,23 +117,23 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         int steamPerTick = reactorRunning ? menu.getSteamPerTick() : 0;
         int fuelHundredths = reactorRunning ? menu.getFuelPerTickHundredths() : 0;
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", energyPerTick),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", waterPerTick),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", steamPerTick),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         String fuelStr = formatFuelPerTick(fuelHundredths);
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
@@ -146,9 +142,9 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
             int permille = reactorRunning ? menu.getStabilityPermille() : 1000;
             String stabilityStr = String.format("%.1f%%", permille / 10.0);
             Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
-            guiGraphics.drawString(font, label, PANEL_X, y, TEXT_COLOR, false);
+            guiGraphics.text(font, label, PANEL_X, y, TEXT_COLOR, false);
             int stabilityColor = stabilityColorFromPermille(permille);
-            guiGraphics.drawString(font, stabilityStr, PANEL_X + font.width(label), y, stabilityColor, false);
+            guiGraphics.text(font, stabilityStr, PANEL_X + font.width(label), y, stabilityColor, false);
         }
     }
 
@@ -157,7 +153,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         float t = Math.max(0, Math.min(1000, permille)) / 1000f;
         int r = (int) (255 * (1f - t));
         int g = (int) (255 * t);
-        return (r << 16) | (g << 8) | 0;
+        return 0xFF000000 | (r << 16) | (g << 8);
     }
 
     private static String formatFuelPerTick(int hundredths) {

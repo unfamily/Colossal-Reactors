@@ -6,7 +6,7 @@ import com.supermartijn642.fusion.api.model.data.ConnectingModelDataBuilder;
 import com.supermartijn642.fusion.api.predicate.DefaultConnectionPredicates;
 import com.supermartijn642.fusion.api.provider.FusionModelProvider;
 import net.minecraft.data.PackOutput;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
 
 /**
@@ -23,12 +23,12 @@ public class ColossalReactorsFusionModelProvider extends FusionModelProvider {
     public void generate() {
         // Reactor glass - cube_all, connecting to same block (like Connected Glass clear_glass)
         this.addModel(
-                ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_glass"),
+                Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_glass"),
                 ModelInstance.of(
                         DefaultModelTypes.CONNECTING,
                         ConnectingModelDataBuilder.builder()
-                                .parent(ResourceLocation.withDefaultNamespace("block/cube_all"))
-                                .texture("all", ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_glass"))
+                                .parent(Identifier.withDefaultNamespace("block/cube_all"))
+                                .texture("all", Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_glass"))
                                 .connections("all", DefaultConnectionPredicates.isSameBlock())
                                 .build()
                 )
@@ -36,12 +36,12 @@ public class ColossalReactorsFusionModelProvider extends FusionModelProvider {
 
         // Reactor casing - cube_all, connecting to same block
         this.addModel(
-                ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_casing"),
+                Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_casing"),
                 ModelInstance.of(
                         DefaultModelTypes.CONNECTING,
                         ConnectingModelDataBuilder.builder()
-                                .parent(ResourceLocation.withDefaultNamespace("block/cube_all"))
-                                .texture("all", ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_casing"))
+                                .parent(Identifier.withDefaultNamespace("block/cube_all"))
+                                .texture("all", Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "block/reactor_casing"))
                                 .connections("all", DefaultConnectionPredicates.isSameBlock())
                                 .build()
                 )

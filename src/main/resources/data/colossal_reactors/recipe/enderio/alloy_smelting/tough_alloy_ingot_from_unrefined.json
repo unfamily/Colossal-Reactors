@@ -6,7 +6,7 @@
   "energy": 2400,
   "experience": 0.1,
   "inputs": [
-    { "count": 1, "item": "colossal_reactors:unrefined_tough_alloy" }
+    { "count": 1, "ingredient": "colossal_reactors:unrefined_tough_alloy" }
   ],
   "output": { "count": 1, "id": "colossal_reactors:tough_alloy_ingot" }
 }

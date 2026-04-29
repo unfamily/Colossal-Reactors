@@ -1,11 +1,14 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    { "tag": "c:ingots/iron" },
-    { "tag": "c:ingots/iron" },
-    { "tag": "c:ingots/iron" },
-    { "tag": "c:ingots/lead" },
-    { "tag": "c:ingots/lead" }
+    "#c:ingots/iron",
+    "#c:ingots/iron",
+    "#c:ingots/iron",
+    "#c:ingots/lead",
+    "#c:ingots/lead"
   ],
-  "result": { "id": "colossal_reactors:unrefined_tough_alloy", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:unrefined_tough_alloy",
+    "count": 1
+  }
 }

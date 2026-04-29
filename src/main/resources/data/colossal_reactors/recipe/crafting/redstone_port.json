@@ -1,8 +1,11 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    { "item": "colossal_reactors:reactor_casing" },
-    { "tag": "c:dusts/redstone" }
+    "colossal_reactors:reactor_casing",
+    "#c:dusts/redstone"
   ],
-  "result": { "id": "colossal_reactors:redstone_port", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:redstone_port",
+    "count": 1
+  }
 }

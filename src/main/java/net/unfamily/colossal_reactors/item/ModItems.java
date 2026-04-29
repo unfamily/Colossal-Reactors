@@ -1,17 +1,17 @@
 package net.unfamily.colossal_reactors.item;
 
-import net.minecraft.resources.Identifier;
-import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
-import net.unfamily.colossal_reactors.item.RadiationCureItem;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
-
 import java.util.ArrayList;
 import java.util.List;
+import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
+import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredItem;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 public class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(ColossalReactors.MODID);
@@ -21,106 +21,66 @@ public class ModItems {
     /** Heating coil OFF items only (for creative tab; ON items are not shown there). */
     public static final List<DeferredItem<BlockItem>> HEATING_COIL_OFF_ITEMS = new ArrayList<>();
 
-    public static final DeferredItem<BlockItem> REACTOR_GLASS = ITEMS.register("reactor_glass",
-            () -> new BlockItem(ModBlocks.REACTOR_GLASS.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> REACTOR_CASING = ITEMS.register("reactor_casing",
-            () -> new BlockItem(ModBlocks.REACTOR_CASING.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> REACTOR_CONTROLLER = ITEMS.register("reactor_controller",
-            () -> new BlockItem(ModBlocks.REACTOR_CONTROLLER.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> REACTOR_ROD = ITEMS.register("reactor_rod",
-            () -> new BlockItem(ModBlocks.REACTOR_ROD.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.register("power_port",
-            () -> new BlockItem(ModBlocks.POWER_PORT.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.register("redstone_port",
-            () -> new BlockItem(ModBlocks.REDSTONE_PORT.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.register("resource_port",
-            () -> new BlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> MELTER = ITEMS.register("melter",
-            () -> new BlockItem(ModBlocks.MELTER.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> RADIATION_SCRUBBER = ITEMS.register("radiation_scrubber",
-            () -> new BlockItem(ModBlocks.RADIATION_SCRUBBER.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> ROD_CONTROLLER = ITEMS.register("rod_controller",
-            () -> new BlockItem(ModBlocks.ROD_CONTROLLER.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> REACTOR_BUILDER = ITEMS.register("reactor_builder",
-            () -> new BlockItem(ModBlocks.REACTOR_BUILDER.get(), new Item.Properties()));
-    public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.register("uranium_ingot",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.register("nuclear_waste",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> CATALYST_BREEZIUM = ITEMS.register("catalyst_breezium",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> RADIATION_CURE = ITEMS.register("radiation_cure",
-            () -> new RadiationCureItem(new Item.Properties().stacksTo(16)));
+    public static final DeferredItem<BlockItem> REACTOR_GLASS = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_GLASS);
+    public static final DeferredItem<BlockItem> REACTOR_CASING = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_CASING);
+    public static final DeferredItem<BlockItem> REACTOR_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_CONTROLLER);
+    public static final DeferredItem<BlockItem> REACTOR_ROD = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_ROD);
+    public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.POWER_PORT);
+    public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_PORT);
+    public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_PORT);
+    public static final DeferredItem<BlockItem> MELTER = ITEMS.registerSimpleBlockItem(ModBlocks.MELTER);
+    public static final DeferredItem<BlockItem> RADIATION_SCRUBBER = ITEMS.registerSimpleBlockItem(ModBlocks.RADIATION_SCRUBBER);
+    public static final DeferredItem<BlockItem> ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.ROD_CONTROLLER);
+    public static final DeferredItem<BlockItem> REACTOR_BUILDER = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_BUILDER);
+
+    public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.registerSimpleItem("uranium_ingot");
+    public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.registerSimpleItem("nuclear_waste");
+    public static final DeferredItem<Item> CATALYST_BREEZIUM = ITEMS.registerSimpleItem("catalyst_breezium");
+    public static final DeferredItem<Item> RADIATION_CURE = ITEMS.registerItem("radiation_cure", RadiationCureItem::new,
+            p -> p.stacksTo(16));
 
     // Resource block items
-    public static final DeferredItem<BlockItem> URANIUM_ORE = ITEMS.register("uranium_ore",
-            () -> new BlockItem(ModBlocks.URANIUM_ORE.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> DEEPSLATE_URANIUM_ORE = ITEMS.register("deep_uranium_ore",
-            () -> new BlockItem(ModBlocks.DEEPSLATE_URANIUM_ORE.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> LEAD_ORE = ITEMS.register("lead_ore",
-            () -> new BlockItem(ModBlocks.LEAD_ORE.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> DEEPSLATE_LEAD_ORE = ITEMS.register("deep_lead_ore",
-            () -> new BlockItem(ModBlocks.DEEPSLATE_LEAD_ORE.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> BORON_ORE = ITEMS.register("boron_ore",
-            () -> new BlockItem(ModBlocks.BORON_ORE.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> DEEPSLATE_BORON_ORE = ITEMS.register("deep_boron_ore",
-            () -> new BlockItem(ModBlocks.DEEPSLATE_BORON_ORE.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> URANIUM_BLOCK = ITEMS.register("uranium_block",
-            () -> new BlockItem(ModBlocks.URANIUM_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> URANIUM_RAW_BLOCK = ITEMS.register("uranium_raw_block",
-            () -> new BlockItem(ModBlocks.URANIUM_RAW_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> LEAD_BLOCK = ITEMS.register("lead_block",
-            () -> new BlockItem(ModBlocks.LEAD_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> RAW_LEAD_BLOCK = ITEMS.register("raw_lead_block",
-            () -> new BlockItem(ModBlocks.RAW_LEAD_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> BORON_BLOCK = ITEMS.register("boron_block",
-            () -> new BlockItem(ModBlocks.BORON_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> RAW_BORON_BLOCK = ITEMS.register("raw_boron_block",
-            () -> new BlockItem(ModBlocks.RAW_BORON_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> GRAPHITE_BLOCK = ITEMS.register("graphite_block",
-            () -> new BlockItem(ModBlocks.GRAPHITE_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> AZURITE_BLOCK = ITEMS.register("azurite_block",
-            () -> new BlockItem(ModBlocks.AZURITE_BLOCK.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> TOUGH_ALLOY_BLOCK = ITEMS.register("tough_alloy_block",
-            () -> new BlockItem(ModBlocks.TOUGH_ALLOY_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> URANIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_ORE);
+    public static final DeferredItem<BlockItem> DEEPSLATE_URANIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_URANIUM_ORE);
+    public static final DeferredItem<BlockItem> LEAD_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.LEAD_ORE);
+    public static final DeferredItem<BlockItem> DEEPSLATE_LEAD_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_LEAD_ORE);
+    public static final DeferredItem<BlockItem> BORON_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.BORON_ORE);
+    public static final DeferredItem<BlockItem> DEEPSLATE_BORON_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_BORON_ORE);
+    public static final DeferredItem<BlockItem> URANIUM_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_BLOCK);
+    public static final DeferredItem<BlockItem> URANIUM_RAW_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_RAW_BLOCK);
+    public static final DeferredItem<BlockItem> LEAD_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.LEAD_BLOCK);
+    public static final DeferredItem<BlockItem> RAW_LEAD_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.RAW_LEAD_BLOCK);
+    public static final DeferredItem<BlockItem> BORON_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.BORON_BLOCK);
+    public static final DeferredItem<BlockItem> RAW_BORON_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.RAW_BORON_BLOCK);
+    public static final DeferredItem<BlockItem> GRAPHITE_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.GRAPHITE_BLOCK);
+    public static final DeferredItem<BlockItem> AZURITE_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.AZURITE_BLOCK);
+    public static final DeferredItem<BlockItem> TOUGH_ALLOY_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.TOUGH_ALLOY_BLOCK);
 
     // Raw materials and ingots
-    public static final DeferredItem<Item> RAW_URANIUM = ITEMS.register("raw_uranium",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> LEAD_RAW = ITEMS.register("lead_raw",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> BORON_RAW = ITEMS.register("boron_raw",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> BORON_INGOT = ITEMS.register("boron_ingot",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> GRAPHITE_INGOT = ITEMS.register("graphite_ingot",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> AZURITE_INGOT = ITEMS.register("azurite_ingot",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> LEAD_INGOT = ITEMS.register("lead_ingot",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> TOUGH_ALLOY_INGOT = ITEMS.register("tough_alloy_ingot",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> UNREFINED_TOUGH_ALLOY = ITEMS.register("unrefined_tough_alloy",
-            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> RAW_URANIUM = ITEMS.registerSimpleItem("raw_uranium");
+    public static final DeferredItem<Item> LEAD_RAW = ITEMS.registerSimpleItem("lead_raw");
+    public static final DeferredItem<Item> BORON_RAW = ITEMS.registerSimpleItem("boron_raw");
+    public static final DeferredItem<Item> BORON_INGOT = ITEMS.registerSimpleItem("boron_ingot");
+    public static final DeferredItem<Item> GRAPHITE_INGOT = ITEMS.registerSimpleItem("graphite_ingot");
+    public static final DeferredItem<Item> AZURITE_INGOT = ITEMS.registerSimpleItem("azurite_ingot");
+    public static final DeferredItem<Item> LEAD_INGOT = ITEMS.registerSimpleItem("lead_ingot");
+    public static final DeferredItem<Item> TOUGH_ALLOY_INGOT = ITEMS.registerSimpleItem("tough_alloy_ingot");
+    public static final DeferredItem<Item> UNREFINED_TOUGH_ALLOY = ITEMS.registerSimpleItem("unrefined_tough_alloy");
 
     // Dusts (for crusher/enriching integration)
-    public static final DeferredItem<Item> URANIUM_DUST = ITEMS.register("uranium_dust",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> LEAD_DUST = ITEMS.register("lead_dust",
-            () -> new Item(new Item.Properties()));
-    public static final DeferredItem<Item> BORON_DUST = ITEMS.register("boron_dust",
-            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> URANIUM_DUST = ITEMS.registerSimpleItem("uranium_dust");
+    public static final DeferredItem<Item> LEAD_DUST = ITEMS.registerSimpleItem("lead_dust");
+    public static final DeferredItem<Item> BORON_DUST = ITEMS.registerSimpleItem("boron_dust");
 
     static {
-        for (Identifier coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
-            String path = coilId.getPath();
-            DeferredItem<BlockItem> offItem = ITEMS.register(path + "_off",
-                    () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, false), new Item.Properties()));
+        List<Identifier> coilIds = HeatingCoilRegistry.getBuiltinCoilIds();
+        for (int i = 0; i < coilIds.size(); i++) {
+            DeferredBlock<HeatingCoilBlock> off = ModBlocks.HEATING_COIL_BLOCKS.get(i * 2);
+            DeferredBlock<HeatingCoilBlock> on = ModBlocks.HEATING_COIL_BLOCKS.get(i * 2 + 1);
+            DeferredItem<BlockItem> offItem = ITEMS.registerSimpleBlockItem(off);
             HEATING_COIL_ITEMS.add(offItem);
             HEATING_COIL_OFF_ITEMS.add(offItem);
-            HEATING_COIL_ITEMS.add(ITEMS.register(path + "_on",
-                    () -> new BlockItem(ModBlocks.getHeatingCoilBlock(coilId, true), new Item.Properties())));
+            HEATING_COIL_ITEMS.add(ITEMS.registerSimpleBlockItem(on));
         }
     }
 

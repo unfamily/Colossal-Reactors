@@ -2,9 +2,8 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -19,12 +18,23 @@ import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.transfer.DelegatingResourceHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidUtil;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
+import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.item.ItemStack;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,10 +44,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider {
 
-    private static final String TAG_ITEMS = "Items";
-    private static final String TAG_FLUID = "Fluid";
-    private static final String TAG_FLUID_ID = "FluidId";
-    private static final String TAG_FLUID_AMOUNT = "Amount";
     private static final String TAG_PORT_MODE = "PortMode";
     private static final String TAG_PORT_FILTER = "PortFilter";
     private static final int SLOT_SIZE = 1;
@@ -60,9 +66,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     };
 
-    private final FluidTank fluidTank = new FluidTank(getTankCapacityMb()) {
+    private final FluidStacksResourceHandler fluidStorage = new FluidStacksResourceHandler(1, getTankCapacityMb()) {
         @Override
-        protected void onContentsChanged() {
+        protected void onContentsChanged(int index, FluidStack previousContents) {
             setChanged();
         }
     };
@@ -70,15 +76,24 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private PortMode portMode = PortMode.INSERT;
     private PortFilter portFilter = PortFilter.BOTH;
 
+    @Nullable
+    private ResourceHandler<ItemResource> cachedItemCapability;
+
+    @Nullable
+    private ResourceHandler<FluidResource> cachedFluidCapability;
+
     private final ContainerData fluidData = new ContainerData() {
         @Override
         public int get(int index) {
             return switch (index) {
-                case 0 -> fluidTank.getFluidAmount();
-                case 1 -> fluidTank.getCapacity();
-                case 2 -> fluidTank.getFluid().isEmpty()
-                        ? -1
-                        : BuiltInRegistries.FLUID.getId(fluidTank.getFluid().getFluid());
+                case 0 -> fluidStorage.getAmountAsInt(0);
+                case 1 -> fluidStorage.getCapacityAsInt(0, FluidResource.EMPTY);
+                case 2 -> {
+                    FluidStack fs = FluidUtil.getStack(fluidStorage, 0);
+                    yield fs.isEmpty()
+                            ? -1
+                            : BuiltInRegistries.FLUID.getId(fs.getFluid());
+                }
                 case DATA_MODE -> portMode.getId();
                 case DATA_POS_X -> worldPosition.getX();
                 case DATA_POS_Y -> worldPosition.getY();
@@ -91,11 +106,12 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         @Override
         public void set(int index, int value) {
             if (index == 0) {
-                FluidStack current = fluidTank.getFluid();
+                FluidStack current = FluidUtil.getStack(fluidStorage, 0);
                 if (value <= 0) {
-                    fluidTank.setFluid(FluidStack.EMPTY);
+                    fluidStorage.set(0, FluidResource.EMPTY, 0);
                 } else if (!current.isEmpty()) {
-                    fluidTank.setFluid(new FluidStack(current.getFluid(), Math.min(value, fluidTank.getCapacity())));
+                    int cap = fluidStorage.getCapacityAsInt(0, FluidResource.EMPTY);
+                    fluidStorage.set(0, FluidResource.of(current), Math.min(value, cap));
                 }
             }
         }
@@ -111,13 +127,44 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /** Raw handler for menu and internal use (no mode/filter restriction). */
-    public IItemHandler getItemHandler() {
+    public ItemStackHandler getItemStackHandler() {
         return itemHandler;
     }
 
-    /** Raw handler for menu and bucket interaction (no mode/filter restriction). */
+    /** Legacy bucket/menu compatibility via NeoForge {@link IFluidHandler#of(ResourceHandler)}. */
     public IFluidHandler getFluidHandler() {
-        return fluidTank;
+        return IFluidHandler.of(fluidStorage);
+    }
+
+    public FluidStacksResourceHandler getFluidStorage() {
+        return fluidStorage;
+    }
+
+    /** Stored fluid for simulation logic (single tank). */
+    public FluidStack getStoredFluid() {
+        return FluidUtil.getStack(fluidStorage, 0);
+    }
+
+    public int getFluidAmountMb() {
+        return fluidStorage.getAmountAsInt(0);
+    }
+
+    public int getFluidCapacityMb() {
+        return fluidStorage.getCapacityAsInt(0, FluidResource.EMPTY);
+    }
+
+    public ResourceHandler<ItemResource> getItemResourceHandlerForCapability() {
+        if (cachedItemCapability == null) {
+            cachedItemCapability = LegacyItemHandlerResourceHandler.wrap(new FilteredItemHandler());
+        }
+        return cachedItemCapability;
+    }
+
+    public ResourceHandler<FluidResource> getFluidResourceHandlerForCapability() {
+        if (cachedFluidCapability == null) {
+            cachedFluidCapability = new FilteredFluidResourceHandler();
+        }
+        return cachedFluidCapability;
     }
 
     /**
@@ -136,7 +183,12 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
      */
     public int receiveFluidFromReactor(FluidStack stack) {
         if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return 0;
-        return fluidTank.fill(stack, IFluidHandler.FluidAction.EXECUTE);
+        FluidResource fr = FluidResource.of(stack);
+        try (var tx = Transaction.openRoot()) {
+            int inserted = fluidStorage.insert(0, fr, stack.getAmount(), tx);
+            tx.commit();
+            return inserted;
+        }
     }
 
     /** True if this port is in EXTRACT or EJECT and can accept items from the reactor (slot not full). */
@@ -149,7 +201,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     /** True if this port is in EXTRACT or EJECT and has fluid tank space. */
     public boolean canAcceptFluidFromReactor() {
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
-        return fluidTank.getFluidAmount() < fluidTank.getCapacity();
+        return fluidStorage.getAmountAsLong(0) < fluidStorage.getCapacityAsLong(0, FluidResource.EMPTY);
     }
 
     /**
@@ -159,13 +211,17 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public int takeFluidForReactor(Fluid fluid, int amountMb) {
         if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
         if (portMode != PortMode.INSERT) return 0;
-        FluidStack inTank = fluidTank.getFluid();
+        FluidStack inTank = FluidUtil.getStack(fluidStorage, 0);
         if (inTank.isEmpty() || inTank.getFluid() != fluid) return 0;
         int drain = Math.min(amountMb, inTank.getAmount());
         if (drain <= 0) return 0;
-        fluidTank.drain(drain, IFluidHandler.FluidAction.EXECUTE);
-        setChanged();
-        return drain;
+        FluidResource template = FluidResource.of(inTank);
+        try (var tx = Transaction.openRoot()) {
+            int taken = fluidStorage.extract(0, template, drain, tx);
+            tx.commit();
+            if (taken > 0) setChanged();
+            return taken;
+        }
     }
 
     /**
@@ -173,16 +229,16 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
      * Uses the same fill/drain rules as the port (INSERT = fill allowed, EXTRACT/EJECT = drain allowed).
      * Returns true if a transfer occurred (caller must then update player hand with itemHandler.getContainer()).
      */
-    public boolean interactWithItemFluidHandler(IFluidHandlerItem itemHandler, Player player) {
-        if (itemHandler.getTanks() == 0) return false;
+    public boolean interactWithItemFluidHandler(IFluidHandlerItem itemHandlerItem, Player player) {
+        if (itemHandlerItem.getTanks() == 0) return false;
         IFluidHandler blockHandler = getFluidHandler();
-        FluidStack inItem = itemHandler.getFluidInTank(0);
+        FluidStack inItem = itemHandlerItem.getFluidInTank(0);
         if (!inItem.isEmpty()) {
             // Item has fluid: try to fill block (allowed in INSERT mode)
             if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
                 int filled = blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.EXECUTE);
                 if (filled > 0) {
-                    itemHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
+                    itemHandlerItem.drain(filled, IFluidHandler.FluidAction.EXECUTE);
                     inItem.getFluid().getPickupSound().ifPresent(player::playSound);
                     return true;
                 }
@@ -190,11 +246,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         } else {
             // Item empty: try to drain block to item (allowed in EXTRACT/EJECT mode)
             FluidStack inBlock = blockHandler.getFluidInTank(0);
-            if (!inBlock.isEmpty() && itemHandler.isFluidValid(0, inBlock)) {
-                int capacity = itemHandler.getTankCapacity(0);
+            if (!inBlock.isEmpty() && itemHandlerItem.isFluidValid(0, inBlock)) {
+                int capacity = itemHandlerItem.getTankCapacity(0);
                 FluidStack toFill = inBlock.copy();
                 toFill.setAmount(Math.min(inBlock.getAmount(), capacity));
-                int filled = itemHandler.fill(toFill, IFluidHandler.FluidAction.EXECUTE);
+                int filled = itemHandlerItem.fill(toFill, IFluidHandler.FluidAction.EXECUTE);
                 if (filled > 0) {
                     blockHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
                     var soundEvent = inBlock.getFluid().getFluidType().getSound(net.neoforged.neoforge.common.SoundActions.BUCKET_EMPTY);
@@ -206,18 +262,18 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return false;
     }
 
-    /** Item handler for capability (hoppers/pipes): respects port mode and filter. */
-    public IItemHandler getItemHandlerForCapability() {
-        return new FilteredItemHandler();
+    /** Legacy accessor — prefer {@link #getItemStackHandler()} if not wrapping capability. */
+    public ItemStackHandler getItemHandler() {
+        return itemHandler;
     }
 
-    /** Fluid handler for capability (hoppers/pipes): respects port mode and filter. */
-    public IFluidHandler getFluidHandlerForCapability() {
-        return new FilteredFluidHandler();
-    }
-
-    public FluidTank getFluidTank() {
-        return fluidTank;
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        Level level = getLevel();
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
     }
 
     /**
@@ -266,53 +322,27 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
-        tag.putInt(TAG_PORT_MODE, portMode.getId());
-        tag.putInt(TAG_PORT_FILTER, portFilter.getId());
-        FluidStack stack = fluidTank.getFluid();
-        if (!stack.isEmpty()) {
-            CompoundTag fluidTag = new CompoundTag();
-            fluidTag.putString(TAG_FLUID_ID, BuiltInRegistries.FLUID.getKey(stack.getFluid()).toString());
-            fluidTag.putInt(TAG_FLUID_AMOUNT, stack.getAmount());
-            tag.put(TAG_FLUID, fluidTag);
-        }
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        itemHandler.serialize(output);
+        fluidStorage.serialize(output);
+        output.putInt(TAG_PORT_MODE, portMode.getId());
+        output.putInt(TAG_PORT_FILTER, portFilter.getId());
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
-        portMode = PortMode.fromId(tag.getInt(TAG_PORT_MODE));
-        portFilter = PortFilter.fromId(tag.getInt(TAG_PORT_FILTER));
-        fluidTank.setFluid(FluidStack.EMPTY);
-        if (tag.contains(TAG_FLUID)) {
-            CompoundTag fluidTag = tag.getCompound(TAG_FLUID);
-            Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidTag.getString(TAG_FLUID_ID)));
-            int amount = fluidTag.getInt(TAG_FLUID_AMOUNT);
-            if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
-                fluidTank.setFluid(new FluidStack(fluid, amount));
-            }
-        }
-    }
-
-    @Override
-    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
-        saveAdditional(tag, registries);
-        return tag;
-    }
-
-    @Override
-    public void handleUpdateTag(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        loadAdditional(tag, registries);
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        itemHandler.deserialize(input);
+        fluidStorage.deserialize(input);
+        portMode = PortMode.fromId(input.getIntOr(TAG_PORT_MODE, portMode.getId()));
+        portFilter = PortFilter.fromId(input.getIntOr(TAG_PORT_FILTER, portFilter.getId()));
     }
 
     /**
      * Item handler exposed to capability (hoppers/pipes). INSERT: allow insert. EXTRACT/EJECT: allow extract only.
      */
-    private final class FilteredItemHandler implements IItemHandler {
+    private final class FilteredItemHandler implements net.neoforged.neoforge.items.IItemHandler {
         private boolean allowInsert() {
             return portMode == PortMode.INSERT;
         }
@@ -362,9 +392,14 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * Fluid handler exposed to capability (hoppers/pipes). INSERT: allow fill. EXTRACT/EJECT: allow drain only.
+     * Fluid capability view with port mode/filter matching legacy {@link IFluidHandler} wrapper behavior.
      */
-    private final class FilteredFluidHandler implements IFluidHandler {
+    private final class FilteredFluidResourceHandler extends DelegatingResourceHandler<FluidResource> {
+
+        FilteredFluidResourceHandler() {
+            super(fluidStorage);
+        }
+
         private boolean allowFill() {
             return portMode == PortMode.INSERT;
         }
@@ -374,50 +409,27 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
 
         @Override
-        public int getTanks() {
-            return fluidTank.getTanks();
+        public int insert(int index, FluidResource resource, int amount, TransactionContext transaction) {
+            if (!allowFill()) return 0;
+            return super.insert(index, resource, amount, transaction);
         }
 
         @Override
-        @NotNull
-        public FluidStack getFluidInTank(int tank) {
-            return fluidTank.getFluidInTank(tank);
+        public int insert(FluidResource resource, int amount, TransactionContext transaction) {
+            if (!allowFill()) return 0;
+            return super.insert(resource, amount, transaction);
         }
 
         @Override
-        public int getTankCapacity(int tank) {
-            return fluidTank.getTankCapacity(tank);
+        public int extract(int index, FluidResource resource, int amount, TransactionContext transaction) {
+            if (!allowDrain()) return 0;
+            return super.extract(index, resource, amount, transaction);
         }
 
         @Override
-        public int fill(FluidStack resource, FluidAction action) {
-            if (!allowFill()) {
-                return 0;
-            }
-            return fluidTank.fill(resource, action);
-        }
-
-        @Override
-        @NotNull
-        public FluidStack drain(FluidStack resource, FluidAction action) {
-            if (!allowDrain()) {
-                return FluidStack.EMPTY;
-            }
-            return fluidTank.drain(resource, action);
-        }
-
-        @Override
-        @NotNull
-        public FluidStack drain(int maxDrain, FluidAction action) {
-            if (!allowDrain()) {
-                return FluidStack.EMPTY;
-            }
-            return fluidTank.drain(maxDrain, action);
-        }
-
-        @Override
-        public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
-            return allowFill() && fluidTank.isFluidValid(tank, stack);
+        public int extract(FluidResource resource, int amount, TransactionContext transaction) {
+            if (!allowDrain()) return 0;
+            return super.extract(resource, amount, transaction);
         }
     }
 }

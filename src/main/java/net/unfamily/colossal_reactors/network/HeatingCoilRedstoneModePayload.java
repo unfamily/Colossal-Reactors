@@ -37,7 +37,7 @@ public record HeatingCoilRedstoneModePayload(BlockPos pos) implements CustomPack
     public static void handle(HeatingCoilRedstoneModePayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof HeatingCoilBlockEntity coil) {
                 RedstoneMode current = RedstoneMode.fromId(coil.getRedstoneMode());

@@ -1,12 +1,12 @@
 package net.unfamily.colossal_reactors.blockentity;
 
+import com.mojang.logging.LogUtils;
+
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
@@ -23,6 +23,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.util.ProblemReporter;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -31,6 +35,13 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.unfamily.colossal_reactors.transfer.LegacyEnergyStorageEnergyHandler;
+import net.unfamily.colossal_reactors.transfer.LegacyIFluidHandlerResourceHandler;
+import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
 import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
@@ -38,6 +49,7 @@ import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 /**
  * Heating coil block entity. Only front face accepts inputs (enforced in capability registration).
@@ -46,12 +58,12 @@ import org.jetbrains.annotations.Nullable;
  */
 public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     /** Fallback when definition is missing (e.g. registry not loaded yet). */
     private static final int DEFAULT_TANK_MB = 10_000;
     private static final int DEFAULT_ENERGY = 100_000;
     private static final String TAG_ITEMS = "Items";
-    private static final String TAG_FLUID = "Fluid";
-    private static final String TAG_FLUID_AMOUNT = "Amount";
     private static final String TAG_ENERGY = "Energy";
     private static final String TAG_BURNABLE_TICKS = "BurnableTicks";
     private static final String TAG_ACTIVE_OPTION_INDEX = "ActiveOption";
@@ -73,6 +85,9 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     };
     private final FluidTank fluidTank;
     private final HeatingCoilEnergyStorage energyStorage;
+    private final LegacyEnergyStorageEnergyHandler energyHandlerCapability;
+    private final ResourceHandler<FluidResource> fluidResourceCapability;
+    private ResourceHandler<ItemResource> itemResourceCapability;
 
     /** Accumulated burn time (ticks) from burnable items; no dispersion. */
     private int burnableTicksAccumulated;
@@ -127,6 +142,8 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
             }
         };
         this.energyStorage = new HeatingCoilEnergyStorage(energyCap);
+        this.energyHandlerCapability = new LegacyEnergyStorageEnergyHandler(energyStorage);
+        this.fluidResourceCapability = LegacyIFluidHandlerResourceHandler.wrap(fluidTank);
         this.data = new ContainerData() {
             @Override
             public int get(int index) {
@@ -242,7 +259,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     private void tickOn(Level level, BlockPos pos, HeatingCoilDefinition def) {
-        tryAcceptOneBurnableFromSlot(def);
+        tryAcceptOneBurnableFromSlot(level, def);
         ticksUntilSubstain--;
         if (ticksUntilSubstain > 0) return;
         ticksUntilSubstain = def.duration();
@@ -257,10 +274,10 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     /** Consumes one burnable item from slot and adds its burn time when below cap (used in both ON and OFF). */
-    private void tryAcceptOneBurnableFromSlot(HeatingCoilDefinition def) {
+    private void tryAcceptOneBurnableFromSlot(Level level, HeatingCoilDefinition def) {
         ItemStack stack = itemHandler.getStackInSlot(0);
         if (stack.isEmpty()) return;
-        int burn = stack.getBurnTime(RecipeType.SMELTING);
+        int burn = stack.getBurnTime(RecipeType.SMELTING, level.fuelValues());
         if (burn <= 0) return;
         int cap = maxBurnableActivation(def);
         if (cap > 0 && burnableTicksAccumulated >= cap) return;
@@ -271,7 +288,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     private void tickOff(Level level, BlockPos pos, HeatingCoilDefinition def) {
-        tryAcceptOneBurnableFromSlot(def);
+        tryAcceptOneBurnableFromSlot(level, def);
         if (RedstoneMode.fromId(redstoneMode) == RedstoneMode.PULSE && !pulseAllowed) return;
         // Check if any option is satisfied; then consume activation and switch to ON
         for (int i = 0; i < def.consume().size(); i++) {
@@ -331,7 +348,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
             TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, req.tagOrId());
             return stack.getFluid().is(tagKey);
         }
-        Fluid required = level.registryAccess().registry(Registries.FLUID).map(r -> r.get(req.tagOrId())).orElse(null);
+        Fluid required = BuiltInRegistries.FLUID.getValue(req.tagOrId());
         if (required == null || required.equals(Fluids.EMPTY)) return false;
         Identifier requiredKey = BuiltInRegistries.FLUID.getKey(required);
         Identifier stackKey = BuiltInRegistries.FLUID.getKey(stack.getFluid());
@@ -347,7 +364,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
             TagKey<Item> tagKey = TagKey.create(Registries.ITEM, req.tagOrId());
             return stack.is(tagKey);
         }
-        Item item = level.registryAccess().registry(Registries.ITEM).map(r -> r.get(req.tagOrId())).orElse(null);
+        Item item = BuiltInRegistries.ITEM.getValue(req.tagOrId());
         return item != null && !item.equals(net.minecraft.world.item.Items.AIR) && stack.is(item);
     }
 
@@ -416,13 +433,14 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         if (id == null) return;
         Block other = ModBlocks.getHeatingCoilBlock(id, true);
         if (other == null) return;
-        CompoundTag saved = new CompoundTag();
-        saveAdditional(saved, level.registryAccess());
+        var saved = saveWithoutMetadata(level.registryAccess());
         BlockState newState = other.defaultBlockState().setValue(HeatingCoilBlock.FACING, getBlockState().getValue(HeatingCoilBlock.FACING));
         level.setBlock(pos, newState, 3);
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof HeatingCoilBlockEntity coil) {
-            coil.loadAdditional(saved, level.registryAccess());
+            try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(coil.problemPath(), LOGGER)) {
+                coil.loadWithComponents(TagValueInput.create(reporter, level.registryAccess(), saved));
+            }
         }
         closeMenuForPlayersAt(level, pos);
     }
@@ -432,13 +450,14 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         if (id == null) return;
         Block other = ModBlocks.getHeatingCoilBlock(id, false);
         if (other == null) return;
-        CompoundTag saved = new CompoundTag();
-        saveAdditional(saved, level.registryAccess());
+        var saved = saveWithoutMetadata(level.registryAccess());
         BlockState newState = other.defaultBlockState().setValue(HeatingCoilBlock.FACING, getBlockState().getValue(HeatingCoilBlock.FACING));
         level.setBlock(pos, newState, 3);
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof HeatingCoilBlockEntity coil) {
-            coil.loadAdditional(saved, level.registryAccess());
+            try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(coil.problemPath(), LOGGER)) {
+                coil.loadWithComponents(TagValueInput.create(reporter, level.registryAccess(), saved));
+            }
         }
         closeMenuForPlayersAt(level, pos);
     }
@@ -463,6 +482,23 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         return hasItemRequirement() ? itemHandler : NoItemHandler.INSTANCE;
     }
 
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        Level level = getLevel();
+        if (level != null
+                && oldState.getBlock() instanceof HeatingCoilBlock oldCoil
+                && level.getBlockState(pos).getBlock() instanceof HeatingCoilBlock newCoil
+                && oldCoil.getCoilId().equals(newCoil.getCoilId())
+                && oldCoil.isOn() != newCoil.isOn()) {
+            super.preRemoveSideEffects(pos, oldState);
+            return;
+        }
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
+    }
+
     /** Drops all items from the input slot into the world. Call when the block is broken. */
     public void dropAllContents() {
         Level level = getLevel();
@@ -483,6 +519,21 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     public IEnergyStorage getEnergyStorage() {
         return energyStorage;
+    }
+
+    public EnergyHandler getEnergyHandlerForCapability() {
+        return energyHandlerCapability;
+    }
+
+    public ResourceHandler<FluidResource> getFluidResourceHandlerForCapability() {
+        return fluidResourceCapability;
+    }
+
+    public ResourceHandler<ItemResource> getItemResourceHandlerForCapability() {
+        if (itemResourceCapability == null) {
+            itemResourceCapability = LegacyItemHandlerResourceHandler.wrap(getItemHandler());
+        }
+        return itemResourceCapability;
     }
 
     /** True if this coil accepts item capability (pipes can connect). */
@@ -561,45 +612,34 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
-        tag.putInt(TAG_FLUID_AMOUNT, fluidTank.getFluidAmount());
-        if (!fluidTank.getFluid().isEmpty()) {
-            tag.putString(TAG_FLUID, BuiltInRegistries.FLUID.getKey(fluidTank.getFluid().getFluid()).toString());
-        }
-        tag.putInt(TAG_ENERGY, energyStorage.getEnergyStored());
-        tag.putInt(TAG_BURNABLE_TICKS, burnableTicksAccumulated);
-        tag.putInt(TAG_ACTIVE_OPTION_INDEX, activeOptionIndex);
-        tag.putInt(TAG_TICKS_UNTIL_SUBSTAIN, ticksUntilSubstain);
-        tag.putBoolean(TAG_FREE_ON, freeOn);
-        tag.putInt(TAG_REDSTONE_MODE, redstoneMode);
-        tag.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
-        tag.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        itemHandler.serialize(output);
+        fluidTank.serialize(output);
+        output.putInt(TAG_ENERGY, energyStorage.getEnergyStored());
+        output.putInt(TAG_BURNABLE_TICKS, burnableTicksAccumulated);
+        output.putInt(TAG_ACTIVE_OPTION_INDEX, activeOptionIndex);
+        output.putInt(TAG_TICKS_UNTIL_SUBSTAIN, ticksUntilSubstain);
+        output.putBoolean(TAG_FREE_ON, freeOn);
+        output.putInt(TAG_REDSTONE_MODE, redstoneMode);
+        output.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
+        output.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains(TAG_ITEMS)) itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
-        fluidTank.setFluid(FluidStack.EMPTY);
-        if (tag.contains(TAG_FLUID)) {
-            Fluid f = BuiltInRegistries.FLUID.get(Identifier.parse(tag.getString(TAG_FLUID)));
-            if (f != null && f != Fluids.EMPTY) {
-                fluidTank.setFluid(new FluidStack(f, tag.getInt(TAG_FLUID_AMOUNT)));
-            }
-        } else if (tag.contains(TAG_FLUID_AMOUNT)) {
-            fluidTank.setFluid(new FluidStack(Fluids.WATER, Math.min(tag.getInt(TAG_FLUID_AMOUNT), fluidTank.getCapacity())));
-        }
-        energyStorage.setEnergy(tag.getInt(TAG_ENERGY));
-        burnableTicksAccumulated = tag.getInt(TAG_BURNABLE_TICKS);
-        activeOptionIndex = tag.getInt(TAG_ACTIVE_OPTION_INDEX);
-        ticksUntilSubstain = tag.getInt(TAG_TICKS_UNTIL_SUBSTAIN);
-        freeOn = tag.getBoolean(TAG_FREE_ON);
-        RedstoneMode m = RedstoneMode.fromId(tag.getInt(TAG_REDSTONE_MODE));
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        itemHandler.deserialize(input);
+        fluidTank.deserialize(input);
+        energyStorage.setEnergy(input.getIntOr(TAG_ENERGY, 0));
+        burnableTicksAccumulated = input.getIntOr(TAG_BURNABLE_TICKS, 0);
+        activeOptionIndex = input.getIntOr(TAG_ACTIVE_OPTION_INDEX, -1);
+        ticksUntilSubstain = input.getIntOr(TAG_TICKS_UNTIL_SUBSTAIN, 0);
+        freeOn = input.getBooleanOr(TAG_FREE_ON, false);
+        RedstoneMode m = RedstoneMode.fromId(input.getIntOr(TAG_REDSTONE_MODE, redstoneMode));
         redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
-        lastRedstoneSignal = tag.getBoolean(TAG_LAST_REDSTONE);
-        pulseAllowed = tag.getBoolean(TAG_PULSE_ALLOWED);
+        lastRedstoneSignal = input.getBooleanOr(TAG_LAST_REDSTONE, false);
+        pulseAllowed = input.getBooleanOr(TAG_PULSE_ALLOWED, false);
     }
 
     public ContainerData getData() {

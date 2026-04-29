@@ -1,22 +1,24 @@
 package net.unfamily.colossal_reactors.client.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
@@ -31,10 +33,10 @@ import java.util.List;
  */
 public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> {
 
-    private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
-    private static final ResourceLocation ENERGY_BAR =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
+    private static final Identifier TEXTURE =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
+    private static final Identifier ENERGY_BAR =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
 
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 166;
@@ -67,9 +69,9 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    private static final ResourceLocation MEDIUM_BUTTONS = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier MEDIUM_BUTTONS = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/medium_buttons.png");
-    private static final ResourceLocation REDSTONE_GUI = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier REDSTONE_GUI = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/redstone_gui.png");
     private static final int REDSTONE_BUTTON_SIZE = 16;
     private static final int REDSTONE_BUTTON_X = CLOSE_BUTTON_X - REDSTONE_BUTTON_SIZE - 4;
@@ -81,17 +83,13 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private int redstoneButtonScreenY;
 
     public HeatingCoilScreen(HeatingCoilMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        imageWidth = GUI_WIDTH;
-        imageHeight = GUI_HEIGHT;
+        super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
     }
 
     @Override
     protected void init() {
         super.init();
         closeButton = Button.builder(Component.literal("\u2715"), b -> {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         })
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
@@ -102,10 +100,11 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     }
 
     @Override
-    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
         int x = leftPos;
         int y = topPos;
-        guiGraphics.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, x, y, 0.0F, 0.0F, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
 
         if (menu.showFluidInGui()) {
             int amount = menu.getFluidAmount();
@@ -124,7 +123,6 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 }
             }
         } else {
-            // Censor tank area +1px each side to hide borders
             int cx = x + FLUID_BAR_X - 1;
             int cy = y + FLUID_BAR_Y - 1;
             int cw = FLUID_FILL_WIDTH + 2 * FLUID_FILL_INSET + 2;
@@ -133,7 +131,6 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         }
 
         if (!menu.showItemInGui()) {
-            // Censor slot area +1px each side to hide borders
             int sx = x + SLOT_X - 1;
             int sy = y + SLOT_Y - 1;
             guiGraphics.fill(sx, sy, sx + SLOT_SIZE + 2, sy + SLOT_SIZE + 2, CENSOR_COLOR);
@@ -142,37 +139,36 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         if (menu.showEnergyInGui()) {
             int energyBarX = x + ENERGY_BAR_X;
             int energyBarY = y + ENERGY_BAR_Y;
-            guiGraphics.blit(ENERGY_BAR, energyBarX, energyBarY, 8, 0, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT, 16, 32);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ENERGY_BAR, energyBarX, energyBarY, 8.0F, 0.0F, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT, 16, 32);
             int energy = menu.getEnergy();
             int maxEnergy = menu.getEnergyCapacity();
             if (energy > 0 && maxEnergy > 0) {
                 int energyHeight = (energy * ENERGY_BAR_HEIGHT) / maxEnergy;
                 int energyY = energyBarY + (ENERGY_BAR_HEIGHT - energyHeight);
-                guiGraphics.blit(ENERGY_BAR, energyBarX, energyY, 0, ENERGY_BAR_HEIGHT - energyHeight, ENERGY_BAR_WIDTH, energyHeight, 16, 32);
+                guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ENERGY_BAR, energyBarX, energyY, 0.0F, (float)(ENERGY_BAR_HEIGHT - energyHeight), ENERGY_BAR_WIDTH, energyHeight, ENERGY_BAR_WIDTH, energyHeight, 16, 32);
             }
         }
     }
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.drawString(font, title, titleX, 6, 0x404040, false);
+        guiGraphics.text(font, title, titleX, 6, GuiTextColors.TITLE, false);
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         renderRedstoneButton(guiGraphics, mouseX, mouseY);
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
-    private void renderRedstoneButton(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    private void renderRedstoneButton(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         boolean isHovered = mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
                 && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE;
         int textureY = isHovered ? 16 : 0;
-        guiGraphics.blit(MEDIUM_BUTTONS, redstoneButtonScreenX, redstoneButtonScreenY,
-                0, textureY, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, 96, 96);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, MEDIUM_BUTTONS, redstoneButtonScreenX, redstoneButtonScreenY,
+                0.0F, (float)textureY, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, 96, 96);
         int iconX = redstoneButtonScreenX + 2;
         int iconY = redstoneButtonScreenY + 2;
         int iconSize = 12;
@@ -186,44 +182,44 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
             default -> renderScaledItem(guiGraphics, new ItemStack(Items.REDSTONE), iconX, iconY, iconSize);
         }
         if (isHovered) {
-            guiGraphics.renderTooltip(font, RedstoneMode.fromId(mode).getDisplayName(), mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(font, RedstoneMode.fromId(mode).getDisplayName(), mouseX, mouseY);
         }
     }
 
-    private static void renderScaledItem(GuiGraphics guiGraphics, ItemStack stack, int x, int y, int size) {
-        guiGraphics.pose().pushPose();
+    private static void renderScaledItem(GuiGraphicsExtractor guiGraphics, ItemStack stack, int x, int y, int size) {
+        guiGraphics.pose().pushMatrix();
         float scale = size / 16.0f;
-        guiGraphics.pose().translate(x, y, 0);
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-        guiGraphics.renderItem(stack, 0, 0);
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().translate(x, y);
+        guiGraphics.pose().scale(scale, scale);
+        guiGraphics.item(stack, 0, 0);
+        guiGraphics.pose().popMatrix();
     }
 
-    private static void renderScaledTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int size) {
-        guiGraphics.pose().pushPose();
+    private static void renderScaledTexture(GuiGraphicsExtractor guiGraphics, Identifier texture, int x, int y, int size) {
+        guiGraphics.pose().pushMatrix();
         float scale = size / 16.0f;
-        guiGraphics.pose().translate(x, y, 0);
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-        guiGraphics.blit(texture, 0, 0, 0, 0, 16, 16, 16, 16);
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().translate(x, y);
+        guiGraphics.pose().scale(scale, scale);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 0.0F, 0.0F, 16, 16, 16, 16);
+        guiGraphics.pose().popMatrix();
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && menu.getBlockPos() != null
-                && mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
-                && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && menu.getBlockPos() != null
+                && event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
+                && event.y() >= redstoneButtonScreenY && event.y() < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
             if (minecraft != null && minecraft.getSoundManager() != null)
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            PacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos()));
+            ClientPacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos()));
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        super.renderTooltip(guiGraphics, mouseX, mouseY);
+    protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        super.extractTooltip(guiGraphics, mouseX, mouseY);
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
         if (menu.showFluidInGui() && mouseX >= left && mouseX < left + FLUID_FILL_WIDTH && mouseY >= top && mouseY < top + FLUID_FILL_HEIGHT) {
@@ -242,14 +238,14 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                     lines.add(Component.translatable(type.getDescriptionId()).getVisualOrderText());
                 }
             }
-            guiGraphics.renderTooltip(font, lines, mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
         }
         if (menu.showEnergyInGui()) {
             int ex = leftPos + ENERGY_BAR_X;
             int ey = topPos + ENERGY_BAR_Y;
             if (mouseX >= ex && mouseX < ex + ENERGY_BAR_WIDTH && mouseY >= ey && mouseY < ey + ENERGY_BAR_HEIGHT) {
                 Component line = Component.translatable("gui.colossal_reactors.heating_coil.energy_tooltip", menu.getEnergy(), menu.getEnergyCapacity());
-                guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
+                guiGraphics.setTooltipForNextFrame(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
             }
         }
     }

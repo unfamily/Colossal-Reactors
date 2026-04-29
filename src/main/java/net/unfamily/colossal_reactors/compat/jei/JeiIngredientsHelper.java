@@ -2,20 +2,21 @@ package net.unfamily.colossal_reactors.compat.jei;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.core.RegistryAccess;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -137,12 +138,9 @@ public final class JeiIngredientsHelper {
         if (fluid == null || fluid == Fluids.EMPTY) return ItemStack.EMPTY;
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack stack = new ItemStack(item, 1);
-            IFluidHandlerItem cap = stack.getCapability(Capabilities.FluidHandler.ITEM);
-            if (cap != null) {
-                FluidStack in = cap.getFluidInTank(0);
-                if (!in.isEmpty() && in.getFluid() == fluid) {
-                    return new ItemStack(item, DISPLAY_AMOUNT_ITEMS);
-                }
+            FluidStack in = FluidUtil.getFirstStackContained(stack);
+            if (!in.isEmpty() && in.getFluid() == fluid) {
+                return new ItemStack(item, DISPLAY_AMOUNT_ITEMS);
             }
         }
         return ItemStack.EMPTY;
@@ -151,17 +149,17 @@ public final class JeiIngredientsHelper {
     private static List<FluidStack> selectorToFluidStacks(String selector, RegistryAccess registryAccess) {
         List<FluidStack> list = new ArrayList<>();
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return list;
             TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
             registryAccess.lookup(Registries.FLUID).ifPresent(lookup ->
                     lookup.get(tagKey).ifPresent(holders ->
                             holders.forEach(h -> list.add(new FluidStack(h.value(), DISPLAY_AMOUNT_MB)))));
         } else {
-            ResourceLocation id = ResourceLocation.tryParse(selector);
+            Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Fluid fluid = BuiltInRegistries.FLUID.get(id);
-                if (fluid != null && fluid != Fluids.EMPTY) {
+                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(h -> h.value()).orElse(Fluids.EMPTY);
+                if (fluid != Fluids.EMPTY) {
                     list.add(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
                 }
             }
@@ -172,17 +170,17 @@ public final class JeiIngredientsHelper {
     private static List<ItemStack> selectorToItemStacks(String selector, RegistryAccess registryAccess) {
         List<ItemStack> list = new ArrayList<>();
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return list;
             TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
             registryAccess.lookup(Registries.ITEM).ifPresent(lookup ->
                     lookup.get(tagKey).ifPresent(holders ->
                             holders.forEach(h -> list.add(new ItemStack(h.value(), DISPLAY_AMOUNT_ITEMS)))));
         } else {
-            ResourceLocation id = ResourceLocation.tryParse(selector);
+            Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Item item = BuiltInRegistries.ITEM.get(id);
-                if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                Item item = BuiltInRegistries.ITEM.get(id).map(h -> h.value()).orElse(Items.AIR);
+                if (item != Items.AIR) {
                     list.add(new ItemStack(item, DISPLAY_AMOUNT_ITEMS));
                 }
             }
@@ -193,7 +191,7 @@ public final class JeiIngredientsHelper {
     private static List<ItemStack> blockSelectorToItemStacks(String selector, RegistryAccess registryAccess) {
         List<ItemStack> list = new ArrayList<>();
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return list;
             TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
             registryAccess.lookup(Registries.BLOCK).ifPresent(lookup ->
@@ -203,10 +201,10 @@ public final class JeiIngredientsHelper {
                                 if (!stack.isEmpty()) list.add(stack);
                             })));
         } else {
-            ResourceLocation id = ResourceLocation.tryParse(selector);
+            Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Block block = BuiltInRegistries.BLOCK.get(id);
-                if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
+                Block block = BuiltInRegistries.BLOCK.get(id).map(h -> h.value()).orElse(Blocks.AIR);
+                if (block != Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
                 }
             }
@@ -220,7 +218,7 @@ public final class JeiIngredientsHelper {
         var blockIds = entry.blockIds();
         var blockIdIsTag = entry.blockIdIsTag();
         for (int i = 0; i < blockIds.size(); i++) {
-            ResourceLocation id = blockIds.get(i);
+            Identifier id = blockIds.get(i);
             boolean isTag = i < blockIdIsTag.size() && blockIdIsTag.get(i);
             if (isTag) {
                 TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, id);
@@ -231,8 +229,8 @@ public final class JeiIngredientsHelper {
                                     if (!stack.isEmpty()) list.add(stack);
                                 })));
             } else {
-                Block block = BuiltInRegistries.BLOCK.get(id);
-                if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
+                Block block = BuiltInRegistries.BLOCK.get(id).map(h -> h.value()).orElse(Blocks.AIR);
+                if (block != Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
                 }
             }
@@ -246,7 +244,7 @@ public final class JeiIngredientsHelper {
         var fluidIds = entry.fluidIds();
         var fluidIdIsTag = entry.fluidIdIsTag();
         for (int i = 0; i < fluidIds.size(); i++) {
-            ResourceLocation id = fluidIds.get(i);
+            Identifier id = fluidIds.get(i);
             boolean isTag = i < fluidIdIsTag.size() && fluidIdIsTag.get(i);
             if (isTag) {
                 TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, id);
@@ -254,8 +252,8 @@ public final class JeiIngredientsHelper {
                         lookup.get(tagKey).ifPresent(holders ->
                                 holders.forEach(h -> list.add(new FluidStack(h.value(), DISPLAY_AMOUNT_MB)))));
             } else {
-                Fluid fluid = BuiltInRegistries.FLUID.get(id);
-                if (fluid != null && fluid != Fluids.EMPTY) {
+                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(h -> h.value()).orElse(Fluids.EMPTY);
+                if (fluid != Fluids.EMPTY) {
                     list.add(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
                 }
             }

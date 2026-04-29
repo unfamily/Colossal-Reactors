@@ -6,8 +6,9 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -21,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Loads heat sink definitions from datapack JSON: data/colossal_reactors/reactor_heat_sinks/*.json.
@@ -201,25 +203,25 @@ public final class HeatSinkLoader {
 
     @Nullable
     private static BlockState getFirstBlockStateFromSelector(String selector, RegistryAccess registryAccess) {
-        var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+        var blockReg = registryAccess.lookupOrThrow(Registries.BLOCK);
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return null;
             TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
-            return blockReg.getTag(tagKey)
+            return blockReg.get(tagKey)
                     .flatMap(holders -> holders.stream().findFirst())
                     .map(h -> h.value().defaultBlockState())
                     .orElse(null);
         }
-        ResourceLocation id = ResourceLocation.tryParse(selector);
-        if (id == null || !blockReg.containsKey(id)) return null;
-        return blockReg.get(id).defaultBlockState();
+        Identifier id = Identifier.tryParse(selector);
+        if (id == null) return null;
+        return blockReg.get(ResourceKey.create(Registries.BLOCK, id)).map(h -> h.value().defaultBlockState()).orElse(null);
     }
 
     @Nullable
     private static Fluid getFirstFluidFromSelector(String selector, RegistryAccess registryAccess) {
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return null;
             TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
             return registryAccess.lookup(Registries.FLUID)
@@ -228,8 +230,8 @@ public final class HeatSinkLoader {
                     .map(h -> h.value())
                     .orElse(null);
         }
-        ResourceLocation id = ResourceLocation.tryParse(selector);
-        return id != null ? BuiltInRegistries.FLUID.get(id) : null;
+        Identifier id = Identifier.tryParse(selector);
+        return id != null ? BuiltInRegistries.FLUID.getValue(id) : null;
     }
 
     /**
@@ -285,40 +287,44 @@ public final class HeatSinkLoader {
         HeatSinkDefinition def = DEFINITIONS.get(defIdx);
         if (!def.validBlocks().isEmpty()) {
             String selector = def.validBlocks().getFirst();
-            var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+            var blockReg = registryAccess.lookupOrThrow(Registries.BLOCK);
             if (selector.startsWith("#")) {
-                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+                Identifier tagId = Identifier.tryParse(selector.substring(1));
                 if (tagId != null) {
                     TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
-                    return blockReg.getTag(tagKey)
+                    return blockReg.get(tagKey)
                             .flatMap(holders -> holders.stream().findFirst())
                             .map(h -> Component.translatable(h.value().getDescriptionId()))
                             .orElse(Component.literal(selector));
                 }
             } else {
-                ResourceLocation id = ResourceLocation.tryParse(selector);
-                if (id != null && blockReg.containsKey(id)) {
-                    return Component.translatable(blockReg.get(id).getDescriptionId());
+                Identifier id = Identifier.tryParse(selector);
+                if (id != null) {
+                    return blockReg.get(ResourceKey.create(Registries.BLOCK, id))
+                            .map(h -> Component.translatable(h.value().getDescriptionId()))
+                            .orElse(Component.literal(selector));
                 }
             }
             return Component.literal(selector);
         }
         if (!def.validLiquids().isEmpty()) {
             String selector = def.validLiquids().getFirst();
-            var fluidReg = registryAccess.registryOrThrow(Registries.FLUID);
+            var fluidReg = registryAccess.lookupOrThrow(Registries.FLUID);
             if (selector.startsWith("#")) {
-                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+                Identifier tagId = Identifier.tryParse(selector.substring(1));
                 if (tagId != null) {
                     TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
-                    return fluidReg.getTag(tagKey)
+                    return fluidReg.get(tagKey)
                             .flatMap(holders -> holders.stream().findFirst())
                             .map(h -> Component.translatable(h.value().getFluidType().getDescriptionId()))
                             .orElse(Component.literal(selector));
                 }
             } else {
-                ResourceLocation id = ResourceLocation.tryParse(selector);
-                if (id != null && fluidReg.containsKey(id)) {
-                    return Component.translatable(fluidReg.get(id).getFluidType().getDescriptionId());
+                Identifier id = Identifier.tryParse(selector);
+                if (id != null) {
+                    return fluidReg.get(ResourceKey.create(Registries.FLUID, id))
+                            .map(h -> Component.translatable(h.value().getFluidType().getDescriptionId()))
+                            .orElse(Component.literal(selector));
                 }
             }
             return Component.literal(selector);
@@ -335,19 +341,21 @@ public final class HeatSinkLoader {
 
     private static boolean fluidMatches(Fluid fluid, String selector, RegistryAccess registryAccess) {
         Fluid source = resolveToSource(fluid);
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(source);
+        Identifier fluidId = BuiltInRegistries.FLUID.getKey(source);
+        if (fluidId == null) return false;
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return false;
             TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
-            var holder = registryAccess.registryOrThrow(Registries.FLUID).getHolder(ResourceKey.create(Registries.FLUID, fluidId));
+            Optional<Holder.Reference<Fluid>> holder = registryAccess.lookupOrThrow(Registries.FLUID)
+                    .get(ResourceKey.create(Registries.FLUID, fluidId));
             if (holder.isEmpty()) return false;
-            return registryAccess.lookup(Registries.FLUID)
-                    .flatMap(l -> l.get(tagKey))
+            return registryAccess.lookupOrThrow(Registries.FLUID)
+                    .get(tagKey)
                     .map(holders -> holders.contains(holder.get()))
                     .orElse(false);
         }
-        ResourceLocation id = ResourceLocation.tryParse(selector);
+        Identifier id = Identifier.tryParse(selector);
         return id != null && id.equals(fluidId);
     }
 
@@ -356,20 +364,21 @@ public final class HeatSinkLoader {
      * Uses RegistryAccess so datapack/c block tags are resolved from the level's registry, not only built-in.
      */
     private static boolean blockMatches(BlockState state, String selector, RegistryAccess registryAccess) {
-        var blockRegistry = registryAccess.registryOrThrow(Registries.BLOCK);
-        ResourceLocation blockId = blockRegistry.getKey(state.getBlock());
+        Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        if (blockId == null) return false;
         if (selector.startsWith("#")) {
-            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return false;
             TagKey<net.minecraft.world.level.block.Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
-            var holder = blockRegistry.getHolder(ResourceKey.create(Registries.BLOCK, blockId));
+            Optional<Holder.Reference<Block>> holder = registryAccess.lookupOrThrow(Registries.BLOCK)
+                    .get(ResourceKey.create(Registries.BLOCK, blockId));
             if (holder.isEmpty()) return false;
-            return registryAccess.lookup(Registries.BLOCK)
-                    .flatMap(reg -> reg.get(tagKey))
+            return registryAccess.lookupOrThrow(Registries.BLOCK)
+                    .get(tagKey)
                     .map(holders -> holders.contains(holder.get()))
                     .orElse(false);
         }
-        ResourceLocation id = ResourceLocation.tryParse(selector);
+        Identifier id = Identifier.tryParse(selector);
         return id != null && blockId.equals(id);
     }
 

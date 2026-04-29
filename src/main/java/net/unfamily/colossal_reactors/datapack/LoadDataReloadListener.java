@@ -4,9 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
@@ -21,15 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /**
  * Loads data from the fixed path data/&lt;namespace&gt;/load/ (and subdirs).
  * Only constant is "load" in the path; namespace and filenames are free.
  * Parses each JSON; if type is colossal_reactors:heating_coils, merges coil definitions.
  */
-public class LoadDataReloadListener implements PreparableReloadListener {
+public class LoadDataReloadListener extends SimplePreparableReloadListener<Map<Identifier, HeatingCoilDefinition>> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoadDataReloadListener.class);
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
@@ -43,42 +41,40 @@ public class LoadDataReloadListener implements PreparableReloadListener {
     }
 
     @Override
-    public CompletableFuture<Void> reload(PreparationBarrier stage, ResourceManager resourceManager,
-                                          ProfilerFiller prepareProfiler, ProfilerFiller applyProfiler,
-                                          Executor prepareExecutor, Executor applyExecutor) {
-        return CompletableFuture.supplyAsync(() -> {
-            prepareProfiler.push("Colossal Reactors load data");
-            Map<Identifier, HeatingCoilDefinition> coils = new HashMap<>();
-            Map<Identifier, List<Resource>> stacks = resourceManager.listResourceStacks(LOAD_PATH,
-                    rl -> rl.getPath().endsWith(".json"));
-            for (Map.Entry<Identifier, List<Resource>> entry : stacks.entrySet()) {
-                Identifier location = entry.getKey();
-                for (Resource resource : entry.getValue()) {
-                    processOne(location, resource, coils);
+    protected Map<Identifier, HeatingCoilDefinition> prepare(ResourceManager resourceManager, ProfilerFiller profiler) {
+        profiler.push("Colossal Reactors load data");
+        Map<Identifier, HeatingCoilDefinition> coils = new HashMap<>();
+        Map<Identifier, List<Resource>> stacks = resourceManager.listResourceStacks(LOAD_PATH,
+                rl -> rl.getPath().endsWith(".json"));
+        for (Map.Entry<Identifier, List<Resource>> entry : stacks.entrySet()) {
+            Identifier location = entry.getKey();
+            for (Resource resource : entry.getValue()) {
+                processOne(location, resource, coils);
+            }
+        }
+        Identifier builtinLocation = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "load/heating_coils.json");
+        if (coils.isEmpty() || !stacks.containsKey(builtinLocation)) {
+            try {
+                List<Resource> builtinStack = resourceManager.getResourceStack(builtinLocation);
+                for (Resource resource : builtinStack) {
+                    processOne(builtinLocation, resource, coils);
                 }
+            } catch (Exception e) {
+                LOGGER.debug("Could not load builtin heating_coils.json: {}", e.getMessage());
             }
-            // Fallback: ensure mod's builtin path is loaded if listResourceStacks did not find it
-            Identifier builtinLocation = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "load/heating_coils.json");
-            if (coils.isEmpty() || !stacks.containsKey(builtinLocation)) {
-                try {
-                    List<Resource> builtinStack = resourceManager.getResourceStack(builtinLocation);
-                    for (Resource resource : builtinStack) {
-                        processOne(builtinLocation, resource, coils);
-                    }
-                } catch (Exception e) {
-                    LOGGER.debug("Could not load builtin heating_coils.json: {}", e.getMessage());
-                }
-            }
-            prepareProfiler.pop();
-            return coils;
-        }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(coils -> {
-            applyProfiler.push("Colossal Reactors apply load data");
-            HeatingCoilRegistry.setFromReload(coils);
-            applyProfiler.pop();
-            if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Load data: {} heating coil definition(s)", coils.size());
-            }
-        }, applyExecutor);
+        }
+        profiler.pop();
+        return coils;
+    }
+
+    @Override
+    protected void apply(Map<Identifier, HeatingCoilDefinition> coils, ResourceManager resourceManager, ProfilerFiller profiler) {
+        profiler.push("Colossal Reactors apply load data");
+        HeatingCoilRegistry.setFromReload(coils);
+        profiler.pop();
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Load data: {} heating coil definition(s)", coils.size());
+        }
     }
 
     private static void processOne(Identifier location, Resource resource,

@@ -1,8 +1,6 @@
 package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -11,6 +9,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.unfamily.colossal_reactors.menu.RedstonePortMenu;
 import org.jetbrains.annotations.Nullable;
 
@@ -68,15 +68,14 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putInt(TAG_REDSTONE_MODE, redstoneMode);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        output.putInt(TAG_REDSTONE_MODE, redstoneMode);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        redstoneMode = tag.getInt(TAG_REDSTONE_MODE);
-        redstoneMode = RedstoneMode.fromId(redstoneMode).getId();
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        redstoneMode = RedstoneMode.fromId(input.getIntOr(TAG_REDSTONE_MODE, redstoneMode)).getId();
     }
 }

@@ -3,6 +3,9 @@
   "category": "misc",
   "cookingtime": 100,
   "experience": 0.1,
-  "ingredient": { "item": "minecraft:coal" },
-  "result": { "id": "colossal_reactors:graphite_ingot", "count": 1 }
+  "ingredient": "minecraft:coal",
+  "result": {
+    "id": "colossal_reactors:graphite_ingot",
+    "count": 1
+  }
 }

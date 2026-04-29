@@ -2,13 +2,15 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.EnergyStorage;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil;
+import net.neoforged.neoforge.transfer.energy.LimitingEnergyHandler;
+import net.neoforged.neoforge.transfer.energy.SimpleEnergyHandler;
 
 /**
  * BlockEntity for Power Port. Large energy buffer; reactor pushes in via {@link #receiveEnergyFromReactor(int)}.
@@ -17,18 +19,25 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
  */
 public class PowerPortBlockEntity extends BlockEntity {
 
-    /** Max RF to push out per tick in total (distributed across adjacent receivers). */
     private int getMaxExtractPerTick() {
         return net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
     }
 
-    private final PowerPortEnergyStorage energyStorage;
+    private final SimpleEnergyHandler core;
+    /** External automation: insert blocked; extract allowed (same behavior as legacy OutputOnlyEnergyWrapper). */
+    private final EnergyHandler capabilityView;
 
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
         int capacity = net.unfamily.colossal_reactors.Config.POWER_PORT_CAPACITY.get();
         int maxExtract = net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
-        this.energyStorage = new PowerPortEnergyStorage(capacity, maxExtract);
+        this.core = new SimpleEnergyHandler(capacity, 0, maxExtract, 0) {
+            @Override
+            protected void onEnergyChanged(int previousAmount) {
+                setChanged();
+            }
+        };
+        this.capabilityView = new LimitingEnergyHandler(core, 0, Integer.MAX_VALUE);
     }
 
     /**
@@ -36,35 +45,33 @@ public class PowerPortBlockEntity extends BlockEntity {
      */
     public void tick() {
         if (level == null || level.isClientSide()) return;
-        int budget = Math.min(getMaxExtractPerTick(), energyStorage.getEnergyStored());
+        int budget = Math.min(getMaxExtractPerTick(), (int) core.getAmountAsLong());
         if (budget <= 0) return;
         for (Direction direction : Direction.values()) {
             if (budget <= 0) break;
             BlockPos neighborPos = worldPosition.relative(direction);
-            IEnergyStorage neighbor = level.getCapability(Capabilities.EnergyStorage.BLOCK, neighborPos, direction.getOpposite());
-            if (neighbor != null && neighbor.canReceive()) {
-                int toSend = Math.min(budget, energyStorage.getEnergyStored());
-                int received = neighbor.receiveEnergy(toSend, false);
-                if (received > 0) {
-                    energyStorage.extractEnergy(received, false);
-                    budget -= received;
-                    setChanged();
-                }
+            EnergyHandler neighbor = level.getCapability(Capabilities.Energy.BLOCK, neighborPos, direction.getOpposite());
+            if (neighbor == null) continue;
+            int moved = EnergyHandlerUtil.move(core, neighbor, budget, null);
+            if (moved > 0) {
+                budget -= moved;
+                setChanged();
             }
         }
     }
 
-    /** Internal storage (used for reactor push and for the output wrapper). */
-    public IEnergyStorage getEnergyStorage() {
-        return energyStorage;
+    /** Internal storage (legacy callers); prefer {@link #getEnergyCore()} for RF-style reads. */
+    public EnergyHandler getEnergyStorage() {
+        return core;
     }
 
-    /**
-     * Output-only view for capability (cables/consumers can only extract).
-     * The reactor must use {@link #receiveEnergyFromReactor(int)} to push energy.
-     */
-    public IEnergyStorage getEnergyStorageForCapability() {
-        return new OutputOnlyEnergyWrapper(energyStorage);
+    public EnergyHandler getEnergyCore() {
+        return core;
+    }
+
+    /** Output-only view for capability: cables extract; reactor uses {@link #receiveEnergyFromReactor(int)}. */
+    public EnergyHandler getEnergyHandlerForCapability() {
+        return capabilityView;
     }
 
     /**
@@ -74,79 +81,23 @@ public class PowerPortBlockEntity extends BlockEntity {
      * @return amount actually accepted
      */
     public int receiveEnergyFromReactor(int maxAmount) {
-        int received = energyStorage.receiveEnergyInternal(maxAmount);
-        if (received > 0) {
-            setChanged();
-        }
-        return received;
+        if (maxAmount <= 0) return 0;
+        long space = core.getCapacityAsLong() - core.getAmountAsLong();
+        int toAdd = (int) Math.min(maxAmount, space);
+        if (toAdd <= 0) return 0;
+        core.set((int) (core.getAmountAsLong() + toAdd));
+        return toAdd;
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putInt("Energy", energyStorage.getEnergyStored());
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        core.serialize(output);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        energyStorage.setEnergy(tag.getInt("Energy"));
-    }
-
-    /** Internal storage with settable energy and unlimited receive for reactor. */
-    private static final class PowerPortEnergyStorage extends EnergyStorage {
-        public PowerPortEnergyStorage(int capacity, int maxExtract) {
-            super(capacity, 0, maxExtract);
-        }
-
-        public void setEnergy(int energy) {
-            this.energy = Math.max(0, Math.min(energy, capacity));
-        }
-
-        /** Bypass receive limit for reactor push. */
-        int receiveEnergyInternal(int maxReceive) {
-            int received = Math.min(capacity - energy, Math.max(0, maxReceive));
-            energy += received;
-            return received;
-        }
-    }
-
-    /** Wrapper that only allows extraction (output-only port). */
-    private static final class OutputOnlyEnergyWrapper implements IEnergyStorage {
-        private final PowerPortEnergyStorage delegate;
-
-        OutputOnlyEnergyWrapper(PowerPortEnergyStorage delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public int receiveEnergy(int maxReceive, boolean simulate) {
-            return 0;
-        }
-
-        @Override
-        public int extractEnergy(int maxExtract, boolean simulate) {
-            return delegate.extractEnergy(maxExtract, simulate);
-        }
-
-        @Override
-        public int getEnergyStored() {
-            return delegate.getEnergyStored();
-        }
-
-        @Override
-        public int getMaxEnergyStored() {
-            return delegate.getMaxEnergyStored();
-        }
-
-        @Override
-        public boolean canExtract() {
-            return true;
-        }
-
-        @Override
-        public boolean canReceive() {
-            return false;
-        }
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        core.deserialize(input);
     }
 }

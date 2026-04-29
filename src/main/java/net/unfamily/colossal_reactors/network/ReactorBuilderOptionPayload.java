@@ -7,16 +7,14 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 
 /**
- * C2S: cycle a Reactor Builder option. optionType: 0=openTop, 1=rodPattern, 2=patternMode.
- * next=true = next option, next=false = previous (same as heat sink: left click=next, right click=previous).
+ * C2S: cycle a Reactor Builder option. optionType: 0=openTop (toggle; {@code next} ignored), 1=rodPattern, 2=patternMode.
+ * For types 1–2: {@code next} true = next, false = previous.
  */
 public record ReactorBuilderOptionPayload(BlockPos pos, int optionType, boolean next) implements CustomPacketPayload {
 
@@ -41,7 +39,7 @@ public record ReactorBuilderOptionPayload(BlockPos pos, int optionType, boolean 
     public static void handle(ReactorBuilderOptionPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof ReactorBuilderBlockEntity builder) {
                 switch (Math.max(0, packet.optionType())) {
@@ -50,7 +48,6 @@ public record ReactorBuilderOptionPayload(BlockPos pos, int optionType, boolean 
                     case 2 -> builder.cyclePatternMode(packet.next());
                     default -> {}
                 }
-                level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });
     }

@@ -1,10 +1,17 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": ["BAB", "ACA", "BAB"],
+  "pattern": [
+    "BAB",
+    "ACA",
+    "BAB"
+  ],
   "key": {
-    "A": { "tag": "c:ingots/graphite" },
-    "B": { "tag": "c:ingots/copper" },
-    "C": { "item": "minecraft:hopper" }
+    "A": "#c:ingots/graphite",
+    "B": "#c:ingots/copper",
+    "C": "minecraft:hopper"
   },
-  "result": { "id": "colossal_reactors:heating_coil_resource_off", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:heating_coil_resource_off",
+    "count": 1
+  }
 }

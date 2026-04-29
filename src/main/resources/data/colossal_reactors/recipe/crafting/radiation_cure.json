@@ -1,15 +1,23 @@
 {
   "neoforge:conditions": [
-    { "type": "neoforge:mod_loaded", "modid": "mekanism" },
-    { "type": "colossal_reactors:radiation_management_enabled" }
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "mekanism"
+    },
+    {
+      "type": "colossal_reactors:radiation_management_enabled"
+    }
   ],
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    { "tag": "c:dusts/boron" },
-    { "tag": "c:slime_balls" },
-    { "tag": "c:dusts/glowstone" },
-    { "item": "minecraft:blaze_powder" },
-    { "item": "minecraft:ghast_tear" }
+    "#c:dusts/boron",
+    "#c:slime_balls",
+    "#c:dusts/glowstone",
+    "minecraft:blaze_powder",
+    "minecraft:ghast_tear"
   ],
-  "result": { "id": "colossal_reactors:radiation_cure", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:radiation_cure",
+    "count": 1
+  }
 }

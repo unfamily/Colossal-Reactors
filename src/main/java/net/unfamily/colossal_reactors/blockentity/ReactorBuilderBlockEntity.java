@@ -2,11 +2,9 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -14,6 +12,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
@@ -24,6 +24,9 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.unfamily.colossal_reactors.transfer.LegacyIFluidHandlerResourceHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
@@ -82,6 +85,9 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
             setChanged();
         }
     };
+
+    private final ResourceHandler<FluidResource> fluidResourceCapability =
+            LegacyIFluidHandlerResourceHandler.wrap(fluidTank);
 
     private final ContainerData fluidData = new ContainerData() {
         @Override
@@ -198,6 +204,10 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         return fluidTank;
     }
 
+    public ResourceHandler<FluidResource> getFluidResourceCapability() {
+        return fluidResourceCapability;
+    }
+
     public ContainerData getFluidData() {
         return fluidData;
     }
@@ -255,9 +265,9 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
     }
 
-    /** Cycle open top: next=true -> open, next=false -> closed. Same as heat sink: left=next, right=previous. */
-    public void cycleOpenTop(boolean next) {
-        openTop = next;
+    /** Toggle open top (one click cycles open/closed). The argument is ignored (kept for packet shape). */
+    public void cycleOpenTop(boolean unusedNext) {
+        openTop = !openTop;
         setChanged();
     }
 
@@ -377,65 +387,68 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_BUFFER, bufferHandler.serializeNBT(registries));
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        bufferHandler.serialize(output);
         FluidStack stack = fluidTank.getFluid();
         if (!stack.isEmpty()) {
-            CompoundTag fluidTag = new CompoundTag();
-            fluidTag.putString(TAG_FLUID_ID, BuiltInRegistries.FLUID.getKey(stack.getFluid()).toString());
-            fluidTag.putInt(TAG_FLUID_AMOUNT, stack.getAmount());
-            tag.put(TAG_FLUID, fluidTag);
+            ValueOutput fluidOut = output.child(TAG_FLUID);
+            fluidOut.putString(TAG_FLUID_ID, BuiltInRegistries.FLUID.getKey(stack.getFluid()).toString());
+            fluidOut.putInt(TAG_FLUID_AMOUNT, stack.getAmount());
         }
-        tag.putInt(TAG_SIZE_L, sizeLeft);
-        tag.putInt(TAG_SIZE_R, sizeRight);
-        tag.putInt(TAG_SIZE_H, sizeHeight);
-        tag.putInt(TAG_SIZE_D, sizeDepth);
-        tag.putInt(TAG_HEAT_SINK_IDX, selectedHeatSinkIndex);
-        tag.putBoolean(TAG_OPEN_TOP, openTop);
-        tag.putInt(TAG_ROD_PATTERN, rodPattern);
-        tag.putInt(TAG_PATTERN_MODE, patternMode);
-        tag.putBoolean(TAG_BUILDING, building);
-        tag.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
+        output.putInt(TAG_SIZE_L, sizeLeft);
+        output.putInt(TAG_SIZE_R, sizeRight);
+        output.putInt(TAG_SIZE_H, sizeHeight);
+        output.putInt(TAG_SIZE_D, sizeDepth);
+        output.putInt(TAG_HEAT_SINK_IDX, selectedHeatSinkIndex);
+        output.putBoolean(TAG_OPEN_TOP, openTop);
+        output.putInt(TAG_ROD_PATTERN, rodPattern);
+        output.putInt(TAG_PATTERN_MODE, patternMode);
+        output.putBoolean(TAG_BUILDING, building);
+        output.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains(TAG_BUFFER)) {
-            bufferHandler.deserializeNBT(registries, tag.getCompound(TAG_BUFFER));
-        }
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        bufferHandler.deserialize(input);
         fluidTank.setFluid(FluidStack.EMPTY);
-        if (tag.contains(TAG_FLUID)) {
-            CompoundTag fluidTag = tag.getCompound(TAG_FLUID);
-            Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidTag.getString(TAG_FLUID_ID)));
-            int amount = fluidTag.getInt(TAG_FLUID_AMOUNT);
-            if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
-                fluidTank.setFluid(new FluidStack(fluid, amount));
+        input.child(TAG_FLUID).ifPresent(fluidIn -> {
+            String idStr = fluidIn.getStringOr(TAG_FLUID_ID, "");
+            Identifier fluidId = Identifier.tryParse(idStr);
+            int amount = fluidIn.getIntOr(TAG_FLUID_AMOUNT, 0);
+            if (fluidId != null && amount > 0) {
+                Fluid fluid = BuiltInRegistries.FLUID.getValue(fluidId);
+                if (fluid != null && fluid != Fluids.EMPTY) {
+                    fluidTank.setFluid(new FluidStack(fluid, amount));
+                }
             }
-        }
-        if (tag.contains(TAG_SIZE_L) || tag.contains(TAG_SIZE_R)) {
-            sizeLeft = Math.max(0, Math.min(getMaxWidth(), tag.getInt(TAG_SIZE_L)));
-            sizeRight = Math.max(0, Math.min(getMaxWidth(), tag.getInt(TAG_SIZE_R)));
+        });
+        if (input.getInt(TAG_SIZE_L).isPresent() || input.getInt(TAG_SIZE_R).isPresent()) {
+            sizeLeft = Math.max(0, Math.min(getMaxWidth(), input.getIntOr(TAG_SIZE_L, sizeLeft)));
+            sizeRight = Math.max(0, Math.min(getMaxWidth(), input.getIntOr(TAG_SIZE_R, sizeRight)));
             if (sizeLeft + sizeRight > getMaxWidth()) {
                 int total = sizeLeft + sizeRight;
                 sizeLeft = (sizeLeft * getMaxWidth()) / total;
                 sizeRight = getMaxWidth() - sizeLeft;
             }
-            if (sizeLeft + sizeRight < 1) { sizeLeft = 1; sizeRight = 0; }
-        } else if (tag.contains(TAG_SIZE_W)) {
-            int w = Math.max(MIN_SIZE, Math.min(getMaxWidth(), tag.getInt(TAG_SIZE_W)));
+            if (sizeLeft + sizeRight < 1) {
+                sizeLeft = 1;
+                sizeRight = 0;
+            }
+        } else if (input.getInt(TAG_SIZE_W).isPresent()) {
+            int w = Math.max(MIN_SIZE, Math.min(getMaxWidth(), input.getIntOr(TAG_SIZE_W, MIN_SIZE)));
             sizeLeft = w / 2;
             sizeRight = w - sizeLeft;
         }
-        if (tag.contains(TAG_SIZE_H)) sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), tag.getInt(TAG_SIZE_H)));
-        if (tag.contains(TAG_SIZE_D)) sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), tag.getInt(TAG_SIZE_D)));
-        if (tag.contains(TAG_HEAT_SINK_IDX)) selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, tag.getInt(TAG_HEAT_SINK_IDX)));
-        if (tag.contains(TAG_OPEN_TOP)) openTop = tag.getBoolean(TAG_OPEN_TOP);
-        if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
-        if (tag.contains(TAG_PATTERN_MODE)) patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, tag.getInt(TAG_PATTERN_MODE)));
-        if (tag.contains(TAG_BUILDING)) building = tag.getBoolean(TAG_BUILDING);
-        if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
+        input.getInt(TAG_SIZE_H).ifPresent(v -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), v)));
+        input.getInt(TAG_SIZE_D).ifPresent(v -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), v)));
+        input.getInt(TAG_HEAT_SINK_IDX).ifPresent(v -> selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, v)));
+        openTop = input.getBooleanOr(TAG_OPEN_TOP, openTop);
+        input.getInt(TAG_ROD_PATTERN).ifPresent(v -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, v)));
+        input.getInt(TAG_PATTERN_MODE).ifPresent(v -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, v)));
+        building = input.getBooleanOr(TAG_BUILDING, building);
+        invalidBlocksDetected = input.getBooleanOr(TAG_INVALID_BLOCKS, invalidBlocksDetected);
     }
 
     @Override
@@ -447,6 +460,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     @Override
     public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
         return new ReactorBuilderMenu(containerId, playerInventory, this);
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        var level = getLevel();
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
     }
 
     /** Drops all buffer contents into the world when the block is removed. */

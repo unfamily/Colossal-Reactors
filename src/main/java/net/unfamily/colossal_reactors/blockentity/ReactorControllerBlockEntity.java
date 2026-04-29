@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
@@ -13,9 +14,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Optional;
 
 /**
  * BlockEntity for the reactor controller. Caches multiblock validation result.
@@ -50,7 +55,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             Component message = cachedResult.valid()
                     ? Component.translatable("message.colossal_reactors.reactor_valid")
                     : Component.translatable("message.colossal_reactors.reactor_invalid");
-            lastInteractingPlayer.displayClientMessage(message, true);
+            lastInteractingPlayer.sendSystemMessage(message, true);
             lastInteractingPlayer = null;
         }
     }
@@ -102,47 +107,50 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
         if (cachedResult != null && cachedResult.valid()) {
-            tag.putInt("val_minX", cachedResult.minX());
-            tag.putInt("val_minY", cachedResult.minY());
-            tag.putInt("val_minZ", cachedResult.minZ());
-            tag.putInt("val_maxX", cachedResult.maxX());
-            tag.putInt("val_maxY", cachedResult.maxY());
-            tag.putInt("val_maxZ", cachedResult.maxZ());
-            tag.putInt("val_rodCount", cachedResult.rodCount());
-            tag.putInt("val_rodColumns", cachedResult.rodColumns());
-            tag.putInt("val_coolantCount", cachedResult.coolantCount());
+            output.putInt("val_minX", cachedResult.minX());
+            output.putInt("val_minY", cachedResult.minY());
+            output.putInt("val_minZ", cachedResult.minZ());
+            output.putInt("val_maxX", cachedResult.maxX());
+            output.putInt("val_maxY", cachedResult.maxY());
+            output.putInt("val_maxZ", cachedResult.maxZ());
+            output.putInt("val_rodCount", cachedResult.rodCount());
+            output.putInt("val_rodColumns", cachedResult.rodColumns());
+            output.putInt("val_coolantCount", cachedResult.coolantCount());
         }
-        tag.putInt("stability", stabilityPermille);
+        output.putInt("stability", stabilityPermille);
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains("val_minX")) {
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        Optional<Integer> minX = input.getInt("val_minX");
+        if (minX.isPresent()) {
             cachedResult = new ReactorValidation.Result(
                     true,
-                    tag.getInt("val_minX"), tag.getInt("val_minY"), tag.getInt("val_minZ"),
-                    tag.getInt("val_maxX"), tag.getInt("val_maxY"), tag.getInt("val_maxZ"),
-                    tag.getInt("val_rodCount"), tag.getInt("val_rodColumns"), tag.getInt("val_coolantCount")
+                    minX.get(),
+                    input.getIntOr("val_minY", 0),
+                    input.getIntOr("val_minZ", 0),
+                    input.getIntOr("val_maxX", 0),
+                    input.getIntOr("val_maxY", 0),
+                    input.getIntOr("val_maxZ", 0),
+                    input.getIntOr("val_rodCount", 0),
+                    input.getIntOr("val_rodColumns", 0),
+                    input.getIntOr("val_coolantCount", 0)
             );
         } else {
             cachedResult = null;
         }
-        if (tag.contains("stability")) {
-            int v = tag.getInt("stability");
-            // Backward compat: old saves used 0-100 percent
+        input.getInt("stability").ifPresent(v -> {
             stabilityPermille = (v <= 100) ? Math.min(1000, v * 10) : Math.max(0, Math.min(1000, v));
-        }
+        });
     }
 
     @Override
-    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
-        CompoundTag tag = new CompoundTag();
-        saveAdditional(tag, registries);
-        return tag;
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return saveWithoutMetadata(registries);
     }
 
     @Override

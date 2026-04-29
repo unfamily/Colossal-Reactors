@@ -1,17 +1,21 @@
 package net.unfamily.colossal_reactors.client.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.sounds.SoundEvents;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -19,7 +23,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import org.lwjgl.glfw.GLFW;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
@@ -36,6 +41,7 @@ import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -44,9 +50,9 @@ import java.util.List;
  */
 public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilderMenu> {
 
-    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/reactor_builder.png");
-    private static final ResourceLocation SIMULATION_BACKGROUND = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier SIMULATION_BACKGROUND = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
@@ -113,7 +119,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int SIM_PANEL_X = 16;
     private static final int SIM_PANEL_Y = 29;
     private static final int SIM_LINE_HEIGHT = 12;
-    private static final int SIM_TEXT_COLOR = 0xFFFFFF;
+    /** Stats lines on simulation panel (same as reactor controller GUI). */
+    private static final int SIM_STATS_COLOR = GuiTextColors.PANEL_WHITE;
 
     /** Coolant/Fuel cycle buttons: same horizontal inset each side (12px), reduced gap, width split equally. */
     private static final int SIM_BUTTONS_HORIZONTAL_INSET = 12;
@@ -163,9 +170,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button fuelCycleButton;
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        imageWidth = GUI_WIDTH;
-        imageHeight = GUI_HEIGHT;
+        super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
     }
 
     @Override
@@ -196,7 +201,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         // Preview below the 4 arrows, centered with arrow group
         buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.preview"), b -> {
             if (!menu.getBlockPos().equals(BlockPos.ZERO))
-                PacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
+                ClientPacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
         })
                 .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
                 .build();
@@ -231,21 +236,30 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         updateWidgetVisibility();
     }
 
-    private static List<ResourceLocation> getOrderedCoolantIds() {
-        List<ResourceLocation> ids = new ArrayList<>(CoolantLoader.getAll().keySet());
-        ids.sort(ResourceLocation::compareTo);
+    @Override
+    public void containerTick() {
+        super.containerTick();
+        // Match StructureSaverMachineScreen / DeepDrawers: refresh labels in tick, not every extractLabels frame.
+        if (!isSimulationView) {
+            updateButtonTooltips();
+        }
+    }
+
+    private static List<Identifier> getOrderedCoolantIds() {
+        List<Identifier> ids = new ArrayList<>(CoolantLoader.getAll().keySet());
+        ids.sort(Identifier::compareTo);
         return ids;
     }
 
-    private static List<ResourceLocation> getOrderedFuelIds() {
-        List<ResourceLocation> ids = new ArrayList<>(FuelLoader.getAll().keySet());
-        ids.sort(ResourceLocation::compareTo);
+    private static List<Identifier> getOrderedFuelIds() {
+        List<Identifier> ids = new ArrayList<>(FuelLoader.getAll().keySet());
+        ids.sort(Identifier::compareTo);
         return ids;
     }
 
     /** Index of uranium in ordered fuel list, or 0 if not found / empty. */
     private static int getUraniumIndex() {
-        List<ResourceLocation> ids = getOrderedFuelIds();
+        List<Identifier> ids = getOrderedFuelIds();
         if (ids.isEmpty()) return 0;
         for (int i = 0; i < ids.size(); i++) {
             if (ReactorRodBlockEntity.URANIUM_FUEL_ID.equals(ids.get(i))) return i;
@@ -261,8 +275,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private void cycleSimulationCoolant(boolean next) {
         int options = getCoolantOptionCount();
         if (options <= 1) return;
-        if (minecraft != null && minecraft.getSoundManager() != null)
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
         if (next) {
             simulationCoolantIndex = (simulationCoolantIndex + 1) % options;
         } else {
@@ -273,7 +285,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void updateCoolantButtonLabel() {
         if (coolantCycleButton == null) return;
-        List<ResourceLocation> ids = getOrderedCoolantIds();
+        List<Identifier> ids = getOrderedCoolantIds();
         Component clickHint = Component.translatable("gui.colossal_reactors.reactor_builder.simulation.click_hint");
         // Index 0 = None (no coolant)
         MutableComponent coolantTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_label");
@@ -288,7 +300,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             coolantCycleButton.setTooltip(Tooltip.create(coolantTitle.append(Component.literal("\n")).append(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip", "—", "—")).append(Component.literal("\n")).append(clickHint)));
             return;
         }
-        ResourceLocation id = ids.get(idx);
+        Identifier id = ids.get(idx);
         CoolantDefinition def = CoolantLoader.get(id);
         if (def == null) {
             coolantCycleButton.setMessage(Component.literal(id.toString()));
@@ -324,10 +336,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void cycleSimulationFuel(boolean next) {
-        List<ResourceLocation> ids = getOrderedFuelIds();
+        List<Identifier> ids = getOrderedFuelIds();
         if (ids.isEmpty()) return;
-        if (minecraft != null && minecraft.getSoundManager() != null)
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
         if (next) {
             simulationFuelIndex = (simulationFuelIndex + 1) % ids.size();
         } else {
@@ -338,7 +348,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void updateFuelButtonLabel() {
         if (fuelCycleButton == null) return;
-        List<ResourceLocation> ids = getOrderedFuelIds();
+        List<Identifier> ids = getOrderedFuelIds();
         Component clickHint = Component.translatable("gui.colossal_reactors.reactor_builder.simulation.click_hint");
         MutableComponent fuelTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_label");
         if (ids.isEmpty()) {
@@ -347,7 +357,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             return;
         }
         if (simulationFuelIndex >= ids.size()) simulationFuelIndex = 0;
-        ResourceLocation id = ids.get(simulationFuelIndex);
+        Identifier id = ids.get(simulationFuelIndex);
         var ra = minecraft != null && minecraft.level != null ? minecraft.level.registryAccess() : null;
         Component label = getFuelDisplayName(id, ra);
         MutableComponent tooltip = fuelTitle.copy().append(Component.literal("\n")).append(getFuelTooltip(id, ra)).append(Component.literal("\n")).append(clickHint);
@@ -356,7 +366,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     /** Tooltip line: Consumes: X, Produces: X (input item and waste item names). */
-    private static Component getFuelTooltip(ResourceLocation fuelId, net.minecraft.core.RegistryAccess ra) {
+    private static Component getFuelTooltip(Identifier fuelId, net.minecraft.core.RegistryAccess ra) {
         Component consume = Component.literal("—");
         Component produce = Component.literal("—");
         if (ra != null) {
@@ -369,7 +379,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     /** Display name: first input item from tag or fixed id (like coolant). */
-    private static Component getFuelDisplayName(ResourceLocation fuelId, net.minecraft.core.RegistryAccess ra) {
+    private static Component getFuelDisplayName(Identifier fuelId, net.minecraft.core.RegistryAccess ra) {
         if (ra != null) {
             ItemStack stack = FuelLoader.getFirstInputStack(fuelId, ra);
             if (!stack.isEmpty()) return stack.getHoverName();
@@ -381,12 +391,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void onCloseButtonClicked() {
         if (isSimulationView) {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             switchToBuilderView();
         } else {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         }
     }
@@ -450,13 +456,13 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
         if (pos.equals(BlockPos.ZERO)) return;
         if (index == 0) {
-            PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // left click = next
+            ClientPacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // left click = next
             return;
         }
-        if (index == 1) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, true));  // left = next
-        if (index == 2) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, true));
-        if (index == 3) PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));
-        if (index == 5) PacketDistributor.sendToServer(new ReactorBuilderBuildPayload(pos));  // Build/Stop
+        if (index == 1) ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, true));  // left = next
+        if (index == 2) ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, true));
+        if (index == 3) ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));  // toggle; next ignored on server
+        if (index == 5) ClientPacketDistributor.sendToServer(new ReactorBuilderBuildPayload(pos));  // Build/Stop
     }
 
     private void updateButtonTooltips() {
@@ -489,13 +495,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                         .append(Component.literal("\n"))
                         .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
         rightBlockButtons[2].setMessage(getRightButtonLabel(2));
-        // Button 3: Open top
+        // Button 3: Open top (click cycles open/closed)
         rightBlockButtons[3].setTooltip(Tooltip.create(
-                Component.translatable(menu.isOpenTop() ? "gui.colossal_reactors.reactor_builder.tooltip.open_top.open" : "gui.colossal_reactors.reactor_builder.tooltip.open_top.closed")
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_left"))
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.tooltip.heat_sink_right"))));
+                Component.translatable(menu.isOpenTop() ? "gui.colossal_reactors.reactor_builder.tooltip.open_top.open" : "gui.colossal_reactors.reactor_builder.tooltip.open_top.closed")));
         rightBlockButtons[3].setMessage(getRightButtonLabel(3));
         // Button 4: Simulation
         rightBlockButtons[4].setMessage(getRightButtonLabel(4));
@@ -506,68 +508,107 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 menu.isBuilding() ? "gui.colossal_reactors.reactor_builder.stop.tooltip" : "gui.colossal_reactors.reactor_builder.build.tooltip")));
     }
 
+    private int modifierStepAmount() {
+        if (minecraft == null || minecraft.getWindow() == null) return 1;
+        Window w = minecraft.getWindow();
+        if (InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_SHIFT) || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_SHIFT)) {
+            return 10;
+        }
+        if (InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_CONTROL) || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_CONTROL)
+                || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_ALT) || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_ALT)) {
+            return 5;
+        }
+        return 1;
+    }
+
     private void sendSize(int direction, boolean increment) {
         BlockPos pos = menu.getBlockPos();
         if (pos.equals(BlockPos.ZERO)) return;
-        int amount = Screen.hasShiftDown() ? 10 : (Screen.hasControlDown() || Screen.hasAltDown()) ? 5 : 1;
-        PacketDistributor.sendToServer(new ReactorBuilderSizePayload(pos, direction, increment, amount));
+        int amount = modifierStepAmount();
+        ClientPacketDistributor.sendToServer(new ReactorBuilderSizePayload(pos, direction, increment, amount));
+    }
+
+    /** Click feedback for interactions that do not go through {@link Button} (e.g. right-click on arrows). */
+    private void playGuiClickSound() {
+        if (minecraft != null && minecraft.getSoundManager() != null) {
+            AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
+        }
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int x = (int) mouseX;
-        int y = (int) mouseY;
-        if (button == 1) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        int x = (int) event.x();
+        int y = (int) event.y();
+        if (event.button() == 1) {
             if (isSimulationView && coolantCycleButton != null && coolantCycleButton.visible && isInWidget(x, y, coolantCycleButton)) {
+                playGuiClickSound();
                 cycleSimulationCoolant(false);
                 return true;
             }
             if (isSimulationView && fuelCycleButton != null && fuelCycleButton.visible && isInWidget(x, y, fuelCycleButton)) {
+                playGuiClickSound();
                 cycleSimulationFuel(false);
                 return true;
             }
             if (isInBounds(x, y, leftPos + BUTTON_UP_X, topPos + ROW1_Y)) {
+                playGuiClickSound();
                 sendSize(0, false);
                 return true;
             }
             if (isInBounds(x, y, leftPos + BUTTON_LEFT_X, topPos + ROW2_Y)) {
+                playGuiClickSound();
                 sendSize(1, false);
                 return true;
             }
             if (isInBounds(x, y, leftPos + BUTTON_DOWN_X, topPos + ROW2_Y)) {
+                playGuiClickSound();
                 sendSize(3, false);
                 return true;
             }
             if (isInBounds(x, y, leftPos + BUTTON_RIGHT_X, topPos + ROW2_Y)) {
+                playGuiClickSound();
                 sendSize(2, false);
                 return true;
             }
             if (isInRightBlockButton(x, y, 0)) {
+                playGuiClickSound();
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // right click = previous
+                    ClientPacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // right click = previous
                 return true;
             }
             if (isInRightBlockButton(x, y, 1)) {
+                playGuiClickSound();
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, false));  // right = previous
+                    ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, false));  // right = previous
                 return true;
             }
             if (isInRightBlockButton(x, y, 2)) {
+                playGuiClickSound();
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, false));
+                    ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, false));
                 return true;
             }
             if (isInRightBlockButton(x, y, 3)) {
+                playGuiClickSound();
                 BlockPos pos = menu.getBlockPos();
                 if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, false));  // open top
+                    ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));  // toggle open top
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        // Vanilla widgets: ContainerEventHandler picks the first child where isMouseOver (forward list order).
+        // Widgets added later are drawn on top but lose hits when rects overlap; temporarily reverse so top-most wins.
+        @SuppressWarnings("unchecked")
+        List<GuiEventListener> listeners = (List<GuiEventListener>) (List<?>) children();
+        Collections.reverse(listeners);
+        try {
+            return super.mouseClicked(event, doubleClick);
+        } finally {
+            Collections.reverse(listeners);
+        }
     }
 
     private static boolean isInBounds(int x, int y, int left, int top) {
@@ -587,12 +628,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     @Override
-    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
         if (isSimulationView) {
-            guiGraphics.blit(SIMULATION_BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
-            renderSimulationPanel(guiGraphics);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SIMULATION_BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
         } else {
-            guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
             int amount = menu.getFluidAmount();
             int capacity = menu.getFluidCapacity();
             int fluidId = menu.getFluidId();
@@ -611,11 +652,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
     }
 
-    private void renderSimulationPanel(GuiGraphics guiGraphics) {
-        int y = topPos + SIM_PANEL_Y;
+    /** Drawn inside {@code extractContents} pose translate({@code leftPos}, {@code topPos}) — coordinates are GUI-local. */
+    private void renderSimulationPanel(GuiGraphicsExtractor guiGraphics) {
+        int y = SIM_PANEL_Y;
         Component statusKey = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
         Component statusLine = Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey);
-        guiGraphics.drawString(font, statusLine, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        guiGraphics.text(font, statusLine, SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
 
         // Simulator is always "ON": run virtual tick and show computed stats
@@ -629,43 +671,43 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         String fuelStr = formatFuelPerTickSim(result.fuelPerTickHundredths());
         int stabilityPermille = result.stabilityPermille();
 
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.rods", rodCount, rodColumns),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", coolantBlocks),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", energyPerTick),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", coolantConsumed),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", steamPerTick),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
+        guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
         if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
             Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
-            guiGraphics.drawString(font, label, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+            guiGraphics.text(font, label, SIM_PANEL_X, y, SIM_STATS_COLOR, false);
             String stabilityStr = String.format("%.1f%%", stabilityPermille / 10.0);
-            int stabilityColor = stabilityPermille >= 1000 ? 0x00FF00 : (stabilityPermille <= 0 ? 0xFF0000 : 0xFFFF00);
-            guiGraphics.drawString(font, stabilityStr, leftPos + SIM_PANEL_X + font.width(label), y, stabilityColor, false);
+            int stabilityColor = stabilityPermille >= 1000 ? 0xFF00FF00 : (stabilityPermille <= 0 ? 0xFFFF0000 : 0xFFFFFF00);
+            guiGraphics.text(font, stabilityStr, SIM_PANEL_X + font.width(label), y, stabilityColor, false);
         }
     }
 
     /** Current coolant for simulation: null = None (index 0), else the selected definition. */
     private CoolantDefinition getSimulationCoolantDef() {
         if (simulationCoolantIndex <= 0) return null;
-        List<ResourceLocation> ids = getOrderedCoolantIds();
+        List<Identifier> ids = getOrderedCoolantIds();
         int idx = simulationCoolantIndex - 1;
         if (idx >= ids.size()) return null;
         return CoolantLoader.get(ids.get(idx));
@@ -682,8 +724,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
         var ra = minecraft.level.registryAccess();
         CoolantDefinition coolantDef = getSimulationCoolantDef();
-        List<ResourceLocation> fuelIds = getOrderedFuelIds();
-        ResourceLocation simulationFuelId = fuelIds.isEmpty() ? null : fuelIds.get(Math.min(simulationFuelIndex, fuelIds.size() - 1));
+        List<Identifier> fuelIds = getOrderedFuelIds();
+        Identifier simulationFuelId = fuelIds.isEmpty() ? null : fuelIds.get(Math.min(simulationFuelIndex, fuelIds.size() - 1));
         // Same order as ReactorBuildLogic: entity.sizeLeft, entity.sizeRight, entity.sizeHeight, entity.sizeDepth (sizeData 0,1,2,3)
         int sizeLeft = menu.getSizeRight();
         int sizeRight = menu.getSizeLeft();
@@ -705,25 +747,24 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         if (isSimulationView) {
+            renderSimulationPanel(guiGraphics);
             Component simTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
-            int titleX = leftPos + (imageWidth - font.width(simTitle)) / 2;
-            int titleY = topPos + 6;
-            guiGraphics.drawString(font, simTitle, titleX, titleY, 0x404040, false);
+            int titleX = (imageWidth - font.width(simTitle)) / 2;
+            guiGraphics.text(font, simTitle, titleX, 6, GuiTextColors.TITLE, false);
             return;
         }
-        updateButtonTooltips();
 
         int titleX = (imageWidth - font.width(title)) / 2;
-        guiGraphics.drawString(font, title, titleX, 6, 0x404040, false);
+        guiGraphics.text(font, title, titleX, 6, GuiTextColors.TITLE, false);
 
         // Size: (L+R=X) x (Y+1) x (Z+1) — X and Y/Z as block count (+1)
         int totalW = menu.getSizeLeft() + menu.getSizeRight();
         Component sizeLabel = Component.translatable("gui.colossal_reactors.reactor_builder.size",
                 menu.getSizeLeft(), menu.getSizeRight(), totalW + 1, menu.getSizeH() + 1, menu.getSizeD() + 1);
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
-        guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
+        guiGraphics.text(font, sizeLabel, sizeX, SIZE_LABEL_Y, GuiTextColors.TITLE, false);
 
         // Warning (red): empty by default; when build found invalid blocks, show message. Bottom aligned with right arrow button.
         Component warning = menu.isInvalidBlocksDetected()
@@ -731,13 +772,14 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 : Component.translatable("gui.colossal_reactors.reactor_builder.warning");
         if (!warning.getString().isEmpty()) {
             int warningY = ROW2_Y + BUTTON_H - font.lineHeight;
-            guiGraphics.drawString(font, warning, WARNING_RIGHT_X, warningY, 0xFF0000, false);
+            guiGraphics.text(font, warning, WARNING_RIGHT_X, warningY, GuiTextColors.ERROR, false);
         }
     }
 
     @Override
-    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        super.renderTooltip(guiGraphics, mouseX, mouseY);
+    protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        super.extractTooltip(guiGraphics, mouseX, mouseY);
+        if (isSimulationView) return;
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
         if (mouseX >= left && mouseX < left + FLUID_FILL_WIDTH && mouseY >= top && mouseY < top + FLUID_FILL_HEIGHT) {
@@ -756,34 +798,29 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                     tooltipLines.add(Component.translatable(type.getDescriptionId()).getVisualOrderText());
                 }
             }
-            guiGraphics.renderTooltip(font, tooltipLines, mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(font, tooltipLines, mouseX, mouseY);
         }
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (isSimulationView) {
-            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-            this.renderBg(guiGraphics, partialTick, mouseX, mouseY);
-            this.renderLabels(guiGraphics, mouseX, mouseY);
-            for (var renderable : this.renderables) {
-                if (renderable instanceof net.minecraft.client.gui.components.Renderable r) {
-                    r.render(guiGraphics, mouseX, mouseY, partialTick);
-                }
-            }
-            this.renderTooltip(guiGraphics, mouseX, mouseY);
+            // Same pipeline as AbstractContainerScreen: widgets, translated labels (sim stats), slots, tooltips.
+            extractContents(guiGraphics, mouseX, mouseY, partialTick);
+            extractCarriedItem(guiGraphics, mouseX, mouseY);
+            extractSnapbackItem(guiGraphics);
+            extractTooltip(guiGraphics, mouseX, mouseY);
         } else {
-            super.render(guiGraphics, mouseX, mouseY, partialTick);
-            this.renderTooltip(guiGraphics, mouseX, mouseY);
+            super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (isSimulationView && (keyCode == 256 || keyCode == 1)) {
+    public boolean keyPressed(KeyEvent event) {
+        if (isSimulationView && event.isEscape()) {
             switchToBuilderView();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 }

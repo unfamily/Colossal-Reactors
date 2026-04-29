@@ -1,10 +1,17 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": ["AAA", "BCB", "AAA"],
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
   "key": {
-    "A": { "tag": "c:ingots/tough_alloy" },
-    "B": { "tag": "c:gems/amethyst" },
-    "C": { "tag": "c:gems/diamond" }
+    "A": "#c:ingots/tough_alloy",
+    "B": "#c:gems/amethyst",
+    "C": "#c:gems/diamond"
   },
-  "result": { "id": "colossal_reactors:reactor_builder", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:reactor_builder",
+    "count": 1
+  }
 }

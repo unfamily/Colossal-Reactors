@@ -2,10 +2,11 @@ package net.unfamily.colossal_reactors.coolant;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Loads coolant definitions from datapack JSON: data/colossal_reactors/reactor_coolant/*.json.
@@ -164,7 +166,7 @@ public class CoolantLoader {
         String first = def.inputs().get(0);
         if (first.startsWith("#")) return getFirstFluidFromTag(first, registryAccess);
         Identifier id = Identifier.tryParse(first);
-        return id != null ? BuiltInRegistries.FLUID.get(id) : null;
+        return id != null ? BuiltInRegistries.FLUID.get(id).map(Holder::value).orElse(null) : null;
     }
 
     /**
@@ -181,12 +183,10 @@ public class CoolantLoader {
                     Identifier tagId = Identifier.tryParse(input.substring(1));
                     if (tagId == null) continue;
                     TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
-                    var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID).getHolder(ResourceKey.create(Registries.FLUID, fluidId)).orElse(null);
-                    if (fluidHolder == null) continue;
-                    boolean inTag = registryAccess.lookup(Registries.FLUID)
-                            .flatMap(l -> l.get(tagKey))
-                            .map(holders -> holders.contains(fluidHolder))
-                            .orElse(false);
+                    Registry<Fluid> fluids = registryAccess.lookupOrThrow(Registries.FLUID);
+                    Optional<Holder.Reference<Fluid>> fluidRef = fluids.get(fluidId);
+                    if (fluidRef.isEmpty()) continue;
+                    boolean inTag = fluids.get(tagKey).map(tag -> tag.contains(fluidRef.get())).orElse(false);
                     if (inTag) return def;
                 } else {
                     if (Identifier.tryParse(input).equals(fluidId)) return def;

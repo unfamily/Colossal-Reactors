@@ -62,18 +62,6 @@ public class RadiationScrubberBlock extends BaseEntityBlock {
         return new RadiationScrubberBlockEntity(pos, state);
     }
 
-    @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof RadiationScrubberBlockEntity scrubber) {
-                RadiationScrubberBlockEntity.dumpRadiationOnBreak(level, pos, scrubber);
-                scrubber.dropAllContents();
-            }
-        }
-        super.onRemove(state, level, pos, newState, movedByPiston);
-    }
-
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

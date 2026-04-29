@@ -34,7 +34,7 @@ public record ReactorBuilderBuildPayload(BlockPos pos) implements CustomPacketPa
     public static void handle(ReactorBuilderBuildPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer)) return;
-            ServerLevel level = ((ServerPlayer) context.player()).serverLevel();
+            ServerLevel level = ((ServerPlayer) context.player()).level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (!(be instanceof ReactorBuilderBlockEntity builder)) return;
             if (builder.isBuilding()) {

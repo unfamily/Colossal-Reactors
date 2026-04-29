@@ -1,9 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": [" A ", "ABA", " A "],
+  "pattern": [
+    " A ",
+    "ABA",
+    " A "
+  ],
   "key": {
-    "A": { "tag": "c:ingots/graphite" },
-    "B": { "item": "colossal_reactors:reactor_rod" }
+    "A": "#c:ingots/graphite",
+    "B": "colossal_reactors:reactor_rod"
   },
-  "result": { "id": "colossal_reactors:rod_controller", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:rod_controller",
+    "count": 1
+  }
 }

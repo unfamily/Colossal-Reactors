@@ -16,9 +16,9 @@
   "energy": 4800,
   "experience": 0.3,
   "inputs": [
-    { "count": 1, "tag": "c:ingots/lead" },
-    { "count": 1, "tag": "c:ingots/steel" },
-    { "count": 1, "tag": "c:ingots/boron" }
+    { "count": 1, "ingredient": "#c:ingots/lead" },
+    { "count": 1, "ingredient": "#c:ingots/steel" },
+    { "count": 1, "ingredient": "#c:ingots/boron" }
   ],
   "output": {
     "count": 3,

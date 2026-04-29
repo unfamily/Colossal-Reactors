@@ -1,14 +1,26 @@
 {
   "neoforge:conditions": [
-    { "type": "neoforge:mod_loaded", "modid": "mekanism" },
-    { "type": "colossal_reactors:radiation_management_enabled" }
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "mekanism"
+    },
+    {
+      "type": "colossal_reactors:radiation_management_enabled"
+    }
   ],
   "type": "minecraft:crafting_shaped",
-  "pattern": ["ABA", "BCB", "ABA"],
+  "pattern": [
+    "ABA",
+    "BCB",
+    "ABA"
+  ],
   "key": {
-    "A": { "tag": "c:ingots/tough_alloy" },
-    "B": { "tag": "c:ingots/boron" },
-    "C": { "tag": "c:ingots/copper" }
+    "A": "#c:ingots/tough_alloy",
+    "B": "#c:ingots/boron",
+    "C": "#c:ingots/copper"
   },
-  "result": { "id": "colossal_reactors:radiation_scrubber", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:radiation_scrubber",
+    "count": 1
+  }
 }

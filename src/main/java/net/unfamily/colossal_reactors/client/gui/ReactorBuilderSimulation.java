@@ -1,7 +1,7 @@
 package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -34,7 +34,7 @@ public final class ReactorBuilderSimulation {
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
             int rodPattern, int patternMode, int heatSinkIndex,
-            @Nullable ResourceLocation simulationFuelId,
+            @Nullable Identifier simulationFuelId,
             @Nullable CoolantDefinition coolantDef) {
         int w = sizeLeft + sizeRight + 1;
         int h = sizeHeight + 1;
@@ -128,7 +128,7 @@ public final class ReactorBuilderSimulation {
 
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null && coolantDef.mbMultiplier() > 0 ? coolantDef.mbMultiplier() : 1.0;
-        ResourceLocation fuelId = simulationFuelId != null ? simulationFuelId : ReactorRodBlockEntity.URANIUM_FUEL_ID;
+        Identifier fuelId = simulationFuelId != null ? simulationFuelId : ReactorRodBlockEntity.URANIUM_FUEL_ID;
         FuelDefinition fuelDef = FuelLoader.get(fuelId);
         double baseRf = fuelDef != null ? fuelDef.baseRfPerTick() : 200.0;
         double baseFuelUnitsPerTick = fuelDef != null ? fuelDef.baseFuelUnitsPerTick() : 0.03;

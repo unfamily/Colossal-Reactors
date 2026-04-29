@@ -1,14 +1,16 @@
 package net.unfamily.colossal_reactors.blockentity;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
@@ -17,6 +19,7 @@ import net.unfamily.colossal_reactors.block.ReactorRodBlock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * BlockEntity for reactor rod.
@@ -57,6 +60,26 @@ public class ReactorRodBlockEntity extends BlockEntity {
     private final List<FluidEntry> liquidWasteEntries = new ArrayList<>();
     /** Accumulated consumed units per waste type (float, for fractional waste: 1000 units -> 1 item). */
     private final java.util.Map<Identifier, Float> wasteAccumulator = new java.util.HashMap<>();
+
+    private static final Codec<FuelEntry> FUEL_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
+            Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(FuelEntry::id),
+            Codec.FLOAT.fieldOf(TAG_FUEL_UNITS).forGetter(FuelEntry::units)
+    ).apply(i, FuelEntry::new));
+
+    private static final Codec<FluidEntry> FLUID_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
+            Identifier.CODEC.fieldOf(TAG_FLUID_ID).forGetter(e -> BuiltInRegistries.FLUID.getKey(e.fluid())),
+            Codec.INT.fieldOf(TAG_AMOUNT).forGetter(FluidEntry::amount)
+    ).apply(i, (id, amt) -> {
+        Fluid f = BuiltInRegistries.FLUID.getValue(id);
+        return new FluidEntry(f != null ? f : Fluids.EMPTY, amt);
+    }));
+
+    private static final Codec<SolidWasteEntry> SOLID_WASTE_CODEC = RecordCodecBuilder.create(i -> i.group(
+            Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(SolidWasteEntry::id),
+            Codec.INT.fieldOf(TAG_COUNT).forGetter(SolidWasteEntry::count)
+    ).apply(i, SolidWasteEntry::new));
+
+    private static final Codec<Map<Identifier, Float>> WASTE_ACC_CODEC = Codec.unboundedMap(Identifier.CODEC, Codec.FLOAT);
 
     public record FuelEntry(Identifier id, float units) {}
     public record FluidEntry(Fluid fluid, int amount) {}
@@ -351,119 +374,66 @@ public class ReactorRodBlockEntity extends BlockEntity {
         }
     }
 
+    private static final String TAG_FUEL_UNITS_LEGACY = "fuelUnits";
+
     // ---------- NBT ----------
 
     @Override
-    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        ListTag fuelList = new ListTag();
-        for (FuelEntry e : fuelEntries) {
-            CompoundTag c = new CompoundTag();
-            c.putString(TAG_FUEL_ID, e.id().toString());
-            c.putFloat(TAG_FUEL_UNITS, e.units());
-            fuelList.add(c);
-        }
-        tag.put(TAG_FUEL, fuelList);
-
-        saveFluidList(tag, TAG_COOLANT, coolantEntries);
-        saveSolidWasteList(tag);
-        saveFluidList(tag, TAG_LIQUID_WASTE, liquidWasteEntries);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        output.store(TAG_FUEL, Codec.list(FUEL_ENTRY_CODEC), List.copyOf(fuelEntries));
+        output.store(TAG_COOLANT, Codec.list(FLUID_ENTRY_CODEC), coolantEntries.stream()
+                .filter(e -> e.fluid() != null && e.fluid() != Fluids.EMPTY && e.amount() > 0)
+                .toList());
+        output.store(TAG_SOLID_WASTE, Codec.list(SOLID_WASTE_CODEC), List.copyOf(solidWasteEntries));
+        output.store(TAG_LIQUID_WASTE, Codec.list(FLUID_ENTRY_CODEC), liquidWasteEntries.stream()
+                .filter(e -> e.fluid() != null && e.fluid() != Fluids.EMPTY && e.amount() > 0)
+                .toList());
         if (!wasteAccumulator.isEmpty()) {
-            CompoundTag accTag = new CompoundTag();
+            Map<Identifier, Float> positive = new java.util.HashMap<>();
             for (var e : wasteAccumulator.entrySet()) {
                 if (e.getValue() != null && e.getValue() > 0) {
-                    accTag.putFloat(e.getKey().toString(), e.getValue());
+                    positive.put(e.getKey(), e.getValue());
                 }
             }
-            if (!accTag.isEmpty()) tag.put(TAG_WASTE_ACCUMULATOR, accTag);
+            if (!positive.isEmpty()) {
+                output.store(TAG_WASTE_ACCUMULATOR, WASTE_ACC_CODEC, positive);
+            }
         }
     }
-
-    private void saveFluidList(CompoundTag tag, String key, List<FluidEntry> list) {
-        ListTag nbtList = new ListTag();
-        for (FluidEntry e : list) {
-            if (e.fluid() == null || e.fluid() == Fluids.EMPTY || e.amount() <= 0) continue;
-            CompoundTag c = new CompoundTag();
-            c.putString(TAG_FLUID_ID, BuiltInRegistries.FLUID.getKey(e.fluid()).toString());
-            c.putInt(TAG_AMOUNT, e.amount());
-            nbtList.add(c);
-        }
-        tag.put(key, nbtList);
-    }
-
-    private void saveSolidWasteList(CompoundTag tag) {
-        ListTag nbtList = new ListTag();
-        for (SolidWasteEntry e : solidWasteEntries) {
-            CompoundTag c = new CompoundTag();
-            c.putString(TAG_FUEL_ID, e.id().toString());
-            c.putInt(TAG_COUNT, e.count());
-            nbtList.add(c);
-        }
-        tag.put(TAG_SOLID_WASTE, nbtList);
-    }
-
-    private static final String TAG_FUEL_UNITS_LEGACY = "fuelUnits";
 
     @Override
-    public void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
         fuelEntries.clear();
-        if (tag.contains(TAG_FUEL, Tag.TAG_LIST)) {
-            ListTag list = tag.getList(TAG_FUEL, Tag.TAG_COMPOUND);
-            for (int i = 0; i < list.size(); i++) {
-                CompoundTag c = list.getCompound(i);
-                Identifier id = Identifier.tryParse(c.getString(TAG_FUEL_ID));
-                float units = c.contains(TAG_FUEL_UNITS, Tag.TAG_FLOAT) ? c.getFloat(TAG_FUEL_UNITS) : c.getInt(TAG_FUEL_UNITS);
-                if (id != null && units > 0) {
-                    fuelEntries.add(new FuelEntry(id, units));
-                }
-            }
+        for (FuelEntry e : input.listOrEmpty(TAG_FUEL, FUEL_ENTRY_CODEC)) {
+            fuelEntries.add(e);
         }
-        // Legacy: single fuelUnits int -> treat as uranium
-        if (fuelEntries.isEmpty() && tag.contains(TAG_FUEL_UNITS_LEGACY)) {
-            int legacy = tag.getInt(TAG_FUEL_UNITS_LEGACY);
-            if (legacy > 0) {
-                fuelEntries.add(new FuelEntry(URANIUM_FUEL_ID, Math.min((float) legacy, getMaxFuelUnits())));
-            }
+        if (fuelEntries.isEmpty()) {
+            input.getInt(TAG_FUEL_UNITS_LEGACY).ifPresent(legacy -> {
+                if (legacy > 0) {
+                    fuelEntries.add(new FuelEntry(URANIUM_FUEL_ID, Math.min((float) legacy, getMaxFuelUnits())));
+                }
+            });
         }
         coolantEntries.clear();
-        loadFluidList(tag, TAG_COOLANT, coolantEntries, registries);
-        solidWasteEntries.clear();
-        if (tag.contains(TAG_SOLID_WASTE, Tag.TAG_LIST)) {
-            ListTag list = tag.getList(TAG_SOLID_WASTE, Tag.TAG_COMPOUND);
-            for (int i = 0; i < list.size(); i++) {
-                CompoundTag c = list.getCompound(i);
-                Identifier id = Identifier.tryParse(c.getString(TAG_FUEL_ID));
-                int count = c.getInt(TAG_COUNT);
-                if (id != null && count > 0) {
-                    solidWasteEntries.add(new SolidWasteEntry(id, count));
-                }
+        for (FluidEntry e : input.listOrEmpty(TAG_COOLANT, FLUID_ENTRY_CODEC)) {
+            if (e.fluid() != Fluids.EMPTY && e.amount() > 0) {
+                coolantEntries.add(e);
             }
+        }
+        solidWasteEntries.clear();
+        for (SolidWasteEntry e : input.listOrEmpty(TAG_SOLID_WASTE, SOLID_WASTE_CODEC)) {
+            solidWasteEntries.add(e);
         }
         liquidWasteEntries.clear();
-        loadFluidList(tag, TAG_LIQUID_WASTE, liquidWasteEntries, registries);
+        for (FluidEntry e : input.listOrEmpty(TAG_LIQUID_WASTE, FLUID_ENTRY_CODEC)) {
+            if (e.fluid() != Fluids.EMPTY && e.amount() > 0) {
+                liquidWasteEntries.add(e);
+            }
+        }
         wasteAccumulator.clear();
-        if (tag.contains(TAG_WASTE_ACCUMULATOR, Tag.TAG_COMPOUND)) {
-            CompoundTag accTag = tag.getCompound(TAG_WASTE_ACCUMULATOR);
-            for (String key : accTag.getAllKeys()) {
-                Identifier id = Identifier.tryParse(key);
-                float val = accTag.getTagType(key) == Tag.TAG_FLOAT ? accTag.getFloat(key) : accTag.getInt(key);
-                if (id != null && val > 0) wasteAccumulator.put(id, val);
-            }
-        }
+        input.read(TAG_WASTE_ACCUMULATOR, WASTE_ACC_CODEC).ifPresent(wasteAccumulator::putAll);
         updateBlockState();
-    }
-
-    private void loadFluidList(CompoundTag tag, String key, List<FluidEntry> list, net.minecraft.core.HolderLookup.Provider registries) {
-        if (!tag.contains(key, Tag.TAG_LIST)) return;
-        ListTag nbtList = tag.getList(key, Tag.TAG_COMPOUND);
-        for (int i = 0; i < nbtList.size(); i++) {
-            CompoundTag c = nbtList.getCompound(i);
-            Fluid fluid = BuiltInRegistries.FLUID.get(Identifier.parse(c.getString(TAG_FLUID_ID)));
-            int amount = c.getInt(TAG_AMOUNT);
-            if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
-                list.add(new FluidEntry(fluid, amount));
-            }
-        }
     }
 }

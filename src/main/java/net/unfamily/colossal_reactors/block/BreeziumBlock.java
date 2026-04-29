@@ -7,6 +7,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,13 +38,13 @@ public class BreeziumBlock extends LiquidBlock {
     }
 
     @Override
-    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos neighborPos, boolean movedByPiston) {
-        super.neighborChanged(state, level, pos, neighborBlock, neighborPos, movedByPiston);
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, @org.jetbrains.annotations.Nullable Orientation orientation, boolean movedByPiston) {
+        super.neighborChanged(state, level, pos, neighborBlock, orientation, movedByPiston);
         scheduleTick(level, pos);
     }
 
     private void scheduleTick(Level level, BlockPos pos) {
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             level.scheduleTick(pos, this, 20);
         }
     }
@@ -76,7 +77,7 @@ public class BreeziumBlock extends LiquidBlock {
             for (int dy = -1; dy <= 1; dy++) {
                 for (int dz = -1; dz <= 1; dz++) {
                     BlockPos p = pos.offset(dx, dy, dz);
-                    if (level.getBlockState(p).isAir() && level.getBlockState(p.below()).isSolidRender(level, p.below())) {
+                    if (level.getBlockState(p).isAir() && level.getBlockState(p.below()).isSolidRender()) {
                         level.setBlock(p, Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, 1), Block.UPDATE_ALL);
                     }
                 }

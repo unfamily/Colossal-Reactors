@@ -1,15 +1,12 @@
 package net.unfamily.colossal_reactors.fluid;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.item.Item;
@@ -35,13 +32,27 @@ import java.util.function.BiFunction;
  */
 public final class ModFluids {
 
+    /**
+     * ARGB tint colors for client fluid rendering ({@code RegisterFluidModelsEvent}),
+     * matching legacy Colossal-Reactors {@code IClientFluidTypeExtensions#getTintColor}.
+     */
+    public static final class FluidColors {
+        public static final int MOLTEN_TOUGH_ALLOY = 0xFF5A6A7A;
+        /** Bright cyan over vanilla water still/flow. */
+        public static final int GELID_BREEZIUM = 0xFF00E5FF;
+        /** Dark teal over molten still/flow. */
+        public static final int ENDER_GOO = 0xFF2C4742;
+
+        private FluidColors() {}
+    }
+
     public static final DeferredRegister<FluidType> FLUID_TYPES =
             DeferredRegister.create(net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.FLUID_TYPES, ColossalReactors.MODID);
     public static final DeferredRegister<Fluid> FLUIDS =
             DeferredRegister.create(BuiltInRegistries.FLUID, ColossalReactors.MODID);
 
     /** Molten tough alloy (Synergy does not provide this). Uses custom molten textures. */
-    public static final TintedFluid MOLTEN_TOUGH_ALLOY = registerMolten("molten_tough_alloy", 0xFF5A6A7A,
+    public static final TintedFluid MOLTEN_TOUGH_ALLOY = registerMolten("molten_tough_alloy", FluidColors.MOLTEN_TOUGH_ALLOY,
             "fluid.colossal_reactors.molten_tough_alloy");
 
     /** Ender goo: teleports entities on contact. Uses custom EnderGooBlock. */
@@ -77,8 +88,6 @@ public final class ModFluids {
      * Gelid breezium: water-like fluid with bright cyan tint. Cold, swimmable.
      */
     private static TintedFluid registerGelidBreezium() {
-        int tintColor = 0xFF00E5FF; // bright cyan
-
         DeferredHolder<FluidType, FluidType> type = FLUID_TYPES.register("gelid_breezium_type",
                 () -> new FluidType(FluidType.Properties.create()
                         .descriptionId("fluid.colossal_reactors.gelid_breezium")
@@ -124,15 +133,6 @@ public final class ModFluids {
             DeferredHolder<Item, BucketItem> bucket;
         };
 
-        BlockBehaviour.Properties blockProps = BlockBehaviour.Properties.of()
-                .mapColor(MapColor.COLOR_GRAY)
-                .replaceable()
-                .strength(100.0F)
-                .pushReaction(PushReaction.DESTROY)
-                .noLootTable()
-                .liquid()
-                .lightLevel(s -> blockLightLevel);
-
         BaseFlowingFluid.Properties prop = new BaseFlowingFluid.Properties(
                         type,
                         () -> refs.source.get(),
@@ -143,10 +143,18 @@ public final class ModFluids {
         String sourceId = sourceIdIsBaseName ? name : (name + "_source");
         refs.source = FLUIDS.register(sourceId, () -> new BaseFlowingFluid.Source(prop));
         refs.flowing = FLUIDS.register(name + "_flowing", () -> new BaseFlowingFluid.Flowing(prop));
-        refs.block = ModBlocks.BLOCKS.register(name,
-                () -> blockFactory.apply(refs.flowing.get(), blockProps));
-        refs.bucket = ModItems.ITEMS.register(name + "_bucket",
-                () -> new BucketItem(refs.source.get(), new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1)));
+        refs.block = ModBlocks.BLOCKS.registerBlock(name,
+                props -> blockFactory.apply(refs.flowing.get(), props),
+                p -> p.mapColor(MapColor.COLOR_GRAY)
+                        .replaceable()
+                        .strength(100.0F)
+                        .pushReaction(PushReaction.DESTROY)
+                        .noLootTable()
+                        .liquid()
+                        .lightLevel(s -> blockLightLevel));
+        refs.bucket = ModItems.ITEMS.registerItem(name + "_bucket",
+                props -> new BucketItem(refs.source.get(), props),
+                () -> new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1));
 
         return new TintedFluid(refs.source, refs.flowing, refs.block, refs.bucket);
     }

@@ -1,10 +1,14 @@
 package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.sprite.SpriteId;
+import net.minecraft.util.ARGB;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.RegistryAccess;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 
@@ -44,14 +48,14 @@ public final class GasTankRenderHelper {
             Class<?> apiClass = Class.forName("mekanism.api.MekanismAPI");
             Object key = apiClass.getField("CHEMICAL_REGISTRY_NAME").get(null);
             Object registry = regAccess.getClass().getMethod("registryOrThrow", net.minecraft.resources.ResourceKey.class).invoke(regAccess, key);
-            ResourceLocation loc = ResourceLocation.parse(gasRegistryName);
-            Object chemical = registry.getClass().getMethod("get", ResourceLocation.class).invoke(registry, loc);
+            Identifier loc = Identifier.parse(gasRegistryName);
+            Object chemical = registry.getClass().getMethod("get", Identifier.class).invoke(registry, loc);
             if (chemical == null) return null;
-            ResourceLocation icon = (ResourceLocation) chemical.getClass().getMethod("getIcon").invoke(chemical);
+            Identifier icon = (Identifier) chemical.getClass().getMethod("getIcon").invoke(chemical);
             if (icon == null) return null;
             Number tintNum = (Number) chemical.getClass().getMethod("getTint").invoke(chemical);
             int tint = tintNum != null ? tintNum.intValue() : 0xFFFFFF;
-            TextureAtlasSprite sprite = mc.getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(icon);
+            TextureAtlasSprite sprite = mc.getAtlasManager().get(new SpriteId(TextureAtlas.LOCATION_BLOCKS, icon));
             return new GasRenderInfo(sprite, tint);
         } catch (Throwable ignored) {
             return null;
@@ -71,8 +75,8 @@ public final class GasTankRenderHelper {
             Class<?> apiClass = Class.forName("mekanism.api.MekanismAPI");
             Object key = apiClass.getField("CHEMICAL_REGISTRY_NAME").get(null);
             Object registry = regAccess.getClass().getMethod("registryOrThrow", net.minecraft.resources.ResourceKey.class).invoke(regAccess, key);
-            ResourceLocation loc = ResourceLocation.parse(gasRegistryName);
-            Object chemical = registry.getClass().getMethod("get", ResourceLocation.class).invoke(registry, loc);
+            Identifier loc = Identifier.parse(gasRegistryName);
+            Object chemical = registry.getClass().getMethod("get", Identifier.class).invoke(registry, loc);
             if (chemical == null) return null;
             String translationKey = (String) chemical.getClass().getMethod("getTranslationKey").invoke(chemical);
             return translationKey != null ? Component.translatable(translationKey) : null;
@@ -97,15 +101,15 @@ public final class GasTankRenderHelper {
 
             Object chemical = stack.getClass().getMethod("getChemical").invoke(stack);
             if (chemical == null) return new GasRenderInfo(null, 0);
-            ResourceLocation icon = (ResourceLocation) chemical.getClass().getMethod("getIcon").invoke(chemical);
+            Identifier icon = (Identifier) chemical.getClass().getMethod("getIcon").invoke(chemical);
             if (icon == null) return new GasRenderInfo(null, 0);
 
             Number tintNum = (Number) stack.getClass().getMethod("getChemicalTint").invoke(stack);
             int tint = tintNum != null ? tintNum.intValue() : 0xFFFFFF;
 
             TextureAtlasSprite sprite = Minecraft.getInstance()
-                    .getTextureAtlas(TextureAtlas.LOCATION_BLOCKS)
-                    .apply(icon);
+                    .getAtlasManager()
+                    .get(new SpriteId(TextureAtlas.LOCATION_BLOCKS, icon));
             return new GasRenderInfo(sprite, tint);
         } catch (Throwable ignored) {
             return new GasRenderInfo(null, 0);
@@ -116,22 +120,17 @@ public final class GasTankRenderHelper {
      * Draws gas in the given rectangle using the chemical's texture (tiled) and tint.
      * If info has no sprite, draws nothing (caller can draw fallback).
      */
-    public static void drawGasInTank(net.minecraft.client.gui.GuiGraphics guiGraphics, GasRenderInfo info, int x, int y, int width, int height) {
+    public static void drawGasInTank(GuiGraphicsExtractor guiGraphics, GasRenderInfo info, int x, int y, int width, int height) {
         if (info == null || info.isEmpty() || width <= 0 || height <= 0) return;
 
-        float r = ((info.tintArgb >> 16) & 0xFF) / 255f;
-        float g = ((info.tintArgb >> 8) & 0xFF) / 255f;
-        float b = (info.tintArgb & 0xFF) / 255f;
-        guiGraphics.setColor(r, g, b, 1f);
+        int color = ARGB.color(255, (info.tintArgb >> 16) & 0xFF, (info.tintArgb >> 8) & 0xFF, info.tintArgb & 0xFF);
 
         for (int dy = 0; dy < height; dy += TILE_SIZE) {
             for (int dx = 0; dx < width; dx += TILE_SIZE) {
                 int w = Math.min(TILE_SIZE, width - dx);
                 int h = Math.min(TILE_SIZE, height - dy);
-                guiGraphics.blit(x + dx, y + dy, 0, w, h, info.sprite);
+                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, info.sprite, x + dx, y + dy, w, h, color);
             }
         }
-
-        guiGraphics.setColor(1, 1, 1, 1);
     }
 }

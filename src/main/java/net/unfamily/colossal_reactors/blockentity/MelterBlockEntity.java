@@ -2,11 +2,11 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -24,6 +24,11 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.unfamily.colossal_reactors.transfer.LegacyIFluidHandlerResourceHandler;
+import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.MelterBlock;
 import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
@@ -67,6 +72,10 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     private int redstoneMode = RedstoneMode.NONE.getId();
     private boolean lastRedstoneSignal;
     private boolean pulseAllowed; // for PULSE mode: one craft per rising edge
+
+    private DrainOnlyFluidHandler drainOnlyFluidHandler;
+    private ResourceHandler<FluidResource> fluidResourceCapability;
+    private ResourceHandler<ItemResource> itemResourceCapability;
 
     private static final String TAG_REDSTONE_MODE = "RedstoneMode";
     private static final String TAG_LAST_REDSTONE = "LastRedstone";
@@ -282,7 +291,24 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
 
     /** Fluid handler for capability: drain only (bucket/pipes can extract, not insert). */
     public IFluidHandler getFluidHandlerForCapability() {
-        return new DrainOnlyFluidHandler();
+        if (drainOnlyFluidHandler == null) {
+            drainOnlyFluidHandler = new DrainOnlyFluidHandler();
+        }
+        return drainOnlyFluidHandler;
+    }
+
+    public ResourceHandler<FluidResource> getFluidResourceHandlerForCapability() {
+        if (fluidResourceCapability == null) {
+            fluidResourceCapability = LegacyIFluidHandlerResourceHandler.wrap(getFluidHandlerForCapability());
+        }
+        return fluidResourceCapability;
+    }
+
+    public ResourceHandler<ItemResource> getItemResourceHandlerForCapability() {
+        if (itemResourceCapability == null) {
+            itemResourceCapability = LegacyItemHandlerResourceHandler.wrap(itemHandler);
+        }
+        return itemResourceCapability;
     }
 
     /**
@@ -334,23 +360,32 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         @Override
-        public int fill(FluidStack resource, FluidAction action) {
+        public int fill(FluidStack resource, IFluidHandler.FluidAction action) {
             return 0;
         }
 
         @Override
-        public FluidStack drain(FluidStack resource, FluidAction action) {
+        public FluidStack drain(FluidStack resource, IFluidHandler.FluidAction action) {
             return fluidTank.drain(resource, action);
         }
 
         @Override
-        public FluidStack drain(int maxDrain, FluidAction action) {
+        public FluidStack drain(int maxDrain, IFluidHandler.FluidAction action) {
             return fluidTank.drain(maxDrain, action);
         }
     }
 
     public ContainerData getData() {
         return data;
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        Level level = getLevel();
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
     }
 
     /** Drops all items from the input slot into the world. Call when the block is broken. */
@@ -368,33 +403,24 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
-        tag.putInt(TAG_FLUID_AMOUNT, fluidTank.getFluidAmount());
-        if (!fluidTank.getFluid().isEmpty()) {
-            tag.putString(TAG_FLUID, BuiltInRegistries.FLUID.getKey(fluidTank.getFluid().getFluid()).toString());
-        }
-        tag.putInt(TAG_PROGRESS, progress);
-        tag.putInt(TAG_REDSTONE_MODE, redstoneMode);
-        tag.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
-        tag.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        itemHandler.serialize(output);
+        fluidTank.serialize(output);
+        output.putInt(TAG_PROGRESS, progress);
+        output.putInt(TAG_REDSTONE_MODE, redstoneMode);
+        output.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
+        output.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains(TAG_ITEMS)) itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
-        fluidTank.setFluid(FluidStack.EMPTY);
-        if (tag.contains(TAG_FLUID)) {
-            Fluid f = BuiltInRegistries.FLUID.get(ResourceLocation.parse(tag.getString(TAG_FLUID)));
-            if (f != null && !f.equals(Fluids.EMPTY)) {
-                fluidTank.setFluid(new FluidStack(f, tag.getInt(TAG_FLUID_AMOUNT)));
-            }
-        }
-        progress = tag.getInt(TAG_PROGRESS);
-        redstoneMode = RedstoneMode.fromId(tag.getInt(TAG_REDSTONE_MODE)).getId();
-        lastRedstoneSignal = tag.getBoolean(TAG_LAST_REDSTONE);
-        pulseAllowed = tag.getBoolean(TAG_PULSE_ALLOWED);
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        itemHandler.deserialize(input);
+        fluidTank.deserialize(input);
+        progress = input.getIntOr(TAG_PROGRESS, 0);
+        redstoneMode = RedstoneMode.fromId(input.getIntOr(TAG_REDSTONE_MODE, redstoneMode)).getId();
+        lastRedstoneSignal = input.getBooleanOr(TAG_LAST_REDSTONE, false);
+        pulseAllowed = input.getBooleanOr(TAG_PULSE_ALLOWED, false);
     }
 }

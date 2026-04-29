@@ -6,8 +6,8 @@
   "energy": 3200,
   "experience": 0.15,
   "inputs": [
-    { "count": 3, "tag": "c:ingots/iron" },
-    { "count": 2, "tag": "c:ingots/lead" }
+    { "count": 3, "ingredient": "#c:ingots/iron" },
+    { "count": 2, "ingredient": "#c:ingots/lead" }
   ],
   "output": { "count": 1, "id": "colossal_reactors:tough_alloy_ingot" }
 }

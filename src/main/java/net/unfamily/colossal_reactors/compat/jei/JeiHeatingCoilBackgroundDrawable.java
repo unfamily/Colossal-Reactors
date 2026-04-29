@@ -1,8 +1,8 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mezz.jei.api.gui.drawable.IDrawable;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 
 /**
  * Background for Heating Coil JEI recipes.
@@ -57,31 +57,23 @@ public class JeiHeatingCoilBackgroundDrawable implements IDrawable {
     }
 
     @Override
-    public void draw(GuiGraphics guiGraphics, int xOffset, int yOffset) {
-        RenderSystem.enableBlend();
+    public void draw(GuiGraphicsExtractor guiGraphics, int xOffset, int yOffset) {
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
+                xOffset + OFF_X, yOffset + OFF_Y, 0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
 
-        // OFF slot
-        guiGraphics.blit(JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
-                xOffset + OFF_X, yOffset + OFF_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
+                xOffset + IN1_X, yOffset + IN_Y, 0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
+                xOffset + IN2_X, yOffset + IN_Y, 0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
+                xOffset + IN3_X, yOffset + IN_Y, 0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
 
-        // Input slots (placeholders; may or may not be filled)
-        guiGraphics.blit(JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
-                xOffset + IN1_X, yOffset + IN_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
-        guiGraphics.blit(JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
-                xOffset + IN2_X, yOffset + IN_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
-        guiGraphics.blit(JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
-                xOffset + IN3_X, yOffset + IN_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
-
-        // Arrow + ON slot
-        guiGraphics.blit(JeiRecipeBackgroundDrawable.ARROW_TEXTURE,
-                xOffset + ARROW_X, yOffset + ARROW_Y, 0, 0,
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, JeiRecipeBackgroundDrawable.ARROW_TEXTURE,
+                xOffset + ARROW_X, yOffset + ARROW_Y, 0.0F, 0.0F,
                 JeiRecipeBackgroundDrawable.ARROW_W, JeiRecipeBackgroundDrawable.ARROW_H,
                 JeiRecipeBackgroundDrawable.ARROW_W, JeiRecipeBackgroundDrawable.ARROW_H);
 
-        guiGraphics.blit(JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
-                xOffset + ON_X, yOffset + ON_Y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
-
-        RenderSystem.disableBlend();
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, JeiRecipeBackgroundDrawable.SLOT_TEXTURE,
+                xOffset + ON_X, yOffset + ON_Y, 0.0F, 0.0F, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
     }
 }
-

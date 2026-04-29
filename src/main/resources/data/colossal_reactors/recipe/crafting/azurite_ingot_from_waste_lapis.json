@@ -1,9 +1,12 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    { "item": "colossal_reactors:nuclear_waste" },
-    { "item": "colossal_reactors:nuclear_waste" },
-    { "item": "minecraft:lapis_lazuli" }
+    "colossal_reactors:nuclear_waste",
+    "colossal_reactors:nuclear_waste",
+    "minecraft:lapis_lazuli"
   ],
-  "result": { "id": "colossal_reactors:azurite_ingot", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:azurite_ingot",
+    "count": 1
+  }
 }

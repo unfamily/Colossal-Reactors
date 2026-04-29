@@ -158,26 +158,26 @@ public final class MelterHeatsLoader {
     private static MelterHeatEntry parseOne(JsonObject o, String source) {
         if (!o.has(KEY_FACTOR)) return null;
         double factor = o.get(KEY_FACTOR).getAsDouble();
-        List<ResourceLocation> blockIds = new ArrayList<>();
+        List<Identifier> blockIds = new ArrayList<>();
         List<Boolean> blockIdIsTag = new ArrayList<>();
         if (o.has(KEY_BLOCKS) && o.get(KEY_BLOCKS).isJsonArray()) {
             for (JsonElement e : o.getAsJsonArray(KEY_BLOCKS)) {
                 String s = e.getAsString();
                 boolean isTag = s.startsWith("#");
-                ResourceLocation id = ResourceLocation.tryParse(isTag ? s.substring(1) : s);
+                Identifier id = Identifier.tryParse(isTag ? s.substring(1) : s);
                 if (id != null) {
                     blockIds.add(id);
                     blockIdIsTag.add(isTag);
                 }
             }
         }
-        List<ResourceLocation> fluidIds = new ArrayList<>();
+        List<Identifier> fluidIds = new ArrayList<>();
         List<Boolean> fluidIdIsTag = new ArrayList<>();
         if (o.has(KEY_FLUIDS) && o.get(KEY_FLUIDS).isJsonArray()) {
             for (JsonElement e : o.getAsJsonArray(KEY_FLUIDS)) {
                 String s = e.getAsString();
                 boolean isTag = s.startsWith("#");
-                ResourceLocation id = ResourceLocation.tryParse(isTag ? s.substring(1) : s);
+                Identifier id = Identifier.tryParse(isTag ? s.substring(1) : s);
                 if (id != null) {
                     fluidIds.add(id);
                     fluidIdIsTag.add(isTag);

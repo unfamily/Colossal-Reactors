@@ -1,10 +1,8 @@
 package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -17,11 +15,18 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.unfamily.colossal_reactors.transfer.LegacyEnergyStorageEnergyHandler;
+import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
 import net.unfamily.colossal_reactors.radiation_scrubber.RadiationScrubberCatalystsLoader;
@@ -57,6 +62,8 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
     };
 
     private final RadiationScrubberEnergyStorage energyStorage;
+    private final LegacyEnergyStorageEnergyHandler energyHandlerCapability;
+    private ResourceHandler<ItemResource> itemResourceCapability;
 
     /** Lazy-created Mekanism chemical tank (IChemicalTank/IChemicalHandler). Only non-null when Mekanism loaded. */
     private Object chemicalTank;
@@ -112,6 +119,7 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         super(ModBlockEntities.RADIATION_SCRUBBER_BE.get(), pos, state);
         int capacity = Config.RADIATION_SCRUBBER_ENERGY_CAPACITY.get();
         this.energyStorage = new RadiationScrubberEnergyStorage(capacity);
+        this.energyHandlerCapability = new LegacyEnergyStorageEnergyHandler(energyStorage);
     }
 
     /** Returns the Mekanism chemical handler: tank that accepts only radioactive gas (isolated storage). Caller may cast to IChemicalHandler. */
@@ -305,12 +313,12 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
             if (entry == null || entry.isBlank()) continue;
             try {
                 if (entry.startsWith("#")) {
-                    ResourceLocation tagId = ResourceLocation.parse(entry.substring(1).trim());
+                    Identifier tagId = Identifier.parse(entry.substring(1).trim());
                     TagKey<Item> tag = TagKey.create(net.minecraft.core.registries.Registries.ITEM, tagId);
                     if (stack.is(tag)) return true;
                 } else {
-                    ResourceLocation itemId = ResourceLocation.parse(entry.trim());
-                    Item item = BuiltInRegistries.ITEM.get(itemId);
+                    Identifier itemId = Identifier.parse(entry.trim());
+                    Item item = BuiltInRegistries.ITEM.getValue(itemId);
                     if (item != null && !item.equals(net.minecraft.world.item.Items.AIR) && stack.is(item)) return true;
                 }
             } catch (Exception ignored) {
@@ -460,8 +468,29 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         return energyStorage;
     }
 
+    public EnergyHandler getEnergyHandlerForCapability() {
+        return energyHandlerCapability;
+    }
+
+    public ResourceHandler<ItemResource> getItemResourceHandlerForCapability() {
+        if (itemResourceCapability == null) {
+            itemResourceCapability = LegacyItemHandlerResourceHandler.wrap(itemHandler);
+        }
+        return itemResourceCapability;
+    }
+
     public ContainerData getData() {
         return data;
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        Level level = getLevel();
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dumpRadiationOnBreak(level, pos, this);
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
     }
 
     public void dropAllContents() {
@@ -478,21 +507,17 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
-        tag.putInt(TAG_ENERGY, energyStorage.getEnergyStored());
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        itemHandler.serialize(output);
+        output.putInt(TAG_ENERGY, energyStorage.getEnergyStored());
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains(TAG_ITEMS)) {
-            itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
-        }
-        if (tag.contains(TAG_ENERGY)) {
-            energyStorage.setEnergy(tag.getInt(TAG_ENERGY));
-        }
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        itemHandler.deserialize(input);
+        input.getInt(TAG_ENERGY).ifPresent(energyStorage::setEnergy);
     }
 
     private static final class RadiationScrubberEnergyStorage extends EnergyStorage {

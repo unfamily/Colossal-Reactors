@@ -1,16 +1,18 @@
 package net.unfamily.colossal_reactors.client.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.client.gui.GasTankRenderHelper.GasRenderInfo;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,10 +20,10 @@ import java.util.List;
  */
 public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationScrubberMenu> {
 
-    private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/radiation_scrubber.png");
-    private static final ResourceLocation ENERGY_BAR =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
+    private static final Identifier TEXTURE =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/radiation_scrubber.png");
+    private static final Identifier ENERGY_BAR =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
 
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 166;
@@ -48,26 +50,23 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     private static final int ENERGY_BAR_Y = 14 + (54 + 2 - ENERGY_BAR_HEIGHT) / 2;
 
     public RadiationScrubberScreen(RadiationScrubberMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        imageWidth = GUI_WIDTH;
-        imageHeight = GUI_HEIGHT;
+        super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
     }
 
     @Override
     protected void init() {
         super.init();
         addRenderableWidget(Button.builder(Component.literal("\u2715"), b -> {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         }).bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE).build());
     }
 
     @Override
-    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
         int x = leftPos;
         int y = topPos;
-        guiGraphics.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, x, y, 0.0F, 0.0F, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
 
         int tankAmount = menu.getChemicalTankAmount();
         int tankCapacity = menu.getChemicalTankCapacity();
@@ -85,39 +84,32 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
         }
         int energyBarX = x + ENERGY_BAR_X;
         int energyBarY = y + ENERGY_BAR_Y;
-        guiGraphics.blit(ENERGY_BAR, energyBarX, energyBarY, 8, 0, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT, 16, 32);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ENERGY_BAR, energyBarX, energyBarY, 8.0F, 0.0F, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT, 16, 32);
         int energy = menu.getEnergy();
         int maxEnergy = menu.getEnergyCapacity();
         if (energy > 0 && maxEnergy > 0) {
             int energyHeight = (energy * ENERGY_BAR_HEIGHT) / maxEnergy;
             int fillY = energyBarY + (ENERGY_BAR_HEIGHT - energyHeight);
-            guiGraphics.blit(ENERGY_BAR, energyBarX, fillY, 0, ENERGY_BAR_HEIGHT - energyHeight, ENERGY_BAR_WIDTH, energyHeight, 16, 32);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ENERGY_BAR, energyBarX, fillY, 0.0F, (float)(ENERGY_BAR_HEIGHT - energyHeight), ENERGY_BAR_WIDTH, energyHeight, ENERGY_BAR_WIDTH, energyHeight, 16, 32);
         }
     }
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.drawString(font, title, titleX, 6, 0x404040, false);
+        guiGraphics.text(font, title, titleX, 6, GuiTextColors.TITLE, false);
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
-    }
-
-    @Override
-    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        super.renderTooltip(guiGraphics, mouseX, mouseY);
+    protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        super.extractTooltip(guiGraphics, mouseX, mouseY);
 
         int ex = leftPos + ENERGY_BAR_X;
         int ey = topPos + ENERGY_BAR_Y;
         if (mouseX >= ex && mouseX < ex + ENERGY_BAR_WIDTH && mouseY >= ey && mouseY < ey + ENERGY_BAR_HEIGHT) {
             Component line = Component.translatable("gui.colossal_reactors.radiation_scrubber.energy_tooltip", menu.getEnergy(), menu.getEnergyCapacity());
-            guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
         }
         int tx = leftPos + TANK_X;
         int ty = topPos + TANK_Y;
@@ -126,14 +118,15 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
             int capacity = menu.getChemicalTankCapacity();
             String gasType = menu.getChemicalTypeRegistryName();
             Component gasName = gasType != null ? GasTankRenderHelper.getGasDisplayName(gasType) : null;
-            List<Component> lines = new java.util.ArrayList<>();
-            if (gasName != null) lines.add(gasName);
+            List<Component> lineComponents = new ArrayList<>();
+            if (gasName != null) lineComponents.add(gasName);
             if (capacity > 0) {
-                lines.add(Component.translatable("gui.colossal_reactors.radiation_scrubber.tank_tooltip", amount, capacity));
+                lineComponents.add(Component.translatable("gui.colossal_reactors.radiation_scrubber.tank_tooltip", amount, capacity));
             } else {
-                lines.add(Component.translatable("gui.colossal_reactors.radiation_scrubber.tank_empty"));
+                lineComponents.add(Component.translatable("gui.colossal_reactors.radiation_scrubber.tank_empty"));
             }
-            guiGraphics.renderTooltip(font, lines.stream().map(Component::getVisualOrderText).toList(), mouseX, mouseY);
+            List<FormattedCharSequence> lines = lineComponents.stream().map(Component::getVisualOrderText).toList();
+            guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
         }
     }
 }

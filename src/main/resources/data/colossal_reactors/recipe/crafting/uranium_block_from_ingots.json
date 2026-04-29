@@ -1,6 +1,15 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": ["III", "III", "III"],
-  "key": { "I": { "tag": "c:ingots/uranium" } },
-  "result": { "id": "colossal_reactors:uranium_block", "count": 1 }
+  "pattern": [
+    "III",
+    "III",
+    "III"
+  ],
+  "key": {
+    "I": "#c:ingots/uranium"
+  },
+  "result": {
+    "id": "colossal_reactors:uranium_block",
+    "count": 1
+  }
 }

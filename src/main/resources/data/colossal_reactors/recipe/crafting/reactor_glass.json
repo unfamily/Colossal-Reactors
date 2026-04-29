@@ -1,8 +1,11 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    { "item": "colossal_reactors:reactor_casing" },
-    { "tag": "c:glass_blocks" }
+    "colossal_reactors:reactor_casing",
+    "#c:glass_blocks"
   ],
-  "result": { "id": "colossal_reactors:reactor_glass", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:reactor_glass",
+    "count": 1
+  }
 }

@@ -1,22 +1,24 @@
 package net.unfamily.colossal_reactors.client.gui;
 
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.client.gui.FluidRenderHelper;
@@ -32,12 +34,12 @@ import java.util.List;
  */
 public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
 
-    private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/melter.png");
-    private static final ResourceLocation PROGRESS_EMPTY =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/progress_empty.png");
-    private static final ResourceLocation PROGRESS_FILLED =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/progress_filled.png");
+    private static final Identifier TEXTURE =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/melter.png");
+    private static final Identifier PROGRESS_EMPTY =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/progress_empty.png");
+    private static final Identifier PROGRESS_FILLED =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/progress_filled.png");
 
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 166;
@@ -46,9 +48,9 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    private static final ResourceLocation MEDIUM_BUTTONS = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier MEDIUM_BUTTONS = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/medium_buttons.png");
-    private static final ResourceLocation REDSTONE_GUI = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier REDSTONE_GUI = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/redstone_gui.png");
     private static final int REDSTONE_BUTTON_SIZE = 16;
     private static final int REDSTONE_BUTTON_X = CLOSE_BUTTON_X - REDSTONE_BUTTON_SIZE - 4;
@@ -84,17 +86,13 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private int redstoneButtonScreenY;
 
     public MelterScreen(MelterMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        imageWidth = GUI_WIDTH;
-        imageHeight = GUI_HEIGHT;
+        super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
     }
 
     @Override
     protected void init() {
         super.init();
         closeButton = Button.builder(Component.literal("\u2715"), b -> {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         })
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
@@ -105,22 +103,20 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     }
 
     @Override
-    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
         int x = leftPos;
         int y = topPos;
-        guiGraphics.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, x, y, 0.0F, 0.0F, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
 
-        // Progress bar: left to right (like Pattern-Crafter style). Draw background first, then fill on top.
         int progress = menu.getProgress();
         int maxProgress = menu.getMaxProgress();
         int fillWidth = (maxProgress > 0 && progress > 0) ? (progress * PROGRESS_BAR_WIDTH) / maxProgress : 0;
-        guiGraphics.blit(PROGRESS_EMPTY, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
-                0, 0, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT,
-                PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PROGRESS_EMPTY, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
+                0.0F, 0.0F, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
         if (fillWidth > 0) {
-            guiGraphics.blit(PROGRESS_FILLED, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
-                    0, 0, fillWidth, PROGRESS_BAR_HEIGHT,
-                    PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PROGRESS_FILLED, x + PROGRESS_BAR_X, y + PROGRESS_BAR_Y,
+                    0.0F, 0.0F, fillWidth, PROGRESS_BAR_HEIGHT, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT);
         }
 
         int amount = menu.getFluidAmount();
@@ -141,25 +137,24 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     }
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.drawString(font, title, titleX, 6, 0x404040, false);
+        guiGraphics.text(font, title, titleX, 6, GuiTextColors.TITLE, false);
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         renderRedstoneButton(guiGraphics, mouseX, mouseY);
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
-    private void renderRedstoneButton(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    private void renderRedstoneButton(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         boolean isHovered = mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
                 && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE;
         int textureY = isHovered ? 16 : 0;
-        guiGraphics.blit(MEDIUM_BUTTONS, redstoneButtonScreenX, redstoneButtonScreenY,
-                0, textureY, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, 96, 96);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, MEDIUM_BUTTONS, redstoneButtonScreenX, redstoneButtonScreenY,
+                0.0F, (float)textureY, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, 96, 96);
         int iconX = redstoneButtonScreenX + 2;
         int iconY = redstoneButtonScreenY + 2;
         int iconSize = 12;
@@ -173,43 +168,43 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
             default -> renderScaledItem(guiGraphics, new ItemStack(Items.REDSTONE), iconX, iconY, iconSize);
         }
         if (isHovered) {
-            guiGraphics.renderTooltip(font, RedstoneMode.fromId(mode).getDisplayName(), mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(font, RedstoneMode.fromId(mode).getDisplayName(), mouseX, mouseY);
         }
     }
 
-    private static void renderScaledItem(GuiGraphics guiGraphics, ItemStack stack, int x, int y, int size) {
-        guiGraphics.pose().pushPose();
+    private static void renderScaledItem(GuiGraphicsExtractor guiGraphics, ItemStack stack, int x, int y, int size) {
+        guiGraphics.pose().pushMatrix();
         float scale = size / 16.0f;
-        guiGraphics.pose().translate(x, y, 0);
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-        guiGraphics.renderItem(stack, 0, 0);
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().translate(x, y);
+        guiGraphics.pose().scale(scale, scale);
+        guiGraphics.item(stack, 0, 0);
+        guiGraphics.pose().popMatrix();
     }
 
-    private static void renderScaledTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int size) {
-        guiGraphics.pose().pushPose();
+    private static void renderScaledTexture(GuiGraphicsExtractor guiGraphics, Identifier texture, int x, int y, int size) {
+        guiGraphics.pose().pushMatrix();
         float scale = size / 16.0f;
-        guiGraphics.pose().translate(x, y, 0);
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-        guiGraphics.blit(texture, 0, 0, 0, 0, 16, 16, 16, 16);
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().translate(x, y);
+        guiGraphics.pose().scale(scale, scale);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 0.0F, 0.0F, 16, 16, 16, 16);
+        guiGraphics.pose().popMatrix();
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
-                && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
+                && event.y() >= redstoneButtonScreenY && event.y() < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
             if (minecraft != null && minecraft.getSoundManager() != null)
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            PacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos()));
+            ClientPacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos()));
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        super.renderTooltip(guiGraphics, mouseX, mouseY);
+    protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        super.extractTooltip(guiGraphics, mouseX, mouseY);
 
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
@@ -229,7 +224,7 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
                     lines.add(Component.translatable(type.getDescriptionId()).getVisualOrderText());
                 }
             }
-            guiGraphics.renderTooltip(font, lines, mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
         }
     }
 }

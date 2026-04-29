@@ -5,7 +5,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -22,7 +22,7 @@ import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 public record ResourcePortFilterPayload(BlockPos pos, int filterId) implements CustomPacketPayload {
 
     public static final Type<ResourcePortFilterPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "resource_port_filter"));
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "resource_port_filter"));
 
     public static final StreamCodec<FriendlyByteBuf, ResourcePortFilterPayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
@@ -40,7 +40,7 @@ public record ResourcePortFilterPayload(BlockPos pos, int filterId) implements C
     public static void handle(ResourcePortFilterPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof ResourcePortBlockEntity port) {
                 port.setPortFilter(PortFilter.fromId(packet.filterId()));

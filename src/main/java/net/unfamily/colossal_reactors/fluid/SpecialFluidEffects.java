@@ -7,8 +7,8 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
-import net.unfamily.colossal_reactors.ColossalReactors;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
@@ -44,28 +44,15 @@ public final class SpecialFluidEffects {
         if (level.isClientSide()) return;
 
         if (entity instanceof LivingEntity living) {
-            // Breezium: strong freeze (like iskautils freeze plate – set 200 ticks so damage applies immediately; we also deal damage every tick)
-            double breeziumHeight = living.getFluidTypeHeight(ModFluids.GELID_BREEZIUM.getSource().getFluidType());
-            if (breeziumHeight <= 0) {
-                FluidState atFeet = level.getFluidState(living.blockPosition());
-                if (atFeet.getType() == ModFluids.GELID_BREEZIUM.getSource() || atFeet.getType() == ModFluids.GELID_BREEZIUM.getFlowing()) {
-                    breeziumHeight = Math.max(breeziumHeight, atFeet.getHeight(level, living.blockPosition()));
-                }
-            }
+            // Breezium: strong freeze (MC 26+: no per-fluid-type height on LivingEntity; use feet fluid column)
+            double breeziumHeight = fluidColumnHeightAtFeet(level, living, ModFluids.GELID_BREEZIUM.getSource(), ModFluids.GELID_BREEZIUM.getFlowing());
             if (breeziumHeight > 0) {
                 living.setTicksFrozen(BREEZIUM_FREEZE_TICKS);
                 DamageSource freeze = level.damageSources().source(DamageTypes.FREEZE);
                 living.hurt(freeze, BREEZIUM_FREEZE_DAMAGE);
             }
 
-            // Ender goo: teleport when inside source or flowing, with cooldown (chorus-fruit style)
-            double enderHeight = living.getFluidTypeHeight(ModFluids.ENDER_GOO.getSource().getFluidType());
-            if (enderHeight <= 0) {
-                FluidState atFeet = level.getFluidState(living.blockPosition());
-                if (atFeet.getType() == ModFluids.ENDER_GOO.getSource() || atFeet.getType() == ModFluids.ENDER_GOO.getFlowing()) {
-                    enderHeight = Math.max(enderHeight, atFeet.getHeight(level, living.blockPosition()));
-                }
-            }
+            double enderHeight = fluidColumnHeightAtFeet(level, living, ModFluids.ENDER_GOO.getSource(), ModFluids.ENDER_GOO.getFlowing());
             if (enderHeight > 0) {
                 int cooldown = enderGooCooldowns.getOrDefault(living.getUUID(), 0);
                 if (cooldown <= 0) {
@@ -78,6 +65,16 @@ public final class SpecialFluidEffects {
                 }
             }
         }
+    }
+
+    /** Height of fluid at feet when it matches source or flowing variant (0 if not in that fluid). */
+    private static double fluidColumnHeightAtFeet(Level level, LivingEntity living, Fluid source, Fluid flowing) {
+        FluidState atFeet = level.getFluidState(living.blockPosition());
+        Fluid t = atFeet.getType();
+        if (t == source || t == flowing) {
+            return atFeet.getHeight(level, living.blockPosition());
+        }
+        return 0;
     }
 
     /**
@@ -93,7 +90,7 @@ public final class SpecialFluidEffects {
             double x = entity.getX() + (entity.getRandom().nextDouble() - 0.5) * 2.0 * ENDER_GOO_TELEPORT_RANGE_H;
             double y = entity.getY() + (entity.getRandom().nextInt(2 * ENDER_GOO_TELEPORT_RANGE_V + 1) - ENDER_GOO_TELEPORT_RANGE_V);
             double z = entity.getZ() + (entity.getRandom().nextDouble() - 0.5) * 2.0 * ENDER_GOO_TELEPORT_RANGE_H;
-            y = Math.clamp(y, level.getMinBuildHeight(), level.getMaxBuildHeight() - 1);
+            y = Math.clamp(y, level.getMinY(), level.getMaxY());
 
             if (entity.isPassenger()) {
                 entity.stopRiding();

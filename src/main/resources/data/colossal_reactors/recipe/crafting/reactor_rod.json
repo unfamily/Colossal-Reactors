@@ -1,9 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": ["BAB", "AAA", "BAB"],
+  "pattern": [
+    "BAB",
+    "AAA",
+    "BAB"
+  ],
   "key": {
-    "A": { "tag": "c:ingots/graphite" },
-    "B": { "tag": "c:ingots/tough_alloy" }
+    "A": "#c:ingots/graphite",
+    "B": "#c:ingots/tough_alloy"
   },
-  "result": { "id": "colossal_reactors:reactor_rod", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:reactor_rod",
+    "count": 1
+  }
 }

@@ -10,11 +10,6 @@ public class Config {
         BUILDER.comment("Development and advanced configuration").push("dev");
     }
 
-    public static final ModConfigSpec.ConfigValue<String> EXTERNAL_SCRIPTS_PATH = BUILDER
-            .comment("Path to the external scripts directory for Colossal Reactors integration with KubeJS",
-                    "Default: 'kubejs/external_scripts/colossal_reactors'")
-            .define("000_external_scripts_path", "kubejs/external_scripts/colossal_reactors");
-
     public static final ModConfigSpec.ConfigValue<Boolean> REACTOR_VALIDATION_DEBUG = BUILDER
             .comment("Dump full reactor validation to log (info level). Default: false")
             .define("001_reactor_validation_debug", false);

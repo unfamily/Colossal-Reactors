@@ -1,10 +1,17 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": ["AAA", "BCB", "AAA"],
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
   "key": {
-    "A": { "tag": "c:ingots/tough_alloy" },
-    "B": { "tag": "c:ingots/copper" },
-    "C": { "tag": "c:ingots/gold" }
+    "A": "#c:ingots/tough_alloy",
+    "B": "#c:ingots/copper",
+    "C": "#c:ingots/gold"
   },
-  "result": { "id": "colossal_reactors:melter", "count": 1 }
+  "result": {
+    "id": "colossal_reactors:melter",
+    "count": 1
+  }
 }

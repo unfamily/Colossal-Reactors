@@ -40,7 +40,7 @@ public record ResourcePortModePayload(BlockPos pos, int mode) implements CustomP
     public static void handle(ResourcePortModePayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof ResourcePortBlockEntity port) {
                 port.setPortMode(PortMode.fromId(packet.mode()));

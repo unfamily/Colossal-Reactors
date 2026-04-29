@@ -39,8 +39,7 @@ base {
     archivesName = mod_id
 }
 
-// Keep codebase buildable even when optional integrations are missing.
-sourceSets.main.java.exclude('net/unfamily/colossal_reactors/compat/jei/**')
+// Optional integrations excluded when APIs drift (re-enable when fixed).
 sourceSets.main.java.exclude('net/unfamily/colossal_reactors/data/ColossalReactorsFusionModelProvider.java')
 
 // Mojang ships Java 25 to end users in 26.1.2, so mods should target Java 25.

@@ -3,7 +3,7 @@ package net.unfamily.colossal_reactors.reactor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -176,7 +176,7 @@ public final class ReactorSimulation {
             for (ResourcePortBlockEntity port : resourcePorts) {
                 if (port.getPortMode() != PortMode.EXTRACT) continue;
                 if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
-                steamOutputSpace += port.getFluidTank().getCapacity() - port.getFluidTank().getFluidAmount();
+                steamOutputSpace += port.getFluidCapacityMb() - port.getFluidAmountMb();
             }
             int coolantToConsumeMb = (steamOutputSpace <= 0) ? 0 : (int) (rfProduced * coolantDef.rfToCoolantFactor());
             if (coolantToConsumeMb > 0 && coolantFluid != null && coolantFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
@@ -359,7 +359,7 @@ public final class ReactorSimulation {
 
         int totalSolidWaste = rods.stream().mapToInt(ReactorRodBlockEntity::getTotalSolidWasteCount).sum();
         if (totalSolidWaste > 0) {
-            ResourceLocation wasteId = null;
+            Identifier wasteId = null;
             for (ReactorRodBlockEntity rod : rods) {
                 for (var e : rod.getSolidWasteEntries()) {
                     if (e.count() > 0) {
@@ -370,7 +370,7 @@ public final class ReactorSimulation {
                 if (wasteId != null) break;
             }
             if (wasteId != null) {
-                Item item = BuiltInRegistries.ITEM.get(wasteId);
+                Item item = BuiltInRegistries.ITEM.getValue(wasteId);
                 if (item != null && item != net.minecraft.world.item.Items.AIR) {
                     int toTake = Math.min(64, totalSolidWaste);
                     ItemStack stack = ItemStack.EMPTY;
@@ -513,7 +513,7 @@ public final class ReactorSimulation {
         CoolantDefinition waterDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         for (ResourcePortBlockEntity port : resourcePorts) {
             if (port.getPortMode() != PortMode.INSERT) continue;
-            var stack = port.getFluidTank().getFluid();
+            var stack = port.getStoredFluid();
             if (stack.isEmpty()) continue;
             CoolantDefinition def = CoolantLoader.getDefinitionForFluid(stack.getFluid(), registryAccess);
             if (def != null) {
@@ -522,7 +522,7 @@ public final class ReactorSimulation {
         }
         for (ResourcePortBlockEntity port : resourcePorts) {
             if (port.getPortMode() != PortMode.INSERT) continue;
-            var stack = port.getFluidTank().getFluid();
+            var stack = port.getStoredFluid();
             if (stack.isEmpty()) continue;
             CoolantDefinition def = CoolantLoader.getDefinitionForFluid(stack.getFluid(), registryAccess);
             if (def != null) return def;
@@ -569,7 +569,7 @@ public final class ReactorSimulation {
             float consumed = rod.consumeFuel(first.id(), take);
             remaining -= consumed;
             if (consumed > 0 && !def.output().isEmpty() && !def.output().startsWith("#")) {
-                ResourceLocation wasteId = ResourceLocation.tryParse(def.output());
+                Identifier wasteId = Identifier.tryParse(def.output());
                 if (wasteId != null) {
                     int unitsPerWaste = Math.max(1, def.unitsPerWaste());
                     rod.recordConsumedAndAddWaste(wasteId, consumed, unitsPerWaste);
@@ -590,7 +590,7 @@ public final class ReactorSimulation {
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
             int rodPattern, int patternMode, int heatSinkIndex,
-            @Nullable ResourceLocation simulationFuelId,
+            @Nullable Identifier simulationFuelId,
             @Nullable CoolantDefinition coolantDef) {
         int w = sizeLeft + sizeRight + 1;
         int h = sizeHeight + 1;
@@ -682,7 +682,7 @@ public final class ReactorSimulation {
 
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null && coolantDef.mbMultiplier() > 0 ? coolantDef.mbMultiplier() : 1.0;
-        ResourceLocation fuelId = simulationFuelId != null ? simulationFuelId : ReactorRodBlockEntity.URANIUM_FUEL_ID;
+        Identifier fuelId = simulationFuelId != null ? simulationFuelId : ReactorRodBlockEntity.URANIUM_FUEL_ID;
         FuelDefinition fuelDef = FuelLoader.get(fuelId);
         double baseRf = fuelDef != null ? fuelDef.baseRfPerTick() : 200.0;
         double baseFuelUnitsPerTick = fuelDef != null ? fuelDef.baseFuelUnitsPerTick() : 0.03;
