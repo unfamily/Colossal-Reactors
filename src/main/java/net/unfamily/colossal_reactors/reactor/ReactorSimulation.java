@@ -640,6 +640,8 @@ public final class ReactorSimulation {
         }
         int coolantBlockCount = countAdj + countNon;
 
+        // Match runtime computeEffectiveRodCount(): horizontal neighbors are rods OR shell blocks.
+        // In simulation we have no world blocks, so shell adjacency is derived from interior boundaries.
         double effectiveRodCount = 0;
         double penalty = Config.ROD_ADJACENCY_PENALTY.get();
         for (int rx = 0; rx < rw; rx++) {
@@ -647,11 +649,36 @@ public final class ReactorSimulation {
                 for (int rz = 0; rz < rd; rz++) {
                     if (!rodSet.contains(key(rx, ry, rz))) continue;
                     int adjacentCount = 0;
-                    if (rx > 0 && rodSet.contains(key(rx - 1, ry, rz))) adjacentCount++;
-                    if (rx < rw - 1 && rodSet.contains(key(rx + 1, ry, rz))) adjacentCount++;
-                    if (rz > 0 && rodSet.contains(key(rx, ry, rz - 1))) adjacentCount++;
-                    if (rz < rd - 1 && rodSet.contains(key(rx, ry, rz + 1))) adjacentCount++;
-                    if (rx == 0 || rx == rw - 1 || rz == 0 || rz == rd - 1) adjacentCount++;
+
+                    // Rod-space coords -> interior coords used by runtime logic.
+                    int lx = rx + insetXZ;
+                    int lz = rz + insetXZ;
+
+                    // West
+                    if (rx > 0 && rodSet.contains(key(rx - 1, ry, rz))) {
+                        adjacentCount++;
+                    } else if (lx - 1 < 1) {
+                        adjacentCount++; // shell block
+                    }
+                    // East
+                    if (rx < rw - 1 && rodSet.contains(key(rx + 1, ry, rz))) {
+                        adjacentCount++;
+                    } else if (lx + 1 > w - 2) {
+                        adjacentCount++; // shell block
+                    }
+                    // North
+                    if (rz > 0 && rodSet.contains(key(rx, ry, rz - 1))) {
+                        adjacentCount++;
+                    } else if (lz - 1 < 1) {
+                        adjacentCount++; // shell block
+                    }
+                    // South
+                    if (rz < rd - 1 && rodSet.contains(key(rx, ry, rz + 1))) {
+                        adjacentCount++;
+                    } else if (lz + 1 > d - 2) {
+                        adjacentCount++; // shell block
+                    }
+
                     effectiveRodCount += Math.max(0.0, 1.0 - penalty * adjacentCount);
                 }
             }
