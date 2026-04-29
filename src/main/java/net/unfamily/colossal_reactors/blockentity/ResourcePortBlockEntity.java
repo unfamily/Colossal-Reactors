@@ -25,6 +25,7 @@ import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
@@ -341,8 +342,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Item handler exposed to capability (hoppers/pipes). INSERT: allow insert. EXTRACT/EJECT: allow extract only.
+     * {@link IItemHandlerModifiable} is required for NeoForge transactional transfers / snapshot revert (e.g. Ender IO conduits + IskaLib legacy bridge).
      */
-    private final class FilteredItemHandler implements net.neoforged.neoforge.items.IItemHandler {
+    private final class FilteredItemHandler implements IItemHandlerModifiable {
         private boolean allowInsert() {
             return portMode == PortMode.INSERT;
         }
@@ -388,6 +390,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
             return allowInsert() && itemHandler.isItemValid(slot, stack);
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @NotNull ItemStack stack) {
+            itemHandler.setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
         }
     }
 

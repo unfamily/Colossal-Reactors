@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DirectionalBlock;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
+import net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -95,6 +97,16 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
     private static <E extends BlockEntity, A extends BlockEntity> BlockEntityTicker<A> createTickerHelper(
             BlockEntityType<A> type, BlockEntityType<E> expected, BlockEntityTicker<? super E> ticker) {
         return expected == type ? (BlockEntityTicker<A>) ticker : null;
+    }
+
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult fluid = BlockFluidItemInteractions.useItemOnFluidBlock(stack, level, pos, player, hand, hitResult);
+        if (fluid != InteractionResult.PASS) {
+            return fluid;
+        }
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override

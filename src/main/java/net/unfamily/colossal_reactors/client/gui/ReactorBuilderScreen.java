@@ -399,11 +399,13 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void switchToSimulationView() {
         isSimulationView = true;
+        menu.setHideAllSlotsForSimulationView(true);
         updateWidgetVisibility();
     }
 
     private void switchToBuilderView() {
         isSimulationView = false;
+        menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
     }
 
@@ -822,5 +824,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             return true;
         }
         return super.keyPressed(event);
+    }
+
+    @Override
+    public void onClose() {
+        menu.setHideAllSlotsForSimulationView(false);
+        super.onClose();
     }
 }

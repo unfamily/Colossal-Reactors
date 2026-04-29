@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions;
 
 /**
  * Directional block that opens the Reactor Builder GUI. Front face uses reactor_builder_front, sides use reactor_builder_side.
@@ -67,6 +69,16 @@ public class ReactorBuilderBlock extends BaseEntityBlock {
         return type == net.unfamily.colossal_reactors.blockentity.ModBlockEntities.REACTOR_BUILDER_BE.get()
                 ? (l, pos, st, be) -> ((ReactorBuilderBlockEntity) be).serverTick()
                 : null;
+    }
+
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult fluid = BlockFluidItemInteractions.useItemOnFluidBlock(stack, level, pos, player, hand, hitResult);
+        if (fluid != InteractionResult.PASS) {
+            return fluid;
+        }
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override

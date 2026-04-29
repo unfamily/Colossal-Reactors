@@ -10,9 +10,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions;
 
 public class ResourcePortBlock extends BaseEntityBlock {
 
@@ -35,6 +37,16 @@ public class ResourcePortBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new ResourcePortBlockEntity(pos, state);
+    }
+
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult fluid = BlockFluidItemInteractions.useItemOnFluidBlock(stack, level, pos, player, hand, hitResult);
+        if (fluid != InteractionResult.PASS) {
+            return fluid;
+        }
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override

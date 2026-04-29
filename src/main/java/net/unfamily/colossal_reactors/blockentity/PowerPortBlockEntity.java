@@ -16,6 +16,9 @@ import net.neoforged.neoforge.transfer.energy.SimpleEnergyHandler;
  * BlockEntity for Power Port. Large energy buffer; reactor pushes in via {@link #receiveEnergyFromReactor(int)}.
  * Each tick the port pushes energy out to adjacent blocks that can receive (cables, machines).
  * Capacity and max extract per tick are read from Config (ports.power).
+ *
+ * <p>NeoForge {@link EnergyHandler} extraction works with standard receivers; known conduit bugs are on third-party mods (e.g. Ender IO),
+ * not on this port’s capability registration.
  */
 public class PowerPortBlockEntity extends BlockEntity {
 
@@ -24,7 +27,7 @@ public class PowerPortBlockEntity extends BlockEntity {
     }
 
     private final SimpleEnergyHandler core;
-    /** External automation: insert blocked; extract allowed (same behavior as legacy OutputOnlyEnergyWrapper). */
+    /** External automation: insert blocked; extract allowed (same behavior as legacy output-only wrappers). */
     private final EnergyHandler capabilityView;
 
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {

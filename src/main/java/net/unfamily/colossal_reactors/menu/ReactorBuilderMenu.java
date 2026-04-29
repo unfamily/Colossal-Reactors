@@ -9,6 +9,7 @@ import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
@@ -36,6 +37,12 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     private final ContainerData fluidData;
     private final ContainerData sizeData;
 
+    /**
+     * Client only: {@link net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen} sets this when
+     * switching to simulation view so buffer + player slots are not drawn or interacted with.
+     */
+    private boolean hideAllSlotsForSimulationView;
+
     public ReactorBuilderMenu(int containerId, Inventory playerInventory, ReactorBuilderBlockEntity blockEntity) {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
@@ -44,24 +51,9 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         addDataSlots(fluidData);
         addDataSlots(sizeData);
 
-        // Buffer 9x3
-        for (int row = 0; row < BUFFER_ROWS; row++) {
-            for (int col = 0; col < BUFFER_COLS; col++) {
-                addSlot(new SlotItemHandler(blockEntity.getBufferHandler(), col + row * BUFFER_COLS,
-                        BUFFER_X + col * 18, BUFFER_Y + row * 18));
-            }
-        }
+        addBufferSlots(blockEntity.getBufferHandler());
 
-        // Player main inventory 3x9
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, PLAYER_X + col * 18, PLAYER_Y + row * 18));
-            }
-        }
-        // Hotbar
-        for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y));
-        }
+        addPlayerInventorySlots(playerInventory);
     }
 
     /** Client-side constructor: dummy buffer handler and fluid data (server syncs contents). */
@@ -73,21 +65,49 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         addDataSlots(fluidData);
         addDataSlots(sizeData);
         ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
+        addBufferSlots(dummyBuffer);
+        addPlayerInventorySlots(playerInventory);
+    }
 
+    private void addBufferSlots(IItemHandler handler) {
         for (int row = 0; row < BUFFER_ROWS; row++) {
             for (int col = 0; col < BUFFER_COLS; col++) {
-                addSlot(new SlotItemHandler(dummyBuffer, col + row * BUFFER_COLS,
-                        BUFFER_X + col * 18, BUFFER_Y + row * 18));
+                int index = col + row * BUFFER_COLS;
+                addSlot(new SlotItemHandler(handler, index, BUFFER_X + col * 18, BUFFER_Y + row * 18) {
+                    @Override
+                    public boolean isActive() {
+                        return !hideAllSlotsForSimulationView;
+                    }
+                });
             }
         }
+    }
+
+    private void addPlayerInventorySlots(Inventory playerInventory) {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, PLAYER_X + col * 18, PLAYER_Y + row * 18));
+                int invSlot = col + row * 9 + 9;
+                addSlot(new Slot(playerInventory, invSlot, PLAYER_X + col * 18, PLAYER_Y + row * 18) {
+                    @Override
+                    public boolean isActive() {
+                        return !hideAllSlotsForSimulationView;
+                    }
+                });
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y));
+            addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y) {
+                @Override
+                public boolean isActive() {
+                    return !hideAllSlotsForSimulationView;
+                }
+            });
         }
+    }
+
+    /** Client: hide buffer + player inventory + hotbar slots while the builder screen is in simulation view. */
+    public void setHideAllSlotsForSimulationView(boolean hide) {
+        this.hideAllSlotsForSimulationView = hide;
     }
 
     public int getFluidAmount() { return fluidData.get(0); }

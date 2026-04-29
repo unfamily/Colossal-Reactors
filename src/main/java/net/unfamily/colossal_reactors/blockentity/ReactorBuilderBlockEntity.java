@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -79,7 +80,16 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
     };
 
-    private final FluidTank fluidTank = new FluidTank(getTankCapacityMb()) {
+    private final FluidTank fluidTank = new FluidTank(getTankCapacityMb(), stack -> {
+        if (stack.isEmpty()) {
+            return true;
+        }
+        Level l = ReactorBuilderBlockEntity.this.getLevel();
+        if (l == null) {
+            return false;
+        }
+        return HeatSinkLoader.getModifiersForFluid(stack.getFluid(), l.registryAccess()) != null;
+    }) {
         @Override
         protected void onContentsChanged() {
             setChanged();
