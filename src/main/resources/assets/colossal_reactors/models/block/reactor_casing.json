@@ -1,13 +1,17 @@
 {
-  "loader": "fusion:model",
-  "type": "connecting",
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "colossal_reactors:block/reactor_casing"
-  },
-  "connections": [
-    {
-      "type": "is_same_block"
-    }
-  ]
+  "loader": "colossal_reactors:connected_texture_fallback",
+  "single_texture": "colossal_reactors:block/reactor_casing_single",
+  "connected_model": {
+    "loader": "fusion:model",
+    "type": "connecting",
+    "parent": "minecraft:block/cube_all",
+    "textures": {
+      "all": "colossal_reactors:block/reactor_casing"
+    },
+    "connections": [
+      {
+        "type": "is_same_block"
+      }
+    ]
+  }
 }
