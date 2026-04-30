@@ -108,6 +108,7 @@
   "gui.colossal_reactors.reactor_controller.water_consume": "Refrigerante: %s mB/t",
   "gui.colossal_reactors.reactor_controller.fuel_units": "Combustibile: %s unità/t",
   "gui.colossal_reactors.reactor_controller.fuel_capacity": "Capacità combustibile: %s (%s%%)",
+  "gui.colossal_reactors.reactor_controller.waste_capacity": "Scorie: %s (%s%%)",
   "gui.colossal_reactors.reactor_controller.coolant_capacity": "Capacità refrigerante: %s mB (%s%%)",
   "gui.colossal_reactors.reactor_controller.reboot": "Reboot",
   "gui.colossal_reactors.reactor_controller.reboot.tooltip": "Ri-valida la struttura del reattore per rilevare modifiche",

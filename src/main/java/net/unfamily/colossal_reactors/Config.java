@@ -10,11 +10,6 @@ public class Config {
         BUILDER.comment("Development and advanced configuration").push("dev");
     }
 
-    public static final ModConfigSpec.ConfigValue<String> EXTERNAL_SCRIPTS_PATH = BUILDER
-            .comment("Path to the external scripts directory for Colossal Reactors integration with KubeJS",
-                    "Default: 'kubejs/external_scripts/colossal_reactors'")
-            .define("000_external_scripts_path", "kubejs/external_scripts/colossal_reactors");
-
     public static final ModConfigSpec.ConfigValue<Boolean> REACTOR_VALIDATION_DEBUG = BUILDER
             .comment("Dump full reactor validation to log (info level). Default: false")
             .define("001_reactor_validation_debug", false);
@@ -40,6 +35,10 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_BORON_OREGEN = BUILDER
             .comment("When true, disables boron ore generation in the world. Few mods add boron; useful to keep only boron. Default: false")
             .define("102_disable_boron_oregen", false);
+
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_RODS_RENDERING_UPDATE = BUILDER
+            .comment("When true, reactor rods blockstate is not updated to match fuel fill percentage (less lag, less visual feedback). Default: false")
+            .define("200_disableRodsRenderingUpdate", false);
 
     static {
         BUILDER.pop();
