@@ -179,7 +179,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final int ROD_PATTERN_COUNT = 4;
     private static final int PATTERN_MODE_COUNT = 4;
 
-    void resetBuildProgress() {
+    public void resetBuildProgress() {
         buildStage = 0;
         buildFrameX = buildFrameY = buildFrameZ = Integer.MIN_VALUE;
         buildRodCtrlRx = buildRodCtrlRz = Integer.MIN_VALUE;
@@ -188,32 +188,32 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         buildHeatLx = buildHeatLy = buildHeatLz = Integer.MIN_VALUE;
     }
 
-    int getBuildStage() { return buildStage; }
-    void setBuildStage(int stage) { this.buildStage = stage; }
+    public int getBuildStage() { return buildStage; }
+    public void setBuildStage(int stage) { this.buildStage = stage; }
 
-    int getBuildFrameX() { return buildFrameX; }
-    int getBuildFrameY() { return buildFrameY; }
-    int getBuildFrameZ() { return buildFrameZ; }
-    void setBuildFrameCursor(int x, int y, int z) { buildFrameX = x; buildFrameY = y; buildFrameZ = z; }
+    public int getBuildFrameX() { return buildFrameX; }
+    public int getBuildFrameY() { return buildFrameY; }
+    public int getBuildFrameZ() { return buildFrameZ; }
+    public void setBuildFrameCursor(int x, int y, int z) { buildFrameX = x; buildFrameY = y; buildFrameZ = z; }
 
-    int getBuildRodCtrlRx() { return buildRodCtrlRx; }
-    int getBuildRodCtrlRz() { return buildRodCtrlRz; }
-    void setBuildRodCtrlCursor(int rx, int rz) { buildRodCtrlRx = rx; buildRodCtrlRz = rz; }
+    public int getBuildRodCtrlRx() { return buildRodCtrlRx; }
+    public int getBuildRodCtrlRz() { return buildRodCtrlRz; }
+    public void setBuildRodCtrlCursor(int rx, int rz) { buildRodCtrlRx = rx; buildRodCtrlRz = rz; }
 
-    int getBuildRodLx() { return buildRodLx; }
-    int getBuildRodLy() { return buildRodLy; }
-    int getBuildRodLz() { return buildRodLz; }
-    void setBuildRodCursor(int lx, int ly, int lz) { buildRodLx = lx; buildRodLy = ly; buildRodLz = lz; }
+    public int getBuildRodLx() { return buildRodLx; }
+    public int getBuildRodLy() { return buildRodLy; }
+    public int getBuildRodLz() { return buildRodLz; }
+    public void setBuildRodCursor(int lx, int ly, int lz) { buildRodLx = lx; buildRodLy = ly; buildRodLz = lz; }
 
-    int getBuildLiquidLx() { return buildLiquidLx; }
-    int getBuildLiquidLy() { return buildLiquidLy; }
-    int getBuildLiquidLz() { return buildLiquidLz; }
-    void setBuildLiquidCursor(int lx, int ly, int lz) { buildLiquidLx = lx; buildLiquidLy = ly; buildLiquidLz = lz; }
+    public int getBuildLiquidLx() { return buildLiquidLx; }
+    public int getBuildLiquidLy() { return buildLiquidLy; }
+    public int getBuildLiquidLz() { return buildLiquidLz; }
+    public void setBuildLiquidCursor(int lx, int ly, int lz) { buildLiquidLx = lx; buildLiquidLy = ly; buildLiquidLz = lz; }
 
-    int getBuildHeatLx() { return buildHeatLx; }
-    int getBuildHeatLy() { return buildHeatLy; }
-    int getBuildHeatLz() { return buildHeatLz; }
-    void setBuildHeatCursor(int lx, int ly, int lz) { buildHeatLx = lx; buildHeatLy = ly; buildHeatLz = lz; }
+    public int getBuildHeatLx() { return buildHeatLx; }
+    public int getBuildHeatLy() { return buildHeatLy; }
+    public int getBuildHeatLz() { return buildHeatLz; }
+    public void setBuildHeatCursor(int lx, int ly, int lz) { buildHeatLx = lx; buildHeatLy = ly; buildHeatLz = lz; }
 
     private final ContainerData sizeData = new ContainerData() {
         @Override

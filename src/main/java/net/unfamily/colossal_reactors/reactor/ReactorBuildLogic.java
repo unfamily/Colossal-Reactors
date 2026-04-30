@@ -23,6 +23,12 @@ import net.unfamily.colossal_reactors.reactor.RodPatternLogic;
 public final class ReactorBuildLogic {
 
     private static final int MB_PER_LIQUID_BLOCK = 1000;
+    private static final int STAGE_FRAME = 0;
+    private static final int STAGE_ROD_CONTROLLERS = 1;
+    private static final int STAGE_RODS = 2;
+    private static final int STAGE_LIQUIDS = 3;
+    private static final int STAGE_HEAT_SINKS = 4;
+    private static final int STAGE_DONE = 5;
 
     private ReactorBuildLogic() {}
 
@@ -144,103 +150,246 @@ public final class ReactorBuildLogic {
 
         if (hasRedZone(level, builder)) return false;
 
-        // Try to place one block per tick in order: frame (skip top if openTop), rod controllers, rods, liquids, heat sink
-        // Frame: all border positions except top face when openTop; reserve top-face rod controller positions (no frame there)
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    if (y == maxY && openTop) continue;
-                    boolean onBorder = (x == minX || x == maxX || y == minY || y == maxY || z == minZ || z == maxZ);
-                    if (!onBorder) continue;
-                    if (y == maxY && isRodControllerPos(x, z, minX, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter)) continue; // reserve for rod controller
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (!canReplace(level, pos)) continue;
-                    // Cornice (edges/corners) and top/bottom faces: prefer casing. Lateral faces only: prefer glass.
-                    boolean edgeOrCorner = isEdgeOrCorner(x, y, z, minX, minY, minZ, maxX, maxY, maxZ);
-                    boolean topOrBottomFace = (y == minY || y == maxY);
+        // Forward-only build using cursors stored in the BE.
+        // Each call places at most one block (or waits for materials), and never rescans from the beginning.
+        for (int guard = 0; guard < 8; guard++) {
+            int stage = builder.getBuildStage();
+            if (stage == STAGE_FRAME) {
+                if (tickFrame(builder, level, minX, minY, minZ, maxX, maxY, maxZ, insetXZ, rw, rd, pattern, expansionRodAtCenter, openTop)) return true;
+                builder.setBuildStage(STAGE_ROD_CONTROLLERS);
+                builder.setBuildRodCtrlCursor(Integer.MIN_VALUE, Integer.MIN_VALUE);
+                builder.setChanged();
+                continue;
+            }
+            if (stage == STAGE_ROD_CONTROLLERS) {
+                if (tickRodControllers(builder, level, minX, minY, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter)) return true;
+                builder.setBuildStage(STAGE_RODS);
+                builder.setBuildRodCursor(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+                builder.setChanged();
+                continue;
+            }
+            if (stage == STAGE_RODS) {
+                if (tickRods(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+                builder.setBuildStage(STAGE_LIQUIDS);
+                builder.setBuildLiquidCursor(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+                builder.setChanged();
+                continue;
+            }
+            if (stage == STAGE_LIQUIDS) {
+                if (tickLiquids(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+                builder.setBuildStage(STAGE_HEAT_SINKS);
+                builder.setBuildHeatCursor(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+                builder.setChanged();
+                continue;
+            }
+            if (stage == STAGE_HEAT_SINKS) {
+                if (tickHeatSinks(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+                builder.setBuildStage(STAGE_DONE);
+                builder.setChanged();
+                return false;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean tickFrame(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                     int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+                                     int insetXZ, int rw, int rd, int pattern, boolean expansionRodAtCenter, boolean openTop) {
+        int x = builder.getBuildFrameX();
+        int y = builder.getBuildFrameY();
+        int z = builder.getBuildFrameZ();
+        if (x == Integer.MIN_VALUE) {
+            x = minX; y = minY; z = minZ;
+        }
+        for (int xx = x; xx <= maxX; xx++) {
+            int yy0 = (xx == x) ? y : minY;
+            for (int yy = yy0; yy <= maxY; yy++) {
+                int zz0 = (xx == x && yy == yy0) ? z : minZ;
+                for (int zz = zz0; zz <= maxZ; zz++) {
+                    if (yy == maxY && openTop) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue;
+                    }
+                    boolean onBorder = (xx == minX || xx == maxX || yy == minY || yy == maxY || zz == minZ || zz == maxZ);
+                    if (!onBorder) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue;
+                    }
+                    if (yy == maxY && isRodControllerPos(xx, zz, minX, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter)) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue; // reserve for rod controller
+                    }
+                    BlockPos pos = new BlockPos(xx, yy, zz);
+                    if (!canReplace(level, pos)) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue;
+                    }
+                    boolean edgeOrCorner = isEdgeOrCorner(xx, yy, zz, minX, minY, minZ, maxX, maxY, maxZ);
+                    boolean topOrBottomFace = (yy == minY || yy == maxY);
                     boolean preferCasing = edgeOrCorner || topOrBottomFace;
                     ItemStack frame = preferCasing ? findCasingBlock(builder) : findGlassBlock(builder);
                     if (frame.isEmpty()) frame = preferCasing ? findGlassBlock(builder) : findCasingBlock(builder);
-                    if (frame.isEmpty()) return true; // wait for materials
-                    if (tryPlaceFrame(builder, level, pos, frame)) return true;
+                    if (frame.isEmpty()) {
+                        builder.setBuildFrameCursor(xx, yy, zz);
+                        return true; // wait for materials at this position
+                    }
+                    if (tryPlaceFrame(builder, level, pos, frame)) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        return true;
+                    }
+                    builder.setBuildFrameCursor(xx, yy, zz + 1);
                 }
+                builder.setBuildFrameCursor(xx, yy + 1, minZ);
             }
+            builder.setBuildFrameCursor(xx + 1, minY, minZ);
         }
+        return false;
+    }
 
-        // Rod controllers on top face
+    private static boolean tickRodControllers(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                              int minX, int minY, int minZ, int maxY,
+                                              int insetXZ, int rw, int rd, int pattern, boolean expansionRodAtCenter) {
+        int rx0 = builder.getBuildRodCtrlRx();
+        int rz0 = builder.getBuildRodCtrlRz();
+        if (rx0 == Integer.MIN_VALUE) {
+            rx0 = 0; rz0 = 0;
+        }
         int rodControllerY = maxY;
-        for (int rx = 0; rx < rw; rx++) {
-            for (int rz = 0; rz < rd; rz++) {
+        for (int rx = rx0; rx < rw; rx++) {
+            int rzStart = (rx == rx0) ? rz0 : 0;
+            for (int rz = rzStart; rz < rd; rz++) {
+                builder.setBuildRodCtrlCursor(rx, rz + 1);
                 if (!RodPatternLogic.isRodColumnForPreview(rx, rz, rw, rd, pattern, expansionRodAtCenter)) continue;
                 BlockPos pos = new BlockPos(minX + insetXZ + rx, rodControllerY, minZ + insetXZ + rz);
                 if (!canReplace(level, pos)) continue;
                 ItemStack rodCtrl = findRodController(builder);
-                if (rodCtrl.isEmpty()) return true;
+                if (rodCtrl.isEmpty()) {
+                    builder.setBuildRodCtrlCursor(rx, rz);
+                    return true;
+                }
                 if (tryPlaceRodController(builder, level, pos, rodCtrl)) return true;
             }
+            builder.setBuildRodCtrlCursor(rx + 1, 0);
         }
+        return false;
+    }
 
-        // Interior: rods
-        for (int lx = insetXZ; lx < w - insetXZ; lx++) {
-            for (int ly = 1; ly < h - 1; ly++) {
-                for (int lz = insetXZ; lz < d - insetXZ; lz++) {
+    private static boolean tickRods(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                    int minX, int minY, int minZ,
+                                    int w, int h, int d,
+                                    int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        int lx0 = builder.getBuildRodLx();
+        int ly0 = builder.getBuildRodLy();
+        int lz0 = builder.getBuildRodLz();
+        if (lx0 == Integer.MIN_VALUE) {
+            lx0 = insetXZ; ly0 = 1; lz0 = insetXZ;
+        }
+        for (int lx = lx0; lx < w - insetXZ; lx++) {
+            int lyStart = (lx == lx0) ? ly0 : 1;
+            for (int ly = lyStart; ly < h - 1; ly++) {
+                int lzStart = (lx == lx0 && ly == lyStart) ? lz0 : insetXZ;
+                for (int lz = lzStart; lz < d - insetXZ; lz++) {
+                    builder.setBuildRodCursor(lx, ly, lz + 1);
                     int rx = lx - insetXZ, ry = ly - 1, rz = lz - insetXZ;
                     if (!RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                     if (!canReplace(level, pos)) continue;
                     ItemStack rod = findRod(builder);
-                    if (rod.isEmpty()) return true;
-                    if (tryPlaceRod(builder, level, pos, rod)) return true;
-                }
-            }
-        }
-
-        // Interior: liquids and heat sinks use FULL interior (1..w-2, 1..h-2, 1..d-2). Rods use only rod space (insetXZ area).
-        // Only use tank fluid when the coolant filter is set to that liquid (same as blocks: filter selects which type to place).
-        int patternMode = builder.getPatternMode();
-        Fluid fluid = builder.getFluidTank().getFluid().getFluid();
-        if (fluid != null && fluid != Fluids.EMPTY
-                && HeatSinkLoader.isFluidMatchingSelectedHeatSink(level.registryAccess(), builder.getSelectedHeatSinkIndex(), fluid)
-                && builder.getFluidTank().getFluidAmount() >= MB_PER_LIQUID_BLOCK) {
-            for (int lx = 1; lx < w - 1; lx++) {
-                for (int ly = 1; ly < h - 1; ly++) {
-                    for (int lz = 1; lz < d - 1; lz++) {
-                        if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                        if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
-                            if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                        } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                        BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
-                        if (!canReplaceForLiquid(level, pos, fluid)) continue;
-                        BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
-                        if (liquidBlock.isAir()) continue;
-                        level.setBlock(pos, liquidBlock, 3);
-                        builder.getFluidTank().drain(MB_PER_LIQUID_BLOCK, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
-                        builder.setChanged();
+                    if (rod.isEmpty()) {
+                        builder.setBuildRodCursor(lx, ly, lz);
                         return true;
                     }
+                    if (tryPlaceRod(builder, level, pos, rod)) return true;
                 }
+                builder.setBuildRodCursor(lx, ly + 1, insetXZ);
             }
+            builder.setBuildRodCursor(lx + 1, 1, insetXZ);
+        }
+        return false;
+    }
+
+    private static boolean tickLiquids(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                       int minX, int minY, int minZ,
+                                       int w, int h, int d,
+                                       int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        int patternMode = builder.getPatternMode();
+        Fluid fluid = builder.getFluidTank().getFluid().getFluid();
+        if (fluid == null || fluid == Fluids.EMPTY
+                || !HeatSinkLoader.isFluidMatchingSelectedHeatSink(level.registryAccess(), builder.getSelectedHeatSinkIndex(), fluid)
+                || builder.getFluidTank().getFluidAmount() < MB_PER_LIQUID_BLOCK) {
+            return false;
         }
 
-        // Interior: heat sink blocks. Full interior; skip rod cells. Economy: only if adjacent to rod.
-        for (int lx = 1; lx < w - 1; lx++) {
-            for (int ly = 1; ly < h - 1; ly++) {
-                for (int lz = 1; lz < d - 1; lz++) {
+        int lx0 = builder.getBuildLiquidLx();
+        int ly0 = builder.getBuildLiquidLy();
+        int lz0 = builder.getBuildLiquidLz();
+        if (lx0 == Integer.MIN_VALUE) {
+            lx0 = 1; ly0 = 1; lz0 = 1;
+        }
+        for (int lx = lx0; lx < w - 1; lx++) {
+            int lyStart = (lx == lx0) ? ly0 : 1;
+            for (int ly = lyStart; ly < h - 1; ly++) {
+                int lzStart = (lx == lx0 && ly == lyStart) ? lz0 : 1;
+                for (int lz = lzStart; lz < d - 1; lz++) {
+                    builder.setBuildLiquidCursor(lx, ly, lz + 1);
+                    if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
+                        if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
+                    if (!canReplaceForLiquid(level, pos, fluid)) continue;
+                    BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
+                    if (liquidBlock.isAir()) continue;
+                    level.setBlock(pos, liquidBlock, 3);
+                    builder.getFluidTank().drain(MB_PER_LIQUID_BLOCK, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                    builder.setChanged();
+                    return true;
+                }
+                builder.setBuildLiquidCursor(lx, ly + 1, 1);
+            }
+            builder.setBuildLiquidCursor(lx + 1, 1, 1);
+        }
+        return false;
+    }
+
+    private static boolean tickHeatSinks(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                         int minX, int minY, int minZ,
+                                         int w, int h, int d,
+                                         int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        int patternMode = builder.getPatternMode();
+        if (builder.getSelectedHeatSinkIndex() == 0) return false;
+
+        int lx0 = builder.getBuildHeatLx();
+        int ly0 = builder.getBuildHeatLy();
+        int lz0 = builder.getBuildHeatLz();
+        if (lx0 == Integer.MIN_VALUE) {
+            lx0 = 1; ly0 = 1; lz0 = 1;
+        }
+        for (int lx = lx0; lx < w - 1; lx++) {
+            int lyStart = (lx == lx0) ? ly0 : 1;
+            for (int ly = lyStart; ly < h - 1; ly++) {
+                int lzStart = (lx == lx0 && ly == lyStart) ? lz0 : 1;
+                for (int lz = lzStart; lz < d - 1; lz++) {
+                    builder.setBuildHeatCursor(lx, ly, lz + 1);
                     if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
                         if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                     if (!canReplaceForSolidBlock(level, pos)) continue;
-                    if (builder.getSelectedHeatSinkIndex() == 0) continue; // Air: leave empty
                     ItemStack heatSink = findHeatSinkBlock(builder);
-                    if (heatSink.isEmpty()) return true;
+                    if (heatSink.isEmpty()) {
+                        builder.setBuildHeatCursor(lx, ly, lz);
+                        return true;
+                    }
                     if (tryPlaceHeatSink(builder, level, pos, heatSink)) return true;
                 }
+                builder.setBuildHeatCursor(lx, ly + 1, 1);
             }
+            builder.setBuildHeatCursor(lx + 1, 1, 1);
         }
-
-        return false; // done
+        return false;
     }
 
     /** True if (lx, ly, lz) lies inside rod space (the -2 X/Z area). */
