@@ -158,7 +158,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final int ROD_PATTERN_COUNT = 4;
     private static final int PATTERN_MODE_COUNT = 4;
 
-    void resetBuildProgress() {
+    public void resetBuildProgress() {
         buildStage = 0;
         buildFrameX = buildFrameY = buildFrameZ = Integer.MIN_VALUE;
         buildRodCtrlRx = buildRodCtrlRz = Integer.MIN_VALUE;
@@ -167,32 +167,32 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         buildHeatLx = buildHeatLy = buildHeatLz = Integer.MIN_VALUE;
     }
 
-    int getBuildStage() { return buildStage; }
-    void setBuildStage(int stage) { this.buildStage = stage; }
+    public int getBuildStage() { return buildStage; }
+    public void setBuildStage(int stage) { this.buildStage = stage; }
 
-    int getBuildFrameX() { return buildFrameX; }
-    int getBuildFrameY() { return buildFrameY; }
-    int getBuildFrameZ() { return buildFrameZ; }
-    void setBuildFrameCursor(int x, int y, int z) { buildFrameX = x; buildFrameY = y; buildFrameZ = z; }
+    public int getBuildFrameX() { return buildFrameX; }
+    public int getBuildFrameY() { return buildFrameY; }
+    public int getBuildFrameZ() { return buildFrameZ; }
+    public void setBuildFrameCursor(int x, int y, int z) { buildFrameX = x; buildFrameY = y; buildFrameZ = z; }
 
-    int getBuildRodCtrlRx() { return buildRodCtrlRx; }
-    int getBuildRodCtrlRz() { return buildRodCtrlRz; }
-    void setBuildRodCtrlCursor(int rx, int rz) { buildRodCtrlRx = rx; buildRodCtrlRz = rz; }
+    public int getBuildRodCtrlRx() { return buildRodCtrlRx; }
+    public int getBuildRodCtrlRz() { return buildRodCtrlRz; }
+    public void setBuildRodCtrlCursor(int rx, int rz) { buildRodCtrlRx = rx; buildRodCtrlRz = rz; }
 
-    int getBuildRodLx() { return buildRodLx; }
-    int getBuildRodLy() { return buildRodLy; }
-    int getBuildRodLz() { return buildRodLz; }
-    void setBuildRodCursor(int lx, int ly, int lz) { buildRodLx = lx; buildRodLy = ly; buildRodLz = lz; }
+    public int getBuildRodLx() { return buildRodLx; }
+    public int getBuildRodLy() { return buildRodLy; }
+    public int getBuildRodLz() { return buildRodLz; }
+    public void setBuildRodCursor(int lx, int ly, int lz) { buildRodLx = lx; buildRodLy = ly; buildRodLz = lz; }
 
-    int getBuildLiquidLx() { return buildLiquidLx; }
-    int getBuildLiquidLy() { return buildLiquidLy; }
-    int getBuildLiquidLz() { return buildLiquidLz; }
-    void setBuildLiquidCursor(int lx, int ly, int lz) { buildLiquidLx = lx; buildLiquidLy = ly; buildLiquidLz = lz; }
+    public int getBuildLiquidLx() { return buildLiquidLx; }
+    public int getBuildLiquidLy() { return buildLiquidLy; }
+    public int getBuildLiquidLz() { return buildLiquidLz; }
+    public void setBuildLiquidCursor(int lx, int ly, int lz) { buildLiquidLx = lx; buildLiquidLy = ly; buildLiquidLz = lz; }
 
-    int getBuildHeatLx() { return buildHeatLx; }
-    int getBuildHeatLy() { return buildHeatLy; }
-    int getBuildHeatLz() { return buildHeatLz; }
-    void setBuildHeatCursor(int lx, int ly, int lz) { buildHeatLx = lx; buildHeatLy = ly; buildHeatLz = lz; }
+    public int getBuildHeatLx() { return buildHeatLx; }
+    public int getBuildHeatLy() { return buildHeatLy; }
+    public int getBuildHeatLz() { return buildHeatLz; }
+    public void setBuildHeatCursor(int lx, int ly, int lz) { buildHeatLx = lx; buildHeatLy = ly; buildHeatLz = lz; }
 
     private final ContainerData sizeData = new ContainerData() {
         @Override
@@ -464,6 +464,21 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_PATTERN_MODE, patternMode);
         tag.putBoolean(TAG_BUILDING, building);
         tag.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
+        tag.putInt(TAG_BUILD_STAGE, buildStage);
+        tag.putInt(TAG_BUILD_FRAME_X, buildFrameX);
+        tag.putInt(TAG_BUILD_FRAME_Y, buildFrameY);
+        tag.putInt(TAG_BUILD_FRAME_Z, buildFrameZ);
+        tag.putInt(TAG_BUILD_RODCTRL_RX, buildRodCtrlRx);
+        tag.putInt(TAG_BUILD_RODCTRL_RZ, buildRodCtrlRz);
+        tag.putInt(TAG_BUILD_ROD_LX, buildRodLx);
+        tag.putInt(TAG_BUILD_ROD_LY, buildRodLy);
+        tag.putInt(TAG_BUILD_ROD_LZ, buildRodLz);
+        tag.putInt(TAG_BUILD_LIQUID_LX, buildLiquidLx);
+        tag.putInt(TAG_BUILD_LIQUID_LY, buildLiquidLy);
+        tag.putInt(TAG_BUILD_LIQUID_LZ, buildLiquidLz);
+        tag.putInt(TAG_BUILD_HEAT_LX, buildHeatLx);
+        tag.putInt(TAG_BUILD_HEAT_LY, buildHeatLy);
+        tag.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
     }
 
     @Override
@@ -503,6 +518,21 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_PATTERN_MODE)) patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, tag.getInt(TAG_PATTERN_MODE)));
         if (tag.contains(TAG_BUILDING)) building = tag.getBoolean(TAG_BUILDING);
         if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
+        if (tag.contains(TAG_BUILD_STAGE)) buildStage = tag.getInt(TAG_BUILD_STAGE);
+        if (tag.contains(TAG_BUILD_FRAME_X)) buildFrameX = tag.getInt(TAG_BUILD_FRAME_X);
+        if (tag.contains(TAG_BUILD_FRAME_Y)) buildFrameY = tag.getInt(TAG_BUILD_FRAME_Y);
+        if (tag.contains(TAG_BUILD_FRAME_Z)) buildFrameZ = tag.getInt(TAG_BUILD_FRAME_Z);
+        if (tag.contains(TAG_BUILD_RODCTRL_RX)) buildRodCtrlRx = tag.getInt(TAG_BUILD_RODCTRL_RX);
+        if (tag.contains(TAG_BUILD_RODCTRL_RZ)) buildRodCtrlRz = tag.getInt(TAG_BUILD_RODCTRL_RZ);
+        if (tag.contains(TAG_BUILD_ROD_LX)) buildRodLx = tag.getInt(TAG_BUILD_ROD_LX);
+        if (tag.contains(TAG_BUILD_ROD_LY)) buildRodLy = tag.getInt(TAG_BUILD_ROD_LY);
+        if (tag.contains(TAG_BUILD_ROD_LZ)) buildRodLz = tag.getInt(TAG_BUILD_ROD_LZ);
+        if (tag.contains(TAG_BUILD_LIQUID_LX)) buildLiquidLx = tag.getInt(TAG_BUILD_LIQUID_LX);
+        if (tag.contains(TAG_BUILD_LIQUID_LY)) buildLiquidLy = tag.getInt(TAG_BUILD_LIQUID_LY);
+        if (tag.contains(TAG_BUILD_LIQUID_LZ)) buildLiquidLz = tag.getInt(TAG_BUILD_LIQUID_LZ);
+        if (tag.contains(TAG_BUILD_HEAT_LX)) buildHeatLx = tag.getInt(TAG_BUILD_HEAT_LX);
+        if (tag.contains(TAG_BUILD_HEAT_LY)) buildHeatLy = tag.getInt(TAG_BUILD_HEAT_LY);
+        if (tag.contains(TAG_BUILD_HEAT_LZ)) buildHeatLz = tag.getInt(TAG_BUILD_HEAT_LZ);
     }
 
     @Override
