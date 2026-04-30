@@ -1,5 +1,6 @@
 package net.unfamily.colossal_reactors.client.gui;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -14,6 +15,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -24,6 +26,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.network.ReactorBuilderBuildPayload;
+import net.unfamily.colossal_reactors.network.ReactorBuilderMarkInputPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
@@ -39,7 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reactor Builder GUI. Background reactor_builder.png 230x230; slots offset +27px right from left edge.
+ * Reactor Builder GUI. Background reactor_builder.png 230x240; slots offset +27px right from left edge.
  * Like Deep Drawer Extractor: Simulation is a view mode (isSimulationView) on the same screen, not a separate Screen.
  */
 public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilderMenu> {
@@ -50,7 +53,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
-    private static final int GUI_HEIGHT = 230;
+    private static final int GUI_HEIGHT = 240;
 
     /** Close button (X): top right */
     private static final int CLOSE_BUTTON_Y = 5;
@@ -92,9 +95,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int PREVIEW_BUTTON_Y = ROW2_Y + BUTTON_H + GAP;
     private static final int PREVIEW_BUTTON_W = ARROW_GROUP_WIDTH;
     private static final int PREVIEW_BUTTON_X = GROUP_LEFT_X;
+    private static final int MARK_INPUT_BUTTON_Y = PREVIEW_BUTTON_Y + BUTTON_H + GAP;
 
     /**
-     * 6 buttons: 3 cols x 2 rows (Heat Sink, Pattern, PatternMode, OpenTop, Simulation, Build/Stop); warning between the two rows.
+     * 6 buttons: 3 cols x 2 rows (Heat Sink, Pattern, PatternMode, OpenTop, Simulation, Build/Stop).
+     * Invalid-blocks warning at PREVIEW_BUTTON_Y; second right row aligns with Mark Input.
      */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
@@ -103,11 +108,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_COL0_X = RIGHT_BLOCK_X;
     private static final int RIGHT_COL1_X = RIGHT_BLOCK_X + RIGHT_BUTTON_W + GAP;
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
-    // Align right block rows with left controls:
-    // - Row 0 aligns with the up arrow (ROW1_Y)
-    // - Row 1 aligns with the Preview button (PREVIEW_BUTTON_Y)
+    // Align right block row 0 with the up arrow (ROW1_Y). Row 1 aligns with Mark Input.
     private static final int RIGHT_ROW0_Y = ROW1_Y;
-    private static final int RIGHT_ROW1_Y = PREVIEW_BUTTON_Y;
+    /** Y for invalid-blocks message (same band as former second button row). */
+    private static final int RIGHT_ROW_WARNING_MESSAGE_Y = PREVIEW_BUTTON_Y;
+    /** Second row of right buttons: aligned with Mark Input (left column). */
+    private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
     /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 
@@ -157,6 +163,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
+    private Button buttonMarkInput;
     /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
     private final Button[] rightBlockButtons = new Button[6];
     /** Shown only in simulation view: cycles coolant type (same position as Reboot in controller). */
@@ -177,7 +184,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
-        BlockPos pos = menu.getBlockPos();
         buttonUp = Button.builder(Component.literal("\u2191"), b -> sendSize(0, true))  // ↑
                 .bounds(leftPos + BUTTON_UP_X, topPos + ROW1_Y, BUTTON_W, BUTTON_H)
                 .build();
@@ -197,13 +203,24 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
         // Preview below the 4 arrows, centered with arrow group
         buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.preview"), b -> {
-            if (!menu.getBlockPos().equals(BlockPos.ZERO))
+            if (menu.getBlockEntity() != null)
                 PacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
         })
                 .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
                 .build();
         buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
         addRenderableWidget(buttonPreview);
+
+        buttonMarkInput = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.mark_input"), b -> onMarkInputPressed())
+                .bounds(leftPos + PREVIEW_BUTTON_X, topPos + MARK_INPUT_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
+                .build();
+        buttonMarkInput.setTooltip(Tooltip.create(
+                Component.translatable("gui.colossal_reactors.reactor_builder.mark_input.tooltip.line1")
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.mark_input.tooltip.line2"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.mark_input.tooltip.line3"))));
+        addRenderableWidget(buttonMarkInput);
 
         // Right block: 3 cols x 2 rows. 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop.
         int[] rowY = {RIGHT_ROW0_Y, RIGHT_ROW1_Y};
@@ -393,6 +410,17 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
     }
 
+    private void onMarkInputPressed() {
+        if (menu.getBlockEntity() == null) return;
+        int mode = ReactorBuilderMarkInputPayload.MODE_NORMAL;
+        if (Screen.hasShiftDown()) {
+            mode = ReactorBuilderMarkInputPayload.MODE_SHIFT;
+        } else if (Screen.hasControlDown() || Screen.hasAltDown()) {
+            mode = ReactorBuilderMarkInputPayload.MODE_CTRL;
+        }
+        PacketDistributor.sendToServer(new ReactorBuilderMarkInputPayload(menu.getBlockEntity().getBlockPos(), mode));
+    }
+
     private void switchToSimulationView() {
         isSimulationView = true;
         updateWidgetVisibility();
@@ -410,6 +438,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonRight.visible = showBuilder;
         buttonDown.visible = showBuilder;
         buttonPreview.visible = showBuilder;
+        buttonMarkInput.visible = showBuilder;
         for (Button b : rightBlockButtons) b.visible = showBuilder;
         if (coolantCycleButton != null) {
             coolantCycleButton.visible = isSimulationView;
@@ -445,12 +474,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void onRightBlockClick(int index) {
-        BlockPos pos = menu.getBlockPos();
         if (index == 4) {
             switchToSimulationView();
             return;
         }
-        if (pos.equals(BlockPos.ZERO)) return;
+        if (menu.getBlockEntity() == null) return;
+        BlockPos pos = menu.getBlockPos();
         if (index == 0) {
             PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, true));  // left click = next
             return;
@@ -509,8 +538,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void sendSize(int direction, boolean increment) {
+        if (menu.getBlockEntity() == null) return;
         BlockPos pos = menu.getBlockPos();
-        if (pos.equals(BlockPos.ZERO)) return;
         int amount = Screen.hasShiftDown() ? 10 : (Screen.hasControlDown() || Screen.hasAltDown()) ? 5 : 1;
         PacketDistributor.sendToServer(new ReactorBuilderSizePayload(pos, direction, increment, amount));
     }
@@ -545,27 +574,23 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 return true;
             }
             if (isInRightBlockButton(x, y, 0)) {
-                BlockPos pos = menu.getBlockPos();
-                if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(pos, false));  // right click = previous
+                if (menu.getBlockEntity() != null)
+                    PacketDistributor.sendToServer(new ReactorBuilderHeatSinkPayload(menu.getBlockPos(), false));  // right click = previous
                 return true;
             }
             if (isInRightBlockButton(x, y, 1)) {
-                BlockPos pos = menu.getBlockPos();
-                if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 1, false));  // right = previous
+                if (menu.getBlockEntity() != null)
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(menu.getBlockPos(), 1, false));  // right = previous
                 return true;
             }
             if (isInRightBlockButton(x, y, 2)) {
-                BlockPos pos = menu.getBlockPos();
-                if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, false));
+                if (menu.getBlockEntity() != null)
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(menu.getBlockPos(), 2, false));
                 return true;
             }
             if (isInRightBlockButton(x, y, 3)) {
-                BlockPos pos = menu.getBlockPos();
-                if (!pos.equals(BlockPos.ZERO))
-                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, false));  // open top
+                if (menu.getBlockEntity() != null)
+                    PacketDistributor.sendToServer(new ReactorBuilderOptionPayload(menu.getBlockPos(), 0, false));  // open top
                 return true;
             }
         }
@@ -739,25 +764,48 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Build progress + warning. Progress stays visible after completion/abort until user stops or restarts.
-        if (menu.isBuildProgressVisible() || menu.isInvalidBlocksDetected()) {
-            int warningY = ROW2_Y + BUTTON_H - font.lineHeight;
+        // Build progress (aligned with bottom of row-2 arrows). Warning on separate line at former row-1 Y.
+        int buildingTextY = ROW2_Y + BUTTON_H - font.lineHeight;
+        if (menu.isBuildProgressVisible()) {
             int percent = menu.getBuildProgressPercent();
             float t = Math.max(0, Math.min(100, percent)) / 100f;
             int r = (int) (255 * (1f - t));
             int g = (int) (255 * t);
             int progressColor = 0xFF000000 | (r << 16) | (g << 8);
-            int color = menu.isBuildProgressVisible() ? progressColor : 0xFF0000;
-            MutableComponent line = menu.isBuildProgressVisible()
-                    ? Component.translatable("gui.colossal_reactors.reactor_builder.building_progress", menu.getBuildProgressPercent())
-                    : Component.empty();
-            if (menu.isInvalidBlocksDetected()) {
-                if (!line.getString().isEmpty()) line.append(Component.literal(" - "));
-                line.append(Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks"));
+            Component prefix = Component.translatable("gui.colossal_reactors.reactor_builder.building_progress_label");
+            guiGraphics.drawString(font, prefix, WARNING_RIGHT_X, buildingTextY, 0x404040, false);
+            int pctX = WARNING_RIGHT_X + font.width(prefix);
+            guiGraphics.drawString(font, Component.literal(percent + "%"), pctX, buildingTextY, progressColor, false);
+        }
+        if (menu.isInvalidBlocksDetected()) {
+            guiGraphics.drawString(font,
+                    Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks"),
+                    WARNING_RIGHT_X, RIGHT_ROW_WARNING_MESSAGE_Y, 0xFF0000, false);
+        }
+    }
+
+    private void renderMarkInputGhosts(GuiGraphics guiGraphics) {
+        if (isSimulationView) return;
+        if (menu.getBlockEntity() == null) return;
+        RenderSystem.disableDepthTest();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        try {
+            for (int i = 0; i < ReactorBuilderMenu.BUFFER_SLOTS; i++) {
+                if (!menu.hasMarkInputFilter(i)) continue;
+                Slot guiSlot = menu.getSlot(i);
+                if (!guiSlot.getItem().isEmpty()) continue;
+                ItemStack ghost = menu.getMarkInputFilter(i);
+                if (ghost.isEmpty()) continue;
+                guiGraphics.pose().pushPose();
+                guiGraphics.pose().translate(leftPos + guiSlot.x, topPos + guiSlot.y, 0f);
+                guiGraphics.renderItem(ghost, 0, 0);
+                guiGraphics.fill(0, 0, 16, 16, 0x80000000);
+                guiGraphics.pose().popPose();
             }
-            if (!line.getString().isEmpty()) {
-                guiGraphics.drawString(font, line, WARNING_RIGHT_X, warningY, color, false);
-            }
+        } finally {
+            RenderSystem.disableBlend();
+            RenderSystem.enableDepthTest();
         }
     }
 
@@ -800,6 +848,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             this.renderTooltip(guiGraphics, mouseX, mouseY);
         } else {
             super.render(guiGraphics, mouseX, mouseY, partialTick);
+            renderMarkInputGhosts(guiGraphics);
             this.renderTooltip(guiGraphics, mouseX, mouseY);
         }
     }

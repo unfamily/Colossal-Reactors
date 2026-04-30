@@ -1,126 +1,133 @@
 package net.unfamily.colossal_reactors.menu;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.SlotItemHandler;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Menu for Reactor Builder GUI. Texture 230x230; all slot X positions +27px from left (buffer, player, hotbar).
+ * Menu for Reactor Builder GUI. Texture 230x240; all slot X positions +27px from left (buffer, player, hotbar).
  */
 public class ReactorBuilderMenu extends AbstractContainerMenu {
 
     private static final int BUFFER_ROWS = 3;
     private static final int BUFFER_COLS = 9;
-    private static final int BUFFER_SLOTS = BUFFER_ROWS * BUFFER_COLS;
+    public static final int BUFFER_SLOTS = BUFFER_ROWS * BUFFER_COLS;
 
-    /** Buffer slot positions (top-left of 9x3 grid). */
     private static final int BUFFER_X = 35;
-    private static final int BUFFER_Y = 82;
+    private static final int BUFFER_Y = 92;
 
-    /** Player inventory (3x9) and hotbar (1x9). */
     private static final int PLAYER_X = 35;
-    private static final int PLAYER_Y = 148;
-    private static final int HOTBAR_Y = 206;
+    private static final int PLAYER_Y = 158;
+    private static final int HOTBAR_Y = 216;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData fluidData;
     private final ContainerData sizeData;
 
-    public ReactorBuilderMenu(int containerId, Inventory playerInventory, ReactorBuilderBlockEntity blockEntity) {
+    private final @Nullable ReactorBuilderBlockEntity blockEntity;
+
+    public ReactorBuilderMenu(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
+        this(containerId, playerInventory, playerInventory.player.level().getBlockEntity(buf.readBlockPos()));
+    }
+
+    public ReactorBuilderMenu(int containerId, Inventory playerInventory, ReactorBuilderBlockEntity reactorBuilder) {
+        this(containerId, playerInventory, (BlockEntity) reactorBuilder);
+    }
+
+    private ReactorBuilderMenu(int containerId, Inventory playerInventory, @Nullable BlockEntity entity) {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
-        this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
-        this.fluidData = blockEntity.getFluidData();
-        this.sizeData = blockEntity.getSizeData();
+        if (entity instanceof ReactorBuilderBlockEntity rbe) {
+            this.blockEntity = rbe;
+            this.levelAccess = ContainerLevelAccess.create(rbe.getLevel(), rbe.getBlockPos());
+            this.fluidData = rbe.getFluidData();
+            this.sizeData = rbe.getSizeData();
+        } else {
+            this.blockEntity = null;
+            this.levelAccess = ContainerLevelAccess.NULL;
+            this.fluidData = new SimpleContainerData(3);
+            this.sizeData = new SimpleContainerData(15);
+        }
         addDataSlots(fluidData);
         addDataSlots(sizeData);
+        if (blockEntity != null) {
+            addBufferSlots(blockEntity.getBufferHandler());
+        } else {
+            addBufferSlots(new ItemStackHandler(BUFFER_SLOTS));
+        }
+        addPlayerInventorySlots(playerInventory);
+    }
 
-        // Buffer 9x3
+    private void addBufferSlots(IItemHandler handler) {
         for (int row = 0; row < BUFFER_ROWS; row++) {
             for (int col = 0; col < BUFFER_COLS; col++) {
-                addSlot(new SlotItemHandler(blockEntity.getBufferHandler(), col + row * BUFFER_COLS,
-                        BUFFER_X + col * 18, BUFFER_Y + row * 18));
+                int index = col + row * BUFFER_COLS;
+                addSlot(new SlotItemHandler(handler, index, BUFFER_X + col * 18, BUFFER_Y + row * 18));
             }
         }
+    }
 
-        // Player main inventory 3x9
+    private void addPlayerInventorySlots(Inventory playerInventory) {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, PLAYER_X + col * 18, PLAYER_Y + row * 18));
+                int invSlot = col + row * 9 + 9;
+                addSlot(new Slot(playerInventory, invSlot, PLAYER_X + col * 18, PLAYER_Y + row * 18));
             }
         }
-        // Hotbar
         for (int col = 0; col < 9; col++) {
             addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y));
         }
     }
 
-    /** Client-side constructor: dummy buffer handler and fluid data (server syncs contents). */
-    public ReactorBuilderMenu(int containerId, Inventory playerInventory) {
-        super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
-        this.levelAccess = ContainerLevelAccess.NULL;
-        this.fluidData = new SimpleContainerData(3);
-        this.sizeData = new SimpleContainerData(15);
-        addDataSlots(fluidData);
-        addDataSlots(sizeData);
-        ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
+    public ItemStack getMarkInputFilter(int slot) {
+        return blockEntity != null ? blockEntity.getMarkInputFilter(slot) : ItemStack.EMPTY;
+    }
 
-        for (int row = 0; row < BUFFER_ROWS; row++) {
-            for (int col = 0; col < BUFFER_COLS; col++) {
-                addSlot(new SlotItemHandler(dummyBuffer, col + row * BUFFER_COLS,
-                        BUFFER_X + col * 18, BUFFER_Y + row * 18));
-            }
-        }
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, PLAYER_X + col * 18, PLAYER_Y + row * 18));
-            }
-        }
-        for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y));
-        }
+    public boolean hasMarkInputFilter(int slot) {
+        return blockEntity != null && blockEntity.hasMarkInputFilter(slot);
+    }
+
+    /** Null when the client menu could not resolve the builder block entity from the open payload. */
+    public @Nullable ReactorBuilderBlockEntity getBlockEntity() {
+        return blockEntity;
     }
 
     public int getFluidAmount() { return fluidData.get(0); }
     public int getFluidCapacity() { return fluidData.get(1); }
-    /** Fluid registry id for GUI; -1 if empty. */
     public int getFluidId() { return fluidData.get(2); }
 
-    /** Display "Left": shows sizeRight (L/R inverted for GUI). */
     public int getSizeLeft() { return sizeData.get(1); }
-    /** Display "Right": shows sizeLeft (L/R inverted for GUI). */
     public int getSizeRight() { return sizeData.get(0); }
     public int getSizeH() { return sizeData.get(2); }
     public int getSizeD() { return sizeData.get(3); }
-    /** Block pos synced via sizeData indices 4,5,6 (for client button payloads). */
+
     public BlockPos getBlockPos() {
+        if (blockEntity != null) {
+            return blockEntity.getBlockPos();
+        }
         return new BlockPos(sizeData.get(4), sizeData.get(5), sizeData.get(6));
     }
-    /** Heat sink option index (0=Air, 1..=definition). Synced via sizeData index 7. */
-    public int getHeatSinkIndex() { return sizeData.get(7); }
-    /** Open top when built (index 8): 0=closed, 1=open. */
-    public boolean isOpenTop() { return sizeData.get(8) != 0; }
-    /** Rod pattern (index 9): 0=DOTS, 1=CHECKERBOARD, 2=EXPANSION. */
-    public int getRodPattern() { return sizeData.get(9); }
-    /** Pattern mode (index 10): 0=OPTIMIZED, 1=PRODUCTION, 2=ECONOMY. */
-    public int getPatternMode() { return sizeData.get(10); }
-    /** Building in progress (index 11): 0=Build, 1=Stop. */
-    public boolean isBuilding() { return sizeData.get(11) != 0; }
-    /** Invalid blocks detected during build (index 12). Show warning in GUI. */
-    public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
 
-    /** Build progress percent (index 13). */
+    public int getHeatSinkIndex() { return sizeData.get(7); }
+    public boolean isOpenTop() { return sizeData.get(8) != 0; }
+    public int getRodPattern() { return sizeData.get(9); }
+    public int getPatternMode() { return sizeData.get(10); }
+    public boolean isBuilding() { return sizeData.get(11) != 0; }
+    public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
     public int getBuildProgressPercent() { return sizeData.get(13); }
-    /** Whether progress should be shown (index 14). */
     public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
 
     @Override
