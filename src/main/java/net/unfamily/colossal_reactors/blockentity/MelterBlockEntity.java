@@ -280,6 +280,15 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         return fluidTank;
     }
 
+    /** Server: discard all fluid in the internal tank (GUI dump). @return true if any fluid was removed */
+    public boolean dumpFluidTankContents() {
+        if (level == null || level.isClientSide()) return false;
+        if (fluidTank.getFluid().isEmpty()) return false;
+        fluidTank.setFluid(FluidStack.EMPTY);
+        setChanged();
+        return true;
+    }
+
     /** Fluid handler for capability: drain only (bucket/pipes can extract, not insert). */
     public IFluidHandler getFluidHandlerForCapability() {
         return new DrainOnlyFluidHandler();

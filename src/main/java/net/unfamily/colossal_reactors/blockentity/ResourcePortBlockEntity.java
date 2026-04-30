@@ -233,6 +233,15 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return fluidTank;
     }
 
+    /** Server: discard all fluid in the internal tank (GUI dump). @return true if any fluid was removed */
+    public boolean dumpFluidTankContents() {
+        if (level == null || level.isClientSide()) return false;
+        if (fluidTank.getFluid().isEmpty()) return false;
+        fluidTank.setFluid(FluidStack.EMPTY);
+        setChanged();
+        return true;
+    }
+
     /**
      * Drops all items from the item handler into the world. Call when the block is broken.
      */

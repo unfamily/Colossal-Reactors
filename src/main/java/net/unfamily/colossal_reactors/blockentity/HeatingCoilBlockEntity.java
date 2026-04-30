@@ -97,7 +97,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         return false;
     }
 
-    private boolean hasFluidRequirement() {
+    public boolean hasFluidRequirement() {
         HeatingCoilDefinition def = getDefinition();
         if (def == null) return false;
         for (ConsumeOption opt : def.consume()) {
@@ -479,6 +479,20 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     public IFluidHandler getFluidHandler() {
         return fluidTank;
+    }
+
+    /**
+     * Server: discard all fluid in the internal tank (GUI dump). Only when the coil definition uses fluid
+     * ({@link #hasFluidRequirement()}).
+     * @return true if any fluid was removed
+     */
+    public boolean dumpFluidTankContents() {
+        if (level == null || level.isClientSide()) return false;
+        if (!hasFluidRequirement()) return false;
+        if (fluidTank.getFluid().isEmpty()) return false;
+        fluidTank.setFluid(FluidStack.EMPTY);
+        setChanged();
+        return true;
     }
 
     public IEnergyStorage getEnergyStorage() {

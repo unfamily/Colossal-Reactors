@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -20,14 +21,15 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
+import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.HeatingCoilRedstoneModePayload;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * GUI for Heating Coil (port-style). Uses resource_port.png; fluid bar censored with background if coil has no fluid;
- * energy bar on the right when coil uses energy (texture from energy_bar.png, same as iskandert_utilities style).
+ * GUI for Heating Coil (port-style). Uses resource_port.png at 176x176; layout matches Resource Port (taller panel, slot/fluid shifted down).
+ * Fluid bar censored with background if coil has no fluid; energy bar on the right when coil uses energy.
  */
 public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> {
 
@@ -37,13 +39,22 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
 
     private static final int GUI_WIDTH = 176;
-    private static final int GUI_HEIGHT = 166;
+    private static final int GUI_HEIGHT = 176;
 
     private static final int FLUID_BAR_X = 10;
-    private static final int FLUID_BAR_Y = 14;
+    private static final int FLUID_BAR_Y = 19;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
+
+    /** Dump (D): under fluid tank when coil uses fluid; same size as reactor builder arrows. */
+    private static final int DUMP_BUTTON_W = 14;
+    private static final int DUMP_BUTTON_H = 12;
+    private static final int DUMP_BUTTON_GAP_BELOW = 3;
+    private static final int TANK_OUTER_W = FLUID_FILL_WIDTH + 2 * FLUID_FILL_INSET;
+    private static final int TANK_OUTER_H = FLUID_FILL_HEIGHT + 2 * FLUID_FILL_INSET;
+    private static final int FLUID_DUMP_X = FLUID_BAR_X + (TANK_OUTER_W - DUMP_BUTTON_W) / 2;
+    private static final int FLUID_DUMP_Y = FLUID_BAR_Y + TANK_OUTER_H + DUMP_BUTTON_GAP_BELOW;
 
     /** Tank total height (fill + border inset on both sides); energy bar is centered within this */
     private static final int TANK_TOTAL_HEIGHT = FLUID_FILL_HEIGHT + 2 * FLUID_FILL_INSET;
@@ -59,7 +70,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
 
     /** Slot position and size (standard 18x18 including border); censor uses +1px each side */
     private static final int SLOT_X = 37;
-    private static final int SLOT_Y = 33;
+    private static final int SLOT_Y = 38;
     private static final int SLOT_SIZE = 18;
 
     /** Close button (X): top right, same as other port screens */
@@ -77,6 +88,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int REDSTONE_BUTTON_Y = SLOT_Y + (SLOT_SIZE - REDSTONE_BUTTON_SIZE) / 2;
 
     private Button closeButton;
+    private Button buttonDumpFluid;
     private int redstoneButtonScreenX;
     private int redstoneButtonScreenY;
 
@@ -97,6 +109,15 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
+        buttonDumpFluid = Button.builder(Component.literal("D"), b -> {
+            if (menu.getBlockPos() != null) {
+                PacketDistributor.sendToServer(new FluidTankDumpPayload(menu.getBlockPos()));
+            }
+        })
+                .bounds(leftPos + FLUID_DUMP_X, topPos + FLUID_DUMP_Y, DUMP_BUTTON_W, DUMP_BUTTON_H)
+                .build();
+        buttonDumpFluid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
+        addRenderableWidget(buttonDumpFluid);
         redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
         redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
     }
@@ -162,6 +183,9 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (buttonDumpFluid != null) {
+            buttonDumpFluid.visible = menu.showFluidInGui();
+        }
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         renderRedstoneButton(guiGraphics, mouseX, mouseY);
         this.renderTooltip(guiGraphics, mouseX, mouseY);

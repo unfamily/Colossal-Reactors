@@ -14,7 +14,7 @@ import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
 import java.util.List;
 
 /**
- * Radiation Scrubber GUI. Texture 176x166. Slot 0 at (44,33), Slot 1 (catalyst) at (80,33). Energy bar on right. Default and custom tooltips.
+ * Radiation Scrubber GUI. Texture 176x176. Slot 0 at (44,38), Slot 1 (catalyst) at (80,38). Energy bar on right. Default and custom tooltips.
  */
 public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationScrubberMenu> {
 
@@ -24,14 +24,14 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
 
     private static final int GUI_WIDTH = 176;
-    private static final int GUI_HEIGHT = 166;
+    private static final int GUI_HEIGHT = 176;
     private static final int CLOSE_BUTTON_Y = 5;
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    /** Tank at same position as melter: (117, 14), 12x54. Inner area +2 px right and +2 px bottom for gas rendering. */
+    /** Tank at same position as melter: (117, 19), 12x54. Inner area +2 px right and +2 px bottom for gas rendering. */
     private static final int TANK_X = 117;
-    private static final int TANK_Y = 14;
+    private static final int TANK_Y = 19;
     private static final int TANK_WIDTH = 12;
     private static final int TANK_HEIGHT = 54;
     private static final int TANK_INSET = 1;
@@ -45,7 +45,7 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     private static final int ENERGY_BAR_WIDTH = 8;
     private static final int ENERGY_BAR_HEIGHT = 32;
     private static final int ENERGY_BAR_X = GUI_WIDTH - ENERGY_BAR_WIDTH - 8;
-    private static final int ENERGY_BAR_Y = 14 + (54 + 2 - ENERGY_BAR_HEIGHT) / 2;
+    private static final int ENERGY_BAR_Y = TANK_Y + (TANK_HEIGHT + 2 - ENERGY_BAR_HEIGHT) / 2;
 
     public RadiationScrubberScreen(RadiationScrubberMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);

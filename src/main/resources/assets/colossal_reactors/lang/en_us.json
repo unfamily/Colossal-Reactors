@@ -69,6 +69,7 @@
   "message.colossal_reactors.reactor_invalid": "Reactor not valid",
   "gui.colossal_reactors.resource_port.tank_tooltip": "%s / %s mB",
   "gui.colossal_reactors.resource_port.tank_empty": "Empty",
+  "gui.colossal_reactors.fluid_dump.tooltip": "Dump: empty the internal fluid tank (fluid is discarded)",
   "gui.colossal_reactors.melter.tank_tooltip": "%s / %s mB",
   "gui.colossal_reactors.melter.tank_empty": "Empty",
   "gui.colossal_reactors.resource_port.mode.insert": "Insert",
