@@ -52,6 +52,22 @@ public final class ReactorSimulation {
 
     private ReactorSimulation() {}
 
+    private static double rodEnergyScaling(double effectiveRodCount) {
+        double n = Math.max(0.0, effectiveRodCount);
+        int mode = Config.ROD_ENERGY_SCALING_MODE.get();
+        if (mode == 2) {
+            double k = Math.max(1.0, Config.ROD_ENERGY_SCALING_SATURATION_K.get());
+            // n / (1 + n/k) -> tends to k for large n
+            return n / (1.0 + (n / k));
+        }
+        if (mode == 1) {
+            double exp = Config.ROD_ENERGY_SCALING_EXPONENT.get();
+            return Math.pow(n, exp);
+        }
+        // Legacy: n * log(n+1) / 2.3
+        return n * (Math.log(n + 1.0) / 2.3);
+    }
+
     /** Result of GUI simulation: stats that would be shown per tick (no actual consumption). */
     public record SimulationResult(
             int rodCount,
@@ -143,7 +159,7 @@ public final class ReactorSimulation {
         int countNon = heatSink.countNon();
         double sumEnergyAdj = heatSink.sumEnergyAdj();
 
-        double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
+        double energyRodFactor = rodEnergyScaling(effectiveRodCount);
 
         // Consumption: empirical curve; divisor exponent fades with size so big reactors tend toward linear (less curve advantage). Fade reduced to 40% so curve keeps 60% of strength at large size.
         double decayRods = Math.max(0.0, Config.CONSUMPTION_CURVE_DECAY_RODS.get());
@@ -163,13 +179,16 @@ public final class ReactorSimulation {
             consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
         }
 
-        // RF with coolant cells: Base * (adjacent energy sum + nonAdj * rodCount) * efficiencyFactor / effectiveRodCount
+        // RF with coolant cells (adjacency-only): only coolant blocks adjacent to rods contribute.
         double rfProduced;
         if (countAdj + countNon > 0 && effectiveRodCount > 0) {
-            double heatSinkRfFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
-            rfProduced = baseRf * productionMult * rfEfficiency * heatSinkRfFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
+            double adjEnergyAvg = (countAdj > 0) ? (sumEnergyAdj / (double) countAdj) : 1.0;
+            double adjCoverage = Math.min(1.0, (double) countAdj / Math.max(1.0, (double) rodCount));
+            double heatSinkRfFactor = adjEnergyAvg * adjCoverage;
+            rfProduced = baseRf * productionMult * rfEfficiency * energyRodFactor * heatSinkRfFactor * rfMultiplier
+                    * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
         } else {
-            rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
+            rfProduced = baseRf * productionMult * rfEfficiency * energyRodFactor * rfMultiplier * heatSinkEnergyMult;
         }
         rfProduced = Math.max(rfProduced, Config.MIN_RF_PER_TICK.get());
 
@@ -817,7 +836,7 @@ public final class ReactorSimulation {
         double fuelEfficiency = Config.FUEL_EFFICIENCY_LOSS.get();
         double productionMult = Config.PRODUCTION_MULTIPLIER.get();
         double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
-        double efficiencyFactor = Math.log(effectiveRodCount + 1) / 2.3;
+        double energyRodFactor = rodEnergyScaling(effectiveRodCount);
         double decayRods = Math.max(0.0, Config.CONSUMPTION_CURVE_DECAY_RODS.get());
         double curveStrength = (decayRods <= 0) ? 1.0 : decayRods / (effectiveRodCount + decayRods);
         double curveStrengthAdjusted = 0.4 + 0.50 * curveStrength;
@@ -831,10 +850,13 @@ public final class ReactorSimulation {
 
         double rfProduced;
         if (countAdj + countNon > 0 && effectiveRodCount > 0) {
-            double heatSinkRfFactor = (sumEnergyAdj + (double) countNon * rodCount) * efficiencyFactor / effectiveRodCount;
-            rfProduced = baseRf * productionMult * rfEfficiency * heatSinkRfFactor * rfMultiplier * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
+            double adjEnergyAvg = (countAdj > 0) ? (sumEnergyAdj / (double) countAdj) : 1.0;
+            double adjCoverage = Math.min(1.0, (double) countAdj / Math.max(1.0, (double) rodCount));
+            double heatSinkRfFactor = adjEnergyAvg * adjCoverage;
+            rfProduced = baseRf * productionMult * rfEfficiency * energyRodFactor * heatSinkRfFactor * rfMultiplier
+                    * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
         } else {
-            rfProduced = baseRf * productionMult * rfEfficiency * effectiveRodCount * efficiencyFactor * rfMultiplier * heatSinkEnergyMult;
+            rfProduced = baseRf * productionMult * rfEfficiency * energyRodFactor * rfMultiplier * heatSinkEnergyMult;
         }
         rfProduced = Math.max(rfProduced, Config.MIN_RF_PER_TICK.get());
 
