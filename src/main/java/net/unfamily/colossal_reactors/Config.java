@@ -52,13 +52,13 @@ public class Config {
 
     public static final ModConfigSpec.IntValue MAX_REACTOR_WIDTH = BUILDER
             .comment("Maximum reactor width (X or Z). Default: 64")
-            .defineInRange("000_maxReactorWidth", 65, 1, 1024);
+            .defineInRange("000_maxReactorWidth", 65, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue MAX_REACTOR_LENGTH = BUILDER
             .comment("Maximum reactor length (X or Z). Default: 64")
-            .defineInRange("001_maxReactorLength", 65, 1, 1024);
+            .defineInRange("001_maxReactorLength", 65, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue MAX_REACTOR_HEIGHT = BUILDER
             .comment("Maximum reactor height (Y). Default: 64")
-            .defineInRange("002_maxReactorHeight", 65, 1, 1024);
+            .defineInRange("002_maxReactorHeight", 65, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -71,13 +71,13 @@ public class Config {
 
     public static final ModConfigSpec.DoubleValue MIN_RF_PER_TICK = BUILDER
             .comment("Minimum RF/t produced by any running reactor. Default: 500")
-            .defineInRange("101b_minRfPerTick", 500.0, 0.0, 1000000.0);
+            .defineInRange("101b_minRfPerTick", 500.0, 0.0, Double.MAX_VALUE);
     public static final ModConfigSpec.DoubleValue MIN_FUEL_UNITS_PER_TICK = BUILDER
             .comment("Minimum fuel units consumed per tick. Default: 0.05")
             .defineInRange("101c_minFuelUnitsPerTick", 0.05, 0.0, 100.0);
     public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
             .comment("Max fuel units per reactor rod (shared capacity). Default: 10000")
-            .defineInRange("107_rodMaxFuelUnits", 10000, 1, 10000000);
+            .defineInRange("107_rodMaxFuelUnits", 10000, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -115,7 +115,7 @@ public class Config {
             .defineInRange("106b_consumptionScale", 1.72, 0.01, 10.0);
     public static final ModConfigSpec.DoubleValue CONSUMPTION_CURVE_DECAY_RODS = BUILDER
             .comment("As reactor grows, curve advantage fades. 0 = always sqrt; 400 = big reactors closer to linear. Default: 400")
-            .defineInRange("106b2_consumptionCurveDecayRods", 400.0, 0.0, 10000.0);
+            .defineInRange("106b2_consumptionCurveDecayRods", 400.0, 0.0, Double.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -166,7 +166,7 @@ public class Config {
 
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")
-            .defineInRange("010_reactorValidationIntervalTicks", 200, 1, 1200);
+            .defineInRange("010_reactorValidationIntervalTicks", 200, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.BooleanValue ALLOW_MULTIPLE_REACTOR_CONTROLLERS = BUILDER
             .comment("If false, reactor is valid only with exactly one reactor controller on its outer faces. If true, multiple controllers allowed. Default: false")
             .define("011_allowMultipleReactorControllers", false);
@@ -186,7 +186,7 @@ public class Config {
 
     public static final ModConfigSpec.IntValue REACTOR_BUILDER_BUILD_STEPS_PER_TICK = BUILDER
             .comment("How many build steps to execute per tick while building. Higher = faster, but heavier server load. Default: 2")
-            .defineInRange("000_buildStepsPerTick", 2, 1, 1024);
+            .defineInRange("000_buildStepsPerTick", 2, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop(); // builder
@@ -204,7 +204,7 @@ public class Config {
 
     public static final ModConfigSpec.IntValue RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
             .comment("Fluid tank capacity in mB. Default: 16000")
-            .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, 1000000);
+            .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -216,11 +216,11 @@ public class Config {
     }
 
     public static final ModConfigSpec.IntValue POWER_PORT_CAPACITY = BUILDER
-            .comment("Energy buffer capacity in RF. Default: 50000000")
-            .defineInRange("010_powerPortCapacity", 50000000, 1000, 1000000000);
+            .comment("Energy buffer capacity in RF. Default: 1000000000")
+            .defineInRange("010_powerPortCapacity", 1000000000, 1000, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("Max energy that can be extracted per tick (RF/t). Default: 1000000")
-            .defineInRange("020_powerPortMaxExtract", 1000000, 1, 100000000);
+            .comment("Max energy that can be extracted per tick (RF/t). Default: 1000000000 (effective value is clamped to capacity)")
+            .defineInRange("020_powerPortMaxExtract", 1000000000, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -237,16 +237,16 @@ public class Config {
 
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_ENERGY_PER_TICK = BUILDER
             .comment("Energy (RF) consumed per scrub tick when the machine runs. Default: 100")
-            .defineInRange("000_energyPerTick", 100, 0, 100000);
+            .defineInRange("000_energyPerTick", 100, 0, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_ENERGY_CAPACITY = BUILDER
             .comment("Energy buffer capacity in RF. Default: 10000")
-            .defineInRange("010_energyCapacity", 10000, 100, 10000000);
+            .defineInRange("010_energyCapacity", 10000, 100, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_RADIUS_BLOCKS = BUILDER
             .comment("Scrub radius in blocks (distance from machine)")
             .defineInRange("020_radiusBlocks", 50, 0, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_INTERVAL_TICKS = BUILDER
             .comment("Ticks between each scrub pass. Default: 10")
-            .defineInRange("030_intervalTicks", 10, 1, 200);
+            .defineInRange("030_intervalTicks", 10, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_BASE_RADIATION_REMOVAL = BUILDER
             .comment("Base multiplier for how much radiation is removed per scrub (applied to datapack effectiveness). Default: 100")
             .defineInRange("040_baseRadiationRemoval", 100, 1, Integer.MAX_VALUE);

@@ -22,9 +22,8 @@ import net.neoforged.neoforge.transfer.energy.SimpleEnergyHandler;
  */
 public class PowerPortBlockEntity extends BlockEntity {
 
-    private int getMaxExtractPerTick() {
-        return net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
-    }
+    /** Max RF to push out per tick in total (distributed across adjacent receivers). */
+    private final int maxExtractPerTick;
 
     private final SimpleEnergyHandler core;
     /** External automation: insert blocked; extract allowed (same behavior as legacy output-only wrappers). */
@@ -33,8 +32,9 @@ public class PowerPortBlockEntity extends BlockEntity {
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
         int capacity = net.unfamily.colossal_reactors.Config.POWER_PORT_CAPACITY.get();
-        int maxExtract = net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
-        this.core = new SimpleEnergyHandler(capacity, 0, maxExtract, 0) {
+        // Output rate = capacity (user request): no artificial throttling.
+        this.maxExtractPerTick = capacity;
+        this.core = new SimpleEnergyHandler(capacity, 0, capacity, 0) {
             @Override
             protected void onEnergyChanged(int previousAmount) {
                 setChanged();
@@ -48,7 +48,7 @@ public class PowerPortBlockEntity extends BlockEntity {
      */
     public void tick() {
         if (level == null || level.isClientSide()) return;
-        int budget = Math.min(getMaxExtractPerTick(), (int) core.getAmountAsLong());
+        int budget = Math.min(maxExtractPerTick, (int) core.getAmountAsLong());
         if (budget <= 0) return;
         for (Direction direction : Direction.values()) {
             if (budget <= 0) break;

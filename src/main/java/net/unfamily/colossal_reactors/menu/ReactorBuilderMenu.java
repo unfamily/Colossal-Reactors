@@ -61,7 +61,7 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
         this.fluidData = new SimpleContainerData(3);
-        this.sizeData = new SimpleContainerData(13);
+        this.sizeData = new SimpleContainerData(15);
         addDataSlots(fluidData);
         addDataSlots(sizeData);
         ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
@@ -137,6 +137,11 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public boolean isBuilding() { return sizeData.get(11) != 0; }
     /** Invalid blocks detected during build (index 12). Show warning in GUI. */
     public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
+
+    /** Build progress percent (index 13). */
+    public int getBuildProgressPercent() { return sizeData.get(13); }
+    /** Whether progress should be shown (index 14). */
+    public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
 
     @Override
     public boolean stillValid(Player player) {

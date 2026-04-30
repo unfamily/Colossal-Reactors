@@ -364,6 +364,11 @@ public class ReactorRodBlockEntity extends BlockEntity {
         return 11;
     }
 
+    /** Shared mapping for controller-driven visual fill. */
+    public static int fillPercentToLevelForController(float fillPercent) {
+        return fillPercentToLevel(fillPercent);
+    }
+
     private void updateBlockState() {
         if (level == null) return;
         BlockState state = getBlockState();

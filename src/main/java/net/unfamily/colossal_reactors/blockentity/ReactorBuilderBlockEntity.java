@@ -71,6 +71,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LX = "BuildHeatLx";
     private static final String TAG_BUILD_HEAT_LY = "BuildHeatLy";
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
+    private static final String TAG_BUILD_PROGRESS = "BuildProgress";
+    private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
     private static final int BUFFER_SLOTS = 9 * 3;
     private static final int MIN_SIZE = 1;
 
@@ -79,15 +81,17 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private static int getMaxWidth() {
-        return Config.MAX_REACTOR_WIDTH.get();
+        // Internal builder sizes store "offsets" (e.g. width displayed = (L+R)+1).
+        // Config MAX_REACTOR_WIDTH is the displayed block count, so clamp offsets to (max - 1).
+        return Math.max(MIN_SIZE, Config.MAX_REACTOR_WIDTH.get() - 1);
     }
 
     private static int getMaxHeight() {
-        return Config.MAX_REACTOR_HEIGHT.get();
+        return Math.max(MIN_SIZE, Config.MAX_REACTOR_HEIGHT.get() - 1);
     }
 
     private static int getMaxDepth() {
-        return Config.MAX_REACTOR_LENGTH.get();
+        return Math.max(MIN_SIZE, Config.MAX_REACTOR_LENGTH.get() - 1);
     }
 
     private final ItemStackHandler bufferHandler = new ItemStackHandler(BUFFER_SLOTS) {
@@ -168,6 +172,10 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** True when build stopped because one or more invalid blocks were found (red zone). Cleared on start/stop. */
     private boolean invalidBlocksDetected = false;
 
+    /** Last computed build progress (0-100). Kept visible after build completes/aborts until user stops or restarts. */
+    private int buildProgressPercent = 0;
+    private boolean buildProgressVisible = false;
+
     // Build progress cursors (NEXT position to process). These make building "forward-only" and avoid rescanning from start.
     private int buildStage = 0;
     private int buildFrameX = Integer.MIN_VALUE, buildFrameY = Integer.MIN_VALUE, buildFrameZ = Integer.MIN_VALUE;
@@ -232,13 +240,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 10 -> patternMode;
                 case 11 -> building ? 1 : 0;
                 case 12 -> invalidBlocksDetected ? 1 : 0;
+                case 13 -> buildProgressPercent;
+                case 14 -> buildProgressVisible ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -256,13 +266,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 10 -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, value));
                 case 11 -> building = value != 0;
                 case 12 -> invalidBlocksDetected = value != 0;
+                case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
+                case 14 -> buildProgressVisible = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 13;
+            return 15;
         }
     };
 
@@ -308,6 +320,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getPatternMode() { return patternMode; }
     public boolean isBuilding() { return building; }
     public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
+    public int getBuildProgressPercent() { return buildProgressPercent; }
+    public boolean isBuildProgressVisible() { return buildProgressVisible; }
 
     /** Start building: only if no red zone. Called from server when user presses Build. Sets invalidBlocksDetected when refusing so GUI shows warning. */
     public void startBuild() {
@@ -318,15 +332,28 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
             return;
         }
         building = true;
+        buildProgressVisible = true;
+        buildProgressPercent = 0;
         resetBuildProgress();
         invalidBlocksDetected = false;
         setChanged();
     }
 
-    /** Stop building. Called when user presses Stop or when build finishes/aborts. Does not clear invalidBlocksDetected (so warning stays until next start or stop). */
+    /** Stop building. Called when user presses Stop. Clears progress visibility. */
     public void stopBuild() {
+        stopBuild(true);
+    }
+
+    /**
+     * Stop building. When {@code resetProgress} is false, keep progress visible so the GUI can show 100% (or last %) after completion/abort.
+     */
+    public void stopBuild(boolean resetProgress) {
         building = false;
-        resetBuildProgress();
+        if (resetProgress) {
+            buildProgressVisible = false;
+            buildProgressPercent = 0;
+            resetBuildProgress();
+        }
         setChanged();
     }
 
@@ -342,12 +369,124 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public void serverTick() {
         if (!building || level == null || level.isClientSide()) return;
         int steps = net.unfamily.colossal_reactors.Config.REACTOR_BUILDER_BUILD_STEPS_PER_TICK.get();
-        if (!ReactorBuildLogic.tick(this, steps)) {
+        ReactorBuildLogic.tick(this, steps);
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            buildProgressPercent = computeBuildProgressPercent(serverLevel);
+        }
+        if (buildStage >= 5) { // done
+            buildProgressPercent = 100;
+            stopBuild(false);
+            return;
+        }
+        if (!building) {
             if (level instanceof net.minecraft.server.level.ServerLevel serverLevel && ReactorBuildLogic.hasRedZone(serverLevel, this)) {
                 invalidBlocksDetected = true;
             }
-            stopBuild();
+            stopBuild(false);
         }
+    }
+
+    private int computeBuildProgressPercent(net.minecraft.server.level.ServerLevel serverLevel) {
+        if (!buildProgressVisible) return 0;
+        BlockState builderState = serverLevel.getBlockState(getBlockPos());
+        if (!(builderState.getBlock() instanceof net.unfamily.colossal_reactors.block.ReactorBuilderBlock)) return buildProgressPercent;
+        Direction facing = builderState.getValue(net.unfamily.colossal_reactors.block.ReactorBuilderBlock.FACING);
+        AABB aabb = getReactorVolumeAABB(getBlockPos(), facing, getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth());
+        int minX = (int) Math.floor(aabb.minX);
+        int minY = (int) Math.floor(aabb.minY);
+        int minZ = (int) Math.floor(aabb.minZ);
+        int maxX = (int) Math.floor(aabb.maxX - 1e-6);
+        int maxY = (int) Math.floor(aabb.maxY - 1e-6);
+        int maxZ = (int) Math.floor(aabb.maxZ - 1e-6);
+        int w = maxX - minX + 1;
+        int h = maxY - minY + 1;
+        int d = maxZ - minZ + 1;
+
+        int rw = net.unfamily.colossal_reactors.reactor.RodPatternLogic.rodSpaceWidth(w, getPatternMode());
+        int rd = net.unfamily.colossal_reactors.reactor.RodPatternLogic.rodSpaceDepth(d, getPatternMode());
+        int insetXZ = net.unfamily.colossal_reactors.reactor.RodPatternLogic.rodSpaceInsetXZ(getPatternMode());
+
+        long frameTotal = (long) w * h * d;
+        long rodCtrlTotal = (long) rw * rd;
+        long rodSpaceW = Math.max(0, w - 2L * insetXZ);
+        long rodSpaceD = Math.max(0, d - 2L * insetXZ);
+        long rodSpaceH = Math.max(0, h - 2L);
+        long rodsTotal = rodSpaceW * rodSpaceH * rodSpaceD;
+        long interiorTotal = Math.max(0, w - 2L) * Math.max(0, h - 2L) * Math.max(0, d - 2L);
+        long liquidsTotal = interiorTotal;
+        long heatTotal = interiorTotal;
+        long total = frameTotal + rodCtrlTotal + rodsTotal + liquidsTotal + heatTotal;
+        if (total <= 0) return 0;
+
+        long done;
+        long stagePos;
+        long stageTotal;
+        switch (buildStage) {
+            case 0 -> {
+                done = 0;
+                stageTotal = Math.max(1, frameTotal);
+                int x = (buildFrameX == Integer.MIN_VALUE) ? minX : buildFrameX;
+                int y = (buildFrameY == Integer.MIN_VALUE) ? minY : buildFrameY;
+                int z = (buildFrameZ == Integer.MIN_VALUE) ? minZ : buildFrameZ;
+                long ix = Math.max(0, Math.min(w, x - minX));
+                long iy = Math.max(0, Math.min(h, y - minY));
+                long iz = Math.max(0, Math.min(d, z - minZ));
+                stagePos = (ix * h + iy) * d + iz;
+            }
+            case 1 -> {
+                done = frameTotal;
+                stageTotal = Math.max(1, rodCtrlTotal);
+                int rx = (buildRodCtrlRx == Integer.MIN_VALUE) ? 0 : buildRodCtrlRx;
+                int rz = (buildRodCtrlRz == Integer.MIN_VALUE) ? 0 : buildRodCtrlRz;
+                stagePos = (long) rx * rd + rz;
+            }
+            case 2 -> {
+                done = frameTotal + rodCtrlTotal;
+                stageTotal = Math.max(1, rodsTotal);
+                int lx = (buildRodLx == Integer.MIN_VALUE) ? insetXZ : buildRodLx;
+                int ly = (buildRodLy == Integer.MIN_VALUE) ? 1 : buildRodLy;
+                int lz = (buildRodLz == Integer.MIN_VALUE) ? insetXZ : buildRodLz;
+                long ilx = Math.max(0, Math.min(rodSpaceW, lx - insetXZ));
+                long ily = Math.max(0, Math.min(rodSpaceH, ly - 1));
+                long ilz = Math.max(0, Math.min(rodSpaceD, lz - insetXZ));
+                stagePos = (ilx * rodSpaceH + ily) * rodSpaceD + ilz;
+            }
+            case 3 -> {
+                done = frameTotal + rodCtrlTotal + rodsTotal;
+                stageTotal = Math.max(1, liquidsTotal);
+                int lx = (buildLiquidLx == Integer.MIN_VALUE) ? 1 : buildLiquidLx;
+                int ly = (buildLiquidLy == Integer.MIN_VALUE) ? 1 : buildLiquidLy;
+                int lz = (buildLiquidLz == Integer.MIN_VALUE) ? 1 : buildLiquidLz;
+                long iw = Math.max(0, w - 2L);
+                long ih = Math.max(0, h - 2L);
+                long idd = Math.max(0, d - 2L);
+                long ilx = Math.max(0, Math.min(iw, lx - 1));
+                long ily = Math.max(0, Math.min(ih, ly - 1));
+                long ilz = Math.max(0, Math.min(idd, lz - 1));
+                stagePos = (ilx * ih + ily) * idd + ilz;
+            }
+            case 4 -> {
+                done = frameTotal + rodCtrlTotal + rodsTotal + liquidsTotal;
+                stageTotal = Math.max(1, heatTotal);
+                int lx = (buildHeatLx == Integer.MIN_VALUE) ? 1 : buildHeatLx;
+                int ly = (buildHeatLy == Integer.MIN_VALUE) ? 1 : buildHeatLy;
+                int lz = (buildHeatLz == Integer.MIN_VALUE) ? 1 : buildHeatLz;
+                long iw = Math.max(0, w - 2L);
+                long ih = Math.max(0, h - 2L);
+                long idd = Math.max(0, d - 2L);
+                long ilx = Math.max(0, Math.min(iw, lx - 1));
+                long ily = Math.max(0, Math.min(ih, ly - 1));
+                long ilz = Math.max(0, Math.min(idd, lz - 1));
+                stagePos = (ilx * ih + ily) * idd + ilz;
+            }
+            default -> {
+                return 100;
+            }
+        }
+
+        long clamped = Math.max(0, Math.min(stageTotal, stagePos));
+        long progress = done + clamped;
+        return (int) Math.max(0, Math.min(100, (progress * 100L) / total));
     }
 
     /** Toggle open top (one click cycles open/closed). The argument is ignored (kept for packet shape). */
@@ -506,6 +645,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         output.putInt(TAG_BUILD_HEAT_LX, buildHeatLx);
         output.putInt(TAG_BUILD_HEAT_LY, buildHeatLy);
         output.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
+        output.putInt(TAG_BUILD_PROGRESS, buildProgressPercent);
+        output.putBoolean(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
     }
 
     @Override
@@ -564,6 +705,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         buildHeatLx = input.getIntOr(TAG_BUILD_HEAT_LX, buildHeatLx);
         buildHeatLy = input.getIntOr(TAG_BUILD_HEAT_LY, buildHeatLy);
         buildHeatLz = input.getIntOr(TAG_BUILD_HEAT_LZ, buildHeatLz);
+        buildProgressPercent = input.getIntOr(TAG_BUILD_PROGRESS, buildProgressPercent);
+        buildProgressVisible = input.getBooleanOr(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
     }
 
     @Override
