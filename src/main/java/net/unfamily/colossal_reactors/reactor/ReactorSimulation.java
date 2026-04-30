@@ -127,7 +127,7 @@ public final class ReactorSimulation {
         double productionMult = Config.PRODUCTION_MULTIPLIER.get();
         double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
 
-        CoolantDefinition coolantDef = getCoolantModifierFromPorts(resourcePorts, level.registryAccess());
+        CoolantDefinition coolantDef = controller.getCoolantDefinition(level.registryAccess());
         if (coolantDef == null) coolantDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null ? coolantDef.mbMultiplier() : 1.0;
@@ -192,11 +192,7 @@ public final class ReactorSimulation {
             }
             int coolantToConsumeMb = (steamOutputSpace <= 0) ? 0 : (int) (rfProduced * coolantDef.rfToCoolantFactor());
             if (coolantToConsumeMb > 0 && coolantFluid != null && coolantFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
-                int totalDrained = 0;
-                for (ResourcePortBlockEntity port : resourcePorts) {
-                    if (totalDrained >= coolantToConsumeMb) break;
-                    totalDrained += port.takeFluidForReactor(coolantFluid, coolantToConsumeMb - totalDrained);
-                }
+                int totalDrained = controller.consumeCoolant(coolantFluid, coolantToConsumeMb);
                 waterConsumedThisTick = totalDrained;
                 double steamMb = totalDrained * coolantDef.steamPerCoolant();
                 int steamPerTick = (int) steamMb;
@@ -353,7 +349,25 @@ public final class ReactorSimulation {
                 controller.addFuel(entry.id(), putBack);
             }
         }
-        // Liquids (coolant/steam) use ports only; no coolant in rods to eject.
+        // Eject coolant: move stored coolant back into EJECT ports.
+        for (var entry : controller.getCoolantEntries()) {
+            if (entry.mb() <= 0) continue;
+            var fluid = BuiltInRegistries.FLUID.getValue(entry.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY) continue;
+            int toMove = entry.mb();
+            int consumed = controller.consumeCoolant(fluid, toMove);
+            if (consumed <= 0) continue;
+            int remaining = consumed;
+            for (ResourcePortBlockEntity port : ejectPorts) {
+                if (remaining <= 0) break;
+                if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
+                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
+                remaining -= filled;
+            }
+            if (remaining > 0) {
+                controller.addCoolant(fluid, remaining);
+            }
+        }
     }
 
     /**

@@ -146,6 +146,14 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
+        int coolantCap = menu.getCoolantCapacityMb();
+        int coolantStored = menu.getCoolantStoredMb();
+        String coolantFillStr = coolantCap > 0 ? String.format("%d", (int) Math.round((coolantStored * 100.0) / coolantCap)) : "0";
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_capacity", coolantCap, coolantFillStr),
+                PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
         if (menu.isUnstabilityEnabled()) {
             int permille = reactorRunning ? menu.getStabilityPermille() : 1000;
             String stabilityStr = String.format("%.1f%%", permille / 10.0);

@@ -189,10 +189,12 @@ public class ReactorControllerBlock extends BaseEntityBlock {
                 controllerBe.setChanged();
             }
             if (result != null && result.valid()) {
+                // Always allow filling/visuals even when "off" by redstone gate.
+                ReactorFiller.tickFill(level, controllerBe);
+                controllerBe.tickRodVisuals(level);
+                // Production/consumption only when redstone gate is satisfied.
                 if (isRedstoneGateSatisfied(level, controllerBe, result)) {
-                    ReactorFiller.tickFill(level, controllerBe);
                     ReactorSimulation.tick(level, controllerBe);
-                    controllerBe.tickRodVisuals(level);
                 }
             }
             level.scheduleTick(pos, this, 1);

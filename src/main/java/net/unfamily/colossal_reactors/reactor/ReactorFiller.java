@@ -2,11 +2,14 @@ package net.unfamily.colossal_reactors.reactor;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.PortFilter;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 
@@ -44,6 +47,7 @@ public final class ReactorFiller {
         }
 
         var registryAccess = level.registryAccess();
+        int coolantMoveBudgetMb = 4000;
 
         for (ResourcePortBlockEntity port : insertPorts) {
             // Fuel: controller-wide buffer; pull as many items as total space allows.
@@ -67,6 +71,32 @@ public final class ReactorFiller {
                         if (added <= 0.0001f) {
                             port.getItemHandler().insertItem(0, extracted, false);
                             break;
+                        }
+                    }
+                }
+            }
+
+            // Coolant: move valid coolant fluids from INSERT ports into controller aggregated coolant buffer.
+            if (coolantMoveBudgetMb > 0 && port.getPortFilter() != PortFilter.ONLY_SOLID_FUEL) {
+                var stored = port.getStoredFluid();
+                if (!stored.isEmpty() && stored.getFluid() != Fluids.EMPTY) {
+                    // Only accept fluids that are defined as coolant.
+                    var coolantDef = CoolantLoader.getDefinitionForFluid(stored.getFluid(), registryAccess);
+                    if (coolantDef != null) {
+                        int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());
+                        int toMove = Math.min(space, Math.min(stored.getAmount(), coolantMoveBudgetMb));
+                        if (toMove > 0) {
+                            int drained = port.takeFluidForReactor(stored.getFluid(), toMove);
+                            if (drained > 0) {
+                                int added = controller.addCoolant(stored.getFluid(), drained);
+                                // If for any reason we couldn't fit all drained coolant, put it back into the port tank.
+                                int leftover = drained - added;
+                                if (leftover > 0) {
+                                    port.getFluidHandler().fill(new net.neoforged.neoforge.fluids.FluidStack(stored.getFluid(), leftover),
+                                            net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                                }
+                                coolantMoveBudgetMb -= drained;
+                            }
                         }
                     }
                 }

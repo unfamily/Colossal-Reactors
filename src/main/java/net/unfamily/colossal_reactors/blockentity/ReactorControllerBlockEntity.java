@@ -10,6 +10,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -17,6 +18,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.unfamily.colossal_reactors.block.ModBlocks;
@@ -77,12 +80,15 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     // ---- Aggregated fuel + waste (performance: avoid per-rod updates) ----
     private static final String TAG_FUEL = "Fuel";
     private static final String TAG_SOLID_WASTE = "SolidWaste";
+    private static final String TAG_COOLANT = "Coolant";
     private static final String TAG_FUEL_ID = "Id";
     private static final String TAG_FUEL_UNITS = "Units";
+    private static final String TAG_COOLANT_MB = "Mb";
     private static final String TAG_COUNT = "Count";
 
     public record FuelEntry(Identifier id, float units) {}
     public record SolidWasteEntry(Identifier id, int count) {}
+    public record CoolantEntry(Identifier fluidId, int mb) {}
 
     private static final Codec<FuelEntry> FUEL_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
             Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(FuelEntry::id),
@@ -94,10 +100,17 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             Codec.INT.fieldOf(TAG_COUNT).forGetter(SolidWasteEntry::count)
     ).apply(i, SolidWasteEntry::new));
 
+    private static final Codec<CoolantEntry> COOLANT_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
+            Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(CoolantEntry::fluidId),
+            Codec.INT.fieldOf(TAG_COOLANT_MB).forGetter(CoolantEntry::mb)
+    ).apply(i, CoolantEntry::new));
+
     /** Fuel by type: id -> units (float). Total units <= getMaxFuelUnitsTotal(). */
     private final List<FuelEntry> fuelEntries = new ArrayList<>();
     /** Solid waste buffer: id -> count. Total count <= getSolidWasteCapacityTotal(). */
     private final List<SolidWasteEntry> solidWasteEntries = new ArrayList<>();
+    /** Coolant by fluid id: fluidId -> mB. Total mB <= getCoolantCapacityMbTotal(). */
+    private final List<CoolantEntry> coolantEntries = new ArrayList<>();
 
     /** Rod model fill level (0..12) driven by controller total fill. */
     private int cachedRodFillLevel = 0;
@@ -150,6 +163,88 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
     public List<FuelEntry> getFuelEntries() { return List.copyOf(fuelEntries); }
     public float getTotalFuelUnits() { return (float) fuelEntries.stream().mapToDouble(FuelEntry::units).sum(); }
+
+    public List<CoolantEntry> getCoolantEntries() { return List.copyOf(coolantEntries); }
+
+    public int getTotalCoolantMb() {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, coolantEntries.stream().mapToLong(CoolantEntry::mb).sum()));
+    }
+
+    public int getCoolantCapacityMbTotal() {
+        int perRod = ReactorRodBlockEntity.getCoolantCapacityMb();
+        long rods = cachedRodPositions != null ? cachedRodPositions.length : 0;
+        long total = rods * (long) Math.max(0, perRod);
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, total));
+    }
+
+    /** Coolant definition from stored coolant fluids; prefers water when present. */
+    public net.unfamily.colossal_reactors.coolant.CoolantDefinition getCoolantDefinition(net.minecraft.core.RegistryAccess registryAccess) {
+        net.unfamily.colossal_reactors.coolant.CoolantDefinition waterDef =
+                net.unfamily.colossal_reactors.coolant.CoolantLoader.get(net.unfamily.colossal_reactors.coolant.CoolantLoader.WATER_COOLANT_ID);
+        for (CoolantEntry e : coolantEntries) {
+            var fluid = BuiltInRegistries.FLUID.getValue(e.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY) continue;
+            var def = net.unfamily.colossal_reactors.coolant.CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
+            if (def != null && net.unfamily.colossal_reactors.coolant.CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) {
+                return waterDef != null ? waterDef : def;
+            }
+        }
+        for (CoolantEntry e : coolantEntries) {
+            var fluid = BuiltInRegistries.FLUID.getValue(e.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY) continue;
+            var def = net.unfamily.colossal_reactors.coolant.CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
+            if (def != null) return def;
+        }
+        return waterDef;
+    }
+
+    /** Adds coolant (mB) by fluid type; clamps to total capacity. Returns amount actually added. */
+    public int addCoolant(Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        Identifier id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        int total = getTotalCoolantMb();
+        int max = getCoolantCapacityMbTotal();
+        int add = Math.min(amountMb, Math.max(0, max - total));
+        if (add <= 0) return 0;
+        for (int i = 0; i < coolantEntries.size(); i++) {
+            CoolantEntry e = coolantEntries.get(i);
+            if (id.equals(e.fluidId())) {
+                coolantEntries.set(i, new CoolantEntry(id, e.mb() + add));
+                setChanged();
+                return add;
+            }
+        }
+        coolantEntries.add(new CoolantEntry(id, add));
+        setChanged();
+        return add;
+    }
+
+    /** Consumes coolant (mB) of a specific fluid type. Returns amount actually consumed. */
+    public int consumeCoolant(Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        Identifier id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        int remaining = amountMb;
+        int consumed = 0;
+        for (int i = 0; i < coolantEntries.size() && remaining > 0; i++) {
+            CoolantEntry e = coolantEntries.get(i);
+            if (!id.equals(e.fluidId())) continue;
+            int take = Math.min(remaining, Math.max(0, e.mb()));
+            if (take <= 0) continue;
+            int left = e.mb() - take;
+            consumed += take;
+            remaining -= take;
+            if (left <= 0) {
+                coolantEntries.remove(i);
+                i--;
+            } else {
+                coolantEntries.set(i, new CoolantEntry(id, left));
+            }
+        }
+        if (consumed > 0) setChanged();
+        return consumed;
+    }
 
     public int getMaxFuelUnitsTotal() {
         int perRod = ReactorRodBlockEntity.getMaxFuelUnits();
@@ -280,6 +375,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             cachedHeatSinkStaticCache = null;
             fuelEntries.clear();
             solidWasteEntries.clear();
+            coolantEntries.clear();
             cachedRodFillLevel = 0;
             rodVisualUpdateCursor = 0;
             return;
@@ -410,6 +506,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         cachedHeatSinkStaticCache = null;
         fuelEntries.clear();
         solidWasteEntries.clear();
+        coolantEntries.clear();
         cachedRodFillLevel = 0;
         rodVisualUpdateCursor = 0;
         if (level != null && !level.isClientSide()) {
@@ -469,6 +566,9 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         if (!solidWasteEntries.isEmpty()) {
             output.store(TAG_SOLID_WASTE, Codec.list(SOLID_WASTE_CODEC), List.copyOf(solidWasteEntries));
         }
+        if (!coolantEntries.isEmpty()) {
+            output.store(TAG_COOLANT, Codec.list(COOLANT_ENTRY_CODEC), List.copyOf(coolantEntries));
+        }
     }
 
     @Override
@@ -502,6 +602,10 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         solidWasteEntries.clear();
         for (SolidWasteEntry e : input.listOrEmpty(TAG_SOLID_WASTE, SOLID_WASTE_CODEC)) {
             if (e != null && e.id() != null && e.count() > 0) solidWasteEntries.add(e);
+        }
+        coolantEntries.clear();
+        for (CoolantEntry e : input.listOrEmpty(TAG_COOLANT, COOLANT_ENTRY_CODEC)) {
+            if (e != null && e.fluidId() != null && e.mb() > 0) coolantEntries.add(e);
         }
         updateRodVisualFillIfNeeded();
     }
