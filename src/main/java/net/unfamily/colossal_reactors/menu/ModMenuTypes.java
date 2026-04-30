@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.menu;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -25,8 +26,7 @@ public class ModMenuTypes {
                     new MenuType<>(ReactorControllerMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
     public static final DeferredHolder<MenuType<?>, MenuType<ReactorBuilderMenu>> REACTOR_BUILDER_MENU =
-            MENUS.register("reactor_builder", () ->
-                    new MenuType<>(ReactorBuilderMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+            MENUS.register("reactor_builder", () -> IMenuTypeExtension.create(ReactorBuilderMenu::new));
 
     public static final DeferredHolder<MenuType<?>, MenuType<HeatingCoilMenu>> HEATING_COIL_MENU =
             MENUS.register("heating_coil", () ->

@@ -2,8 +2,14 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -11,10 +17,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
@@ -35,6 +43,9 @@ import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 import net.unfamily.colossal_reactors.reactor.ReactorBuildLogic;
 import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * BlockEntity for Reactor Builder. Holds a 9x3 buffer inventory and a fluid tank (same capacity and rules as Resource Port).
@@ -73,7 +84,13 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final String TAG_BUILD_PROGRESS = "BuildProgress";
     private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
+    private static final String TAG_MARK_INPUT_FILTERS = "MarkInputFilters";
     private static final int BUFFER_SLOTS = 9 * 3;
+
+    /**
+     * Slot-dedication filters for buffer slots (same idea as Pattern Crafter mark input). Ghost display + insertion validation only.
+     */
+    private final List<ItemStack> markInputFilters = new ArrayList<>();
     private static final int MIN_SIZE = 1;
 
     private static int getTankCapacityMb() {
@@ -98,6 +115,17 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (slot >= 0 && slot < markInputFilters.size()) {
+                ItemStack filter = markInputFilters.get(slot);
+                if (!filter.isEmpty()) {
+                    return ItemStack.isSameItemSameComponents(stack, filter);
+                }
+            }
+            return true;
         }
     };
 
@@ -280,6 +308,53 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
 
     public ReactorBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_BUILDER_BE.get(), pos, state);
+        for (int i = 0; i < BUFFER_SLOTS; i++) {
+            markInputFilters.add(ItemStack.EMPTY);
+        }
+    }
+
+    /**
+     * Copies item identity from each non-empty buffer slot into mark filters; empty buffer slots leave filters unchanged.
+     */
+    public void applyMarkInputFromBuffer() {
+        for (int slot = 0; slot < bufferHandler.getSlots(); slot++) {
+            ItemStack current = bufferHandler.getStackInSlot(slot);
+            if (!current.isEmpty()) {
+                markInputFilters.set(slot, current.copyWithCount(1));
+            }
+        }
+        setChanged();
+    }
+
+    public void clearAllMarkInputFilters() {
+        for (int i = 0; i < markInputFilters.size(); i++) {
+            markInputFilters.set(i, ItemStack.EMPTY);
+        }
+        setChanged();
+    }
+
+    /** Clears mark filters where the buffer slot is empty or no longer matches the filter item. */
+    public void clearMarkInputFiltersWithoutMatchingStacks() {
+        for (int slot = 0; slot < markInputFilters.size(); slot++) {
+            ItemStack filter = markInputFilters.get(slot);
+            if (filter.isEmpty()) continue;
+            ItemStack current = bufferHandler.getStackInSlot(slot);
+            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, filter)) {
+                markInputFilters.set(slot, ItemStack.EMPTY);
+            }
+        }
+        setChanged();
+    }
+
+    public ItemStack getMarkInputFilter(int slot) {
+        if (slot >= 0 && slot < markInputFilters.size()) {
+            return markInputFilters.get(slot);
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public boolean hasMarkInputFilter(int slot) {
+        return !getMarkInputFilter(slot).isEmpty();
     }
 
     public IItemHandler getBufferHandler() {
@@ -647,6 +722,13 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         output.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
         output.putInt(TAG_BUILD_PROGRESS, buildProgressPercent);
         output.putBoolean(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
+        ValueOutput markOut = output.child(TAG_MARK_INPUT_FILTERS);
+        for (int i = 0; i < markInputFilters.size(); i++) {
+            ItemStack filter = markInputFilters.get(i);
+            if (!filter.isEmpty()) {
+                markOut.store("slot" + i, ItemStack.CODEC, filter);
+            }
+        }
     }
 
     @Override
@@ -707,6 +789,40 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         buildHeatLz = input.getIntOr(TAG_BUILD_HEAT_LZ, buildHeatLz);
         buildProgressPercent = input.getIntOr(TAG_BUILD_PROGRESS, buildProgressPercent);
         buildProgressVisible = input.getBooleanOr(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
+        // Only reset mark-input when subtree is present (sync may omit empty child output).
+        input.child(TAG_MARK_INPUT_FILTERS).ifPresent(markIn -> {
+            for (int i = 0; i < markInputFilters.size(); i++) {
+                markInputFilters.set(i, ItemStack.EMPTY);
+            }
+            for (int slot = 0; slot < BUFFER_SLOTS; slot++) {
+                final int index = slot;
+                markIn.read("slot" + index, ItemStack.CODEC).ifPresent(stack -> markInputFilters.set(index, stack));
+            }
+        });
+    }
+
+    /** Same as Pattern Crafter: notify clients when data changes so mark-input filters (and GUI ghosts) stay in sync. */
+    @Override
+    public void setChanged() {
+        super.setChanged();
+        if (level != null && !level.isClientSide()) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_ALL);
+        }
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return saveWithoutMetadata(registries);
+    }
+
+    @Override
+    public void onDataPacket(Connection connection, net.minecraft.world.level.storage.ValueInput valueInput) {
+        loadWithComponents(valueInput);
     }
 
     @Override

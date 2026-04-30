@@ -1,19 +1,22 @@
 package net.unfamily.colossal_reactors.menu;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Menu for Reactor Builder GUI. Texture 230x230; all slot X positions +27px from left (buffer, player, hotbar).
@@ -22,16 +25,16 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
 
     private static final int BUFFER_ROWS = 3;
     private static final int BUFFER_COLS = 9;
-    private static final int BUFFER_SLOTS = BUFFER_ROWS * BUFFER_COLS;
+    public static final int BUFFER_SLOTS = BUFFER_ROWS * BUFFER_COLS;
 
     /** Buffer slot positions (top-left of 9x3 grid). */
     private static final int BUFFER_X = 35;
-    private static final int BUFFER_Y = 82;
+    private static final int BUFFER_Y = 92;
 
     /** Player inventory (3x9) and hotbar (1x9). */
     private static final int PLAYER_X = 35;
-    private static final int PLAYER_Y = 148;
-    private static final int HOTBAR_Y = 206;
+    private static final int PLAYER_Y = 158;
+    private static final int HOTBAR_Y = 216;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData fluidData;
@@ -43,30 +46,52 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
      */
     private boolean hideAllSlotsForSimulationView;
 
-    public ReactorBuilderMenu(int containerId, Inventory playerInventory, ReactorBuilderBlockEntity blockEntity) {
+    private final @Nullable ReactorBuilderBlockEntity blockEntity;
+
+    /** Client: reads BlockPos from menu open payload and resolves {@link ReactorBuilderBlockEntity} from the level. */
+    public ReactorBuilderMenu(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
+        this(containerId, playerInventory, playerInventory.player.level().getBlockEntity(buf.readBlockPos()));
+    }
+
+    /** Server: opened from {@link ReactorBuilderBlockEntity#createMenu}. */
+    public ReactorBuilderMenu(int containerId, Inventory playerInventory, ReactorBuilderBlockEntity reactorBuilder) {
+        this(containerId, playerInventory, (BlockEntity) reactorBuilder);
+    }
+
+    private ReactorBuilderMenu(int containerId, Inventory playerInventory, @Nullable BlockEntity entity) {
         super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
-        this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
-        this.fluidData = blockEntity.getFluidData();
-        this.sizeData = blockEntity.getSizeData();
+        if (entity instanceof ReactorBuilderBlockEntity rbe) {
+            this.blockEntity = rbe;
+            this.levelAccess = ContainerLevelAccess.create(rbe.getLevel(), rbe.getBlockPos());
+            this.fluidData = rbe.getFluidData();
+            this.sizeData = rbe.getSizeData();
+        } else {
+            this.blockEntity = null;
+            this.levelAccess = ContainerLevelAccess.NULL;
+            this.fluidData = new SimpleContainerData(3);
+            this.sizeData = new SimpleContainerData(15);
+        }
         addDataSlots(fluidData);
         addDataSlots(sizeData);
-
-        addBufferSlots(blockEntity.getBufferHandler());
-
+        if (blockEntity != null) {
+            addBufferSlots(blockEntity.getBufferHandler());
+        } else {
+            addBufferSlots(new ItemStackHandler(BUFFER_SLOTS));
+        }
         addPlayerInventorySlots(playerInventory);
     }
 
-    /** Client-side constructor: dummy buffer handler and fluid data (server syncs contents). */
-    public ReactorBuilderMenu(int containerId, Inventory playerInventory) {
-        super(ModMenuTypes.REACTOR_BUILDER_MENU.get(), containerId);
-        this.levelAccess = ContainerLevelAccess.NULL;
-        this.fluidData = new SimpleContainerData(3);
-        this.sizeData = new SimpleContainerData(15);
-        addDataSlots(fluidData);
-        addDataSlots(sizeData);
-        ItemStackHandler dummyBuffer = new ItemStackHandler(BUFFER_SLOTS);
-        addBufferSlots(dummyBuffer);
-        addPlayerInventorySlots(playerInventory);
+    /** Mark-input filter ghost for buffer slot index (0..26). */
+    public ItemStack getMarkInputFilter(int slot) {
+        return blockEntity != null ? blockEntity.getMarkInputFilter(slot) : ItemStack.EMPTY;
+    }
+
+    public boolean hasMarkInputFilter(int slot) {
+        return blockEntity != null && blockEntity.hasMarkInputFilter(slot);
+    }
+
+    public @Nullable ReactorBuilderBlockEntity getBlockEntity() {
+        return blockEntity;
     }
 
     private void addBufferSlots(IItemHandler handler) {
@@ -121,8 +146,11 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public int getSizeRight() { return sizeData.get(0); }
     public int getSizeH() { return sizeData.get(2); }
     public int getSizeD() { return sizeData.get(3); }
-    /** Block pos synced via sizeData indices 4,5,6 (for client button payloads). */
+    /** Block position for C2S payloads; prefers live BE (same as Pattern Crafter). */
     public BlockPos getBlockPos() {
+        if (blockEntity != null) {
+            return blockEntity.getBlockPos();
+        }
         return new BlockPos(sizeData.get(4), sizeData.get(5), sizeData.get(6));
     }
     /** Heat sink option index (0=Air, 1..=definition). Synced via sizeData index 7. */
