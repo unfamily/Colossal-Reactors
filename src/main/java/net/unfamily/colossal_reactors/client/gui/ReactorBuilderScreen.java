@@ -659,6 +659,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_capacity", fuelCap),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
+
+        long coolantCap = (long) rodCount * (long) net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity.getCoolantCapacityMb();
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_capacity", coolantCap),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
         if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
             Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
             guiGraphics.drawString(font, label, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);

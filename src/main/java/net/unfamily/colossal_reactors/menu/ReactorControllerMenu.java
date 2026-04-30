@@ -43,7 +43,9 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     private static final int INDEX_UNSTABILITY_ENABLED = 15;
     private static final int INDEX_FUEL_STORED_UNITS = 16;
     private static final int INDEX_FUEL_CAPACITY_UNITS = 17;
-    private static final int DATA_COUNT = 18;
+    private static final int INDEX_COOLANT_STORED_MB = 18;
+    private static final int INDEX_COOLANT_CAPACITY_MB = 19;
+    private static final int DATA_COUNT = 20;
 
     public ReactorControllerMenu(int containerId, Inventory playerInventory, ReactorControllerBlockEntity blockEntity) {
         super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
@@ -79,6 +81,8 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                     case INDEX_UNSTABILITY_ENABLED -> Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get()) ? 1 : 0;
                     case INDEX_FUEL_STORED_UNITS -> (int) Math.min(Integer.MAX_VALUE, Math.max(0, Math.round(blockEntity.getTotalFuelUnits())));
                     case INDEX_FUEL_CAPACITY_UNITS -> Math.max(0, blockEntity.getMaxFuelUnitsTotal());
+                    case INDEX_COOLANT_STORED_MB -> Math.max(0, blockEntity.getTotalCoolantMb());
+                    case INDEX_COOLANT_CAPACITY_MB -> Math.max(0, blockEntity.getCoolantCapacityMbTotal());
                     default -> 0;
                 };
             }
@@ -129,6 +133,9 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     public int getFuelStoredUnits() { return data.get(INDEX_FUEL_STORED_UNITS); }
     /** Max fuel capacity units (rodCount * rodMaxFuelUnits). */
     public int getFuelCapacityUnits() { return data.get(INDEX_FUEL_CAPACITY_UNITS); }
+
+    public int getCoolantStoredMb() { return data.get(INDEX_COOLANT_STORED_MB); }
+    public int getCoolantCapacityMb() { return data.get(INDEX_COOLANT_CAPACITY_MB); }
 
     /** Synced block pos for refresh button (client). */
     public BlockPos getControllerBlockPos() {

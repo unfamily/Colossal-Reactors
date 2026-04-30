@@ -120,6 +120,19 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return fluidTank;
     }
 
+    /** Fluid in tank (raw, no mode/filter). */
+    public FluidStack getStoredFluid() {
+        return fluidTank.getFluid().copy();
+    }
+
+    public int getFluidAmountMb() {
+        return fluidTank.getFluidAmount();
+    }
+
+    public int getFluidCapacityMb() {
+        return fluidTank.getCapacity();
+    }
+
     /**
      * Called by the reactor to push solid waste into this port (only when mode is EXTRACT or EJECT and slot is not full).
      * Returns the stack that could not be inserted (remaining).
