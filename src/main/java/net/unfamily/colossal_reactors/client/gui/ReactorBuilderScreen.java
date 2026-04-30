@@ -653,6 +653,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
+
+        long fuelCap = (long) rodCount * (long) Config.ROD_MAX_FUEL_UNITS.get();
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_capacity", fuelCap),
+                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y += SIM_LINE_HEIGHT;
         if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
             Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
             guiGraphics.drawString(font, label, leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
@@ -725,13 +731,25 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Warning (red): empty by default; when build found invalid blocks, show message. Bottom aligned with right arrow button.
-        Component warning = menu.isInvalidBlocksDetected()
-                ? Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks")
-                : Component.translatable("gui.colossal_reactors.reactor_builder.warning");
-        if (!warning.getString().isEmpty()) {
+        // Build progress + warning. Progress stays visible after completion/abort until user stops or restarts.
+        if (menu.isBuildProgressVisible() || menu.isInvalidBlocksDetected()) {
             int warningY = ROW2_Y + BUTTON_H - font.lineHeight;
-            guiGraphics.drawString(font, warning, WARNING_RIGHT_X, warningY, 0xFF0000, false);
+            int percent = menu.getBuildProgressPercent();
+            float t = Math.max(0, Math.min(100, percent)) / 100f;
+            int r = (int) (255 * (1f - t));
+            int g = (int) (255 * t);
+            int progressColor = 0xFF000000 | (r << 16) | (g << 8);
+            int color = menu.isBuildProgressVisible() ? progressColor : 0xFF0000;
+            MutableComponent line = menu.isBuildProgressVisible()
+                    ? Component.translatable("gui.colossal_reactors.reactor_builder.building_progress", menu.getBuildProgressPercent())
+                    : Component.empty();
+            if (menu.isInvalidBlocksDetected()) {
+                if (!line.getString().isEmpty()) line.append(Component.literal(" - "));
+                line.append(Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks"));
+            }
+            if (!line.getString().isEmpty()) {
+                guiGraphics.drawString(font, line, WARNING_RIGHT_X, warningY, color, false);
+            }
         }
     }
 

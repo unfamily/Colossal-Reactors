@@ -41,7 +41,9 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     private static final int INDEX_REDSTONE_GATE_SATISFIED = 13;
     private static final int INDEX_STABILITY = 14;
     private static final int INDEX_UNSTABILITY_ENABLED = 15;
-    private static final int DATA_COUNT = 16;
+    private static final int INDEX_FUEL_STORED_UNITS = 16;
+    private static final int INDEX_FUEL_CAPACITY_UNITS = 17;
+    private static final int DATA_COUNT = 18;
 
     public ReactorControllerMenu(int containerId, Inventory playerInventory, ReactorControllerBlockEntity blockEntity) {
         super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
@@ -61,8 +63,7 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                     case INDEX_ROD_COUNT -> result != null ? result.rodCount() : 0;
                     case INDEX_ROD_COLUMNS -> result != null ? result.rodColumns() : 0;
                     case INDEX_COOLANT -> result != null ? result.coolantCount() : 0;
-                    case INDEX_HAS_FUEL -> result != null && blockEntity.getLevel() != null
-                            ? (rodsHaveFuel(blockEntity.getLevel(), result) ? 1 : 0) : 0;
+                    case INDEX_HAS_FUEL -> blockEntity.getTotalFuelUnits() > 0 ? 1 : 0;
                     case INDEX_ENERGY_PER_TICK -> blockEntity.getLastRfPerTick();
                     case INDEX_STEAM_PER_TICK -> blockEntity.getLastSteamPerTick();
                     case INDEX_WATER_PER_TICK -> blockEntity.getLastWaterPerTick();
@@ -76,6 +77,8 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                             ? (ReactorControllerBlock.isRedstoneGateSatisfied(sl, blockEntity, result) ? 1 : 0) : 1;
                     case INDEX_STABILITY -> blockEntity.getStabilityPermille();
                     case INDEX_UNSTABILITY_ENABLED -> Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get()) ? 1 : 0;
+                    case INDEX_FUEL_STORED_UNITS -> (int) Math.min(Integer.MAX_VALUE, Math.max(0, Math.round(blockEntity.getTotalFuelUnits())));
+                    case INDEX_FUEL_CAPACITY_UNITS -> Math.max(0, blockEntity.getMaxFuelUnitsTotal());
                     default -> 0;
                 };
             }
@@ -89,22 +92,6 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
             }
         };
         addDataSlots(data);
-    }
-
-    private static boolean rodsHaveFuel(net.minecraft.world.level.Level level, ReactorValidation.Result result) {
-        for (int x = result.minX(); x <= result.maxX(); x++) {
-            for (int y = result.minY(); y <= result.maxY(); y++) {
-                for (int z = result.minZ(); z <= result.maxZ(); z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (level.getBlockState(pos).is(ModBlocks.REACTOR_ROD.get())
-                            && level.getBlockEntity(pos) instanceof ReactorRodBlockEntity rod
-                            && rod.getTotalFuelUnits() > 0) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     private static boolean hasRedstonePortInResult(net.minecraft.world.level.Level level, ReactorValidation.Result result) {
@@ -137,6 +124,11 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     public int getWaterPerTick() { return data.get(INDEX_WATER_PER_TICK); }
     /** Fuel consumption in fuel units/tick as hundredths (e.g. 26 = 0.26). */
     public int getFuelPerTickHundredths() { return data.get(INDEX_FUEL_PER_TICK_HUNDREDTHS); }
+
+    /** Total stored fuel units (aggregated on controller). */
+    public int getFuelStoredUnits() { return data.get(INDEX_FUEL_STORED_UNITS); }
+    /** Max fuel capacity units (rodCount * rodMaxFuelUnits). */
+    public int getFuelCapacityUnits() { return data.get(INDEX_FUEL_CAPACITY_UNITS); }
 
     /** Synced block pos for refresh button (client). */
     public BlockPos getControllerBlockPos() {

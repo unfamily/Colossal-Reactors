@@ -142,6 +142,14 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
+        int cap = menu.getFuelCapacityUnits();
+        int stored = menu.getFuelStoredUnits();
+        String fillStr = cap > 0 ? String.format("%d", (int) Math.round((stored * 100.0) / cap)) : "0";
+        guiGraphics.drawString(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_capacity", cap, fillStr),
+                PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
         if (menu.isUnstabilityEnabled()) {
             int permille = reactorRunning ? menu.getStabilityPermille() : 1000;
             String stabilityStr = String.format("%.1f%%", permille / 10.0);

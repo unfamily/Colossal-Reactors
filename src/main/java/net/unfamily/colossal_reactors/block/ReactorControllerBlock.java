@@ -193,6 +193,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
                 if (isRedstoneGateSatisfied(level, controllerBe, result)) {
                     ReactorFiller.tickFill(level, controllerBe);
                     ReactorSimulation.tick(level, controllerBe);
+                    controllerBe.tickRodVisuals(level);
                 }
             }
             level.scheduleTick(pos, this, 1);

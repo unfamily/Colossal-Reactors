@@ -112,11 +112,14 @@ public final class ReactorSimulation {
         if (rods.isEmpty()) return;
 
         int rodCount = rods.size();
-        double effectiveRodCount = computeEffectiveRodCount(level, rods);
-        double totalFuelUnits = rods.stream().mapToDouble(ReactorRodBlockEntity::getTotalFuelUnits).sum();
+        double effectiveRodCount = controller.getCachedEffectiveRodCount();
+        if (effectiveRodCount <= 1e-9) {
+            effectiveRodCount = computeEffectiveRodCount(level, rods);
+        }
+        double totalFuelUnits = controller.getTotalFuelUnits();
         if (totalFuelUnits <= 0) return;
 
-        double[] base = computeEffectiveBaseFromRods(rods);
+        double[] base = computeEffectiveBaseFromControllerFuel(controller);
         double baseRf = base[0];
         double baseFuelUnitsPerTick = base[1];
         double rfEfficiency = 1.0 - Config.RF_EFFICIENCY_LOSS.get();
@@ -130,7 +133,10 @@ public final class ReactorSimulation {
         double mbMultiplier = coolantDef != null ? coolantDef.mbMultiplier() : 1.0;
         Fluid coolantFluidFromPorts = (coolantDef != null) ? CoolantLoader.getFirstFluidFromDefinition(coolantDef, level.registryAccess()) : null;
 
-        HeatSinkLoader.HeatSinkModifiersResult heatSink = computeHeatSinkModifiers(level, result, rods.size(), rods, coolantFluidFromPorts);
+        ReactorControllerBlockEntity.HeatSinkStaticCache staticHeatSink = controller.getCachedHeatSinkStaticCache();
+        HeatSinkLoader.HeatSinkModifiersResult heatSink = (staticHeatSink != null)
+                ? computeHeatSinkModifiersFromStaticCache(level, staticHeatSink, rods.size(), coolantFluidFromPorts)
+                : computeHeatSinkModifiers(level, result, rods.size(), rods, coolantFluidFromPorts);
         double heatSinkFuelMult = heatSink.fuelMultiplier();
         double heatSinkEnergyMult = heatSink.energyMultiplier();
         int countAdj = heatSink.countAdj();
@@ -154,7 +160,7 @@ public final class ReactorSimulation {
         double fuelUnitsToConsume = Math.min(fuelConsumptionRate, totalFuelUnits);
 
         if (fuelUnitsToConsume > 0) {
-            consumeFuelFromRods(rods, fuelUnitsToConsume, level.registryAccess());
+            consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
         }
 
         // RF with coolant cells: Base * (adjacent energy sum + nonAdj * rodCount) * efficiencyFactor / effectiveRodCount
@@ -247,8 +253,8 @@ public final class ReactorSimulation {
             }
         }
 
-        pushEjectToPorts(rods, resourcePorts, level.registryAccess());
-        pushWasteToPorts(rods, resourcePorts);
+        pushEjectToPorts(controller, resourcePorts, level.registryAccess());
+        pushWasteToPorts(controller, resourcePorts);
 
         int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
         controller.setLastTickStats(rfPushedThisTick, steamProducedThisTick, waterConsumedThisTick, fuelHundredths);
@@ -313,40 +319,38 @@ public final class ReactorSimulation {
     /**
      * Pushes input material back out to EJECT ports: fuel (from rod fuel units, converted at unitsPerFuel) and coolant.
      */
-    private static void pushEjectToPorts(List<ReactorRodBlockEntity> rods, List<ResourcePortBlockEntity> resourcePorts, RegistryAccess registryAccess) {
+    private static void pushEjectToPorts(ReactorControllerBlockEntity controller, List<ResourcePortBlockEntity> resourcePorts, RegistryAccess registryAccess) {
         List<ResourcePortBlockEntity> ejectPorts = resourcePorts.stream()
                 .filter(p -> p.getPortMode() == PortMode.EJECT)
                 .toList();
         if (ejectPorts.isEmpty()) return;
 
         // Eject fuel: convert units back to items using definition's unitsPerFuel
-        for (ReactorRodBlockEntity rod : rods) {
-            for (var entry : rod.getFuelEntries()) {
-                if (entry.units() < 1e-6f) continue;
-                FuelDefinition def = FuelLoader.get(entry.id());
-                if (def == null) continue;
-                int unitsPerFuel = Math.max(1, def.unitsPerFuel());
-                int items = (int) (entry.units() / unitsPerFuel);
-                if (items <= 0) continue;
-                float toConsume = items * (float) unitsPerFuel;
-                float consumed = rod.consumeFuel(entry.id(), toConsume);
-                if (consumed < 1e-6f) continue;
-                int actualItems = (int) (consumed / unitsPerFuel);
-                if (actualItems <= 0) continue;
-                ItemStack template = FuelLoader.getFirstInputStack(entry.id(), registryAccess);
-                if (template.isEmpty()) continue;
-                ItemStack stack = new ItemStack(template.getItem(), actualItems);
-                for (ResourcePortBlockEntity port : ejectPorts) {
-                    if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
-                    if (!port.canAcceptItemFromReactor() || stack.isEmpty()) continue;
-                    ItemStack remaining = port.receiveItemFromReactor(stack);
-                    stack = remaining;
-                    if (stack.isEmpty()) break;
-                }
-                if (!stack.isEmpty() && stack.getCount() > 0) {
-                    float putBack = stack.getCount() * (float) unitsPerFuel;
-                    rod.addFuel(entry.id(), putBack);
-                }
+        for (var entry : controller.getFuelEntries()) {
+            if (entry.units() < 1e-6f) continue;
+            FuelDefinition def = FuelLoader.get(entry.id());
+            if (def == null) continue;
+            int unitsPerFuel = Math.max(1, def.unitsPerFuel());
+            int items = (int) (entry.units() / unitsPerFuel);
+            if (items <= 0) continue;
+            float toConsume = items * (float) unitsPerFuel;
+            float consumed = controller.consumeFuel(entry.id(), toConsume);
+            if (consumed < 1e-6f) continue;
+            int actualItems = (int) (consumed / unitsPerFuel);
+            if (actualItems <= 0) continue;
+            ItemStack template = FuelLoader.getFirstInputStack(entry.id(), registryAccess);
+            if (template.isEmpty()) continue;
+            ItemStack stack = new ItemStack(template.getItem(), actualItems);
+            for (ResourcePortBlockEntity port : ejectPorts) {
+                if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
+                if (!port.canAcceptItemFromReactor() || stack.isEmpty()) continue;
+                ItemStack remaining = port.receiveItemFromReactor(stack);
+                stack = remaining;
+                if (stack.isEmpty()) break;
+            }
+            if (!stack.isEmpty() && stack.getCount() > 0) {
+                float putBack = stack.getCount() * (float) unitsPerFuel;
+                controller.addFuel(entry.id(), putBack);
             }
         }
         // Liquids (coolant/steam) use ports only; no coolant in rods to eject.
@@ -355,7 +359,7 @@ public final class ReactorSimulation {
     /**
      * Pushes solid waste and liquid waste (steam) from rods to resource ports in EXTRACT mode.
      */
-    private static void pushWasteToPorts(List<ReactorRodBlockEntity> rods, List<ResourcePortBlockEntity> resourcePorts) {
+    private static void pushWasteToPorts(ReactorControllerBlockEntity controller, List<ResourcePortBlockEntity> resourcePorts) {
         if (resourcePorts.isEmpty()) return;
 
         List<ResourcePortBlockEntity> extractPorts = resourcePorts.stream()
@@ -363,31 +367,21 @@ public final class ReactorSimulation {
                 .toList();
         if (extractPorts.isEmpty()) return;
 
-        int totalSolidWaste = rods.stream().mapToInt(ReactorRodBlockEntity::getTotalSolidWasteCount).sum();
+        int totalSolidWaste = controller.getTotalSolidWasteCount();
         if (totalSolidWaste > 0) {
             ResourceLocation wasteId = null;
-            for (ReactorRodBlockEntity rod : rods) {
-                for (var e : rod.getSolidWasteEntries()) {
-                    if (e.count() > 0) {
-                        wasteId = e.id();
-                        break;
-                    }
-                }
-                if (wasteId != null) break;
+            for (var e : controller.getSolidWasteEntries()) {
+                if (e.count() > 0) { wasteId = e.id(); break; }
             }
             if (wasteId != null) {
                 Item item = BuiltInRegistries.ITEM.get(wasteId);
                 if (item != null && item != net.minecraft.world.item.Items.AIR) {
                     int toTake = Math.min(64, totalSolidWaste);
                     ItemStack stack = ItemStack.EMPTY;
-                    for (ReactorRodBlockEntity rod : rods) {
-                        if (toTake <= 0) break;
-                        int taken = rod.takeSolidWaste(wasteId, toTake);
-                        if (taken > 0) {
-                            if (stack.isEmpty()) stack = new ItemStack(item, taken);
-                            else stack.grow(taken);
-                            toTake -= taken;
-                        }
+                    int taken = controller.takeSolidWaste(wasteId, toTake);
+                    if (taken > 0) {
+                        stack = new ItemStack(item, taken);
+                        toTake -= taken;
                     }
                     for (ResourcePortBlockEntity port : extractPorts) {
                         if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
@@ -397,14 +391,7 @@ public final class ReactorSimulation {
                         if (stack.isEmpty()) break;
                     }
                     if (!stack.isEmpty() && stack.getCount() > 0) {
-                        for (ReactorRodBlockEntity rod : rods) {
-                            if (stack.isEmpty()) break;
-                            int putBack = Math.min(stack.getCount(), ReactorRodBlockEntity.getSolidWasteCapacity() - rod.getTotalSolidWasteCount());
-                            if (putBack > 0) {
-                                int added = rod.addSolidWaste(wasteId, putBack);
-                                stack.shrink(added);
-                            }
-                        }
+                        controller.addSolidWaste(wasteId, stack.getCount());
                     }
                 }
             }
@@ -488,6 +475,60 @@ public final class ReactorSimulation {
     }
 
     /**
+     * Same as {@link #computeHeatSinkModifiers(ServerLevel, ReactorValidation.Result, int, List, Fluid)} but uses
+     * controller-cached interior scan results (block sums + adjacency counts). Only the rod-fluid modifier depends
+     * on the current coolant fluid from ports.
+     */
+    private static HeatSinkLoader.HeatSinkModifiersResult computeHeatSinkModifiersFromStaticCache(
+            ServerLevel level,
+            ReactorControllerBlockEntity.HeatSinkStaticCache cache,
+            int rodsFromList,
+            @Nullable Fluid coolantFluidFromPorts
+    ) {
+        var reg = level.registryAccess();
+        double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
+        double wNon = Config.HEAT_SINK_NON_ADJACENT_WEIGHT.get();
+
+        HeatSinkLoader.HeatSinkModifiers rodM = HeatSinkLoader.getModifiersForFluidOrDefault(
+                coolantFluidFromPorts != null ? coolantFluidFromPorts : Fluids.EMPTY,
+                reg
+        );
+        double sumFuelRod = (double) cache.countRod() * rodM.fuelMultiplier();
+        double sumEnergyRod = (double) cache.countRod() * rodM.energyMultiplier();
+
+        double totalWeightedFuel = sumFuelRod + cache.sumFuelAdj() * wAdj + cache.sumFuelNon() * wNon;
+        double totalWeightedEnergy = sumEnergyRod + cache.sumEnergyAdj() * wAdj + cache.sumEnergyNon() * wNon;
+        double totalWeight = cache.countRod() + cache.countAdj() * wAdj + cache.countNon() * wNon;
+        if (totalWeight <= 0) {
+            return new HeatSinkLoader.HeatSinkModifiersResult(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0);
+        }
+        double effFuel = totalWeightedFuel / totalWeight;
+        double effEnergy = totalWeightedEnergy / totalWeight;
+
+        if (Boolean.TRUE.equals(Config.REACTOR_SIMULATION_DEBUG.get())) {
+            String coolantStr = (coolantFluidFromPorts != null && coolantFluidFromPorts != Fluids.EMPTY)
+                    ? BuiltInRegistries.FLUID.getKey(coolantFluidFromPorts).toString()
+                    : "none";
+            ColossalReactors.LOGGER.info("[ReactorSimulation] Heat sink (cached): rod(scan)={} rod(list)={} coolantFromPorts={} adj={} nonAdj={} sumEnergyAdj={} sumFuelAdj={} wAdj={} wNon={} => fuelMult={} energyMult={}",
+                    cache.countRod(), rodsFromList, coolantStr, cache.countAdj(), cache.countNon(),
+                    cache.sumEnergyAdj(), cache.sumFuelAdj(), wAdj, wNon, effFuel, effEnergy);
+        }
+
+        return new HeatSinkLoader.HeatSinkModifiersResult(
+                effFuel,
+                effEnergy,
+                cache.sumEnergyAdj(),
+                cache.sumFuelAdj(),
+                cache.sumEnergyNon(),
+                cache.sumFuelNon(),
+                cache.sumOverheatingAdj(),
+                cache.sumOverheatingNon(),
+                cache.countAdj(),
+                cache.countNon()
+        );
+    }
+
+    /**
      * Effective rod count for production/consumption: each rod contributes less when it has horizontal
      * neighbors that are another rod or a border block (casing, glass, ports). Only horizontal (same Y) is checked.
      */
@@ -555,6 +596,23 @@ public final class ReactorSimulation {
         return new double[] { sumRf / totalUnits, sumFuel / totalUnits };
     }
 
+    /** Weighted average of base_rf_per_tick and base_fuel_units_per_tick from controller fuel entries (by fuel units). */
+    private static double[] computeEffectiveBaseFromControllerFuel(ReactorControllerBlockEntity controller) {
+        double sumRf = 0;
+        double sumFuel = 0;
+        double totalUnits = 0;
+        for (var e : controller.getFuelEntries()) {
+            FuelDefinition def = FuelLoader.get(e.id());
+            if (def == null) continue;
+            double u = e.units();
+            sumRf += u * def.baseRfPerTick();
+            sumFuel += u * def.baseFuelUnitsPerTick();
+            totalUnits += u;
+        }
+        if (totalUnits <= 0) return new double[] { 200.0, 0.03 };
+        return new double[] { sumRf / totalUnits, sumFuel / totalUnits };
+    }
+
     private static void consumeFuelFromRods(List<ReactorRodBlockEntity> rods, double totalUnitsToConsume, net.minecraft.core.RegistryAccess registryAccess) {
         double remaining = totalUnitsToConsume;
         int rodIndex = 0;
@@ -582,6 +640,27 @@ public final class ReactorSimulation {
                 }
             }
             rodIndex++;
+        }
+    }
+
+    private static void consumeFuelFromController(ReactorControllerBlockEntity controller, double totalUnitsToConsume, net.minecraft.core.RegistryAccess registryAccess) {
+        double remaining = totalUnitsToConsume;
+        int guard = 0;
+        while (remaining > 1e-6 && guard++ < 64) {
+            var entries = controller.getFuelEntries();
+            if (entries.isEmpty()) break;
+            ReactorControllerBlockEntity.FuelEntry first = entries.get(0);
+            FuelDefinition def = FuelLoader.get(first.id());
+            float take = (float) Math.min(remaining, first.units());
+            float consumed = controller.consumeFuel(first.id(), take);
+            remaining -= consumed;
+            if (consumed > 0 && def != null && !def.output().isEmpty() && !def.output().startsWith("#")) {
+                ResourceLocation wasteId = ResourceLocation.tryParse(def.output());
+                if (wasteId != null) {
+                    int items = (int) Math.floor(consumed / 1000.0f);
+                    if (items > 0) controller.addSolidWaste(wasteId, items);
+                }
+            }
         }
     }
 

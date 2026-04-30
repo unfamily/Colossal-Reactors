@@ -19,7 +19,8 @@ public class PowerPortBlockEntity extends BlockEntity {
 
     /** Max RF to push out per tick in total (distributed across adjacent receivers). */
     private int getMaxExtractPerTick() {
-        return net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
+        // Output rate = capacity (user request): no artificial throttling.
+        return energyStorage.getMaxEnergyStored();
     }
 
     private final PowerPortEnergyStorage energyStorage;
@@ -27,8 +28,7 @@ public class PowerPortBlockEntity extends BlockEntity {
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
         int capacity = net.unfamily.colossal_reactors.Config.POWER_PORT_CAPACITY.get();
-        int maxExtract = net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.get();
-        this.energyStorage = new PowerPortEnergyStorage(capacity, maxExtract);
+        this.energyStorage = new PowerPortEnergyStorage(capacity, capacity);
     }
 
     /**
