@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -23,13 +24,14 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.client.gui.FluidRenderHelper;
 import net.unfamily.colossal_reactors.menu.MelterMenu;
+import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.MelterRedstoneModePayload;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Melter GUI. Slot at (44,33), tank at (118,15), progress bar between them (left to right).
+ * Melter GUI. Slot at (44,38), tank at (117,19), progress bar between them (left to right).
  * Empty bar always visible on top of fill. Close button X. Tooltips for tank and default slot.
  */
 public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
@@ -42,7 +44,7 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/progress_filled.png");
 
     private static final int GUI_WIDTH = 176;
-    private static final int GUI_HEIGHT = 166;
+    private static final int GUI_HEIGHT = 176;
 
     private static final int CLOSE_BUTTON_Y = 5;
     private static final int CLOSE_BUTTON_SIZE = 12;
@@ -55,19 +57,27 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private static final int REDSTONE_BUTTON_SIZE = 16;
     private static final int REDSTONE_BUTTON_X = CLOSE_BUTTON_X - REDSTONE_BUTTON_SIZE - 4;
 
-    /** Input slot (44, 33) — +1 from border position */
+    /** Input slot (44, 38) — +1 from border position */
     private static final int SLOT_X = 44;
-    private static final int SLOT_Y = 33;
+    private static final int SLOT_Y = 38;
     private static final int SLOT_SIZE = 18;
     /** Redstone button Y: vertically centered with input item slot */
     private static final int REDSTONE_BUTTON_Y = SLOT_Y + (SLOT_SIZE - REDSTONE_BUTTON_SIZE) / 2;
 
-    /** Tank at (117, 14) — 1px left and 1px up from previous */
+    /** Tank at (117, 19) — 1px left and 1px up from previous */
     private static final int FLUID_BAR_X = 117;
-    private static final int FLUID_BAR_Y = 14;
+    private static final int FLUID_BAR_Y = 19;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
+
+    private static final int DUMP_BUTTON_W = 14;
+    private static final int DUMP_BUTTON_H = 12;
+    private static final int DUMP_BUTTON_GAP_BELOW = 3;
+    private static final int TANK_OUTER_W = FLUID_FILL_WIDTH + 2 * FLUID_FILL_INSET;
+    private static final int TANK_OUTER_H = FLUID_FILL_HEIGHT + 2 * FLUID_FILL_INSET;
+    private static final int FLUID_DUMP_X = FLUID_BAR_X + (TANK_OUTER_W - DUMP_BUTTON_W) / 2;
+    private static final int FLUID_DUMP_Y = FLUID_BAR_Y + TANK_OUTER_H + DUMP_BUTTON_GAP_BELOW;
 
     /** Progress bar 24x16, between slot and tank; vertically centered with slot (slot center Y = 32 + 9 = 41) */
     private static final int PROGRESS_BAR_WIDTH = 24;
@@ -82,6 +92,7 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     public static int getProgressBarHeight() { return PROGRESS_BAR_HEIGHT; }
 
     private Button closeButton;
+    private Button buttonDumpFluid;
     private int redstoneButtonScreenX;
     private int redstoneButtonScreenY;
 
@@ -98,6 +109,12 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
+        buttonDumpFluid = Button.builder(Component.literal("D"), b ->
+                ClientPacketDistributor.sendToServer(new FluidTankDumpPayload(menu.getBlockPos())))
+                .bounds(leftPos + FLUID_DUMP_X, topPos + FLUID_DUMP_Y, DUMP_BUTTON_W, DUMP_BUTTON_H)
+                .build();
+        buttonDumpFluid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
+        addRenderableWidget(buttonDumpFluid);
         redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
         redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
     }

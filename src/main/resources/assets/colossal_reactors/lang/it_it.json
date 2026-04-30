@@ -69,6 +69,7 @@
   "message.colossal_reactors.reactor_invalid": "Reattore non valido",
   "gui.colossal_reactors.resource_port.tank_tooltip": "%s / %s mB",
   "gui.colossal_reactors.resource_port.tank_empty": "Vuota",
+  "gui.colossal_reactors.fluid_dump.tooltip": "Scarico: svuota il serbatoio interno (il fluido viene eliminato)",
   "gui.colossal_reactors.melter.tank_tooltip": "%s / %s mB",
   "gui.colossal_reactors.melter.tank_empty": "Vuota",
   "gui.colossal_reactors.resource_port.mode.insert": "Inserisci",

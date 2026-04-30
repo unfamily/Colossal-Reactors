@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -20,6 +21,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
+import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.ResourcePortFilterPayload;
 import net.unfamily.colossal_reactors.network.ResourcePortModePayload;
 
@@ -28,7 +30,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * GUI for Resource Port. Background 176x166, fluid bar 12x54, slot at (37, 33), mode button on the right.
+ * GUI for Resource Port. Background 176x176, fluid bar 12x54, slot at (37, 38), mode button on the right.
  */
 public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu> {
 
@@ -36,7 +38,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
 
     private static final int GUI_WIDTH = 176;
-    private static final int GUI_HEIGHT = 166;
+    private static final int GUI_HEIGHT = 176;
 
     /** Close button (X): top right */
     private static final int CLOSE_BUTTON_Y = 5;
@@ -45,20 +47,28 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
 
     /** Fluid bar: position +1 left and +1 up from (11,15) -> (10, 14), internal fill 12x54 */
     private static final int FLUID_BAR_X = 10;
-    private static final int FLUID_BAR_Y = 14;
+    private static final int FLUID_BAR_Y = 19;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
 
+    private static final int DUMP_BUTTON_W = 14;
+    private static final int DUMP_BUTTON_H = 12;
+    private static final int DUMP_BUTTON_GAP_BELOW = 3;
+    private static final int TANK_OUTER_W = FLUID_FILL_WIDTH + 2 * FLUID_FILL_INSET;
+    private static final int TANK_OUTER_H = FLUID_FILL_HEIGHT + 2 * FLUID_FILL_INSET;
+    private static final int FLUID_DUMP_X = FLUID_BAR_X + (TANK_OUTER_W - DUMP_BUTTON_W) / 2;
+    private static final int FLUID_DUMP_Y = FLUID_BAR_Y + TANK_OUTER_H + DUMP_BUTTON_GAP_BELOW;
+
     /** Mode button (Insert/Extract/Eject): to the right of the GUI */
     private static final int MODE_BUTTON_X = 120;
-    private static final int MODE_BUTTON_Y = 28;
+    private static final int MODE_BUTTON_Y = 33;
     private static final int MODE_BUTTON_WIDTH = 48;
     private static final int MODE_BUTTON_HEIGHT = 20;
 
     /** Filter button (Both / Solid / Coolant): below mode button */
     private static final int FILTER_BUTTON_X = 120;
-    private static final int FILTER_BUTTON_Y = 52;
+    private static final int FILTER_BUTTON_Y = 57;
     private static final int FILTER_BUTTON_WIDTH = 48;
     private static final int FILTER_BUTTON_HEIGHT = 20;
 
@@ -67,6 +77,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     private static int fluidBarTop(ResourcePortScreen screen) { return screen.topPos + FLUID_BAR_Y + FLUID_FILL_INSET; }
 
     private Button closeButton;
+    private Button buttonDumpFluid;
     private CycleButton<PortMode> modeButton;
     private CycleButton<PortFilter> filterButton;
 
@@ -83,6 +94,16 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
+        buttonDumpFluid = Button.builder(Component.literal("D"), b -> {
+            BlockPos pos = menu.getSyncedBlockPos();
+            if (!pos.equals(BlockPos.ZERO)) {
+                ClientPacketDistributor.sendToServer(new FluidTankDumpPayload(pos));
+            }
+        })
+                .bounds(leftPos + FLUID_DUMP_X, topPos + FLUID_DUMP_Y, DUMP_BUTTON_W, DUMP_BUTTON_H)
+                .build();
+        buttonDumpFluid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
+        addRenderableWidget(buttonDumpFluid);
         Supplier<PortMode> modeSupplier = () -> menu.getPortMode();
         modeButton = CycleButton.<PortMode>builder(PortMode::getDisplayName, modeSupplier)
                 .withValues(PortMode.values())

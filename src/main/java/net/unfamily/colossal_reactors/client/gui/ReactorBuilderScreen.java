@@ -34,6 +34,7 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderMarkInputPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
+import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -73,6 +74,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
+
+    /** Dump (D): same size as build arrows; centered under the fluid tank. */
+    private static final int DUMP_BUTTON_W = 14;
+    private static final int DUMP_BUTTON_H = 12;
+    private static final int DUMP_BUTTON_GAP_BELOW = 3;
+    private static final int TANK_OUTER_W = FLUID_FILL_WIDTH + 2 * FLUID_FILL_INSET;
+    private static final int TANK_OUTER_H = FLUID_FILL_HEIGHT + 2 * FLUID_FILL_INSET;
+    private static final int FLUID_DUMP_X = FLUID_BAR_X + (TANK_OUTER_W - DUMP_BUTTON_W) / 2;
+    private static final int FLUID_DUMP_Y = FLUID_BAR_Y + TANK_OUTER_H + DUMP_BUTTON_GAP_BELOW;
 
     /**
      * Size above buttons (centered). Buffer/inventory: left 35, right 35+9*18=197.
@@ -171,6 +181,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonDown;
     private Button buttonPreview;
     private Button buttonMarkInput;
+    private Button buttonDumpFluid;
     /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
     private final Button[] rightBlockButtons = new Button[6];
     /** Shown only in simulation view: cycles coolant type (same position as Reboot in controller). */
@@ -189,6 +200,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
+        buttonDumpFluid = Button.builder(Component.literal("D"), b -> onFluidDumpPressed())
+                .bounds(leftPos + FLUID_DUMP_X, topPos + FLUID_DUMP_Y, DUMP_BUTTON_W, DUMP_BUTTON_H)
+                .build();
+        buttonDumpFluid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
+        addRenderableWidget(buttonDumpFluid);
         buttonUp = Button.builder(Component.literal("\u2191"), b -> sendSize(0, true))  // ↑
                 .bounds(leftPos + BUTTON_UP_X, topPos + ROW1_Y, BUTTON_W, BUTTON_H)
                 .build();
@@ -436,6 +452,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonDown.visible = showBuilder;
         buttonPreview.visible = showBuilder;
         buttonMarkInput.visible = showBuilder;
+        buttonDumpFluid.visible = showBuilder;
         for (Button b : rightBlockButtons) b.visible = showBuilder;
         if (coolantCycleButton != null) {
             coolantCycleButton.visible = isSimulationView;
@@ -485,6 +502,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         if (index == 2) ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 2, true));
         if (index == 3) ClientPacketDistributor.sendToServer(new ReactorBuilderOptionPayload(pos, 0, true));  // toggle; next ignored on server
         if (index == 5) ClientPacketDistributor.sendToServer(new ReactorBuilderBuildPayload(pos));  // Build/Stop
+    }
+
+    private void onFluidDumpPressed() {
+        if (menu.getBlockEntity() == null) return;
+        ClientPacketDistributor.sendToServer(new FluidTankDumpPayload(menu.getBlockPos()));
     }
 
     private void onMarkInputPressed() {

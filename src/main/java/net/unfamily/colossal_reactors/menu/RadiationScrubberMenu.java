@@ -16,7 +16,7 @@ import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import javax.annotation.Nullable;
 
 /**
- * Radiation Scrubber container. Slot 0 (catalyst) at (44, 33), Slot 1 at (80, 33), player inventory at (8, 84), hotbar at (8, 142).
+ * Radiation Scrubber container. Slot 0 (catalyst) at (44, 38), Slot 1 at (80, 38), player inventory at (8, 94), hotbar at (8, 152).
  * Data indices 0-2 pos, 3-4 energy, 5-6 tank amount/cap, 7 = gas type length, 8-23 = gas type string (packed).
  */
 public class RadiationScrubberMenu extends AbstractContainerMenu {
@@ -30,16 +30,16 @@ public class RadiationScrubberMenu extends AbstractContainerMenu {
         this.data = data;
         addDataSlots(data);
 
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 33));
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 1, 80, 33));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 38));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 1, 80, 38));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
+                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 94 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
+            addSlot(new Slot(playerInventory, col, 8 + col * 18, 152));
         }
     }
 
@@ -50,16 +50,16 @@ public class RadiationScrubberMenu extends AbstractContainerMenu {
         addDataSlots(data);
 
         var emptyHandler = new net.neoforged.neoforge.items.ItemStackHandler(2);
-        addSlot(new SlotItemHandler(emptyHandler, 0, 44, 33));
-        addSlot(new SlotItemHandler(emptyHandler, 1, 80, 33));
+        addSlot(new SlotItemHandler(emptyHandler, 0, 44, 38));
+        addSlot(new SlotItemHandler(emptyHandler, 1, 80, 38));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
+                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 94 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
+            addSlot(new Slot(playerInventory, col, 8 + col * 18, 152));
         }
     }
 

@@ -14,7 +14,7 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
 
 /**
- * Melter container. Input slot at (44, 33), player inventory at (8, 84), hotbar at (8, 142).
+ * Melter container. Input slot at (44, 38), player inventory at (8, 94), hotbar at (8, 152).
  */
 public class MelterMenu extends AbstractContainerMenu {
 
@@ -27,15 +27,15 @@ public class MelterMenu extends AbstractContainerMenu {
         this.data = data;
         addDataSlots(data);
 
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 33));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 38));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
+                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 94 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
+            addSlot(new Slot(playerInventory, col, 8 + col * 18, 152));
         }
     }
 
@@ -45,15 +45,15 @@ public class MelterMenu extends AbstractContainerMenu {
         this.data = new SimpleContainerData(9);
         addDataSlots(data);
 
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 44, 33));
+        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 44, 38));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
+                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 94 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
+            addSlot(new Slot(playerInventory, col, 8 + col * 18, 152));
         }
     }
 

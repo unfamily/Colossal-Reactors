@@ -76,6 +76,11 @@ public class ModPayloads {
                 ReactorBuilderMarkInputPayload.STREAM_CODEC,
                 ReactorBuilderMarkInputPayload::handle
         );
+        registrar.playToServer(
+                FluidTankDumpPayload.TYPE,
+                FluidTankDumpPayload.STREAM_CODEC,
+                FluidTankDumpPayload::handle
+        );
     }
 
     /** S2C: send one preview marker to the player (called from server in ReactorPreviewPayload handler). */

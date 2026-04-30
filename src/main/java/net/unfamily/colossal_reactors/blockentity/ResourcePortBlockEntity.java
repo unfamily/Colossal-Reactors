@@ -154,6 +154,15 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return fluidStorage.getCapacityAsInt(0, FluidResource.EMPTY);
     }
 
+    /** Server: discard all fluid in the internal tank (GUI dump). @return true if any fluid was removed */
+    public boolean dumpFluidTankContents() {
+        if (level == null || level.isClientSide()) return false;
+        if (fluidStorage.getAmountAsInt(0) <= 0) return false;
+        fluidStorage.set(0, FluidResource.EMPTY, 0);
+        setChanged();
+        return true;
+    }
+
     public ResourceHandler<ItemResource> getItemResourceHandlerForCapability() {
         if (cachedItemCapability == null) {
             cachedItemCapability = LegacyItemHandlerResourceHandler.wrap(new FilteredItemHandler());
