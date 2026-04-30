@@ -179,6 +179,19 @@ public class Config {
         BUILDER.pop(); // reactor
     }
 
+    // ========== builder ==========
+    static {
+        BUILDER.comment("Reactor Builder (construction speed and behavior)").push("builder");
+    }
+
+    public static final ModConfigSpec.IntValue REACTOR_BUILDER_BUILD_STEPS_PER_TICK = BUILDER
+            .comment("How many build steps to execute per tick while building. Higher = faster, but heavier server load. Default: 2")
+            .defineInRange("000_buildStepsPerTick", 2, 1, 1024);
+
+    static {
+        BUILDER.pop(); // builder
+    }
+
     // ========== ports ==========
     static {
         BUILDER.comment("Port block settings").push("ports");

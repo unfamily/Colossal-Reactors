@@ -73,7 +73,7 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                     case INDEX_HAS_REDSTONE_PORT -> result != null && blockEntity.getLevel() != null
                             ? (hasRedstonePortInResult(blockEntity.getLevel(), result) ? 1 : 0) : 0;
                     case INDEX_REDSTONE_GATE_SATISFIED -> result != null && blockEntity.getLevel() instanceof ServerLevel sl
-                            ? (ReactorControllerBlock.isRedstoneGateSatisfied(sl, result) ? 1 : 0) : 1;
+                            ? (ReactorControllerBlock.isRedstoneGateSatisfied(sl, blockEntity, result) ? 1 : 0) : 1;
                     case INDEX_STABILITY -> blockEntity.getStabilityPermille();
                     case INDEX_UNSTABILITY_ENABLED -> Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get()) ? 1 : 0;
                     default -> 0;

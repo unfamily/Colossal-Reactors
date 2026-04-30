@@ -71,35 +71,41 @@ public final class ReactorSimulation {
         ReactorValidation.Result result = controller.getCachedResult();
         if (result == null || !result.valid()) return;
 
-        int minX = result.minX();
-        int minY = result.minY();
-        int minZ = result.minZ();
-        int maxX = result.maxX();
-        int maxY = result.maxY();
-        int maxZ = result.maxZ();
-
         List<ReactorRodBlockEntity> rods = new ArrayList<>();
         List<PowerPortBlockEntity> powerPorts = new ArrayList<>();
         List<ResourcePortBlockEntity> resourcePorts = new ArrayList<>();
 
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (level.getBlockState(pos).is(ModBlocks.REACTOR_ROD.get())) {
-                        if (level.getBlockEntity(pos) instanceof ReactorRodBlockEntity rod) {
-                            rods.add(rod);
-                        }
-                    } else if (level.getBlockState(pos).is(ModBlocks.POWER_PORT.get())) {
-                        if (level.getBlockEntity(pos) instanceof PowerPortBlockEntity port) {
-                            powerPorts.add(port);
-                        }
-                    } else if (level.getBlockState(pos).is(ModBlocks.RESOURCE_PORT.get())) {
-                        if (level.getBlockEntity(pos) instanceof ResourcePortBlockEntity port) {
-                            resourcePorts.add(port);
-                        }
-                    }
-                }
+        // Use cached part positions to avoid scanning the whole reactor volume each tick.
+        long[] rodPositions = controller.getCachedRodPositions();
+        long[] powerPortPositions = controller.getCachedPowerPortPositions();
+        long[] resourcePortPositions = controller.getCachedResourcePortPositions();
+        if (rodPositions.length == 0 && (result.rodCount() > 0 || result.rodColumns() > 0)) {
+            controller.rebuildPartCaches(level, result);
+            rodPositions = controller.getCachedRodPositions();
+            powerPortPositions = controller.getCachedPowerPortPositions();
+            resourcePortPositions = controller.getCachedResourcePortPositions();
+        }
+        if (rodPositions.length == 0) {
+            // Fallback (should be rare): rebuild from bounds.
+            controller.rebuildPartCaches(level, result);
+            rodPositions = controller.getCachedRodPositions();
+            powerPortPositions = controller.getCachedPowerPortPositions();
+            resourcePortPositions = controller.getCachedResourcePortPositions();
+        }
+
+        for (long p : rodPositions) {
+            if (level.getBlockEntity(BlockPos.of(p)) instanceof ReactorRodBlockEntity rod) {
+                rods.add(rod);
+            }
+        }
+        for (long p : powerPortPositions) {
+            if (level.getBlockEntity(BlockPos.of(p)) instanceof PowerPortBlockEntity port) {
+                powerPorts.add(port);
+            }
+        }
+        for (long p : resourcePortPositions) {
+            if (level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port) {
+                resourcePorts.add(port);
             }
         }
 

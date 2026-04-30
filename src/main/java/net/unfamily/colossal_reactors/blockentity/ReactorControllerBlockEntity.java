@@ -8,6 +8,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -16,9 +17,12 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 import org.jetbrains.annotations.Nullable;
+
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.Optional;
 
@@ -31,6 +35,15 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
     private ReactorValidation.Result cachedResult;
     private ServerPlayer lastInteractingPlayer;
+
+    /**
+     * Runtime caches of reactor parts (positions as {@link BlockPos#asLong()}), rebuilt on validate/revalidate.
+     * This avoids full-volume scans every tick for large reactors.
+     */
+    private long[] cachedRodPositions = new long[0];
+    private long[] cachedPowerPortPositions = new long[0];
+    private long[] cachedResourcePortPositions = new long[0];
+    private long[] cachedRedstonePortPositions = new long[0];
 
     /** Last tick stats for GUI (updated by ReactorSimulation.tick). Fuel is ingots/tick * 100 (e.g. 26 = 0.26). */
     private int lastRfPerTick;
@@ -69,8 +82,63 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         this.cachedResult = result;
     }
 
+    public long[] getCachedRodPositions() { return cachedRodPositions; }
+    public long[] getCachedPowerPortPositions() { return cachedPowerPortPositions; }
+    public long[] getCachedResourcePortPositions() { return cachedResourcePortPositions; }
+    public long[] getCachedRedstonePortPositions() { return cachedRedstonePortPositions; }
+
+    public void rebuildPartCaches(ServerLevel level, ReactorValidation.Result result) {
+        if (level == null || result == null || !result.valid()) {
+            cachedRodPositions = new long[0];
+            cachedPowerPortPositions = new long[0];
+            cachedResourcePortPositions = new long[0];
+            cachedRedstonePortPositions = new long[0];
+            return;
+        }
+
+        int minX = result.minX();
+        int minY = result.minY();
+        int minZ = result.minZ();
+        int maxX = result.maxX();
+        int maxY = result.maxY();
+        int maxZ = result.maxZ();
+
+        LongArrayList rods = new LongArrayList();
+        LongArrayList powerPorts = new LongArrayList();
+        LongArrayList resourcePorts = new LongArrayList();
+        LongArrayList redstonePorts = new LongArrayList();
+
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    p.set(x, y, z);
+                    BlockState state = level.getBlockState(p);
+                    if (state.is(ModBlocks.REACTOR_ROD.get())) {
+                        rods.add(p.asLong());
+                    } else if (state.is(ModBlocks.POWER_PORT.get())) {
+                        powerPorts.add(p.asLong());
+                    } else if (state.is(ModBlocks.RESOURCE_PORT.get())) {
+                        resourcePorts.add(p.asLong());
+                    } else if (state.is(ModBlocks.REDSTONE_PORT.get())) {
+                        redstonePorts.add(p.asLong());
+                    }
+                }
+            }
+        }
+
+        cachedRodPositions = rods.toLongArray();
+        cachedPowerPortPositions = powerPorts.toLongArray();
+        cachedResourcePortPositions = resourcePorts.toLongArray();
+        cachedRedstonePortPositions = redstonePorts.toLongArray();
+    }
+
     public void invalidateCache() {
         cachedResult = null;
+        cachedRodPositions = new long[0];
+        cachedPowerPortPositions = new long[0];
+        cachedResourcePortPositions = new long[0];
+        cachedRedstonePortPositions = new long[0];
         if (level != null && !level.isClientSide()) {
             setChanged();
         }
