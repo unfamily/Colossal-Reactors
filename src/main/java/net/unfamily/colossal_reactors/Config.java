@@ -138,6 +138,27 @@ public class Config {
         BUILDER.pop();
     }
 
+    // --- reactor.balance ---
+    static {
+        BUILDER.comment("Reactor balance (size scaling curves)").push("balance");
+    }
+
+    public static final ModConfigSpec.IntValue ROD_ENERGY_SCALING_MODE = BUILDER
+            .comment("Energy scaling mode vs effectiveRodCount. 0=Legacy (n*log), 1=Power (n^exp), 2=Saturating (n/(1+n/k)). Default: 1")
+            .defineInRange("110_rodEnergyScalingMode", 1, 0, 2);
+
+    public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_EXPONENT = BUILDER
+            .comment("When rodEnergyScalingMode=1: exponent for n^exp. Smaller = flatter for large reactors. Default: 0.90")
+            .defineInRange("111_rodEnergyScalingExponent", 0.90, 0.05, 1.50);
+
+    public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_SATURATION_K = BUILDER
+            .comment("When rodEnergyScalingMode=2: saturation constant k for n/(1+n/k). Default: 600")
+            .defineInRange("112_rodEnergyScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
+
+    static {
+        BUILDER.pop();
+    }
+
     // --- reactor.heatSink ---
     static {
         BUILDER.comment("Heat sink (coolant block) weights and formula multipliers").push("heatSink");

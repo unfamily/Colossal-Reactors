@@ -7,7 +7,7 @@
       "output": "colossal_reactors:nuclear_waste",
       "units_per_fuel": 1000,
       "units_per_waste": 1000,
-      "base_rf_per_tick": 200.0,
+      "base_rf_per_tick": 400.0,
       "base_fuel_units_per_tick": 0.03
     },
     {
@@ -16,7 +16,7 @@
       "output": "colossal_reactors:nuclear_waste",
       "units_per_fuel": 500,
       "units_per_waste": 1500,
-      "base_rf_per_tick": 500.0,
+      "base_rf_per_tick": 1000.0,
       "base_fuel_units_per_tick": 0.03
     }
   ]
