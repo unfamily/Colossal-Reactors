@@ -50,6 +50,21 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_PATTERN_MODE = "PatternMode";
     private static final String TAG_BUILDING = "Building";
     private static final String TAG_INVALID_BLOCKS = "InvalidBlocks";
+    private static final String TAG_BUILD_STAGE = "BuildStage";
+    private static final String TAG_BUILD_FRAME_X = "BuildFrameX";
+    private static final String TAG_BUILD_FRAME_Y = "BuildFrameY";
+    private static final String TAG_BUILD_FRAME_Z = "BuildFrameZ";
+    private static final String TAG_BUILD_RODCTRL_RX = "BuildRodCtrlRx";
+    private static final String TAG_BUILD_RODCTRL_RZ = "BuildRodCtrlRz";
+    private static final String TAG_BUILD_ROD_LX = "BuildRodLx";
+    private static final String TAG_BUILD_ROD_LY = "BuildRodLy";
+    private static final String TAG_BUILD_ROD_LZ = "BuildRodLz";
+    private static final String TAG_BUILD_LIQUID_LX = "BuildLiquidLx";
+    private static final String TAG_BUILD_LIQUID_LY = "BuildLiquidLy";
+    private static final String TAG_BUILD_LIQUID_LZ = "BuildLiquidLz";
+    private static final String TAG_BUILD_HEAT_LX = "BuildHeatLx";
+    private static final String TAG_BUILD_HEAT_LY = "BuildHeatLy";
+    private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final int BUFFER_SLOTS = 9 * 3;
     private static final int MIN_SIZE = 1;
 
@@ -132,8 +147,52 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** True when build stopped because one or more invalid blocks were found (red zone). Cleared on start/stop. */
     private boolean invalidBlocksDetected = false;
 
+    // Build progress cursors (NEXT position to process). These make building "forward-only" and avoid rescanning from start.
+    private int buildStage = 0;
+    private int buildFrameX = Integer.MIN_VALUE, buildFrameY = Integer.MIN_VALUE, buildFrameZ = Integer.MIN_VALUE;
+    private int buildRodCtrlRx = Integer.MIN_VALUE, buildRodCtrlRz = Integer.MIN_VALUE;
+    private int buildRodLx = Integer.MIN_VALUE, buildRodLy = Integer.MIN_VALUE, buildRodLz = Integer.MIN_VALUE;
+    private int buildLiquidLx = Integer.MIN_VALUE, buildLiquidLy = Integer.MIN_VALUE, buildLiquidLz = Integer.MIN_VALUE;
+    private int buildHeatLx = Integer.MIN_VALUE, buildHeatLy = Integer.MIN_VALUE, buildHeatLz = Integer.MIN_VALUE;
+
     private static final int ROD_PATTERN_COUNT = 4;
     private static final int PATTERN_MODE_COUNT = 4;
+
+    void resetBuildProgress() {
+        buildStage = 0;
+        buildFrameX = buildFrameY = buildFrameZ = Integer.MIN_VALUE;
+        buildRodCtrlRx = buildRodCtrlRz = Integer.MIN_VALUE;
+        buildRodLx = buildRodLy = buildRodLz = Integer.MIN_VALUE;
+        buildLiquidLx = buildLiquidLy = buildLiquidLz = Integer.MIN_VALUE;
+        buildHeatLx = buildHeatLy = buildHeatLz = Integer.MIN_VALUE;
+    }
+
+    int getBuildStage() { return buildStage; }
+    void setBuildStage(int stage) { this.buildStage = stage; }
+
+    int getBuildFrameX() { return buildFrameX; }
+    int getBuildFrameY() { return buildFrameY; }
+    int getBuildFrameZ() { return buildFrameZ; }
+    void setBuildFrameCursor(int x, int y, int z) { buildFrameX = x; buildFrameY = y; buildFrameZ = z; }
+
+    int getBuildRodCtrlRx() { return buildRodCtrlRx; }
+    int getBuildRodCtrlRz() { return buildRodCtrlRz; }
+    void setBuildRodCtrlCursor(int rx, int rz) { buildRodCtrlRx = rx; buildRodCtrlRz = rz; }
+
+    int getBuildRodLx() { return buildRodLx; }
+    int getBuildRodLy() { return buildRodLy; }
+    int getBuildRodLz() { return buildRodLz; }
+    void setBuildRodCursor(int lx, int ly, int lz) { buildRodLx = lx; buildRodLy = ly; buildRodLz = lz; }
+
+    int getBuildLiquidLx() { return buildLiquidLx; }
+    int getBuildLiquidLy() { return buildLiquidLy; }
+    int getBuildLiquidLz() { return buildLiquidLz; }
+    void setBuildLiquidCursor(int lx, int ly, int lz) { buildLiquidLx = lx; buildLiquidLy = ly; buildLiquidLz = lz; }
+
+    int getBuildHeatLx() { return buildHeatLx; }
+    int getBuildHeatLy() { return buildHeatLy; }
+    int getBuildHeatLz() { return buildHeatLz; }
+    void setBuildHeatCursor(int lx, int ly, int lz) { buildHeatLx = lx; buildHeatLy = ly; buildHeatLz = lz; }
 
     private final ContainerData sizeData = new ContainerData() {
         @Override
@@ -194,6 +253,11 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         return bufferHandler;
     }
 
+    /** Buffer exposed to automation (hoppers/pipes). */
+    public IItemHandler getItemHandlerForCapability() {
+        return bufferHandler;
+    }
+
     public FluidTank getFluidTank() {
         return fluidTank;
     }
@@ -226,6 +290,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
             return;
         }
         building = true;
+        resetBuildProgress();
         invalidBlocksDetected = false;
         setChanged();
     }
@@ -233,6 +298,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Stop building. Called when user presses Stop or when build finishes/aborts. Does not clear invalidBlocksDetected (so warning stays until next start or stop). */
     public void stopBuild() {
         building = false;
+        resetBuildProgress();
         setChanged();
     }
 
@@ -247,7 +313,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Server tick: advance build one step. Called from block ticker. */
     public void serverTick() {
         if (!building || level == null || level.isClientSide()) return;
-        if (!ReactorBuildLogic.tick(this)) {
+        int steps = net.unfamily.colossal_reactors.Config.REACTOR_BUILDER_BUILD_STEPS_PER_TICK.get();
+        if (!ReactorBuildLogic.tick(this, steps)) {
             if (level instanceof net.minecraft.server.level.ServerLevel serverLevel && ReactorBuildLogic.hasRedZone(serverLevel, this)) {
                 invalidBlocksDetected = true;
             }

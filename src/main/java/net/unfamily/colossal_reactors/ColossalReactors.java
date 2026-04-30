@@ -78,6 +78,8 @@ public class ColossalReactors {
                 (be, direction) -> ((ResourcePortBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((ResourcePortBlockEntity) be).getFluidHandlerForCapability());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
+                (be, direction) -> ((ReactorBuilderBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),

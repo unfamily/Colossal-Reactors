@@ -162,6 +162,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
         if (current == ControllerState.VALIDATING) {
             ReactorValidation.Result result = ReactorValidation.validate(level, startPos, back);
             controllerBe.setCachedResult(result);
+            controllerBe.rebuildPartCaches(level, result);
             ControllerState next = result.valid() ? ControllerState.ON : ControllerState.OFF;
             level.setBlock(pos, state.setValue(STATE, next), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
             controllerBe.setChanged();
@@ -179,15 +180,17 @@ public class ReactorControllerBlock extends BaseEntityBlock {
                 result = ReactorValidation.validate(level, startPos, back);
                 if (!result.valid()) {
                     controllerBe.setCachedResult(result);
+                    controllerBe.rebuildPartCaches(level, result);
                     level.setBlock(pos, state.setValue(STATE, ControllerState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
                     controllerBe.setChanged();
                     return;
                 }
                 controllerBe.setCachedResult(result);
+                controllerBe.rebuildPartCaches(level, result);
                 controllerBe.setChanged();
             }
             if (result != null && result.valid()) {
-                if (isRedstoneGateSatisfied(level, result)) {
+                if (isRedstoneGateSatisfied(level, controllerBe, result)) {
                     ReactorFiller.tickFill(level, controllerBe);
                     ReactorSimulation.tick(level, controllerBe);
                 }
@@ -225,27 +228,17 @@ public class ReactorControllerBlock extends BaseEntityBlock {
      * If the reactor has at least one redstone port, the reactor runs only when at least one port is active (signal + mode).
      * If there are no redstone ports, the gate is satisfied (reactor always runs when ON).
      */
-    public static boolean isRedstoneGateSatisfied(ServerLevel level, ReactorValidation.Result result) {
-        int minX = result.minX();
-        int minY = result.minY();
-        int minZ = result.minZ();
-        int maxX = result.maxX();
-        int maxY = result.maxY();
-        int maxZ = result.maxZ();
-        boolean hasAnyPort = false;
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    if (!level.getBlockState(new BlockPos(x, y, z)).is(ModBlocks.REDSTONE_PORT.get())) continue;
-                    hasAnyPort = true;
-                    BlockEntity be = level.getBlockEntity(new BlockPos(x, y, z));
-                    if (be instanceof RedstonePortBlockEntity port && port.isRedstoneActive(level)) {
-                        return true;
-                    }
-                }
+    public static boolean isRedstoneGateSatisfied(ServerLevel level, ReactorControllerBlockEntity controllerBe, ReactorValidation.Result result) {
+        if (controllerBe == null || result == null || !result.valid()) return false;
+        long[] ports = controllerBe.getCachedRedstonePortPositions();
+        if (ports.length == 0) return true;
+        for (long p : ports) {
+            BlockEntity be = level.getBlockEntity(BlockPos.of(p));
+            if (be instanceof RedstonePortBlockEntity port && port.isRedstoneActive(level)) {
+                return true;
             }
         }
-        return !hasAnyPort;
+        return false;
     }
 
     private static VoxelShape shapeFor(Direction facing) {

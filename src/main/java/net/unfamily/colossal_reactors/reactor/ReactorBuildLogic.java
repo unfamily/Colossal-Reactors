@@ -96,6 +96,24 @@ public final class ReactorBuildLogic {
      * One build step. Returns true if building should continue, false if done or aborted (caller should call stopBuild).
      */
     public static boolean tick(ReactorBuilderBlockEntity builder) {
+        return tick(builder, 1);
+    }
+
+    /**
+     * Executes up to {@code steps} build steps in a single tick.
+     * Returns true if building should continue, false if done or aborted.
+     */
+    public static boolean tick(ReactorBuilderBlockEntity builder, int steps) {
+        int s = Math.max(1, steps);
+        for (int i = 0; i < s; i++) {
+            if (!tickSingle(builder)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean tickSingle(ReactorBuilderBlockEntity builder) {
         if (builder.getLevel() == null || builder.getLevel().isClientSide()) return false;
         ServerLevel level = (ServerLevel) builder.getLevel();
         BlockState builderState = level.getBlockState(builder.getBlockPos());
