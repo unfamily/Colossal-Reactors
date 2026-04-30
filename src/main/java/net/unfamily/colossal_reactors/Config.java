@@ -36,6 +36,10 @@ public class Config {
             .comment("When true, disables boron ore generation in the world. Few mods add boron; useful to keep only boron. Default: false")
             .define("102_disable_boron_oregen", false);
 
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_RODS_RENDERING_UPDATE = BUILDER
+            .comment("When true, reactor rods blockstate is not updated to match fuel fill percentage (less lag, less visual feedback). Default: false")
+            .define("200_disableRodsRenderingUpdate", false);
+
     static {
         BUILDER.pop();
     }

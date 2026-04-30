@@ -109,9 +109,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_COL0_X = RIGHT_BLOCK_X;
     private static final int RIGHT_COL1_X = RIGHT_BLOCK_X + RIGHT_BUTTON_W + GAP;
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
-    private static final int RIGHT_ROW0_Y = 32;
-    /** Second row kept where the old third row was (60). */
-    private static final int RIGHT_ROW1_Y = 60;
+    // Align right block rows with left controls:
+    // - Row 0 aligns with the up arrow (ROW1_Y)
+    // - Row 1 aligns with the Preview button (PREVIEW_BUTTON_Y)
+    private static final int RIGHT_ROW0_Y = ROW1_Y;
+    private static final int RIGHT_ROW1_Y = PREVIEW_BUTTON_Y;
     /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 

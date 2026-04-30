@@ -79,15 +79,15 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
     // ---- Aggregated fuel + waste (performance: avoid per-rod updates) ----
     private static final String TAG_FUEL = "Fuel";
-    private static final String TAG_SOLID_WASTE = "SolidWaste";
+    private static final String TAG_WASTE = "Waste";
     private static final String TAG_COOLANT = "Coolant";
     private static final String TAG_FUEL_ID = "Id";
     private static final String TAG_FUEL_UNITS = "Units";
     private static final String TAG_COOLANT_MB = "Mb";
-    private static final String TAG_COUNT = "Count";
+    private static final String TAG_WASTE_UNITS = "WasteUnits";
 
     public record FuelEntry(Identifier id, float units) {}
-    public record SolidWasteEntry(Identifier id, int count) {}
+    public record WasteEntry(Identifier id, float units) {}
     public record CoolantEntry(Identifier fluidId, int mb) {}
 
     private static final Codec<FuelEntry> FUEL_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -95,10 +95,10 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             Codec.FLOAT.fieldOf(TAG_FUEL_UNITS).forGetter(FuelEntry::units)
     ).apply(i, FuelEntry::new));
 
-    private static final Codec<SolidWasteEntry> SOLID_WASTE_CODEC = RecordCodecBuilder.create(i -> i.group(
-            Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(SolidWasteEntry::id),
-            Codec.INT.fieldOf(TAG_COUNT).forGetter(SolidWasteEntry::count)
-    ).apply(i, SolidWasteEntry::new));
+    private static final Codec<WasteEntry> WASTE_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
+            Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(WasteEntry::id),
+            Codec.FLOAT.fieldOf(TAG_WASTE_UNITS).forGetter(WasteEntry::units)
+    ).apply(i, WasteEntry::new));
 
     private static final Codec<CoolantEntry> COOLANT_ENTRY_CODEC = RecordCodecBuilder.create(i -> i.group(
             Identifier.CODEC.fieldOf(TAG_FUEL_ID).forGetter(CoolantEntry::fluidId),
@@ -107,8 +107,8 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
     /** Fuel by type: id -> units (float). Total units <= getMaxFuelUnitsTotal(). */
     private final List<FuelEntry> fuelEntries = new ArrayList<>();
-    /** Solid waste buffer: id -> count. Total count <= getSolidWasteCapacityTotal(). */
-    private final List<SolidWasteEntry> solidWasteEntries = new ArrayList<>();
+    /** Waste by type (same id as fuel type): id -> units (float). Shares capacity with fuel. */
+    private final List<WasteEntry> wasteEntries = new ArrayList<>();
     /** Coolant by fluid id: fluidId -> mB. Total mB <= getCoolantCapacityMbTotal(). */
     private final List<CoolantEntry> coolantEntries = new ArrayList<>();
 
@@ -172,7 +172,9 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
     public int getCoolantCapacityMbTotal() {
         int perRod = ReactorRodBlockEntity.getCoolantCapacityMb();
-        long rods = cachedRodPositions != null ? cachedRodPositions.length : 0;
+        long rods = (cachedRodPositions != null && cachedRodPositions.length > 0)
+                ? cachedRodPositions.length
+                : (cachedResult != null && cachedResult.valid() ? cachedResult.rodCount() : 0);
         long total = rods * (long) Math.max(0, perRod);
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, total));
     }
@@ -246,23 +248,59 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         return consumed;
     }
 
-    public int getMaxFuelUnitsTotal() {
-        int perRod = ReactorRodBlockEntity.getMaxFuelUnits();
-        long rods = cachedRodPositions != null ? cachedRodPositions.length : 0;
-        long total = rods * (long) Math.max(0, perRod);
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, total));
+    public List<WasteEntry> getWasteEntries() { return List.copyOf(wasteEntries); }
+    public float getTotalWasteUnits() { return (float) wasteEntries.stream().mapToDouble(WasteEntry::units).sum(); }
+    public float getTotalFuelAndWasteUnits() { return getTotalFuelUnits() + getTotalWasteUnits(); }
+
+    public float addWasteUnits(Identifier fuelId, float units) {
+        if (units <= 0) return 0;
+        float total = getTotalFuelAndWasteUnits();
+        int max = getMaxFuelUnitsTotal();
+        float add = Math.min(units, Math.max(0, max - total));
+        if (add <= 0) return 0;
+        mergeWaste(fuelId, add);
+        setChanged();
+        return add;
     }
 
-    public int getSolidWasteCapacityTotal() {
-        int perRod = ReactorRodBlockEntity.getSolidWasteCapacity();
-        long rods = cachedRodPositions != null ? cachedRodPositions.length : 0;
+    public float consumeWasteUnits(Identifier fuelId, float units) {
+        if (units <= 0) return 0;
+        for (int i = 0; i < wasteEntries.size(); i++) {
+            WasteEntry e = wasteEntries.get(i);
+            if (!e.id().equals(fuelId)) continue;
+            float take = Math.min(units, e.units());
+            float remain = e.units() - take;
+            if (remain <= 0.0001f) wasteEntries.remove(i);
+            else wasteEntries.set(i, new WasteEntry(fuelId, remain));
+            if (take > 0) setChanged();
+            return take;
+        }
+        return 0;
+    }
+
+    private void mergeWaste(Identifier fuelId, float add) {
+        for (int i = 0; i < wasteEntries.size(); i++) {
+            WasteEntry e = wasteEntries.get(i);
+            if (e.id().equals(fuelId)) {
+                wasteEntries.set(i, new WasteEntry(fuelId, e.units() + add));
+                return;
+            }
+        }
+        wasteEntries.add(new WasteEntry(fuelId, add));
+    }
+
+    public int getMaxFuelUnitsTotal() {
+        int perRod = ReactorRodBlockEntity.getMaxFuelUnits();
+        long rods = (cachedRodPositions != null && cachedRodPositions.length > 0)
+                ? cachedRodPositions.length
+                : (cachedResult != null && cachedResult.valid() ? cachedResult.rodCount() : 0);
         long total = rods * (long) Math.max(0, perRod);
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, total));
     }
 
     public float addFuel(Identifier fuelId, float units) {
         if (units <= 0) return 0;
-        float total = getTotalFuelUnits();
+        float total = getTotalFuelAndWasteUnits();
         int max = getMaxFuelUnitsTotal();
         float add = Math.min(units, Math.max(0, max - total));
         if (add <= 0) return 0;
@@ -300,43 +338,6 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         fuelEntries.add(new FuelEntry(fuelId, add));
     }
 
-    public List<SolidWasteEntry> getSolidWasteEntries() { return List.copyOf(solidWasteEntries); }
-    public int getTotalSolidWasteCount() { return solidWasteEntries.stream().mapToInt(SolidWasteEntry::count).sum(); }
-
-    public int addSolidWaste(Identifier wasteId, int count) {
-        if (count <= 0) return 0;
-        int total = getTotalSolidWasteCount();
-        int max = getSolidWasteCapacityTotal();
-        int add = Math.min(count, Math.max(0, max - total));
-        if (add <= 0) return 0;
-        for (int i = 0; i < solidWasteEntries.size(); i++) {
-            SolidWasteEntry e = solidWasteEntries.get(i);
-            if (e.id().equals(wasteId)) {
-                solidWasteEntries.set(i, new SolidWasteEntry(wasteId, e.count() + add));
-                setChanged();
-                return add;
-            }
-        }
-        solidWasteEntries.add(new SolidWasteEntry(wasteId, add));
-        setChanged();
-        return add;
-    }
-
-    public int takeSolidWaste(Identifier wasteId, int count) {
-        if (count <= 0) return 0;
-        for (int i = 0; i < solidWasteEntries.size(); i++) {
-            SolidWasteEntry e = solidWasteEntries.get(i);
-            if (!e.id().equals(wasteId)) continue;
-            int take = Math.min(count, e.count());
-            int remain = e.count() - take;
-            if (remain <= 0) solidWasteEntries.remove(i);
-            else solidWasteEntries.set(i, new SolidWasteEntry(wasteId, remain));
-            if (take > 0) setChanged();
-            return take;
-        }
-        return 0;
-    }
-
     /** Called from block tick when ON: updates rod model states incrementally (bounded cost). */
     public void tickRodVisuals(ServerLevel level) {
         if (cachedRodPositions == null || cachedRodPositions.length == 0) return;
@@ -357,13 +358,77 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
     private void updateRodVisualFillIfNeeded() {
         int max = getMaxFuelUnitsTotal();
-        float pct = max <= 0 ? 0f : Math.max(0f, Math.min(1f, getTotalFuelUnits() / (float) max));
+        float pct = max <= 0 ? 0f : Math.max(0f, Math.min(1f, getTotalFuelAndWasteUnits() / (float) max));
         int level = ReactorRodBlockEntity.fillPercentToLevelForController(pct);
         if (cachedRodFillLevel != level) {
             cachedRodFillLevel = level;
             rodVisualUpdateCursor = 0;
         }
     }
+
+    private void clampToNewCapacities() {
+        clampSharedFuelAndWasteToCapacity();
+        clampCoolantToCapacity();
+        updateRodVisualFillIfNeeded();
+    }
+
+    /** Clamp shared (fuel + waste) units to capacity; drops the most voluminous entry first. */
+    private void clampSharedFuelAndWasteToCapacity() {
+        int max = getMaxFuelUnitsTotal();
+        float excess = getTotalFuelAndWasteUnits() - max;
+        if (excess <= 0.0001f) return;
+        while (excess > 0.0001f) {
+            int fuelIdx = -1;
+            float fuelMax = 0;
+            for (int i = 0; i < fuelEntries.size(); i++) {
+                float u = fuelEntries.get(i).units();
+                if (u > fuelMax) { fuelMax = u; fuelIdx = i; }
+            }
+            int wasteIdx = -1;
+            float wasteMax = 0;
+            for (int i = 0; i < wasteEntries.size(); i++) {
+                float u = wasteEntries.get(i).units();
+                if (u > wasteMax) { wasteMax = u; wasteIdx = i; }
+            }
+            if (fuelIdx < 0 && wasteIdx < 0) break;
+
+            boolean dropWaste = (wasteIdx >= 0) && (fuelIdx < 0 || wasteMax >= fuelMax);
+            if (dropWaste) {
+                WasteEntry e = wasteEntries.get(wasteIdx);
+                float take = Math.min(e.units(), excess);
+                float left = e.units() - take;
+                excess -= take;
+                if (left <= 0.0001f) wasteEntries.remove(wasteIdx);
+                else wasteEntries.set(wasteIdx, new WasteEntry(e.id(), left));
+            } else {
+                FuelEntry e = fuelEntries.get(fuelIdx);
+                float take = Math.min(e.units(), excess);
+                float left = e.units() - take;
+                excess -= take;
+                if (left <= 0.0001f) fuelEntries.remove(fuelIdx);
+                else fuelEntries.set(fuelIdx, new FuelEntry(e.id(), left));
+            }
+        }
+        setChanged();
+    }
+
+    private void clampCoolantToCapacity() {
+        int max = getCoolantCapacityMbTotal();
+        int total = getTotalCoolantMb();
+        int excess = total - max;
+        if (excess <= 0) return;
+        for (int i = coolantEntries.size() - 1; i >= 0 && excess > 0; i--) {
+            CoolantEntry e = coolantEntries.get(i);
+            int take = Math.min(e.mb(), excess);
+            int left = e.mb() - take;
+            excess -= take;
+            if (left <= 0) coolantEntries.remove(i);
+            else coolantEntries.set(i, new CoolantEntry(e.fluidId(), left));
+        }
+        setChanged();
+    }
+
+    // waste clamp handled by clampSharedFuelAndWasteToCapacity()
 
     public void rebuildPartCaches(ServerLevel level, ReactorValidation.Result result) {
         if (level == null || result == null || !result.valid()) {
@@ -373,9 +438,6 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             cachedRedstonePortPositions = new long[0];
             cachedEffectiveRodCount = 0.0;
             cachedHeatSinkStaticCache = null;
-            fuelEntries.clear();
-            solidWasteEntries.clear();
-            coolantEntries.clear();
             cachedRodFillLevel = 0;
             rodVisualUpdateCursor = 0;
             return;
@@ -494,6 +556,9 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
                 sumFuelAdj, sumEnergyAdj, sumOverheatingAdj,
                 sumFuelNon, sumEnergyNon, sumOverheatingNon
         );
+
+        // Reactor shape may have changed (e.g. resized): keep contents but clamp to new capacities.
+        clampToNewCapacities();
     }
 
     public void invalidateCache() {
@@ -504,9 +569,6 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         cachedRedstonePortPositions = new long[0];
         cachedEffectiveRodCount = 0.0;
         cachedHeatSinkStaticCache = null;
-        fuelEntries.clear();
-        solidWasteEntries.clear();
-        coolantEntries.clear();
         cachedRodFillLevel = 0;
         rodVisualUpdateCursor = 0;
         if (level != null && !level.isClientSide()) {
@@ -563,8 +625,8 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         if (!fuelEntries.isEmpty()) {
             output.store(TAG_FUEL, Codec.list(FUEL_ENTRY_CODEC), List.copyOf(fuelEntries));
         }
-        if (!solidWasteEntries.isEmpty()) {
-            output.store(TAG_SOLID_WASTE, Codec.list(SOLID_WASTE_CODEC), List.copyOf(solidWasteEntries));
+        if (!wasteEntries.isEmpty()) {
+            output.store(TAG_WASTE, Codec.list(WASTE_ENTRY_CODEC), List.copyOf(wasteEntries));
         }
         if (!coolantEntries.isEmpty()) {
             output.store(TAG_COOLANT, Codec.list(COOLANT_ENTRY_CODEC), List.copyOf(coolantEntries));
@@ -599,15 +661,15 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         for (FuelEntry e : input.listOrEmpty(TAG_FUEL, FUEL_ENTRY_CODEC)) {
             if (e != null && e.id() != null && e.units() > 0) fuelEntries.add(e);
         }
-        solidWasteEntries.clear();
-        for (SolidWasteEntry e : input.listOrEmpty(TAG_SOLID_WASTE, SOLID_WASTE_CODEC)) {
-            if (e != null && e.id() != null && e.count() > 0) solidWasteEntries.add(e);
+        wasteEntries.clear();
+        for (WasteEntry e : input.listOrEmpty(TAG_WASTE, WASTE_ENTRY_CODEC)) {
+            if (e != null && e.id() != null && e.units() > 0) wasteEntries.add(e);
         }
         coolantEntries.clear();
         for (CoolantEntry e : input.listOrEmpty(TAG_COOLANT, COOLANT_ENTRY_CODEC)) {
             if (e != null && e.fluidId() != null && e.mb() > 0) coolantEntries.add(e);
         }
-        updateRodVisualFillIfNeeded();
+        clampToNewCapacities();
     }
 
     @Override

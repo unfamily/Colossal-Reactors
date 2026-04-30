@@ -146,6 +146,14 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
+        int wasteCap = menu.getWasteCapacityUnits();
+        int wasteStored = menu.getWasteStoredUnits();
+        String wasteFillStr = wasteCap > 0 ? String.format("%d", (int) Math.round((wasteStored * 100.0) / wasteCap)) : "0";
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_controller.waste_capacity", wasteStored, wasteFillStr),
+                PANEL_X, y, TEXT_COLOR, false);
+        y += LINE_HEIGHT;
+
         int coolantCap = menu.getCoolantCapacityMb();
         int coolantStored = menu.getCoolantStoredMb();
         String coolantFillStr = coolantCap > 0 ? String.format("%d", (int) Math.round((coolantStored * 100.0) / coolantCap)) : "0";
