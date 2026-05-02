@@ -724,7 +724,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int coolantConsumed = result.coolantConsumedPerTick();
         int steamPerTick = result.steamPerTick();
         String fuelStr = formatFuelPerTickSim(result.fuelPerTickHundredths());
-        int stabilityPermille = result.stabilityPermille();
 
         guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.rods", rodCount, rodColumns),
@@ -762,12 +761,16 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_capacity", coolantCap),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-        if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
-            Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
-            guiGraphics.text(font, label, SIM_PANEL_X, y, SIM_STATS_COLOR, false);
-            String stabilityStr = String.format("%.1f%%", stabilityPermille / 10.0);
-            int stabilityColor = stabilityPermille >= 1000 ? 0xFF00FF00 : (stabilityPermille <= 0 ? 0xFFFF0000 : 0xFFFFFF00);
-            guiGraphics.text(font, stabilityStr, SIM_PANEL_X + font.width(label), y, stabilityColor, false);
+
+        if (Config.REACTOR_UNSTABILITY.get() && rodCount > 0) {
+            Component stabilityLabel = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
+            guiGraphics.text(font, stabilityLabel, SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+            boolean ok = result.stabilityCoolingSufficient();
+            Component state = Component.translatable(
+                    ok ? "gui.colossal_reactors.reactor_builder.simulation.stability_stable"
+                            : "gui.colossal_reactors.reactor_builder.simulation.stability_unstable");
+            int stateColor = ok ? 0xFF00CC00 : 0xFFCC3333;
+            guiGraphics.text(font, state, SIM_PANEL_X + font.width(stabilityLabel), y, stateColor, false);
         }
     }
 
@@ -787,7 +790,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
      */
     private ReactorSimulation.SimulationResult getSimulationResult() {
         if (minecraft == null || minecraft.level == null) {
-            return new ReactorSimulation.SimulationResult(0, 0, 0, 0, 0, 0, 0, 1000);
+            return new ReactorSimulation.SimulationResult(0, 0, 0, 0, 0, 0, 0, true);
         }
         var ra = minecraft.level.registryAccess();
         CoolantDefinition coolantDef = getSimulationCoolantDef();

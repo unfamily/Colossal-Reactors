@@ -2,11 +2,18 @@
   "type": "colossal_reactors:heat_sinks",
   "entries": [
     {
+      "valid_blocks": ["minecraft:air"],
+      "must_source": false,
+      "fuel": 1.0,
+      "energy": 1.0,
+      "overheating": 0.75
+    },
+    {
       "valid_liquids": ["#c:water"],
       "must_source": false,
       "fuel": 1.0,
       "energy": 1.0,
-      "overheating": 1.05
+      "overheating": 1.0
     },
     {
       "valid_blocks": ["#c:storage_blocks/diamond"],
@@ -52,4 +59,3 @@
     }
   ]
 }
-

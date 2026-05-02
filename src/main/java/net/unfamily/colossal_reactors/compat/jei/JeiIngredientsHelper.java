@@ -1,7 +1,9 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -31,6 +33,13 @@ public final class JeiIngredientsHelper {
     private static final int DISPLAY_AMOUNT_ITEMS = 1;
 
     private JeiIngredientsHelper() {}
+
+    /** Display-only stack for {@code minecraft:air} heat sink entries (no block item in vanilla). */
+    public static ItemStack heatSinkAirInteriorDisplayStack() {
+        ItemStack stack = new ItemStack(Items.STRUCTURE_VOID);
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("jei.colossal_reactors.heat_sink.air_interior"));
+        return stack;
+    }
 
     /**
      * Simplifies the consume/produce ratio by dividing both by the max until one is 1 or less.
@@ -204,7 +213,9 @@ public final class JeiIngredientsHelper {
             Identifier id = Identifier.tryParse(selector);
             if (id != null) {
                 Block block = BuiltInRegistries.BLOCK.get(id).map(h -> h.value()).orElse(Blocks.AIR);
-                if (block != Blocks.AIR) {
+                if (block == Blocks.AIR) {
+                    list.add(heatSinkAirInteriorDisplayStack());
+                } else if (block != Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
                 }
             }

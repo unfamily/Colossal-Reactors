@@ -18,6 +18,7 @@ import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
@@ -35,6 +36,7 @@ import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import net.unfamily.colossal_reactors.client.ColossalClientSetup;
+import net.unfamily.colossal_reactors.client.GuideMeRegistration;
 import net.unfamily.colossal_reactors.client.ColossalFluidModels;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
@@ -67,12 +69,14 @@ public class ColossalReactors {
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::registerCapabilities);
         if (FMLEnvironment.getDist() == Dist.CLIENT) {
+            modEventBus.addListener(FMLClientSetupEvent.class, e -> e.enqueueWork(GuideMeRegistration::register));
             modEventBus.addListener(AddClientReloadListenersEvent.class, ColossalReactors::onAddClientReloadListeners);
             modEventBus.addListener(RegisterFluidModelsEvent.class, ColossalFluidModels::registerFluidModels);
             modEventBus.addListener(RegisterMenuScreensEvent.class, ColossalClientSetup::registerMenuScreens);
             modEventBus.addListener(ModelEvent.RegisterLoaders.class, ColossalModelLoaders::registerModelLoaders);
             modEventBus.addListener(RegisterPayloadHandlersEvent.class, ColossalClientSetup::registerPayloadHandlers);
         }
+
     }
 
     /** Server / integrated server: fuel, coolant, melter JSON under data namespaces recipe paths; heating coils under load paths. */

@@ -27,7 +27,7 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_heat_sink");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 52;
+    private static final int HEIGHT = 54;
 
     public static final IRecipeType<HeatSinkDefinition> RECIPE_TYPE = IRecipeType.create(UID, HeatSinkDefinition.class);
 
@@ -89,10 +89,14 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
         var font = Minecraft.getInstance().font;
         String fuelMult = formatMultiplier(recipe.fuelMultiplier());
         String energyMult = formatMultiplier(recipe.energyMultiplier());
+        String heatMult = formatMultiplier(recipe.overheatingMultiplier());
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         guiGraphics.text(font, Component.translatable("jei.colossal_reactors.heat_sink.fuel_reduction", fuelMult), margin, textY, 0xFF404040, false);
-        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", energyMult), margin, textY + 10, 0xFF404040, false);
+        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", energyMult), margin,
+                textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, 0xFF404040, false);
+        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.heat_sink.heat_reduction", heatMult), margin,
+                textY + 2 * JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, 0xFF404040, false);
     }
 
     private static String formatMultiplier(double value) {

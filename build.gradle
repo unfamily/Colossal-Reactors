@@ -128,7 +128,13 @@ dependencies {
     // Only dependencies currently available for 26.1.2
     implementation "curse.maven:jei-238222:7920926"
     implementation "curse.maven:iskanderts-library-1516512:7947419"
-    implementation "curse.maven:guideme-1173950:7929350"
+
+    // GuideME: optional at runtime; compile against API for Guide.builder registration
+    if (project.hasProperty('runtime_itemlist_mod') && project.runtime_itemlist_mod == "guideme") {
+        implementation "curse.maven:guideme-1173950:7929350"
+    } else {
+        compileOnly "curse.maven:guideme-1173950:7929350"
+    }
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
@@ -156,6 +162,17 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 // To avoid having to run "generateModMetadata" manually, make it run on every project reload
 neoForge.ideSyncTask generateModMetadata
+
+// Slim guide tree without optional chapter (see GuideMeRegistration): omit radiation_and_instability/**
+def copyGuideNominal = tasks.register('copyGuideNominal', Copy) {
+    from("${projectDir}/src/main/resources/assets/colossal_reactors/guides/colossal_reactors/guide") {
+        exclude 'radiation_and_instability/**'
+    }
+    into(layout.buildDirectory.file('generated/guideNominal/extra/assets/colossal_reactors/guides/colossal_reactors/guide_nominal'))
+}
+sourceSets.main.resources.srcDir layout.buildDirectory.dir('generated/guideNominal/extra')
+tasks.named('processResources').configure { dependsOn(copyGuideNominal) }
+neoForge.ideSyncTask copyGuideNominal
 
 // Example configuration to allow publishing using the maven-publish plugin
 publishing {

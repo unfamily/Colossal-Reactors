@@ -14,7 +14,6 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ReactorControllerBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
-import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 
 /**

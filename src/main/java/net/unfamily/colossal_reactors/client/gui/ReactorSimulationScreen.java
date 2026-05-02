@@ -8,7 +8,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.Config;
 
 /**
  * Simulation GUI opened from Reactor Builder. Same layout as reactor controller (dark panel, same labels)
@@ -119,13 +118,5 @@ public class ReactorSimulationScreen extends Screen {
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", "0"),
                 leftPos + PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
-
-        if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
-            Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
-            String stabilityStr = "100.0%";
-            int stabilityColor = 0xFF00FF00;
-            guiGraphics.text(font, label, leftPos + PANEL_X, y, TEXT_COLOR, false);
-            guiGraphics.text(font, stabilityStr, leftPos + PANEL_X + font.width(label), y, stabilityColor, false);
-        }
     }
 }

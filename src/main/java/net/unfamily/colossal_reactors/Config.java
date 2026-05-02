@@ -292,9 +292,48 @@ public class Config {
     public static final ModConfigSpec.BooleanValue REACTOR_UNSTABILITY = BUILDER
             .comment("Reactor unstability. Default: false")
             .define("000_reactor_unstability", false);
+
+    static {
+        BUILDER.comment("Cooling/production ratio, permille cap, and interior thermal stress when unstability is enabled.")
+                .push("reactor_stability");
+    }
+
     public static final ModConfigSpec.IntValue REACTOR_UNSTABILITY_MAX_STABILITY_PERMILLE = BUILDER
             .comment("Maximum stability when reactor unstability is enabled. Default: 1000")
             .defineInRange("001_reactor_unstability_max_stability", 1000, 1, Integer.MAX_VALUE);
+
+    public static final ModConfigSpec.IntValue STABILITY_INTERIOR_VOLUME_BASELINE = BUILDER
+            .comment("Interior block count at or below: base cooling/production ratio only (forgiving for small reactors). Default: 4096")
+            .defineInRange("005_stability_interior_volume_baseline", 4096, 64, 1_000_000_000);
+    public static final ModConfigSpec.IntValue STABILITY_INTERIOR_VOLUME_STRESS = BUILDER
+            .comment("Reference interior size where extra required ratio reaches maximum (huge reactors need top-tier coolant). Default: 262144")
+            .defineInRange("006_stability_interior_volume_stress", 262144, 1000, 1_000_000_000);
+    public static final ModConfigSpec.DoubleValue STABILITY_MAX_EXTRA_REQUIRED_RATIO = BUILDER
+            .comment("At stress volume, required cooling/production ratio is base (0.85) plus this value. Default: 0.11")
+            .defineInRange("007_stability_max_extra_required_ratio", 0.11, 0.0, 0.25);
+
+    public static final ModConfigSpec.BooleanValue THERMAL_STRESS_FROM_SIZE_ENABLED = BUILDER
+            .comment("Interior-span thermal stress divides overheating-based cooling RF (longest interior edge). Larger reactors need higher overheating tiers (datapack) for stability. Default: true")
+            .define("008_thermal_stress_from_size_enabled", true);
+    public static final ModConfigSpec.DoubleValue THERMAL_STRESS_L_REF = BUILDER
+            .comment("Reference interior span in blocks where factor is neutral (~1 after clipping). Typical small interior ~5 for a 7-shell reactor. Default: 5")
+            .defineInRange("009_thermal_stress_l_ref", 5.0, 1.0, 512.0);
+    public static final ModConfigSpec.DoubleValue THERMAL_STRESS_L_MIN = BUILDER
+            .comment("Minimum interior span used in the stress curve (clip). Default: 3")
+            .defineInRange("010_thermal_stress_l_min", 3.0, 1.0, 512.0);
+    public static final ModConfigSpec.DoubleValue THERMAL_STRESS_GAMMA = BUILDER
+            .comment("Exponent for (L/L_ref)^gamma; lower = gentler growth with size. Default: 0.38")
+            .defineInRange("011_thermal_stress_gamma", 0.38, 0.05, 3.0);
+    public static final ModConfigSpec.DoubleValue THERMAL_STRESS_ALPHA = BUILDER
+            .comment("Stress strength: factor = 1 + alpha * ((L/L_ref)^gamma - 1). Default: 0.45")
+            .defineInRange("012_thermal_stress_alpha", 0.45, 0.0, 3.0);
+    public static final ModConfigSpec.BooleanValue THERMAL_STRESS_SCALE_FLUID_COOLING = BUILDER
+            .comment("Apply the same thermal stress factor to fluid coolant overheating (water/steam path). Default: true")
+            .define("013_thermal_stress_scale_fluid_cooling", true);
+
+    static {
+        BUILDER.pop(); // reactor_stability
+    }
 
     public static final ModConfigSpec.BooleanValue MEKANISM_RADIATION_INTEGRATION = BUILDER
             .comment("Mekanism radiation integration. Default: false")

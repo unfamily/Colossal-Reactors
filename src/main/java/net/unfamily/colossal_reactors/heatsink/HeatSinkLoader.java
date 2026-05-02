@@ -27,10 +27,14 @@ import java.util.Optional;
 /**
  * Loads heat sink definitions from datapack JSON: data/colossal_reactors/reactor_heat_sinks/*.json.
  * Each file is one entry (valid_blocks, valid_liquids, fuel, energy, overheating, must_source).
+ * Interior air uses an entry with {@code valid_blocks: ["minecraft:air"]} (see builtin JSON). Unknown liquid / flowing treated as air uses the same multipliers, or a weak fallback if no air entry exists.
  * If no datapack entries are found, internal defaults are used.
  */
 public final class HeatSinkLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(HeatSinkLoader.class);
+
+    /** When no {@code minecraft:air} heat sink entry is loaded: weak overheating for stability. */
+    private static final HeatSinkModifiers INTERIOR_AIR_FALLBACK = new HeatSinkModifiers(1.0, 1.0, 0.16);
 
     private static final String KEY_VALID_BLOCKS = "valid_blocks";
     private static final String KEY_VALID_LIQUIDS = "valid_liquids";
@@ -42,6 +46,35 @@ public final class HeatSinkLoader {
     private static final List<HeatSinkDefinition> DEFINITIONS = new ArrayList<>();
 
     private HeatSinkLoader() {}
+
+    /**
+     * Solid auto-placement tick skips synthetic air (index 0) and definitions whose blocks are only {@code minecraft:air} (no item to place).
+     */
+    public static boolean shouldSkipSolidHeatSinkAutoPlacement(int selectedHeatSinkIndex) {
+        if (selectedHeatSinkIndex <= 0) return true;
+        int defIdx = selectedHeatSinkIndex - 1;
+        if (defIdx < 0 || defIdx >= DEFINITIONS.size()) return true;
+        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        if (def.validBlocks().isEmpty()) return true;
+        return def.validBlocks().stream().allMatch(HeatSinkLoader::isMinecraftAirInteriorSelector);
+    }
+
+    private static HeatSinkModifiers modifiersForInteriorAirLike() {
+        for (HeatSinkDefinition def : DEFINITIONS) {
+            for (String selector : def.validBlocks()) {
+                if (isMinecraftAirInteriorSelector(selector)) {
+                    return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier(), def.overheatingMultiplier());
+                }
+            }
+        }
+        return INTERIOR_AIR_FALLBACK;
+    }
+
+    private static boolean isMinecraftAirInteriorSelector(String selector) {
+        if (selector.startsWith("#")) return false;
+        Identifier id = Identifier.tryParse(selector);
+        return id != null && Identifier.DEFAULT_NAMESPACE.equals(id.getNamespace()) && "air".equals(id.getPath());
+    }
 
     /**
      * Applies loaded datapack data: clears, then uses loaded list or internal defaults if empty.
@@ -56,6 +89,10 @@ public final class HeatSinkLoader {
     }
 
     private static void registerInternalDefaults() {
+        DEFINITIONS.add(new HeatSinkDefinition(
+                List.of("minecraft:air"),
+                List.of(),
+                1.0, 1.0, 0.16, false));
         DEFINITIONS.add(new HeatSinkDefinition(
                 List.of(),
                 List.of("#c:water"),
@@ -120,7 +157,6 @@ public final class HeatSinkLoader {
      * Returns fuel and energy multipliers for this block (air = 1.0, 1.0). Checks valid_blocks first, then if the state is a liquid block uses the fluid type (source identity) for valid_liquids/tag checks; flowing blocks use that same identity. When must_source is true, flowing is not counted as heat sink but is allowed and treated as air (1.0, 1.0, 1.0). Non-source that cannot be counted as valid heat sink (unknown liquid or flowing when must_source) does not block the reactor and is treated as air.
      */
     public static HeatSinkModifiers getModifiersForBlock(BlockState state, RegistryAccess registryAccess) {
-        if (state.isAir()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
         for (HeatSinkDefinition def : DEFINITIONS) {
             for (String selector : def.validBlocks()) {
                 if (blockMatches(state, selector, registryAccess)) {
@@ -137,14 +173,17 @@ public final class HeatSinkLoader {
                     if (fluidMatches(fluid, selector, registryAccess)) {
                         // must_source and flowing: do not count as heat sink, but allow block (treat as air)
                         if (def.mustSource() && !fluidState.isSource()) {
-                            return new HeatSinkModifiers(1.0, 1.0, 1.0);
+                            return modifiersForInteriorAirLike();
                         }
                         return new HeatSinkModifiers(def.fuelMultiplier(), def.energyMultiplier(), def.overheatingMultiplier());
                     }
                 }
             }
             // Unknown liquid (no valid_liquids match): do not block reactor, treat as air
-            return new HeatSinkModifiers(1.0, 1.0, 1.0);
+            return modifiersForInteriorAirLike();
+        }
+        if (state.isAir()) {
+            return modifiersForInteriorAirLike();
         }
         return null;
     }
@@ -186,7 +225,7 @@ public final class HeatSinkLoader {
      * Used by GUI simulation when all heat sink positions are the same selected type.
      */
     public static HeatSinkModifiers getModifiersForHeatSinkIndex(RegistryAccess registryAccess, int index) {
-        if (index <= 0) return new HeatSinkModifiers(1.0, 1.0, 1.0);
+        if (index <= 0) return modifiersForInteriorAirLike();
         int defIdx = index - 1;
         if (defIdx >= DEFINITIONS.size()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
         HeatSinkDefinition def = DEFINITIONS.get(defIdx);
@@ -379,7 +418,11 @@ public final class HeatSinkLoader {
                     .orElse(false);
         }
         Identifier id = Identifier.tryParse(selector);
-        return id != null && blockId.equals(id);
+        if (id == null) return false;
+        if (isMinecraftAirInteriorSelector(selector)) {
+            return state.isAir();
+        }
+        return blockId.equals(id);
     }
 
     public record HeatSinkModifiers(double fuelMultiplier, double energyMultiplier, double overheatingMultiplier) {}
