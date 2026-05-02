@@ -38,6 +38,7 @@ public class CoolantLoader {
     private static final String KEY_CONSUMES_FLUID_FOR_STEAM_LEGACY = "consumes_fluid_for_steam";
     private static final String KEY_RF_TO_COOLANT_FACTOR = "rf_to_coolant_factor";
     private static final String KEY_STEAM_PER_COOLANT = "steam_per_coolant";
+    private static final String KEY_OVERHEATING = "overheating";
     private static final String KEY_FLUID_COLOR = "fluid_color";
     private static final String KEY_OUTPUT_COLOR = "output_color";
     private static final String KEY_OVERWRITABLE = "overwritable";
@@ -68,7 +69,7 @@ public class CoolantLoader {
         // #c:water tag so vanilla and modded waters are accepted
         List<String> inputs = List.of("#c:water");
         String output = "#c:steam";
-        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
+        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
     }
 
     /** Parses a single coolant definition from JSON (one file = one entry). Used by datapack reload listener. */
@@ -95,10 +96,11 @@ public class CoolantLoader {
                 : (json.has(KEY_CONSUMES_FLUID_FOR_STEAM_LEGACY) && json.get(KEY_CONSUMES_FLUID_FOR_STEAM_LEGACY).getAsBoolean());
         double rfToCoolant = json.has(KEY_RF_TO_COOLANT_FACTOR) ? json.get(KEY_RF_TO_COOLANT_FACTOR).getAsDouble() : 0.45;
         double steamPerCoolant = json.has(KEY_STEAM_PER_COOLANT) ? json.get(KEY_STEAM_PER_COOLANT).getAsDouble() : 1.0;
+        double overheating = json.has(KEY_OVERHEATING) ? json.get(KEY_OVERHEATING).getAsDouble() : 1.0;
         int fluidColor = parseColor(json, KEY_FLUID_COLOR, DEFAULT_WATER_COLOR);
         int outputColor = parseColor(json, KEY_OUTPUT_COLOR, DEFAULT_STEAM_COLOR);
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, reduceRf, rfToCoolant, steamPerCoolant, fluidColor, outputColor, overwritable);
+        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, reduceRf, rfToCoolant, steamPerCoolant, overheating, fluidColor, outputColor, overwritable);
     }
 
     /** Parses optional color from JSON: "fluid_color": "#3498db" or number. Returns ARGB (0 = use default). */

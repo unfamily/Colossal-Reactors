@@ -45,6 +45,7 @@ import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 
 import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
+import net.unfamily.colossal_reactors.client.GuideMeRegistration;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -71,6 +72,7 @@ public class ColossalReactors {
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::gatherData);
         modEventBus.addListener(this::registerCapabilities);
+
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -151,6 +153,7 @@ public class ColossalReactors {
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
+                GuideMeRegistration.register();
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());

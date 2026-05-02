@@ -26,6 +26,7 @@ import net.unfamily.colossal_reactors.integration.ReactorMeltdownIntegrations;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -46,8 +47,8 @@ import org.jetbrains.annotations.Nullable;
  * <p><b>Normal mode</b> (other coolants): RF to power ports only; steam conversion is defined per coolant in scripts (rf_to_coolant_factor, steam_per_coolant).
  *
  * <p><b>GUI simulation</b>: {@link #simulateFromBuilderParams} runs the same formulas without a level, assuming
- * a virtual reactor with the builder's dimensions/pattern and a single heat sink type everywhere. No consumption; stability 100%.
- */
+ * a virtual reactor with the builder's dimensions/pattern and a single heat sink type everywhere. No consumption.
+gg */
 public final class ReactorSimulation {
 
     private ReactorSimulation() {}
@@ -66,6 +67,50 @@ public final class ReactorSimulation {
         return n * (Math.log(n + 1.0) / 2.3);
     }
 
+    /**
+     * Base ratio of effective cooling to RF produced; large interiors require a higher ratio via {@link #stabilityRequiredCoolingRatio}.
+     */
+    private static final double STABILITY_COOLING_RATIO_THRESHOLD = 0.85;
+
+    private static double stabilityRequiredCoolingRatio(int interiorBlockCount) {
+        int v0 = Config.STABILITY_INTERIOR_VOLUME_BASELINE.get();
+        int v1 = Config.STABILITY_INTERIOR_VOLUME_STRESS.get();
+        if (interiorBlockCount <= v0 || v1 <= v0) {
+            return STABILITY_COOLING_RATIO_THRESHOLD;
+        }
+        double t = (Math.log((double) interiorBlockCount) - Math.log((double) v0))
+                / (Math.log((double) v1) - Math.log((double) v0));
+        t = Mth.clamp(t, 0.0, 1.0);
+        double maxExtra = Config.STABILITY_MAX_EXTRA_REQUIRED_RATIO.get();
+        return Math.min(0.99, STABILITY_COOLING_RATIO_THRESHOLD + t * maxExtra);
+    }
+
+    /**
+     * Longest interior edge in blocks (exclusive of 1-block shell), matching heat sink scan bounds [min+1, max-1).
+     */
+    private static int interiorMaxSpanBlocks(ReactorValidation.Result result) {
+        int sx = result.maxX() - result.minX() - 1;
+        int sy = result.maxY() - result.minY() - 1;
+        int sz = result.maxZ() - result.minZ() - 1;
+        return Math.max(1, Math.max(sx, Math.max(sy, sz)));
+    }
+
+    /**
+     * Thermal stress vs interior span: {@code 1 + alpha * ((max(L,Lmin)/Lref)^gamma - 1)}.
+     * Applied as a divisor on overheating-based cooling: larger reactors need higher datapack overheating to stay stable.
+     */
+    private static double thermalStressSizeFactor(double interiorMaxSpanBlocks) {
+        if (!Boolean.TRUE.equals(Config.THERMAL_STRESS_FROM_SIZE_ENABLED.get())) return 1.0;
+        double lRef = Config.THERMAL_STRESS_L_REF.get();
+        double lMin = Config.THERMAL_STRESS_L_MIN.get();
+        double gamma = Config.THERMAL_STRESS_GAMMA.get();
+        double alpha = Config.THERMAL_STRESS_ALPHA.get();
+        if (lRef <= 1e-9 || alpha <= 1e-12) return 1.0;
+        double L = Math.max(interiorMaxSpanBlocks, lMin);
+        double phi = Math.pow(L / lRef, gamma);
+        return Math.max(1e-6, 1.0 + alpha * (phi - 1.0));
+    }
+
     /** Result of GUI simulation: stats that would be shown per tick (no actual consumption). */
     public record SimulationResult(
             int rodCount,
@@ -75,7 +120,8 @@ public final class ReactorSimulation {
             int steamPerTick,
             int coolantConsumedPerTick,
             int fuelPerTickHundredths,
-            int stabilityPermille
+            /** When instability is enabled in config: true if simulated cooling meets production (same threshold as runtime). */
+            boolean stabilityCoolingSufficient
     ) {}
 
     /**
@@ -287,29 +333,45 @@ public final class ReactorSimulation {
     }
 
     /**
+     * Overheating sums weighted like heat sink fuel/energy ({@link Config#HEAT_SINK_ADJACENT_WEIGHT} /
+     * {@link Config#HEAT_SINK_NON_ADJACENT_WEIGHT}). Raw sums must not be added unweighted: non-adjacent cells
+     * do not drive RF the same way as adjacent cells, and counting both at full strength made large reactors
+     * falsely stable when the interior was filled with non-adjacent coolant.
+     */
+    private static double weightedOverheatingForStability(double sumOverheatingAdj, double sumOverheatingNon) {
+        double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
+        double wNon = Config.HEAT_SINK_NON_ADJACENT_WEIGHT.get();
+        return sumOverheatingAdj * wAdj + sumOverheatingNon * wNon;
+    }
+
+    /**
      * Updates controller stability when reactor unstability is enabled.
-     * Cooling uses overheating multiplier (sumOverheatingAdj + sumOverheatingNon); defaults in JSON = same as fuel.
+     * Cooling uses overheating multipliers with adjacent/non-adjacent weights (same idea as heat sink averages).
      * Stability drops when cooling is insufficient; small reactors lose stability more slowly.
      */
     private static void updateStability(ServerLevel level, ReactorControllerBlockEntity controller, ReactorValidation.Result result,
             double rfProduced, boolean waterMode, int waterConsumedThisTick, CoolantDefinition coolantDef,
             double sumOverheatingAdj, double sumOverheatingNon, double baseRf) {
         int volume = (result.maxX() - result.minX() + 1) * (result.maxY() - result.minY() + 1) * (result.maxZ() - result.minZ() + 1);
-        // Effective cooling from heat sink blocks: use overheating multiplier (surriscaldamento; default = fuel)
-        double heatSinkCoolingRF = baseRf * 0.5 * (sumOverheatingAdj + sumOverheatingNon);
+        double thermalStress = thermalStressSizeFactor(interiorMaxSpanBlocks(result));
+        double weightedOverheat = weightedOverheatingForStability(sumOverheatingAdj, sumOverheatingNon) / thermalStress;
+        double heatSinkCoolingRF = baseRf * 0.5 * weightedOverheat;
         double fluidCoolingRF = 0;
         if (waterMode && coolantDef != null && coolantDef.rfToCoolantFactor() > 0) {
-            fluidCoolingRF = waterConsumedThisTick / coolantDef.rfToCoolantFactor();
+            fluidCoolingRF = (waterConsumedThisTick / coolantDef.rfToCoolantFactor()) * coolantDef.overheatingMultiplier();
+            if (Boolean.TRUE.equals(Config.THERMAL_STRESS_SCALE_FLUID_COOLING.get())) {
+                fluidCoolingRF /= thermalStress;
+            }
         }
         double totalCooling = heatSinkCoolingRF + fluidCoolingRF;
         double ratio = (rfProduced > 0) ? (totalCooling / rfProduced) : 1.0;
 
         int current = controller.getStabilityPermille();
-        final double dropThreshold = 0.85;
         double sizeFactor = Math.sqrt(volume) / 250.0 * 10.0;
-        if (ratio < dropThreshold) {
+        double requiredRatio = stabilityRequiredCoolingRatio(volume);
+        if (ratio < requiredRatio) {
             // Undercooled: stability drops
-            double drop = (dropThreshold - ratio) * sizeFactor;
+            double drop = (requiredRatio - ratio) * sizeFactor;
             int dropPermille = Math.max(1, (int) Math.ceil(drop));
             int newVal = current - dropPermille;
             if (newVal <= 0) {
@@ -693,7 +755,6 @@ public final class ReactorSimulation {
      * Parameters must match ReactorBuilderBlockEntity (sizeLeft, sizeRight, sizeHeight, sizeDepth, rodPattern, patternMode, selectedHeatSinkIndex)
      * and the same layout as ReactorBuildLogic / RodPatternLogic so the simulated reactor is exactly what would be built.
      * Assumes all heat sink positions use the same heat sink type (heatSinkIndex). Coolant = selected simulation coolant or null for "none".
-     * Stability is always 100% (reactor does not explode in simulation).
      */
     public static SimulationResult simulateFromBuilderParams(
             RegistryAccess registryAccess,
@@ -794,10 +855,11 @@ public final class ReactorSimulation {
         }
 
         if (rodCount == 0) {
-            return new SimulationResult(0, 0, coolantBlockCount, 0, 0, 0, 0, 1000);
+            return new SimulationResult(0, 0, coolantBlockCount, 0, 0, 0, 0, true);
         }
 
-        Fluid coolantFluidFromPorts = (coolantDef != null) ? CoolantLoader.getFirstFluidFromDefinition(coolantDef, registryAccess) : null;
+        Fluid coolantFluidFromPorts = (coolantDef != null)
+                ? CoolantLoader.getFirstFluidFromDefinition(coolantDef, registryAccess) : null;
         HeatSinkLoader.HeatSinkModifiers rodMod = HeatSinkLoader.getModifiersForFluidOrDefault(coolantFluidFromPorts, registryAccess);
         HeatSinkLoader.HeatSinkModifiers heatSinkMod = HeatSinkLoader.getModifiersForHeatSinkIndex(registryAccess, heatSinkIndex);
         double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
@@ -865,7 +927,34 @@ public final class ReactorSimulation {
         }
 
         int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
-        return new SimulationResult(rodCount, rodColumns, coolantBlockCount, rfPerTick, steamPerTick, coolantConsumedPerTick, fuelHundredths, 1000);
+        int interiorVolume = Math.max(1, (w - 2) * (h - 2) * (d - 2));
+        int interiorMaxSpan = Math.max(1, Math.max(w - 2, Math.max(h - 2, d - 2)));
+        boolean stabilityOk = computeSimStabilityCoolingSufficient(
+                rfProduced, waterMode, coolantConsumedPerTick, coolantDef, baseRf,
+                sumOverheatingAdj, sumOverheatingNon, interiorVolume, interiorMaxSpan);
+        return new SimulationResult(rodCount, rodColumns, coolantBlockCount, rfPerTick, steamPerTick, coolantConsumedPerTick, fuelHundredths, stabilityOk);
+    }
+
+    /** Same cooling/production ratio as {@link #updateStability}. */
+    private static boolean computeSimStabilityCoolingSufficient(
+            double rfProduced, boolean waterMode, int coolantConsumedPerTick,
+            @Nullable CoolantDefinition coolantDef, double baseRf,
+            double sumOverheatingAdj, double sumOverheatingNon,
+            int interiorBlockCount,
+            int interiorMaxSpanBlocks) {
+        double thermalStress = thermalStressSizeFactor(interiorMaxSpanBlocks);
+        double weightedOverheat = weightedOverheatingForStability(sumOverheatingAdj, sumOverheatingNon) / thermalStress;
+        double heatSinkCoolingRF = baseRf * 0.5 * weightedOverheat;
+        double fluidCoolingRF = 0;
+        if (waterMode && coolantDef != null && coolantDef.rfToCoolantFactor() > 0) {
+            fluidCoolingRF = (coolantConsumedPerTick / coolantDef.rfToCoolantFactor()) * coolantDef.overheatingMultiplier();
+            if (Boolean.TRUE.equals(Config.THERMAL_STRESS_SCALE_FLUID_COOLING.get())) {
+                fluidCoolingRF /= thermalStress;
+            }
+        }
+        double totalCooling = heatSinkCoolingRF + fluidCoolingRF;
+        double ratio = (rfProduced > 0) ? (totalCooling / rfProduced) : 1.0;
+        return ratio >= stabilityRequiredCoolingRatio(interiorBlockCount);
     }
 
     private static long key(int rx, int ry, int rz) {

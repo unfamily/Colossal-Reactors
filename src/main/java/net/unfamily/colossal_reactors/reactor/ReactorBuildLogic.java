@@ -358,7 +358,7 @@ public final class ReactorBuildLogic {
                                          int w, int h, int d,
                                          int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
         int patternMode = builder.getPatternMode();
-        if (builder.getSelectedHeatSinkIndex() == 0) return false;
+        if (HeatSinkLoader.shouldSkipSolidHeatSinkAutoPlacement(builder.getSelectedHeatSinkIndex())) return false;
 
         int lx0 = builder.getBuildHeatLx();
         int ly0 = builder.getBuildHeatLy();

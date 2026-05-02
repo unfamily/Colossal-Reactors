@@ -27,7 +27,8 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_heat_sink");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 52;
+    /** Slots + three text lines */
+    private static final int HEIGHT = 54;
 
     public static final RecipeType<HeatSinkDefinition> RECIPE_TYPE = new RecipeType<>(UID, HeatSinkDefinition.class);
 
@@ -85,8 +86,11 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
         String energyMult = formatMultiplier(recipe.energyMultiplier());
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        String heatMult = formatMultiplier(recipe.overheatingMultiplier());
         guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.fuel_reduction", fuelMult), margin, textY, 0xFF404040, false);
-        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", energyMult), margin, textY + 10, 0xFF404040, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", energyMult), margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, 0xFF404040, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.heat_reduction", heatMult), margin,
+                textY + 2 * JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, 0xFF404040, false);
     }
 
     private static String formatMultiplier(double value) {

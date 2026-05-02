@@ -27,7 +27,8 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition>
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_coolant");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 52;
+    /** Slots (~18px) + four text lines */
+    private static final int HEIGHT = 62;
 
     public static final RecipeType<CoolantDefinition> RECIPE_TYPE = new RecipeType<>(UID, CoolantDefinition.class);
 
@@ -92,7 +93,23 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition>
         String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(recipe.mbMultiplier(), recipe.steamPerCoolant());
         Component consumeCoolant = Component.translatable("jei.colossal_reactors.consume_coolant", ratio[1]);
         Component produceExhaust = Component.translatable("jei.colossal_reactors.produce_exhaust_coolant", ratio[0]);
+        int line3 = line2 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+        int line4 = line3 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+        Component heatReduction = Component.translatable("jei.colossal_reactors.coolant.heat_reduction",
+                formatMultiplier(recipe.overheatingMultiplier()));
+        Component rfBehavior = recipe.reduceRfProduction()
+                ? Component.translatable("jei.colossal_reactors.coolant.suppress_rf_steam")
+                : Component.translatable("jei.colossal_reactors.coolant.suppress_rf_none", formatMultiplier(recipe.rfMultiplier()));
         guiGraphics.drawString(font, consumeCoolant, margin, textY, color, false);
         guiGraphics.drawString(font, produceExhaust, margin, line2, color, false);
+        guiGraphics.drawString(font, heatReduction, margin, line3, color, false);
+        guiGraphics.drawString(font, rfBehavior, margin, line4, color, false);
+    }
+
+    private static String formatMultiplier(double value) {
+        if (value == (long) value) {
+            return String.valueOf((long) value);
+        }
+        return String.format("%.2f", value);
     }
 }

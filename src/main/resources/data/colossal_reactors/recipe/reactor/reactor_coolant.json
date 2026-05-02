@@ -9,7 +9,8 @@
       "mb_decrement_percent": 100,
       "reduce_rf_production": true,
       "rf_to_coolant_factor": 0.45,
-      "steam_per_coolant": 1.0
+      "steam_per_coolant": 1.0,
+      "overheating": 0.26
     }
   ]
 }

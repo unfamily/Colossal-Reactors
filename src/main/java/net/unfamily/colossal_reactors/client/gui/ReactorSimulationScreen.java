@@ -9,7 +9,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.Config;
 
 /**
  * Simulation GUI opened from Reactor Builder. Same layout as reactor controller (dark panel, same labels)
@@ -130,13 +129,6 @@ public class ReactorSimulationScreen extends Screen {
                 leftPos + PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        if (Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get())) {
-            Component label = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
-            String stabilityStr = "100.0%";
-            int stabilityColor = 0x00FF00; // green
-            guiGraphics.drawString(font, label, leftPos + PANEL_X, y, TEXT_COLOR, false);
-            guiGraphics.drawString(font, stabilityStr, leftPos + PANEL_X + font.width(label), y, stabilityColor, false);
-        }
         for (var child : children()) {
             if (child instanceof Renderable r) {
                 r.render(guiGraphics, mouseX, mouseY, partialTick);

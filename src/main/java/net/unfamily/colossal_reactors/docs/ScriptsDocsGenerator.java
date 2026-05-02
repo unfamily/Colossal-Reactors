@@ -79,6 +79,7 @@ public final class ScriptsDocsGenerator {
             | `reduce_rf_production` | boolean | false | If true, reactor converts RF to steam (consumes fluid from INSERT ports); no RF when fluid is sufficient. |
             | `rf_to_coolant_factor` | number | 0.45 | Coolant (mB) consumed per 1 RF when in water mode: `mb = rfProduced * rf_to_coolant_factor` |
             | `steam_per_coolant` | number | 1.0 | Steam (mB) produced per 1 mB coolant consumed. |
+            | `overheating` | number | 1.0 | Multiplier on effective fluid cooling in **instability** (steam-mode cooling term). Higher = more stable when instability is enabled. |
             | `rf_increment_percent` | number | 0 | RF multiplier = 1 + value/100 (e.g. 2 → 1.02). |
             | `mb_decrement_percent` | number | 100 | Consumption divisor (e.g. 100 → 1.0). |
             | `fluid_color` | string or number | - | Optional, legacy. Tank fluid is now rendered with the fluid's texture and tint (same as Mekanism). |
@@ -98,6 +99,7 @@ public final class ScriptsDocsGenerator {
                   "reduce_rf_production": true,
                   "rf_to_coolant_factor": 0.45,
                   "steam_per_coolant": 1.0,
+                  "overheating": 1.0,
                   "fluid_color": "#3498db",
                   "output_color": "#e8f0f0"
                 }

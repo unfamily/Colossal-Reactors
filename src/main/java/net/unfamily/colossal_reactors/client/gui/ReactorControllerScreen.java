@@ -181,7 +181,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         float t = Math.max(0, Math.min(1000, permille)) / 1000f;
         int r = (int) (255 * (1f - t));
         int g = (int) (255 * t);
-        return (r << 16) | (g << 8) | 0;
+        return 0xFF000000 | (r << 16) | (g << 8) | 0;
     }
 
     private static String formatFuelPerTick(int hundredths) {

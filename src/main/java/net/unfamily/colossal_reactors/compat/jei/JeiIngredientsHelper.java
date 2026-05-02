@@ -1,12 +1,16 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.core.RegistryAccess;
@@ -94,6 +98,13 @@ public final class JeiIngredientsHelper {
     public static List<ItemStack> getWasteOutputStacks(String output, RegistryAccess registryAccess) {
         if (output == null || output.isEmpty()) return List.of();
         return selectorToItemStacks(output, registryAccess);
+    }
+
+    /** Display-only stack for {@code minecraft:air} heat sink entries (no block item in vanilla). */
+    public static ItemStack heatSinkAirInteriorDisplayStack() {
+        ItemStack stack = new ItemStack(Items.STRUCTURE_VOID);
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("jei.colossal_reactors.heat_sink.air_interior"));
+        return stack;
     }
 
     /** Resolves block selectors (valid_blocks) to item stacks (block as item). */
@@ -206,7 +217,9 @@ public final class JeiIngredientsHelper {
             ResourceLocation id = ResourceLocation.tryParse(selector);
             if (id != null) {
                 Block block = BuiltInRegistries.BLOCK.get(id);
-                if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
+                if (block != null && block == Blocks.AIR) {
+                    list.add(heatSinkAirInteriorDisplayStack());
+                } else if (block != null && block != Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
                 }
             }
