@@ -117,7 +117,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     private int rodVisualUpdateCursor = 0;
 
     /** Last tick stats for GUI (updated by ReactorSimulation.tick). Fuel is ingots/tick * 100 (e.g. 26 = 0.26). */
-    private int lastRfPerTick;
+    private long lastRfPerTick;
     private int lastSteamPerTick;
     private int lastWaterPerTick;
     private int lastFuelPerTickHundredths;
@@ -577,14 +577,14 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     }
 
     /** Called by ReactorSimulation.tick at end of each tick. Fuel hundredths = fuel units/tick * 100 (e.g. 0.26 -> 26). */
-    public void setLastTickStats(int rfPerTick, int steamPerTick, int waterPerTick, int fuelPerTickHundredths) {
+    public void setLastTickStats(long rfPerTick, int steamPerTick, int waterPerTick, int fuelPerTickHundredths) {
         this.lastRfPerTick = rfPerTick;
         this.lastSteamPerTick = steamPerTick;
         this.lastWaterPerTick = waterPerTick;
         this.lastFuelPerTickHundredths = fuelPerTickHundredths;
     }
 
-    public int getLastRfPerTick() { return lastRfPerTick; }
+    public long getLastRfPerTick() { return lastRfPerTick; }
     public int getLastSteamPerTick() { return lastSteamPerTick; }
     public int getLastWaterPerTick() { return lastWaterPerTick; }
     public int getLastFuelPerTickHundredths() { return lastFuelPerTickHundredths; }

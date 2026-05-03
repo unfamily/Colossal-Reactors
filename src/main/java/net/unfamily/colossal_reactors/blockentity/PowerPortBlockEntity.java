@@ -10,36 +10,30 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil;
 import net.neoforged.neoforge.transfer.energy.LimitingEnergyHandler;
-import net.neoforged.neoforge.transfer.energy.SimpleEnergyHandler;
+import net.unfamily.colossal_reactors.transfer.FluxNetworksLongEnergyBridge;
+import net.unfamily.colossal_reactors.transfer.LongBackedEnergyHandler;
 
 /**
- * BlockEntity for Power Port. Large energy buffer; reactor pushes in via {@link #receiveEnergyFromReactor(int)}.
+ * BlockEntity for Power Port. Large energy buffer; reactor pushes in via {@link #receiveEnergyFromReactor(long)}.
  * Each tick the port pushes energy out to adjacent blocks that can receive (cables, machines).
- * Capacity and max extract per tick are read from Config (ports.power).
- *
- * <p>NeoForge {@link EnergyHandler} extraction works with standard receivers; known conduit bugs are on third-party mods (e.g. Ender IO),
- * not on this port’s capability registration.
+ * Capacity and max extract per tick are read from Config (ports.power). Storage uses {@code long} (per NeoForge
+ * {@link EnergyHandler} path still moves at most {@code Integer.MAX_VALUE} per {@code insert}/{@code extract}).
+ * When Flux Networks is loaded, neighbors exposing {@code IFNEnergyStorage} are tried first with {@code long} transfers.
  */
 public class PowerPortBlockEntity extends BlockEntity {
 
-    /** Max RF to push out per tick in total (distributed across adjacent receivers). */
-    private final int maxExtractPerTick;
+    private final long maxExtractPerTick;
 
-    private final SimpleEnergyHandler core;
+    private final LongBackedEnergyHandler core;
     /** External automation: insert blocked; extract allowed (same behavior as legacy output-only wrappers). */
     private final EnergyHandler capabilityView;
 
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
-        int capacity = net.unfamily.colossal_reactors.Config.POWER_PORT_CAPACITY.get();
-        // Output rate = capacity (user request): no artificial throttling.
-        this.maxExtractPerTick = capacity;
-        this.core = new SimpleEnergyHandler(capacity, 0, capacity, 0) {
-            @Override
-            protected void onEnergyChanged(int previousAmount) {
-                setChanged();
-            }
-        };
+        long capacity = net.unfamily.colossal_reactors.Config.POWER_PORT_CAPACITY.getAsLong();
+        long maxExtractCfg = net.unfamily.colossal_reactors.Config.POWER_PORT_MAX_EXTRACT.getAsLong();
+        this.maxExtractPerTick = Math.min(capacity, maxExtractCfg);
+        this.core = new LongBackedEnergyHandler(capacity, 0L, capacity, 0L, this::setChanged);
         this.capabilityView = new LimitingEnergyHandler(core, 0, Integer.MAX_VALUE);
     }
 
@@ -48,14 +42,28 @@ public class PowerPortBlockEntity extends BlockEntity {
      */
     public void tick() {
         if (level == null || level.isClientSide()) return;
-        int budget = Math.min(maxExtractPerTick, (int) core.getAmountAsLong());
+        long budget = Math.min(maxExtractPerTick, core.getAmountAsLong());
         if (budget <= 0) return;
         for (Direction direction : Direction.values()) {
             if (budget <= 0) break;
             BlockPos neighborPos = worldPosition.relative(direction);
-            EnergyHandler neighbor = level.getCapability(Capabilities.Energy.BLOCK, neighborPos, direction.getOpposite());
+            Direction intoNeighbor = direction.getOpposite();
+            long stored = core.getAmountAsLong();
+            long offer = Math.min(budget, stored);
+            if (offer <= 0) continue;
+
+            long fluxMoved = FluxNetworksLongEnergyBridge.tryReceiveEnergyLong(level, neighborPos, intoNeighbor, offer);
+            if (fluxMoved > 0) {
+                core.extractEnergyLong(fluxMoved);
+                budget -= fluxMoved;
+                setChanged();
+                continue;
+            }
+
+            EnergyHandler neighbor = level.getCapability(Capabilities.Energy.BLOCK, neighborPos, intoNeighbor);
             if (neighbor == null) continue;
-            int moved = EnergyHandlerUtil.move(core, neighbor, budget, null);
+            int chunk = (int) Math.min(offer, Integer.MAX_VALUE);
+            int moved = EnergyHandlerUtil.move(core, neighbor, chunk, null);
             if (moved > 0) {
                 budget -= moved;
                 setChanged();
@@ -63,16 +71,16 @@ public class PowerPortBlockEntity extends BlockEntity {
         }
     }
 
-    /** Internal storage (legacy callers); prefer {@link #getEnergyCore()} for RF-style reads. */
+    /** Internal storage; prefer {@link #getEnergyCore()} for RF-style reads. */
     public EnergyHandler getEnergyStorage() {
         return core;
     }
 
-    public EnergyHandler getEnergyCore() {
+    public LongBackedEnergyHandler getEnergyCore() {
         return core;
     }
 
-    /** Output-only view for capability: cables extract; reactor uses {@link #receiveEnergyFromReactor(int)}. */
+    /** Output-only view for capability: cables extract; reactor uses {@link #receiveEnergyFromReactor(long)}. */
     public EnergyHandler getEnergyHandlerForCapability() {
         return capabilityView;
     }
@@ -83,13 +91,9 @@ public class PowerPortBlockEntity extends BlockEntity {
      * @param maxAmount max RF to accept this call
      * @return amount actually accepted
      */
-    public int receiveEnergyFromReactor(int maxAmount) {
+    public long receiveEnergyFromReactor(long maxAmount) {
         if (maxAmount <= 0) return 0;
-        long space = core.getCapacityAsLong() - core.getAmountAsLong();
-        int toAdd = (int) Math.min(maxAmount, space);
-        if (toAdd <= 0) return 0;
-        core.set((int) (core.getAmountAsLong() + toAdd));
-        return toAdd;
+        return core.addEnergy(maxAmount);
     }
 
     @Override

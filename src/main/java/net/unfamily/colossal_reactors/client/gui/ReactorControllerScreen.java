@@ -112,13 +112,13 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
 
         // Production/consumption only when reactor is actually running (ON and redstone satisfied)
         boolean reactorRunning = (stateId == 2 && !effectivelyOff);
-        int energyPerTick = reactorRunning ? menu.getEnergyPerTick() : 0;
+        long energyPerTick = reactorRunning ? menu.getEnergyPerTickLong() : 0L;
         int waterPerTick = reactorRunning ? menu.getWaterPerTick() : 0;
         int steamPerTick = reactorRunning ? menu.getSteamPerTick() : 0;
         int fuelHundredths = reactorRunning ? menu.getFuelPerTickHundredths() : 0;
 
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", energyPerTick),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", Long.toString(energyPerTick)),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
