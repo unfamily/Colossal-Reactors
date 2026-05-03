@@ -46,7 +46,9 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     private static final int INDEX_COOLANT_CAPACITY_MB = 19;
     private static final int INDEX_WASTE_STORED_UNITS = 20;
     private static final int INDEX_WASTE_CAPACITY_UNITS = 21;
-    private static final int DATA_COUNT = 22;
+    /** Upper 32 bits of {@link ReactorControllerBlockEntity#getLastRfPerTick()} (low bits in {@link #INDEX_ENERGY_PER_TICK}). */
+    private static final int INDEX_ENERGY_PER_TICK_HI = 22;
+    private static final int DATA_COUNT = 23;
 
     public ReactorControllerMenu(int containerId, Inventory playerInventory, ReactorControllerBlockEntity blockEntity) {
         super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
@@ -67,7 +69,8 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                     case INDEX_ROD_COLUMNS -> result != null ? result.rodColumns() : 0;
                     case INDEX_COOLANT -> result != null ? result.coolantCount() : 0;
                     case INDEX_HAS_FUEL -> blockEntity.getTotalFuelUnits() > 0 ? 1 : 0;
-                    case INDEX_ENERGY_PER_TICK -> blockEntity.getLastRfPerTick();
+                    case INDEX_ENERGY_PER_TICK -> (int) (blockEntity.getLastRfPerTick() & 0xFFFFFFFFL);
+                    case INDEX_ENERGY_PER_TICK_HI -> (int) (blockEntity.getLastRfPerTick() >>> 32);
                     case INDEX_STEAM_PER_TICK -> blockEntity.getLastSteamPerTick();
                     case INDEX_WATER_PER_TICK -> blockEntity.getLastWaterPerTick();
                     case INDEX_FUEL_PER_TICK_HUNDREDTHS -> blockEntity.getLastFuelPerTickHundredths();
@@ -126,7 +129,17 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     public int getRodColumns() { return data.get(INDEX_ROD_COLUMNS); }
     public int getCoolantCount() { return data.get(INDEX_COOLANT); }
     public boolean hasFuel() { return data.get(INDEX_HAS_FUEL) != 0; }
+    /**
+     * Lower 32 bits only; use {@link #getEnergyPerTickLong()} for full RF/t when it can exceed {@link Integer#MAX_VALUE}.
+     */
     public int getEnergyPerTick() { return data.get(INDEX_ENERGY_PER_TICK); }
+
+    /** RF/t last tick (actually pushed to power ports), full {@code long} from synced data slots. */
+    public long getEnergyPerTickLong() {
+        long low = data.get(INDEX_ENERGY_PER_TICK) & 0xFFFFFFFFL;
+        long hi = data.get(INDEX_ENERGY_PER_TICK_HI) & 0xFFFFFFFFL;
+        return (hi << 32) | low;
+    }
     public int getSteamPerTick() { return data.get(INDEX_STEAM_PER_TICK); }
     public int getWaterPerTick() { return data.get(INDEX_WATER_PER_TICK); }
     /** Fuel consumption in fuel units/tick as hundredths (e.g. 26 = 0.26). */

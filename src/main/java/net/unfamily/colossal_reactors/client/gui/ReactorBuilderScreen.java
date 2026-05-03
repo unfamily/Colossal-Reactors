@@ -672,7 +672,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int rodCount = result.rodCount();
         int rodColumns = result.rodColumns();
         int coolantBlocks = result.coolantBlockCount();
-        int energyPerTick = result.rfPerTick();
+        long energyPerTick = result.rfPerTick();
         int coolantConsumed = result.coolantConsumedPerTick();
         int steamPerTick = result.steamPerTick();
         String fuelStr = formatFuelPerTickSim(result.fuelPerTickHundredths());
@@ -686,7 +686,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", energyPerTick),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", Long.toString(energyPerTick)),
                 leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,

@@ -240,12 +240,12 @@ public class Config {
         BUILDER.comment("Power Port").push("power");
     }
 
-    public static final ModConfigSpec.IntValue POWER_PORT_CAPACITY = BUILDER
-            .comment("Energy buffer capacity in RF. Default: 1000000000")
-            .defineInRange("010_powerPortCapacity", 1000000000, 1000, Integer.MAX_VALUE);
-    public static final ModConfigSpec.IntValue POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("Max energy that can be extracted per tick (RF/t). Default: 1000000000 (effective value is clamped to capacity)")
-            .defineInRange("020_powerPortMaxExtract", 1000000000, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.LongValue POWER_PORT_CAPACITY = BUILDER
+            .comment("Energy buffer capacity in RF (long). Default: 1000000000")
+            .defineInRange("010_powerPortCapacity", 1_000_000_000L, 1000L, Long.MAX_VALUE);
+    public static final ModConfigSpec.LongValue POWER_PORT_MAX_EXTRACT = BUILDER
+            .comment("Max energy that can be extracted per tick (RF/t); effective rate is min(this, stored, capacity). Default: 1000000000")
+            .defineInRange("020_powerPortMaxExtract", 1_000_000_000L, 1L, Long.MAX_VALUE);
 
     static {
         BUILDER.pop();

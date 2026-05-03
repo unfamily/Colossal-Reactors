@@ -48,10 +48,21 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p><b>GUI simulation</b>: {@link #simulateFromBuilderParams} runs the same formulas without a level, assuming
  * a virtual reactor with the builder's dimensions/pattern and a single heat sink type everywhere. No consumption.
-gg */
+ */
 public final class ReactorSimulation {
 
     private ReactorSimulation() {}
+
+    /** Converts simulated RF/t to a non-negative long, saturating at {@link Long#MAX_VALUE}. */
+    private static long doubleToPositiveLongRf(double rfProduced) {
+        if (!Double.isFinite(rfProduced) || rfProduced <= 0) {
+            return 0;
+        }
+        if (rfProduced >= (double) Long.MAX_VALUE) {
+            return Long.MAX_VALUE;
+        }
+        return (long) rfProduced;
+    }
 
     private static double rodEnergyScaling(double effectiveRodCount) {
         double n = Math.max(0.0, effectiveRodCount);
@@ -116,7 +127,7 @@ public final class ReactorSimulation {
             int rodCount,
             int rodColumns,
             int coolantBlockCount,
-            int rfPerTick,
+            long rfPerTick,
             int steamPerTick,
             int coolantConsumedPerTick,
             int fuelPerTickHundredths,
@@ -240,7 +251,7 @@ public final class ReactorSimulation {
         boolean waterMode = coolantDef != null
                 && (coolantDef.reduceRfProduction() || CoolantLoader.WATER_COOLANT_ID.equals(coolantDef.coolantId()));
 
-        int rfPushedThisTick = 0;
+        long rfPushedThisTick = 0;
         int steamProducedThisTick = 0;
         int waterConsumedThisTick = 0;
 
@@ -277,10 +288,10 @@ public final class ReactorSimulation {
                 // Produce energy only when water was insufficient (unconverted part goes to RF)
                 if (totalDrained < coolantToConsumeMb && coolantToConsumeMb > 0) {
                     double fractionNotConverted = 1.0 - (double) totalDrained / coolantToConsumeMb;
-                    int rfToPush = (int) (rfProduced * fractionNotConverted);
+                    long rfToPush = (long) (rfProduced * fractionNotConverted);
                     if (rfToPush > 0 && !powerPorts.isEmpty()) {
                         for (PowerPortBlockEntity port : powerPorts) {
-                            int accepted = port.receiveEnergyFromReactor(rfToPush);
+                            long accepted = port.receiveEnergyFromReactor(rfToPush);
                             rfPushedThisTick += accepted;
                             rfToPush -= accepted;
                             if (rfToPush <= 0) break;
@@ -289,10 +300,10 @@ public final class ReactorSimulation {
                 }
             } else {
                 // No valid coolant fluid: push all as RF
-                int rfPerTick = (int) Math.max(0, rfProduced);
+                long rfPerTick = doubleToPositiveLongRf(rfProduced);
                 if (rfPerTick > 0 && !powerPorts.isEmpty()) {
                     for (PowerPortBlockEntity port : powerPorts) {
-                        int accepted = port.receiveEnergyFromReactor(rfPerTick);
+                        long accepted = port.receiveEnergyFromReactor(rfPerTick);
                         rfPushedThisTick += accepted;
                         rfPerTick -= accepted;
                         if (rfPerTick <= 0) break;
@@ -301,10 +312,10 @@ public final class ReactorSimulation {
             }
         } else {
             // Normal mode: only RF (no steam). Steam is only produced in water mode from consumed coolant.
-            int rfPerTick = (int) Math.max(0, rfProduced);
+            long rfPerTick = doubleToPositiveLongRf(rfProduced);
             if (rfPerTick > 0 && !powerPorts.isEmpty()) {
                 for (PowerPortBlockEntity port : powerPorts) {
-                    int accepted = port.receiveEnergyFromReactor(rfPerTick);
+                    long accepted = port.receiveEnergyFromReactor(rfPerTick);
                     rfPushedThisTick += accepted;
                     rfPerTick -= accepted;
                     if (rfPerTick <= 0) break;
@@ -916,14 +927,14 @@ public final class ReactorSimulation {
                 && (coolantDef.reduceRfProduction() || CoolantLoader.WATER_COOLANT_ID.equals(coolantDef.coolantId()));
         int steamPerTick = 0;
         int coolantConsumedPerTick = 0;
-        int rfPerTick = 0;
+        long rfPerTick;
         if (waterMode && coolantDef != null) {
             int coolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
             coolantConsumedPerTick = coolantToConsumeMb;
             steamPerTick = (int) (coolantToConsumeMb * coolantDef.steamPerCoolant());
             rfPerTick = 0;
         } else {
-            rfPerTick = (int) Math.max(0, rfProduced);
+            rfPerTick = doubleToPositiveLongRf(rfProduced);
         }
 
         int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
