@@ -9,14 +9,14 @@
   "type": "immersiveengineering:alloy",
   "input0": {
     "basePredicate": { "tag": "c:ingots/steel" },
-    "count": 2
+    "count": 1
   },
   "input1": {
     "basePredicate": { "tag": "c:ingots/lead" },
-    "count": 2
+    "count": 1
   },
   "result": {
     "basePredicate": { "item": "colossal_reactors:tough_alloy_ingot" },
-    "count": 1
+    "count": 3
   }
 }

@@ -21,7 +21,7 @@
     { "count": 1, "ingredient": "#c:ingots/boron" }
   ],
   "output": {
-    "count": 3,
+    "count": 4,
     "id": "colossal_reactors:tough_alloy_ingot"
   }
 }

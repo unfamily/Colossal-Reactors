@@ -2,12 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "pattern": [
     "BAB",
-    "AAA",
+    "BAB",
     "BAB"
   ],
   "key": {
-    "A": "#c:ingots/graphite",
-    "B": "#c:ingots/tough_alloy"
+    "A": "#c:ingots/tough_alloy",
+    "B": "#c:ingots/graphite"
   },
   "result": {
     "id": "colossal_reactors:reactor_rod",

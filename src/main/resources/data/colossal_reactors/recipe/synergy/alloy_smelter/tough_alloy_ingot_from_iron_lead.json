@@ -4,8 +4,8 @@
   ],
   "type": "synergy:alloy_smelter",
   "energy": 500,
-  "left": { "count": 3, "tag": "c:ingots/iron" },
-  "right": { "count": 2, "tag": "c:ingots/lead" },
-  "output": { "count": 1, "id": "colossal_reactors:tough_alloy_ingot" },
+  "left": { "count": 1, "tag": "c:ingots/iron" },
+  "right": { "count": 1, "tag": "c:ingots/lead" },
+  "output": { "count": 2, "id": "colossal_reactors:tough_alloy_ingot" },
   "ticks": 120
 }

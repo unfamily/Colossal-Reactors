@@ -8,10 +8,10 @@
   ],
   "type": "indreb:alloy_smelting",
   "ingredients": [
-    { "tag": "c:ingots/steel", "count": 2 },
-    { "tag": "c:ingots/lead", "count": 2 }
+    { "tag": "c:ingots/steel", "count": 1 },
+    { "tag": "c:ingots/lead", "count": 1 }
   ],
-  "result": { "item": "colossal_reactors:tough_alloy_ingot", "count": 1 },
+  "result": { "item": "colossal_reactors:tough_alloy_ingot", "count": 3 },
   "experience": 0.2,
   "duration": 400,
   "power_cost": 16

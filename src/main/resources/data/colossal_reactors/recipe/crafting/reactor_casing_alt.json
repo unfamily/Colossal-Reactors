@@ -1,16 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
+    "BAB",
     "ABA",
-    "B B",
-    "ABA"
+    "BAB"
   ],
   "key": {
     "A": "#c:ingots/tough_alloy",
-    "B": "#c:glass_blocks"
+    "B": "#c:ingots/graphite"
   },
   "result": {
-    "id": "colossal_reactors:reactor_glass",
+    "id": "colossal_reactors:reactor_casing",
     "count": 4
   }
 }

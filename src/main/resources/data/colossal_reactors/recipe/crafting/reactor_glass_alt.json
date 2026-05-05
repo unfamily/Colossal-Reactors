@@ -1,9 +1,9 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "ABA",
-    "B B",
-    "ABA"
+    "BAB",
+    "A A",
+    "BAB"
   ],
   "key": {
     "A": "#c:ingots/tough_alloy",

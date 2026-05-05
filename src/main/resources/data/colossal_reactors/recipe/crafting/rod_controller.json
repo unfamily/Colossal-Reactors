@@ -7,7 +7,7 @@
   ],
   "key": {
     "A": "#c:ingots/graphite",
-    "B": "colossal_reactors:reactor_rod"
+    "B": "colossal_reactors:reactor_casing"
   },
   "result": {
     "id": "colossal_reactors:rod_controller",
