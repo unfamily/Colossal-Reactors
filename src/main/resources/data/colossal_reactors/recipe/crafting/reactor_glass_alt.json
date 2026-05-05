@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["BAB", "A A", "BAB"],
+  "key": {
+    "A": { "tag": "c:ingots/tough_alloy" },
+    "B": { "tag": "c:glass_blocks" }
+  },
+  "result": { "id": "colossal_reactors:reactor_glass", "count": 4 }
+}
