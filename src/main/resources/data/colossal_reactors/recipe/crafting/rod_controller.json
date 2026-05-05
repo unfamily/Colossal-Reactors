@@ -3,7 +3,7 @@
   "pattern": [" A ", "ABA", " A "],
   "key": {
     "A": { "tag": "c:ingots/graphite" },
-    "B": { "item": "colossal_reactors:reactor_rod" }
+    "B": { "item": "colossal_reactors:reactor_casing" }
   },
   "result": { "id": "colossal_reactors:rod_controller", "count": 1 }
 }

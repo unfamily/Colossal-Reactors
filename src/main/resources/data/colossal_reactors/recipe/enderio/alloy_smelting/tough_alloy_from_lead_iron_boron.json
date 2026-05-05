@@ -14,7 +14,7 @@
     { "count": 1, "tag": "c:ingots/boron" }
   ],
   "output": {
-    "count": 2,
+    "count": 3,
     "id": "colossal_reactors:tough_alloy_ingot"
   }
 }

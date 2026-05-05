@@ -14,5 +14,5 @@
     { "tag": "c:ingots/steel" },
     { "tag": "c:ingots/boron" }
   ],
-  "result": { "id": "colossal_reactors:unrefined_tough_alloy", "count": 3 }
+  "result": { "id": "colossal_reactors:unrefined_tough_alloy", "count": 4 }
 }

@@ -10,11 +10,9 @@
   "heat_requirement": "heated",
   "ingredients": [
     { "tag": "c:ingots/steel" },
-    { "tag": "c:ingots/steel" },
-    { "tag": "c:ingots/lead" },
     { "tag": "c:ingots/lead" }
   ],
   "results": [
-    { "count": 1, "id": "colossal_reactors:tough_alloy_ingot" }
+    { "count": 3, "id": "colossal_reactors:tough_alloy_ingot" }
   ]
 }

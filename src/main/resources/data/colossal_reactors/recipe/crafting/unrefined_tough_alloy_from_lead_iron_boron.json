@@ -5,5 +5,5 @@
     { "tag": "c:ingots/iron" },
     { "tag": "c:ingots/boron" }
   ],
-  "result": { "id": "colossal_reactors:unrefined_tough_alloy", "count": 2 }
+  "result": { "id": "colossal_reactors:unrefined_tough_alloy", "count": 3 }
 }
