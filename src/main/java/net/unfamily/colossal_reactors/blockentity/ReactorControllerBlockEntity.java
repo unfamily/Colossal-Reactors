@@ -432,7 +432,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
                     BlockState state = level.getBlockState(p);
                     if (state.is(ModBlocks.REACTOR_ROD.get())) {
                         rods.add(p.asLong());
-                    } else if (state.is(ModBlocks.POWER_PORT.get())) {
+                    } else if (ModBlocks.isPowerPort(state)) {
                         powerPorts.add(p.asLong());
                     } else if (state.is(ModBlocks.RESOURCE_PORT.get())) {
                         resourcePorts.add(p.asLong());

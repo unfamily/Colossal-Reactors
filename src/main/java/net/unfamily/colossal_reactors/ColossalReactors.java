@@ -10,6 +10,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -25,6 +26,8 @@ import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
+import com.brandon3055.brandonscore.capability.CapabilityOP;
+import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
@@ -86,6 +89,12 @@ public class ColossalReactors {
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
+                (be, direction) -> ((HighCondPowerPortBlockEntity) be).getEnergyStorageForCapability());
+        if (ModList.get().isLoaded("brandonscore")) {
+            event.registerBlockEntity(CapabilityOP.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
+                    (be, direction) -> ((HighCondPowerPortBlockEntity) be).getOpStorageForCapability());
+        }
         // Heating coil: by default only front face accepts items/fluids/energy; all_sides overrides that; no_* disables type
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
                 (be, direction) -> ((HeatingCoilBlockEntity) be).allowsCapabilityOnSide(direction)

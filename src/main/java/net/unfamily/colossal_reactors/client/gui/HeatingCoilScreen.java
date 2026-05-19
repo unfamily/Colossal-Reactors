@@ -42,7 +42,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int GUI_HEIGHT = 176;
 
     private static final int FLUID_BAR_X = 10;
-    private static final int FLUID_BAR_Y = 19;
+    private static final int FLUID_BAR_Y = 20;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;
@@ -69,8 +69,8 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int CENSOR_COLOR = 0xFFc6c6c6;
 
     /** Slot position and size (standard 18x18 including border); censor uses +1px each side */
-    private static final int SLOT_X = 37;
-    private static final int SLOT_Y = 38;
+    private static final int SLOT_X = 36;
+    private static final int SLOT_Y = 39;
     private static final int SLOT_SIZE = 18;
 
     /** Close button (X): top right, same as other port screens */

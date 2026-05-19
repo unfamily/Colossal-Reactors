@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " B ",
+    "BAB",
+    " A "
+  ],
+  "key": {
+    "A": { "item": "colossal_reactors:power_port" },
+    "B": { "item": "minecraft:dragon_breath" }
+  },
+  "result": { "id": "colossal_reactors:high_cond_power_port", "count": 1 }
+}

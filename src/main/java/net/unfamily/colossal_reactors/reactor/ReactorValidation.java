@@ -168,7 +168,7 @@ public final class ReactorValidation {
     public static boolean isShellBlock(BlockState state) {
         return state.is(ModBlocks.REACTOR_CASING.get())
                 || state.is(ModBlocks.REACTOR_GLASS.get())
-                || state.is(ModBlocks.POWER_PORT.get())
+                || ModBlocks.isPowerPort(state)
                 || state.is(ModBlocks.REDSTONE_PORT.get())
                 || state.is(ModBlocks.RESOURCE_PORT.get());
     }

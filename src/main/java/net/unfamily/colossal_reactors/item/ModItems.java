@@ -31,6 +31,8 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.REACTOR_ROD.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.register("power_port",
             () -> new BlockItem(ModBlocks.POWER_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> HIGH_COND_POWER_PORT = ITEMS.register("high_cond_power_port",
+            () -> new BlockItem(ModBlocks.HIGH_COND_POWER_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.register("redstone_port",
             () -> new BlockItem(ModBlocks.REDSTONE_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.register("resource_port",

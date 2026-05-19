@@ -29,6 +29,7 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.REACTOR_ROD.get());
                                 output.accept(ModItems.ROD_CONTROLLER.get());
                                 output.accept(ModItems.POWER_PORT.get());
+                                output.accept(ModItems.HIGH_COND_POWER_PORT.get());
                                 output.accept(ModItems.REDSTONE_PORT.get());
                                 output.accept(ModItems.RESOURCE_PORT.get());
                                 output.accept(ModItems.MELTER.get());

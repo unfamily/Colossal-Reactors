@@ -12,19 +12,19 @@ public class Config {
 
     public static final ModConfigSpec.ConfigValue<Boolean> REACTOR_VALIDATION_DEBUG = BUILDER
             .comment("Dump full reactor validation to log (info level). Default: false")
-            .define("001_reactor_validation_debug", false);
+            .define("000_reactor_validation_debug", false);
 
     public static final ModConfigSpec.ConfigValue<Boolean> REACTOR_SIMULATION_DEBUG = BUILDER
             .comment("Log reactor simulation (heat sink rod/adj/nonAdj, weights, fuel/energy mult) each tick. Default: false")
-            .define("002_reactor_simulation_debug", false);
+            .define("001_reactor_simulation_debug", false);
 
     public static final ModConfigSpec.ConfigValue<Boolean> MELTER_DEBUG = BUILDER
             .comment("Log why the Melter is not advancing when it has input (no recipe, fluid not found, heat product). Default: false")
-            .define("003_melter_debug", false);
+            .define("002_melter_debug", false);
 
     public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_RADIATION_MANAGEMENT = BUILDER
             .comment("Does not enable radiation in Colossal Reactors reactors. Enable radiation management features (Radiation Scrubber, Radiation Cure). When true and Mekanism is installed, items and recipes appear in creative tab and are craftable. Default: false")
-            .define("004_enable_radiation_management", false);
+            .define("003_enable_radiation_management", false);
 
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_URANIUM_OREGEN = BUILDER
             .comment("When true, disables uranium ore generation in the world. Default: false")
@@ -81,7 +81,7 @@ public class Config {
             .defineInRange("101c_minFuelUnitsPerTick", 0.05, 0.0, 100.0);
     public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
             .comment("Max fuel units per reactor rod (shared capacity). Default: 10000")
-            .defineInRange("107_rodMaxFuelUnits", 10000, 1, Integer.MAX_VALUE);
+            .defineInRange("000_rodMaxFuelUnits", 10000, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -94,16 +94,16 @@ public class Config {
 
     public static final ModConfigSpec.DoubleValue RF_EFFICIENCY_LOSS = BUILDER
             .comment("RF efficiency loss factor. Default: 0.2")
-            .defineInRange("103_rfEfficiencyLoss", 0.2, 0.0, 1.0);
+            .defineInRange("000_rfEfficiencyLoss", 0.2, 0.0, 1.0);
     public static final ModConfigSpec.DoubleValue FUEL_EFFICIENCY_LOSS = BUILDER
             .comment("Fuel efficiency factor. Default: 1")
-            .defineInRange("104_fuelEfficiencyLoss", 1.0, 0.0, 10.0);
+            .defineInRange("001_fuelEfficiencyLoss", 1.0, 0.0, 10.0);
     public static final ModConfigSpec.DoubleValue PRODUCTION_MULTIPLIER = BUILDER
             .comment("Production multiplier. Default: 1")
-            .defineInRange("105_productionMultiplier", 1.0, 0.0, 100.0);
+            .defineInRange("002_productionMultiplier", 1.0, 0.0, 100.0);
     public static final ModConfigSpec.DoubleValue CONSUMPTION_MULTIPLIER = BUILDER
             .comment("Consumption multiplier. Default: 1")
-            .defineInRange("106_consumptionMultiplier", 1.0, 0.0, 100.0);
+            .defineInRange("003_consumptionMultiplier", 1.0, 0.0, 100.0);
 
     static {
         BUILDER.pop();
@@ -145,15 +145,15 @@ public class Config {
 
     public static final ModConfigSpec.IntValue ROD_ENERGY_SCALING_MODE = BUILDER
             .comment("Energy scaling mode vs effectiveRodCount. 0=Legacy (n*log), 1=Power (n^exp), 2=Saturating (n/(1+n/k)). Default: 1")
-            .defineInRange("110_rodEnergyScalingMode", 1, 0, 2);
+            .defineInRange("000_rodEnergyScalingMode", 1, 0, 2);
 
     public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_EXPONENT = BUILDER
             .comment("When rodEnergyScalingMode=1: exponent for n^exp. Smaller = flatter for large reactors. Default: 0.90")
-            .defineInRange("111_rodEnergyScalingExponent", 0.90, 0.05, 1.50);
+            .defineInRange("001_rodEnergyScalingExponent", 0.90, 0.05, 1.50);
 
     public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_SATURATION_K = BUILDER
             .comment("When rodEnergyScalingMode=2: saturation constant k for n/(1+n/k). Default: 600")
-            .defineInRange("112_rodEnergyScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
+            .defineInRange("002_rodEnergyScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -191,10 +191,10 @@ public class Config {
 
     public static final ModConfigSpec.IntValue REACTOR_VALIDATION_INTERVAL_TICKS = BUILDER
             .comment("Ticks between reactor structure re-validation when ON (e.g. 200 = 10s). Default: 200")
-            .defineInRange("010_reactorValidationIntervalTicks", 200, 1, Integer.MAX_VALUE);
+            .defineInRange("000_reactorValidationIntervalTicks", 200, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.BooleanValue ALLOW_MULTIPLE_REACTOR_CONTROLLERS = BUILDER
             .comment("If false, reactor is valid only with exactly one reactor controller on its outer faces. If true, multiple controllers allowed. Default: false")
-            .define("011_allowMultipleReactorControllers", false);
+            .define("001_allowMultipleReactorControllers", false);
 
     static {
         BUILDER.pop();
@@ -240,12 +240,19 @@ public class Config {
         BUILDER.comment("Power Port").push("power");
     }
 
-    public static final ModConfigSpec.LongValue POWER_PORT_CAPACITY = BUILDER
-            .comment("Energy buffer capacity in RF (long). Default: 1000000000")
-            .defineInRange("010_powerPortCapacity", 1_000_000_000L, 1000L, Long.MAX_VALUE);
-    public static final ModConfigSpec.LongValue POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("Max energy that can be extracted per tick (RF/t); effective rate is min(this, stored, capacity). Default: 1000000000")
-            .defineInRange("020_powerPortMaxExtract", 1_000_000_000L, 1L, Long.MAX_VALUE);
+    public static final ModConfigSpec.IntValue POWER_PORT_CAPACITY = BUILDER
+            .comment("Standard power port buffer capacity in RF (int). Default: max int")
+            .defineInRange("000_powerPortCapacity", Integer.MAX_VALUE, 1000, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue POWER_PORT_MAX_EXTRACT = BUILDER
+            .comment("Standard power port max extraction per tick (RF/t). Default: max int")
+            .defineInRange("001_powerPortMaxExtract", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
+
+    public static final ModConfigSpec.LongValue HIGH_COND_POWER_PORT_CAPACITY = BUILDER
+            .comment("High-conduction power port buffer capacity in RF (long). Default: 1000000000")
+            .defineInRange("100_highCondPowerPortCapacity", 1_000_000_000L, 1000L, Long.MAX_VALUE);
+    public static final ModConfigSpec.LongValue HIGH_COND_POWER_PORT_MAX_EXTRACT = BUILDER
+            .comment("High-conduction power port max extraction per tick (RF/t). Default: 1000000000")
+            .defineInRange("101_highCondPowerPortMaxExtract", 1_000_000_000L, 1L, Long.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -265,19 +272,19 @@ public class Config {
             .defineInRange("000_energyPerTick", 100, 0, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_ENERGY_CAPACITY = BUILDER
             .comment("Energy buffer capacity in RF. Default: 10000")
-            .defineInRange("010_energyCapacity", 10000, 100, Integer.MAX_VALUE);
+            .defineInRange("001_energyCapacity", 10000, 100, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_RADIUS_BLOCKS = BUILDER
             .comment("Scrub radius in blocks (distance from machine)")
-            .defineInRange("020_radiusBlocks", 50, 0, Integer.MAX_VALUE);
+            .defineInRange("010_radiusBlocks", 50, 0, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_INTERVAL_TICKS = BUILDER
             .comment("Ticks between each scrub pass. Default: 10")
-            .defineInRange("030_intervalTicks", 10, 1, Integer.MAX_VALUE);
+            .defineInRange("011_intervalTicks", 10, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_BASE_RADIATION_REMOVAL = BUILDER
             .comment("Base multiplier for how much radiation is removed per scrub (applied to datapack effectiveness). Default: 100")
-            .defineInRange("040_baseRadiationRemoval", 100, 1, Integer.MAX_VALUE);
+            .defineInRange("100_baseRadiationRemoval", 100, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue RADIATION_SCRUBBER_BASE_GAS_DESTRUCTION = BUILDER
             .comment("Base mB of radioactive gas destroyed per tick (100 RF per tick). With catalyst: base * gas_mult from datapack. Default: 10")
-            .defineInRange("050_baseGasDestruction", 10, 1, Integer.MAX_VALUE);
+            .defineInRange("101_baseGasDestruction", 10, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -300,36 +307,36 @@ public class Config {
 
     public static final ModConfigSpec.IntValue REACTOR_UNSTABILITY_MAX_STABILITY_PERMILLE = BUILDER
             .comment("Maximum stability when reactor unstability is enabled. Default: 1000")
-            .defineInRange("001_reactor_unstability_max_stability", 1000, 1, Integer.MAX_VALUE);
+            .defineInRange("000_reactor_unstability_max_stability", 1000, 1, Integer.MAX_VALUE);
 
     public static final ModConfigSpec.IntValue STABILITY_INTERIOR_VOLUME_BASELINE = BUILDER
             .comment("Interior block count at or below: base cooling/production ratio only (forgiving for small reactors). Default: 4096")
-            .defineInRange("005_stability_interior_volume_baseline", 4096, 64, 1_000_000_000);
+            .defineInRange("001_stability_interior_volume_baseline", 4096, 64, 1_000_000_000);
     public static final ModConfigSpec.IntValue STABILITY_INTERIOR_VOLUME_STRESS = BUILDER
             .comment("Reference interior size where extra required ratio reaches maximum (huge reactors need top-tier coolant). Default: 262144")
-            .defineInRange("006_stability_interior_volume_stress", 262144, 1000, 1_000_000_000);
+            .defineInRange("002_stability_interior_volume_stress", 262144, 1000, 1_000_000_000);
     public static final ModConfigSpec.DoubleValue STABILITY_MAX_EXTRA_REQUIRED_RATIO = BUILDER
             .comment("At stress volume, required cooling/production ratio is base (0.85) plus this value. Default: 0.11")
-            .defineInRange("007_stability_max_extra_required_ratio", 0.11, 0.0, 0.25);
+            .defineInRange("003_stability_max_extra_required_ratio", 0.11, 0.0, 0.25);
 
     public static final ModConfigSpec.BooleanValue THERMAL_STRESS_FROM_SIZE_ENABLED = BUILDER
             .comment("Interior-span thermal stress divides overheating-based cooling RF (longest interior edge). Larger reactors need higher overheating tiers (datapack) for stability. Default: true")
-            .define("008_thermal_stress_from_size_enabled", true);
+            .define("100_thermal_stress_from_size_enabled", true);
     public static final ModConfigSpec.DoubleValue THERMAL_STRESS_L_REF = BUILDER
             .comment("Reference interior span in blocks where factor is neutral (~1 after clipping). Typical small interior ~5 for a 7-shell reactor. Default: 5")
-            .defineInRange("009_thermal_stress_l_ref", 5.0, 1.0, 512.0);
+            .defineInRange("101_thermal_stress_l_ref", 5.0, 1.0, 512.0);
     public static final ModConfigSpec.DoubleValue THERMAL_STRESS_L_MIN = BUILDER
             .comment("Minimum interior span used in the stress curve (clip). Default: 3")
-            .defineInRange("010_thermal_stress_l_min", 3.0, 1.0, 512.0);
+            .defineInRange("102_thermal_stress_l_min", 3.0, 1.0, 512.0);
     public static final ModConfigSpec.DoubleValue THERMAL_STRESS_GAMMA = BUILDER
             .comment("Exponent for (L/L_ref)^gamma; lower = gentler growth with size. Default: 0.38")
-            .defineInRange("011_thermal_stress_gamma", 0.38, 0.05, 3.0);
+            .defineInRange("103_thermal_stress_gamma", 0.38, 0.05, 3.0);
     public static final ModConfigSpec.DoubleValue THERMAL_STRESS_ALPHA = BUILDER
             .comment("Stress strength: factor = 1 + alpha * ((L/L_ref)^gamma - 1). Default: 0.45")
-            .defineInRange("012_thermal_stress_alpha", 0.45, 0.0, 3.0);
+            .defineInRange("104_thermal_stress_alpha", 0.45, 0.0, 3.0);
     public static final ModConfigSpec.BooleanValue THERMAL_STRESS_SCALE_FLUID_COOLING = BUILDER
             .comment("Apply the same thermal stress factor to fluid coolant overheating (water/steam path). Default: true")
-            .define("013_thermal_stress_scale_fluid_cooling", true);
+            .define("105_thermal_stress_scale_fluid_cooling", true);
 
     static {
         BUILDER.pop(); // reactor_stability
@@ -337,15 +344,15 @@ public class Config {
 
     public static final ModConfigSpec.BooleanValue MEKANISM_RADIATION_INTEGRATION = BUILDER
             .comment("Mekanism radiation integration. Default: false")
-            .define("002_mekanism_radiation_integration", false);
+            .define("100_mekanism_radiation_integration", false);
 
     public static final ModConfigSpec.BooleanValue ISKA_UTILS_EXPLOSION_INTEGRATION = BUILDER
-            .comment("Iska Utils explosion integration. Default: false")
-            .define("003_iska_utils_explosion_integration", false);
+            .comment("Iska Utils freelag explosion on meltdown (requires iska_utils in the pack). Default: false")
+            .define("101_iska_utils_explosion_integration", false);
 
     public static final ModConfigSpec.BooleanValue ALEXS_CAVES_EXPLOSION_INTEGRATION = BUILDER
             .comment("Alex's Caves explosion integration. Default: false")
-            .define("004_alexs_caves_explosion_integration", false);
+            .define("102_alexs_caves_explosion_integration", false);
 
     static {
         BUILDER.pop(); // evil_things

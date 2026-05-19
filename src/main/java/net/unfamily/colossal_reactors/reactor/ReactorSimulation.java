@@ -13,7 +13,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.ReactorPowerPort;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -143,7 +143,7 @@ public final class ReactorSimulation {
         if (result == null || !result.valid()) return;
 
         List<ReactorRodBlockEntity> rods = new ArrayList<>();
-        List<PowerPortBlockEntity> powerPorts = new ArrayList<>();
+        List<ReactorPowerPort> powerPorts = new ArrayList<>();
         List<ResourcePortBlockEntity> resourcePorts = new ArrayList<>();
 
         // Use cached part positions to avoid scanning the whole reactor volume each tick.
@@ -170,7 +170,7 @@ public final class ReactorSimulation {
             }
         }
         for (long p : powerPortPositions) {
-            if (level.getBlockEntity(BlockPos.of(p)) instanceof PowerPortBlockEntity port) {
+            if (level.getBlockEntity(BlockPos.of(p)) instanceof ReactorPowerPort port) {
                 powerPorts.add(port);
             }
         }
@@ -290,7 +290,7 @@ public final class ReactorSimulation {
                     double fractionNotConverted = 1.0 - (double) totalDrained / coolantToConsumeMb;
                     long rfToPush = (long) (rfProduced * fractionNotConverted);
                     if (rfToPush > 0 && !powerPorts.isEmpty()) {
-                        for (PowerPortBlockEntity port : powerPorts) {
+                        for (ReactorPowerPort port : powerPorts) {
                             long accepted = port.receiveEnergyFromReactor(rfToPush);
                             rfPushedThisTick += accepted;
                             rfToPush -= accepted;
@@ -302,7 +302,7 @@ public final class ReactorSimulation {
                 // No valid coolant fluid: push all as RF
                 long rfPerTick = doubleToPositiveLongRf(rfProduced);
                 if (rfPerTick > 0 && !powerPorts.isEmpty()) {
-                    for (PowerPortBlockEntity port : powerPorts) {
+                    for (ReactorPowerPort port : powerPorts) {
                         long accepted = port.receiveEnergyFromReactor(rfPerTick);
                         rfPushedThisTick += accepted;
                         rfPerTick -= accepted;
@@ -314,7 +314,7 @@ public final class ReactorSimulation {
             // Normal mode: only RF (no steam). Steam is only produced in water mode from consumed coolant.
             long rfPerTick = doubleToPositiveLongRf(rfProduced);
             if (rfPerTick > 0 && !powerPorts.isEmpty()) {
-                for (PowerPortBlockEntity port : powerPorts) {
+                for (ReactorPowerPort port : powerPorts) {
                     long accepted = port.receiveEnergyFromReactor(rfPerTick);
                     rfPushedThisTick += accepted;
                     rfPerTick -= accepted;

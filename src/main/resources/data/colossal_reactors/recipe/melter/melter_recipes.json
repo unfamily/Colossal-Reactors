@@ -15,7 +15,7 @@
     },
     {
       "input": "#c:ender_pearls",
-      "output": "#c:ender",
+      "output": "#c:ender_molten",
       "amount": 250,
       "time": 200
     },
