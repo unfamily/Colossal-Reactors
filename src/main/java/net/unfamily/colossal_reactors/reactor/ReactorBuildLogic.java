@@ -30,15 +30,6 @@ public final class ReactorBuildLogic {
     private static final int STAGE_HEAT_SINKS = 4;
     private static final int STAGE_DONE = 5;
 
-    private enum LiquidTickResult {
-        /** Still placing or waiting within the liquid stage. */
-        ACTIVE,
-        /** Liquid stage finished (all target cells scanned). */
-        DONE,
-        /** Cannot run liquid stage (abort build). */
-        BLOCKED
-    }
-
     private ReactorBuildLogic() {}
 
     /**
@@ -191,12 +182,7 @@ public final class ReactorBuildLogic {
                     builder.setChanged();
                     continue;
                 }
-                LiquidTickResult liquidResult = tickLiquids(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter);
-                if (liquidResult == LiquidTickResult.BLOCKED) {
-                    builder.abortBuildInsufficientFluid();
-                    return false;
-                }
-                if (liquidResult == LiquidTickResult.ACTIVE) return true;
+                if (tickLiquids(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
                 builder.setBuildStage(STAGE_HEAT_SINKS);
                 builder.setBuildHeatCursor(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
                 builder.setChanged();
@@ -329,25 +315,16 @@ public final class ReactorBuildLogic {
         return false;
     }
 
-    private static LiquidTickResult tickLiquids(ReactorBuilderBlockEntity builder, ServerLevel level,
-                                              int minX, int minY, int minZ,
-                                              int w, int h, int d,
-                                              int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+    private static boolean tickLiquids(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                       int minX, int minY, int minZ,
+                                       int w, int h, int d,
+                                       int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
         int patternMode = builder.getPatternMode();
-        Fluid fluid = builder.getFluidTank().getFluid().getFluid();
 
         int ly0 = builder.getBuildLiquidLy();
         int lx0 = builder.getBuildLiquidLx();
         int lz0 = builder.getBuildLiquidLz();
         if (ly0 == Integer.MIN_VALUE) {
-            if (fluid == null || fluid == Fluids.EMPTY
-                    || !HeatSinkLoader.isFluidMatchingSelectedHeatSink(level.registryAccess(), builder.getSelectedHeatSinkIndex(), fluid)) {
-                return LiquidTickResult.BLOCKED;
-            }
-            int requiredMb = countLiquidTargetCells(builder, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter) * MB_PER_LIQUID_BLOCK;
-            if (builder.getFluidTank().getFluidAmount() < requiredMb) {
-                return LiquidTickResult.BLOCKED;
-            }
             ly0 = 1; lx0 = 1; lz0 = 1;
         }
 
@@ -361,45 +338,34 @@ public final class ReactorBuildLogic {
                     if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
                         if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
                     } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    Fluid fluid = builder.getFluidTank().getFluid().getFluid();
+                    if (fluid == null || fluid == Fluids.EMPTY
+                            || !HeatSinkLoader.isFluidMatchingSelectedHeatSink(level.registryAccess(), builder.getSelectedHeatSinkIndex(), fluid)) {
+                        builder.setBuildLiquidCursor(lx, ly, lz);
+                        return true;
+                    }
                     BlockPos pos = new BlockPos(minX + lx, minY + ly, minZ + lz);
                     if (!canReplaceForLiquid(level, pos, fluid)) continue;
                     BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
                     if (liquidBlock.isAir()) continue;
                     if (builder.getFluidTank().getFluidAmount() < MB_PER_LIQUID_BLOCK) {
-                        return LiquidTickResult.BLOCKED;
+                        builder.setBuildLiquidCursor(lx, ly, lz);
+                        return true;
                     }
                     level.setBlock(pos, liquidBlock, 3);
                     var drained = builder.getFluidTank().drain(MB_PER_LIQUID_BLOCK, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
                     if (drained.getAmount() < MB_PER_LIQUID_BLOCK) {
-                        return LiquidTickResult.BLOCKED;
+                        builder.setBuildLiquidCursor(lx, ly, lz);
+                        return true;
                     }
                     builder.setChanged();
-                    return LiquidTickResult.ACTIVE;
+                    return true;
                 }
                 builder.setBuildLiquidCursor(lx + 1, ly, 1);
             }
             builder.setBuildLiquidCursor(1, ly + 1, 1);
         }
-        return LiquidTickResult.DONE;
-    }
-
-    private static int countLiquidTargetCells(ReactorBuilderBlockEntity builder,
-                                              int w, int h, int d,
-                                              int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
-        int patternMode = builder.getPatternMode();
-        int count = 0;
-        for (int ly = 1; ly < h - 1; ly++) {
-            for (int lx = 1; lx < w - 1; lx++) {
-                for (int lz = 1; lz < d - 1; lz++) {
-                    if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                    if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
-                        if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                    } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
-                    count++;
-                }
-            }
-        }
-        return count;
+        return false;
     }
 
     private static boolean tickHeatSinks(ReactorBuilderBlockEntity builder, ServerLevel level,
