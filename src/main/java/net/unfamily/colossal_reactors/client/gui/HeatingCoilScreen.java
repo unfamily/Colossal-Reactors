@@ -45,7 +45,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int GUI_HEIGHT = 176;
 
     private static final int FLUID_BAR_X = 10;
-    private static final int FLUID_BAR_Y = 19;
+    private static final int FLUID_BAR_Y = 20;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;

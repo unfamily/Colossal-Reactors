@@ -47,7 +47,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
 
     /** Fluid bar: position +1 left and +1 up from (11,15) -> (10, 14), internal fill 12x54 */
     private static final int FLUID_BAR_X = 10;
-    private static final int FLUID_BAR_Y = 19;
+    private static final int FLUID_BAR_Y = 20;
     private static final int FLUID_FILL_WIDTH = 12;
     private static final int FLUID_FILL_HEIGHT = 54;
     private static final int FLUID_FILL_INSET = 1;

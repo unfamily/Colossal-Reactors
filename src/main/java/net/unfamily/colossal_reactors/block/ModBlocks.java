@@ -4,6 +4,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -48,6 +49,10 @@ public class ModBlocks {
 
     public static final DeferredBlock<PowerPortBlock> POWER_PORT = BLOCKS.registerBlock("power_port",
             PowerPortBlock::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+
+    public static final DeferredBlock<HighCondPowerPortBlock> HIGH_COND_POWER_PORT = BLOCKS.registerBlock("high_cond_power_port",
+            HighCondPowerPortBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
 
     public static final DeferredBlock<RedstonePortBlock> REDSTONE_PORT = BLOCKS.registerBlock("redstone_port",
@@ -155,6 +160,10 @@ public class ModBlocks {
             if (b.getCoilId().equals(coilId) && b.isOn() == isOn) return b;
         }
         return null;
+    }
+
+    public static boolean isPowerPort(BlockState state) {
+        return state.is(POWER_PORT.get()) || state.is(HIGH_COND_POWER_PORT.get());
     }
 
     private ModBlocks() {}

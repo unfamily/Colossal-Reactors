@@ -6,6 +6,7 @@
   "block.colossal_reactors.reactor_builder": "Reactor Builder",
   "block.colossal_reactors.reactor_rod": "Reactor Rod",
   "block.colossal_reactors.power_port": "Power Port",
+  "block.colossal_reactors.high_cond_power_port": "High Conduction Power Port",
   "block.colossal_reactors.redstone_port": "Redstone Port",
   "block.colossal_reactors.resource_port": "Resource Port",
   "block.colossal_reactors.melter": "Melter",

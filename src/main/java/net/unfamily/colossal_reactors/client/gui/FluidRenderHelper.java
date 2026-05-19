@@ -13,7 +13,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
  * Renders fluid in GUI tanks using the baked fluid model still sprite and fluid tint source.
- * Texture is tiled to fill the area, not stretched.
+ * Texture is tiled from the bottom; partial tiles are clipped (not stretched).
  */
 public final class FluidRenderHelper {
 
@@ -34,13 +34,27 @@ public final class FluidRenderHelper {
         FluidTintSource tintSource = model.fluidTintSource();
         int tint = tintSource != null ? tintSource.color(fluid.defaultFluidState()) : 0xFFFFFF;
         int color = ARGB.color(255, (tint >> 16) & 0xFF, (tint >> 8) & 0xFF, tint & 0xFF);
+        drawTiledSpriteBottomUp(guiGraphics, sprite, x, y, width, height, color);
+    }
 
-        for (int dy = 0; dy < height; dy += TILE_SIZE) {
+    private static void drawTiledSpriteBottomUp(
+            GuiGraphicsExtractor guiGraphics, TextureAtlasSprite sprite, int x, int y, int width, int height, int color) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        int remainingHeight = height;
+        int tileBottom = y + height;
+        while (remainingHeight > 0) {
+            int tileH = Math.min(TILE_SIZE, remainingHeight);
+            tileBottom -= tileH;
             for (int dx = 0; dx < width; dx += TILE_SIZE) {
-                int w = Math.min(TILE_SIZE, width - dx);
-                int h = Math.min(TILE_SIZE, height - dy);
-                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x + dx, y + dy, w, h, color);
+                int tileW = Math.min(TILE_SIZE, width - dx);
+                int tileX = x + dx;
+                guiGraphics.enableScissor(tileX, tileBottom, tileX + tileW, tileBottom + tileH);
+                guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, tileX, tileBottom, TILE_SIZE, TILE_SIZE, color);
+                guiGraphics.disableScissor();
             }
+            remainingHeight -= tileH;
         }
     }
 }

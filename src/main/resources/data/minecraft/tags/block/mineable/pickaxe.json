@@ -6,6 +6,7 @@
     "colossal_reactors:reactor_controller",
     "colossal_reactors:reactor_rod",
     "colossal_reactors:power_port",
+    "colossal_reactors:high_cond_power_port",
     "colossal_reactors:redstone_port",
     "colossal_reactors:resource_port",
     "colossal_reactors:melter",

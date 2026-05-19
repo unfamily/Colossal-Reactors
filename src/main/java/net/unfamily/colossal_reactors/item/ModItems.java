@@ -26,6 +26,7 @@ public class ModItems {
     public static final DeferredItem<BlockItem> REACTOR_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_CONTROLLER);
     public static final DeferredItem<BlockItem> REACTOR_ROD = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_ROD);
     public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.POWER_PORT);
+    public static final DeferredItem<BlockItem> HIGH_COND_POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.HIGH_COND_POWER_PORT);
     public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_PORT);
     public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_PORT);
     public static final DeferredItem<BlockItem> MELTER = ITEMS.registerSimpleBlockItem(ModBlocks.MELTER);

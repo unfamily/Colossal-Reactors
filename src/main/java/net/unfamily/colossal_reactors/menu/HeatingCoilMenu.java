@@ -32,7 +32,7 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
         this.data = data;
         this.menuBlockPos = blockEntity.getBlockPos();
         addDataSlots(data);
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 33));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 38));
         addPlayerSlots(playerInventory);
     }
 

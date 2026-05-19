@@ -30,6 +30,10 @@ public class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register("power_port",
                     () -> new BlockEntityType<>(PowerPortBlockEntity::new, ModBlocks.POWER_PORT.get()));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HighCondPowerPortBlockEntity>> HIGH_COND_POWER_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("high_cond_power_port",
+                    () -> new BlockEntityType<>(HighCondPowerPortBlockEntity::new, ModBlocks.HIGH_COND_POWER_PORT.get()));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RedstonePortBlockEntity>> REDSTONE_PORT_BE =
             BLOCK_ENTITY_TYPES.register("redstone_port",
                     () -> new BlockEntityType<>(RedstonePortBlockEntity::new, ModBlocks.REDSTONE_PORT.get()));
