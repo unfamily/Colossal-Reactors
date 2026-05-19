@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import org.jetbrains.annotations.Nullable;
@@ -25,7 +26,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 52;
+    private static final int HEIGHT = 74;
 
     public static final RecipeType<FuelDefinition> RECIPE_TYPE = new RecipeType<>(UID, FuelDefinition.class);
 
@@ -81,7 +82,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
     public void draw(FuelDefinition recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int line2 = textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+        int lineHeight = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
 
@@ -91,6 +92,22 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         Component consumeFuel = Component.translatable("jei.colossal_reactors.consume_fuel", ratio[1]);
         Component produceWaste = Component.translatable("jei.colossal_reactors.produce_waste", ratio[0]);
         guiGraphics.drawString(font, consumeFuel, margin, textY, color, false);
-        guiGraphics.drawString(font, produceWaste, margin, line2, color, false);
+        guiGraphics.drawString(font, produceWaste, margin, textY + lineHeight, color, false);
+
+        String baseRf = formatRfPerTick(recipe.baseRfPerTick());
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.fuel.production_rf", baseRf),
+                margin, textY + lineHeight * 2, color, false);
+
+        double mult = Config.PRODUCTION_MULTIPLIER.get();
+        String effectiveRf = formatRfPerTick(recipe.baseRfPerTick() * mult);
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.fuel.production_rf_config", effectiveRf, mult),
+                margin, textY + lineHeight * 3, color, false);
+    }
+
+    private static String formatRfPerTick(double rfPerTick) {
+        if (rfPerTick == (long) rfPerTick) return String.valueOf((long) rfPerTick);
+        return String.format("%.1f", rfPerTick);
     }
 }

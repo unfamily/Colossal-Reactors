@@ -16,9 +16,9 @@ import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
 
 /**
- * C2S packet: cycle Redstone Port mode (same pattern as iskandert_utilities). No PULSE.
+ * C2S: cycle Redstone Port mode (no PULSE). next=true advances, next=false goes back.
  */
-public record RedstonePortRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
+public record RedstonePortRedstoneModePayload(BlockPos pos, boolean next) implements CustomPacketPayload {
 
     public static final Type<RedstonePortRedstoneModePayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "redstone_port_redstone_mode"));
@@ -26,6 +26,8 @@ public record RedstonePortRedstoneModePayload(BlockPos pos) implements CustomPac
     public static final StreamCodec<FriendlyByteBuf, RedstonePortRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
             RedstonePortRedstoneModePayload::pos,
+            net.minecraft.network.codec.ByteBufCodecs.BOOL,
+            RedstonePortRedstoneModePayload::next,
             RedstonePortRedstoneModePayload::new
     );
 
@@ -41,7 +43,8 @@ public record RedstonePortRedstoneModePayload(BlockPos pos) implements CustomPac
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof RedstonePortBlockEntity port) {
                 RedstoneMode current = RedstoneMode.fromId(port.getRedstoneMode());
-                port.setRedstoneMode(current.nextNoPulse().getId());
+                RedstoneMode updated = packet.next() ? current.nextNoPulse() : current.previousNoPulse();
+                port.setRedstoneMode(updated.getId());
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });

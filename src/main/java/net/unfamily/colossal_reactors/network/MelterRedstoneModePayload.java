@@ -16,9 +16,9 @@ import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 
 /**
- * C2S: cycle Melter redstone mode (NONE, LOW, HIGH, PULSE, DISABLED).
+ * C2S: cycle Melter redstone mode. next=true advances, next=false goes back (left=next, right=previous).
  */
-public record MelterRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
+public record MelterRedstoneModePayload(BlockPos pos, boolean next) implements CustomPacketPayload {
 
     public static final Type<MelterRedstoneModePayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "melter_redstone_mode"));
@@ -26,6 +26,8 @@ public record MelterRedstoneModePayload(BlockPos pos) implements CustomPacketPay
     public static final StreamCodec<FriendlyByteBuf, MelterRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
             MelterRedstoneModePayload::pos,
+            net.minecraft.network.codec.ByteBufCodecs.BOOL,
+            MelterRedstoneModePayload::next,
             MelterRedstoneModePayload::new
     );
 
@@ -41,7 +43,8 @@ public record MelterRedstoneModePayload(BlockPos pos) implements CustomPacketPay
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof MelterBlockEntity melter) {
                 RedstoneMode current = RedstoneMode.fromId(melter.getRedstoneMode());
-                melter.setRedstoneMode(current.next().getId());
+                RedstoneMode updated = packet.next() ? current.next() : current.previous();
+                melter.setRedstoneMode(updated.getId());
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });

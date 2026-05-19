@@ -16,7 +16,7 @@ import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import javax.annotation.Nullable;
 
 /**
- * Menu for heating coil GUI (port-style). Slot (36, 39), player rows at y=94/112/130, hotbar y=152 (aligned with Resource Port).
+ * Menu for heating coil GUI (port-style). Slot (37, 39), player rows at y=94/112/130, hotbar y=152 (aligned with Resource Port).
  */
 public class HeatingCoilMenu extends AbstractContainerMenu {
 
@@ -32,7 +32,7 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
         this.data = data;
         this.menuBlockPos = blockEntity.getBlockPos();
         addDataSlots(data);
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 36, 39));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 39));
         addPlayerSlots(playerInventory);
     }
 
@@ -42,7 +42,7 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
         this.data = new SimpleContainerData(15);
         this.menuBlockPos = null;
         addDataSlots(data);
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 36, 39));
+        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 37, 39));
         addPlayerSlots(playerInventory);
     }
 

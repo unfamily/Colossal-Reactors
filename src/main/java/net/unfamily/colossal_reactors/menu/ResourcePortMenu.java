@@ -16,7 +16,7 @@ import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 
 /**
- * Container for Resource Port GUI. One slot at (36, 39), player inventory at (8, 94) + hotbar at (8, 152).
+ * Container for Resource Port GUI. One slot at (37, 39), player inventory at (8, 94) + hotbar at (8, 152).
  */
 public class ResourcePortMenu extends AbstractContainerMenu {
 
@@ -29,7 +29,7 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         this.fluidData = fluidData;
         addDataSlots(fluidData);
 
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 36, 39));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 39));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
@@ -47,7 +47,7 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         this.fluidData = new SimpleContainerData(8);
         addDataSlots(fluidData);
 
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 36, 39));
+        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 37, 39));
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {

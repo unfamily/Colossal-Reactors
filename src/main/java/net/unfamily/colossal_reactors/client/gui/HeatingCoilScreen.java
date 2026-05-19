@@ -69,7 +69,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int CENSOR_COLOR = 0xFFc6c6c6;
 
     /** Slot position and size (standard 18x18 including border); censor uses +1px each side */
-    private static final int SLOT_X = 36;
+    private static final int SLOT_X = 37;
     private static final int SLOT_Y = 39;
     private static final int SLOT_SIZE = 18;
 
@@ -234,12 +234,12 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && menu.getBlockPos() != null
+        if ((button == 0 || button == 1) && menu.getBlockPos() != null
                 && mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
                 && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
             if (minecraft != null && minecraft.getSoundManager() != null)
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            PacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos()));
+            PacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos(), button == 0));
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
