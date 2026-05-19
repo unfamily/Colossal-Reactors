@@ -33,7 +33,7 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "melter");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 64;
+    private static final int HEIGHT = 78;
 
     public static final IRecipeType<MelterRecipe> RECIPE_TYPE = IRecipeType.create(UID, MelterRecipe.class);
 
@@ -106,9 +106,13 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
         guiGraphics.text(font,
                 Component.translatable("jei.colossal_reactors.melter.amount", recipe.amountMb()),
                 margin, textY, color, false);
-        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter.heat_required_1"), margin, textY + lineHeight, color, false);
-        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter.heat_required_2"), margin, textY + lineHeight * 2, color, false);
-        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter.heat_required_3"), margin, textY + lineHeight * 3, color, false);
+        guiGraphics.text(font,
+                Component.translatable("jei.colossal_reactors.melter.default_time",
+                        JeiIngredientsHelper.formatDefaultDuration(recipe.timeTicks())),
+                margin, textY + lineHeight, color, false);
+        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter.heat_required_1"), margin, textY + lineHeight * 2, color, false);
+        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter.heat_required_2"), margin, textY + lineHeight * 3, color, false);
+        guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter.heat_required_3"), margin, textY + lineHeight * 4, color, false);
     }
 
     private static List<ItemStack> resolveItemSelector(Identifier id, boolean isTag, int count, net.minecraft.core.RegistryAccess registryAccess) {

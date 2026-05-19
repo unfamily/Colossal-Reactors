@@ -1,0 +1,22 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "draconicevolution"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " B ",
+    "BAB",
+    " B "
+  ],
+  "key": {
+    "A": "colossal_reactors:power_port",
+    "B": "draconicevolution:wyvern_core"
+  },
+  "result": {
+    "id": "colossal_reactors:high_cond_power_port",
+    "count": 1
+  }
+}

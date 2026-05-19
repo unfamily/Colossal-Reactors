@@ -72,7 +72,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
 
     /** Slot position and size (standard 18x18 including border); censor uses +1px each side */
     private static final int SLOT_X = 37;
-    private static final int SLOT_Y = 38;
+    private static final int SLOT_Y = 39;
     private static final int SLOT_SIZE = 18;
 
     /** Close button (X): top right, same as other port screens */
@@ -231,12 +231,12 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0 && menu.getBlockPos() != null
+        if ((event.button() == 0 || event.button() == 1) && menu.getBlockPos() != null
                 && event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
                 && event.y() >= redstoneButtonScreenY && event.y() < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
             if (minecraft != null && minecraft.getSoundManager() != null)
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            ClientPacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos()));
+            ClientPacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos(), event.button() == 0));
             return true;
         }
         return super.mouseClicked(event, doubleClick);

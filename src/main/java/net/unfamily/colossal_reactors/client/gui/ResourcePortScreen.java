@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * GUI for Resource Port. Background 176x176, fluid bar 12x54, slot at (37, 38), mode button on the right.
+ * GUI for Resource Port. Background 176x176, fluid bar 12x54, slot at (37, 39), mode button on the right.
  */
 public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu> {
 

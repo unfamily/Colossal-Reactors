@@ -117,9 +117,10 @@ public class RedstonePortScreen extends AbstractContainerScreen<RedstonePortMenu
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
+        if ((event.button() == 0 || event.button() == 1)
+                && event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
                 && event.y() >= redstoneButtonScreenY && event.y() < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
-            ClientPacketDistributor.sendToServer(new RedstonePortRedstoneModePayload(menu.getSyncedBlockPos()));
+            ClientPacketDistributor.sendToServer(new RedstonePortRedstoneModePayload(menu.getSyncedBlockPos(), event.button() == 0));
             return true;
         }
         return super.mouseClicked(event, doubleClick);

@@ -67,6 +67,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_PATTERN_MODE = "PatternMode";
     private static final String TAG_BUILDING = "Building";
     private static final String TAG_INVALID_BLOCKS = "InvalidBlocks";
+    private static final String TAG_INSUFFICIENT_FLUID = "InsufficientFluid";
     private static final String TAG_BUILD_STAGE = "BuildStage";
     private static final String TAG_BUILD_FRAME_X = "BuildFrameX";
     private static final String TAG_BUILD_FRAME_Y = "BuildFrameY";
@@ -199,6 +200,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private boolean building = false;
     /** True when build stopped because one or more invalid blocks were found (red zone). Cleared on start/stop. */
     private boolean invalidBlocksDetected = false;
+    private boolean insufficientFluidDetected = false;
 
     /** Last computed build progress (0-100). Kept visible after build completes/aborts until user stops or restarts. */
     private int buildProgressPercent = 0;
@@ -270,13 +272,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected ? 1 : 0;
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
+                case 15 -> insufficientFluidDetected ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -296,13 +299,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected = value != 0;
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
+                case 15 -> insufficientFluidDetected = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 15;
+            return 16;
         }
     };
 
@@ -404,6 +408,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getPatternMode() { return patternMode; }
     public boolean isBuilding() { return building; }
     public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
+    public boolean isInsufficientFluidDetected() { return insufficientFluidDetected; }
     public int getBuildProgressPercent() { return buildProgressPercent; }
     public boolean isBuildProgressVisible() { return buildProgressVisible; }
 
@@ -420,7 +425,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         buildProgressPercent = 0;
         resetBuildProgress();
         invalidBlocksDetected = false;
+        insufficientFluidDetected = false;
         setChanged();
+    }
+
+    /** Abort build when liquid refrigerant cannot be placed (tank empty, wrong fluid, or not enough mB). */
+    public void abortBuildInsufficientFluid() {
+        insufficientFluidDetected = true;
+        stopBuild(false);
     }
 
     /** Stop building. Called when user presses Stop. Clears progress visibility. */
@@ -441,12 +453,18 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
-    /** Clear invalid-blocks warning. Called when user presses Build (start) or Stop so the message is dismissed. */
+    /** Clear build warnings. Called when user presses Build (start) or Stop so the message is dismissed. */
     public void clearInvalidBlocksFlag() {
+        boolean changed = false;
         if (invalidBlocksDetected) {
             invalidBlocksDetected = false;
-            setChanged();
+            changed = true;
         }
+        if (insufficientFluidDetected) {
+            insufficientFluidDetected = false;
+            changed = true;
+        }
+        if (changed) setChanged();
     }
 
     /** Server tick: advance build one step. Called from block ticker. */
@@ -714,6 +732,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         output.putInt(TAG_PATTERN_MODE, patternMode);
         output.putBoolean(TAG_BUILDING, building);
         output.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
+        output.putBoolean(TAG_INSUFFICIENT_FLUID, insufficientFluidDetected);
         output.putInt(TAG_BUILD_STAGE, buildStage);
         output.putInt(TAG_BUILD_FRAME_X, buildFrameX);
         output.putInt(TAG_BUILD_FRAME_Y, buildFrameY);
@@ -781,6 +800,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         input.getInt(TAG_PATTERN_MODE).ifPresent(v -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, v)));
         building = input.getBooleanOr(TAG_BUILDING, building);
         invalidBlocksDetected = input.getBooleanOr(TAG_INVALID_BLOCKS, invalidBlocksDetected);
+        insufficientFluidDetected = input.getBooleanOr(TAG_INSUFFICIENT_FLUID, insufficientFluidDetected);
         buildStage = input.getIntOr(TAG_BUILD_STAGE, buildStage);
         buildFrameX = input.getIntOr(TAG_BUILD_FRAME_X, buildFrameX);
         buildFrameY = input.getIntOr(TAG_BUILD_FRAME_Y, buildFrameY);

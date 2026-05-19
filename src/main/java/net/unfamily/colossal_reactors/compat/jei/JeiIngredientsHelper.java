@@ -58,6 +58,24 @@ public final class JeiIngredientsHelper {
         return String.format("%.2f", value);
     }
 
+    /**
+     * Formats recipe duration ticks as hours/minutes/seconds plus remainder ticks (e.g. {@code 2m 30s + 10 t}).
+     */
+    public static String formatDefaultDuration(int ticks) {
+        if (ticks <= 0) return "0s";
+        int remainderTicks = ticks % 20;
+        int totalSeconds = ticks / 20;
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+        StringBuilder sb = new StringBuilder();
+        if (hours > 0) sb.append(hours).append('h').append(' ');
+        if (minutes > 0 || hours > 0) sb.append(minutes).append('m').append(' ');
+        sb.append(seconds).append('s');
+        if (remainderTicks > 0) sb.append(" + ").append(remainderTicks).append(" t");
+        return sb.toString().trim();
+    }
+
     /** Resolves coolant input selectors to bucket item stacks for JEI (excluded inputs skipped). */
     public static List<ItemStack> getCoolantInputBuckets(List<String> inputs, RegistryAccess registryAccess) {
         List<ItemStack> list = new ArrayList<>();

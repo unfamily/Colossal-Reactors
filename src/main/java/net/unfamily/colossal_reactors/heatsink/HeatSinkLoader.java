@@ -318,6 +318,14 @@ public final class HeatSinkLoader {
         return 1 + DEFINITIONS.size();
     }
 
+    /** True when the builder heat-sink option places interior liquid (valid_liquids non-empty). */
+    public static boolean requiresLiquidPlacement(int selectedHeatSinkIndex) {
+        if (selectedHeatSinkIndex <= 0) return false;
+        int defIdx = selectedHeatSinkIndex - 1;
+        if (defIdx < 0 || defIdx >= DEFINITIONS.size()) return false;
+        return !DEFINITIONS.get(defIdx).validLiquids().isEmpty();
+    }
+
     /** Display name for option index (0 = Air, 1.. = first block/fluid name from that definition). */
     public static Component getOptionDisplayName(RegistryAccess registryAccess, int index) {
         if (index <= 0) return Component.translatable("block.minecraft.air");

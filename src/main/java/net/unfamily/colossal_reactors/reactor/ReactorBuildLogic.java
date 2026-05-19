@@ -30,6 +30,15 @@ public final class ReactorBuildLogic {
     private static final int STAGE_HEAT_SINKS = 4;
     private static final int STAGE_DONE = 5;
 
+    private enum LiquidTickResult {
+        /** Still placing or waiting within the liquid stage. */
+        ACTIVE,
+        /** Liquid stage finished (all target cells scanned). */
+        DONE,
+        /** Cannot run liquid stage (abort build). */
+        BLOCKED
+    }
+
     private ReactorBuildLogic() {}
 
     /**
@@ -176,7 +185,18 @@ public final class ReactorBuildLogic {
                 continue;
             }
             if (stage == STAGE_LIQUIDS) {
-                if (tickLiquids(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) return true;
+                if (!HeatSinkLoader.requiresLiquidPlacement(builder.getSelectedHeatSinkIndex())) {
+                    builder.setBuildStage(STAGE_HEAT_SINKS);
+                    builder.setBuildHeatCursor(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+                    builder.setChanged();
+                    continue;
+                }
+                LiquidTickResult liquidResult = tickLiquids(builder, level, minX, minY, minZ, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter);
+                if (liquidResult == LiquidTickResult.BLOCKED) {
+                    builder.abortBuildInsufficientFluid();
+                    return false;
+                }
+                if (liquidResult == LiquidTickResult.ACTIVE) return true;
                 builder.setBuildStage(STAGE_HEAT_SINKS);
                 builder.setBuildHeatCursor(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
                 builder.setChanged();
@@ -279,16 +299,16 @@ public final class ReactorBuildLogic {
                                     int minX, int minY, int minZ,
                                     int w, int h, int d,
                                     int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
-        int lx0 = builder.getBuildRodLx();
         int ly0 = builder.getBuildRodLy();
+        int lx0 = builder.getBuildRodLx();
         int lz0 = builder.getBuildRodLz();
-        if (lx0 == Integer.MIN_VALUE) {
-            lx0 = insetXZ; ly0 = 1; lz0 = insetXZ;
+        if (ly0 == Integer.MIN_VALUE) {
+            ly0 = 1; lx0 = insetXZ; lz0 = insetXZ;
         }
-        for (int lx = lx0; lx < w - insetXZ; lx++) {
-            int lyStart = (lx == lx0) ? ly0 : 1;
-            for (int ly = lyStart; ly < h - 1; ly++) {
-                int lzStart = (lx == lx0 && ly == lyStart) ? lz0 : insetXZ;
+        for (int ly = ly0; ly < h - 1; ly++) {
+            int lxStart = (ly == ly0) ? lx0 : insetXZ;
+            for (int lx = lxStart; lx < w - insetXZ; lx++) {
+                int lzStart = (ly == ly0 && lx == lxStart) ? lz0 : insetXZ;
                 for (int lz = lzStart; lz < d - insetXZ; lz++) {
                     builder.setBuildRodCursor(lx, ly, lz + 1);
                     int rx = lx - insetXZ, ry = ly - 1, rz = lz - insetXZ;
@@ -302,35 +322,39 @@ public final class ReactorBuildLogic {
                     }
                     if (tryPlaceRod(builder, level, pos, rod)) return true;
                 }
-                builder.setBuildRodCursor(lx, ly + 1, insetXZ);
+                builder.setBuildRodCursor(lx + 1, ly, insetXZ);
             }
-            builder.setBuildRodCursor(lx + 1, 1, insetXZ);
+            builder.setBuildRodCursor(insetXZ, ly + 1, insetXZ);
         }
         return false;
     }
 
-    private static boolean tickLiquids(ReactorBuilderBlockEntity builder, ServerLevel level,
-                                       int minX, int minY, int minZ,
-                                       int w, int h, int d,
-                                       int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+    private static LiquidTickResult tickLiquids(ReactorBuilderBlockEntity builder, ServerLevel level,
+                                              int minX, int minY, int minZ,
+                                              int w, int h, int d,
+                                              int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
         int patternMode = builder.getPatternMode();
         Fluid fluid = builder.getFluidTank().getFluid().getFluid();
-        if (fluid == null || fluid == Fluids.EMPTY
-                || !HeatSinkLoader.isFluidMatchingSelectedHeatSink(level.registryAccess(), builder.getSelectedHeatSinkIndex(), fluid)
-                || builder.getFluidTank().getFluidAmount() < MB_PER_LIQUID_BLOCK) {
-            return false;
+
+        int ly0 = builder.getBuildLiquidLy();
+        int lx0 = builder.getBuildLiquidLx();
+        int lz0 = builder.getBuildLiquidLz();
+        if (ly0 == Integer.MIN_VALUE) {
+            if (fluid == null || fluid == Fluids.EMPTY
+                    || !HeatSinkLoader.isFluidMatchingSelectedHeatSink(level.registryAccess(), builder.getSelectedHeatSinkIndex(), fluid)) {
+                return LiquidTickResult.BLOCKED;
+            }
+            int requiredMb = countLiquidTargetCells(builder, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter) * MB_PER_LIQUID_BLOCK;
+            if (builder.getFluidTank().getFluidAmount() < requiredMb) {
+                return LiquidTickResult.BLOCKED;
+            }
+            ly0 = 1; lx0 = 1; lz0 = 1;
         }
 
-        int lx0 = builder.getBuildLiquidLx();
-        int ly0 = builder.getBuildLiquidLy();
-        int lz0 = builder.getBuildLiquidLz();
-        if (lx0 == Integer.MIN_VALUE) {
-            lx0 = 1; ly0 = 1; lz0 = 1;
-        }
-        for (int lx = lx0; lx < w - 1; lx++) {
-            int lyStart = (lx == lx0) ? ly0 : 1;
-            for (int ly = lyStart; ly < h - 1; ly++) {
-                int lzStart = (lx == lx0 && ly == lyStart) ? lz0 : 1;
+        for (int ly = ly0; ly < h - 1; ly++) {
+            int lxStart = (ly == ly0) ? lx0 : 1;
+            for (int lx = lxStart; lx < w - 1; lx++) {
+                int lzStart = (ly == ly0 && lx == lxStart) ? lz0 : 1;
                 for (int lz = lzStart; lz < d - 1; lz++) {
                     builder.setBuildLiquidCursor(lx, ly, lz + 1);
                     if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
@@ -341,16 +365,41 @@ public final class ReactorBuildLogic {
                     if (!canReplaceForLiquid(level, pos, fluid)) continue;
                     BlockState liquidBlock = fluid.defaultFluidState().createLegacyBlock();
                     if (liquidBlock.isAir()) continue;
+                    if (builder.getFluidTank().getFluidAmount() < MB_PER_LIQUID_BLOCK) {
+                        return LiquidTickResult.BLOCKED;
+                    }
                     level.setBlock(pos, liquidBlock, 3);
-                    builder.getFluidTank().drain(MB_PER_LIQUID_BLOCK, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                    var drained = builder.getFluidTank().drain(MB_PER_LIQUID_BLOCK, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                    if (drained.getAmount() < MB_PER_LIQUID_BLOCK) {
+                        return LiquidTickResult.BLOCKED;
+                    }
                     builder.setChanged();
-                    return true;
+                    return LiquidTickResult.ACTIVE;
                 }
-                builder.setBuildLiquidCursor(lx, ly + 1, 1);
+                builder.setBuildLiquidCursor(lx + 1, ly, 1);
             }
-            builder.setBuildLiquidCursor(lx + 1, 1, 1);
+            builder.setBuildLiquidCursor(1, ly + 1, 1);
         }
-        return false;
+        return LiquidTickResult.DONE;
+    }
+
+    private static int countLiquidTargetCells(ReactorBuilderBlockEntity builder,
+                                              int w, int h, int d,
+                                              int insetXZ, int rw, int rh, int rd, int pattern, boolean expansionRodAtCenter) {
+        int patternMode = builder.getPatternMode();
+        int count = 0;
+        for (int ly = 1; ly < h - 1; ly++) {
+            for (int lx = 1; lx < w - 1; lx++) {
+                for (int lz = 1; lz < d - 1; lz++) {
+                    if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
+                        if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ) || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    } else if (patternMode == RodPatternLogic.MODE_ECONOMY && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private static boolean tickHeatSinks(ReactorBuilderBlockEntity builder, ServerLevel level,
@@ -360,16 +409,16 @@ public final class ReactorBuildLogic {
         int patternMode = builder.getPatternMode();
         if (HeatSinkLoader.shouldSkipSolidHeatSinkAutoPlacement(builder.getSelectedHeatSinkIndex())) return false;
 
-        int lx0 = builder.getBuildHeatLx();
         int ly0 = builder.getBuildHeatLy();
+        int lx0 = builder.getBuildHeatLx();
         int lz0 = builder.getBuildHeatLz();
-        if (lx0 == Integer.MIN_VALUE) {
-            lx0 = 1; ly0 = 1; lz0 = 1;
+        if (ly0 == Integer.MIN_VALUE) {
+            ly0 = 1; lx0 = 1; lz0 = 1;
         }
-        for (int lx = lx0; lx < w - 1; lx++) {
-            int lyStart = (lx == lx0) ? ly0 : 1;
-            for (int ly = lyStart; ly < h - 1; ly++) {
-                int lzStart = (lx == lx0 && ly == lyStart) ? lz0 : 1;
+        for (int ly = ly0; ly < h - 1; ly++) {
+            int lxStart = (ly == ly0) ? lx0 : 1;
+            for (int lx = lxStart; lx < w - 1; lx++) {
+                int lzStart = (ly == ly0 && lx == lxStart) ? lz0 : 1;
                 for (int lz = lzStart; lz < d - 1; lz++) {
                     builder.setBuildHeatCursor(lx, ly, lz + 1);
                     if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) continue;
@@ -385,9 +434,9 @@ public final class ReactorBuildLogic {
                     }
                     if (tryPlaceHeatSink(builder, level, pos, heatSink)) return true;
                 }
-                builder.setBuildHeatCursor(lx, ly + 1, 1);
+                builder.setBuildHeatCursor(lx + 1, ly, 1);
             }
-            builder.setBuildHeatCursor(lx + 1, 1, 1);
+            builder.setBuildHeatCursor(1, ly + 1, 1);
         }
         return false;
     }

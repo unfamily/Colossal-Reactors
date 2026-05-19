@@ -52,6 +52,23 @@ public enum RedstoneMode {
     /** Cycle without PULSE (for Redstone Port). */
     public RedstoneMode nextNoPulse() {
         RedstoneMode n = next();
-        return n == PULSE ? next() : n;
+        return n == PULSE ? n.next() : n;
+    }
+
+    /** Full cycle backward including PULSE (for Melter). */
+    public RedstoneMode previous() {
+        return switch (this) {
+            case NONE -> DISABLED;
+            case LOW -> NONE;
+            case HIGH -> LOW;
+            case PULSE -> HIGH;
+            case DISABLED -> PULSE;
+        };
+    }
+
+    /** Cycle backward without PULSE (for Redstone Port, Heating Coil). */
+    public RedstoneMode previousNoPulse() {
+        RedstoneMode p = previous();
+        return p == PULSE ? p.previous() : p;
     }
 }

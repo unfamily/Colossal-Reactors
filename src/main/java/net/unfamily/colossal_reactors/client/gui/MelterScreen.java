@@ -209,11 +209,12 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0 && event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
+        if ((event.button() == 0 || event.button() == 1)
+                && event.x() >= redstoneButtonScreenX && event.x() < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
                 && event.y() >= redstoneButtonScreenY && event.y() < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
             if (minecraft != null && minecraft.getSoundManager() != null)
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            ClientPacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos()));
+            ClientPacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos(), event.button() == 0));
             return true;
         }
         return super.mouseClicked(event, doubleClick);

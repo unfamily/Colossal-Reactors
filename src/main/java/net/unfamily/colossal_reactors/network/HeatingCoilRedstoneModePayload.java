@@ -16,9 +16,9 @@ import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 
 /**
- * C2S: cycle Heating Coil redstone mode (NONE, LOW, HIGH, DISABLED). No PULSE.
+ * C2S: cycle Heating Coil redstone mode (no PULSE). next=true advances, next=false goes back.
  */
-public record HeatingCoilRedstoneModePayload(BlockPos pos) implements CustomPacketPayload {
+public record HeatingCoilRedstoneModePayload(BlockPos pos, boolean next) implements CustomPacketPayload {
 
     public static final Type<HeatingCoilRedstoneModePayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil_redstone_mode"));
@@ -26,6 +26,8 @@ public record HeatingCoilRedstoneModePayload(BlockPos pos) implements CustomPack
     public static final StreamCodec<FriendlyByteBuf, HeatingCoilRedstoneModePayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
             HeatingCoilRedstoneModePayload::pos,
+            net.minecraft.network.codec.ByteBufCodecs.BOOL,
+            HeatingCoilRedstoneModePayload::next,
             HeatingCoilRedstoneModePayload::new
     );
 
@@ -41,7 +43,8 @@ public record HeatingCoilRedstoneModePayload(BlockPos pos) implements CustomPack
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof HeatingCoilBlockEntity coil) {
                 RedstoneMode current = RedstoneMode.fromId(coil.getRedstoneMode());
-                coil.setRedstoneMode(current.nextNoPulse().getId());
+                RedstoneMode updated = packet.next() ? current.nextNoPulse() : current.previousNoPulse();
+                coil.setRedstoneMode(updated.getId());
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });
