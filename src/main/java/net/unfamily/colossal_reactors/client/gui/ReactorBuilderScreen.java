@@ -853,10 +853,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             guiGraphics.text(font,
                     Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks"),
                     WARNING_RIGHT_X, RIGHT_ROW_WARNING_MESSAGE_Y, GuiTextColors.ERROR, false);
-        } else if (menu.isInsufficientFluidDetected()) {
-            guiGraphics.text(font,
-                    Component.translatable("gui.colossal_reactors.reactor_builder.warning.insufficient_fluid"),
-                    WARNING_RIGHT_X, RIGHT_ROW_WARNING_MESSAGE_Y, GuiTextColors.ERROR, false);
         }
     }
 

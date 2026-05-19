@@ -69,7 +69,7 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
             this.blockEntity = null;
             this.levelAccess = ContainerLevelAccess.NULL;
             this.fluidData = new SimpleContainerData(3);
-            this.sizeData = new SimpleContainerData(16);
+            this.sizeData = new SimpleContainerData(15);
         }
         addDataSlots(fluidData);
         addDataSlots(sizeData);
@@ -165,9 +165,6 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public boolean isBuilding() { return sizeData.get(11) != 0; }
     /** Invalid blocks detected during build (index 12). Show warning in GUI. */
     public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
-
-    /** Insufficient fluid in tank for liquid heat sink placement (index 15). */
-    public boolean isInsufficientFluidDetected() { return sizeData.get(15) != 0; }
 
     /** Build progress percent (index 13). */
     public int getBuildProgressPercent() { return sizeData.get(13); }
