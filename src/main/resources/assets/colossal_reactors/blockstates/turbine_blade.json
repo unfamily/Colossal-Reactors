@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down": { "model": "colossal_reactors:block/turbine/turbine_blade", "x": 90 },
+    "facing=up": { "model": "colossal_reactors:block/turbine/turbine_blade", "x": -90 },
+    "facing=north": { "model": "colossal_reactors:block/turbine/turbine_blade" },
+    "facing=south": { "model": "colossal_reactors:block/turbine/turbine_blade", "y": 180 },
+    "facing=west": { "model": "colossal_reactors:block/turbine/turbine_blade", "y": 270 },
+    "facing=east": { "model": "colossal_reactors:block/turbine/turbine_blade", "y": 90 }
+  }
+}

@@ -17,6 +17,8 @@
   "block.colossal_reactors.turbine_controller": "Turbine Controller",
   "block.colossal_reactors.turbine_builder": "Turbine Builder",
   "block.colossal_reactors.turbine_rod": "Turbine Rod",
+  "block.colossal_reactors.turbine_blade": "Turbine Blade",
+  "item.colossal_reactors.turbine_blade": "Turbine Blade",
   "block.colossal_reactors.turbine_rod_controller": "Turbine Rod Controller",
   "block.colossal_reactors.turbine_power_port": "Turbine Power Port",
   "block.colossal_reactors.turbine_high_cond_power_port": "Turbine High Conduction Power Port",

@@ -1,7 +1,7 @@
 {
   "variants": {
     "": {
-      "model": "colossal_reactors:block/reactor/reactor_casing"
+      "model": "colossal_reactors:block/reactor_casing"
     }
   }
 }

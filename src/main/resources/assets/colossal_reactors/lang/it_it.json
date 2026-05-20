@@ -17,6 +17,8 @@
   "block.colossal_reactors.turbine_controller": "Controller turbina",
   "block.colossal_reactors.turbine_builder": "Costruttore turbina",
   "block.colossal_reactors.turbine_rod": "Barra turbina",
+  "block.colossal_reactors.turbine_blade": "Pala turbina",
+  "item.colossal_reactors.turbine_blade": "Pala turbina",
   "block.colossal_reactors.turbine_rod_controller": "Controller barre turbina",
   "block.colossal_reactors.turbine_power_port": "Porta energia turbina",
   "block.colossal_reactors.turbine_high_cond_power_port": "Porta energia ad alta conduzione turbina",

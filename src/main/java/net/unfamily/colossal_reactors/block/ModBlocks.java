@@ -114,8 +114,11 @@ public class ModBlocks {
     public static final DeferredBlock<TurbineRodBlock> TURBINE_ROD = BLOCKS.registerBlock("turbine_rod",
             TurbineRodBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion());
-    public static final DeferredBlock<Block> TURBINE_ROD_CONTROLLER = BLOCKS.registerBlock("turbine_rod_controller",
-            Block::new,
+    public static final DeferredBlock<TurbineBladeBlock> TURBINE_BLADE = BLOCKS.registerBlock("turbine_blade",
+            TurbineBladeBlock::new,
+            p -> p.sound(SoundType.METAL).strength(-1.0f, 3600000.0f).noOcclusion().noLootTable());
+    public static final DeferredBlock<TurbineRodControllerBlock> TURBINE_ROD_CONTROLLER = BLOCKS.registerBlock("turbine_rod_controller",
+            TurbineRodControllerBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
 
     // Resource ores (stone + deepslate)

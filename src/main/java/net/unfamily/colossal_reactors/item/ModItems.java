@@ -42,6 +42,8 @@ public class ModItems {
     public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_RESOURCE_PORT);
     public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_BUILDER);
     public static final DeferredItem<BlockItem> TURBINE_ROD = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD);
+    public static final DeferredItem<TurbineBladeItem> TURBINE_BLADE = ITEMS.registerItem("turbine_blade",
+            props -> new TurbineBladeItem(ModBlocks.TURBINE_BLADE.get(), props));
     public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD_CONTROLLER);
 
     public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.registerSimpleItem("uranium_ingot");
