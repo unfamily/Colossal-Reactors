@@ -89,6 +89,10 @@ public class ColossalReactors {
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.TURBINE_BUILDER_BE.get(),
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity) be).getItemHandlerForCapability());
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.TURBINE_BUILDER_BE.get(),
+                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
@@ -189,6 +193,8 @@ public class ColossalReactors {
             event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
             event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
             event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
+            event.register(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen::new);
+            event.register(ModMenuTypes.TURBINE_BUILDER_MENU.get(), net.unfamily.colossal_reactors.client.gui.TurbineBuilderScreen::new);
             event.register(ModMenuTypes.HEATING_COIL_MENU.get(), HeatingCoilScreen::new);
             event.register(ModMenuTypes.MELTER_MENU.get(), net.unfamily.colossal_reactors.client.gui.MelterScreen::new);
             event.register(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen::new);

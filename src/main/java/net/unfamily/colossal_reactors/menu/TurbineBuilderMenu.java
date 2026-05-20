@@ -62,7 +62,7 @@ public class TurbineBuilderMenu extends AbstractContainerMenu {
             this.blockEntity = null;
             this.levelAccess = ContainerLevelAccess.NULL;
             this.fluidData = new SimpleContainerData(3);
-            this.sizeData = new SimpleContainerData(15);
+            this.sizeData = new SimpleContainerData(16);
         }
         addDataSlots(fluidData);
         addDataSlots(sizeData);
@@ -143,14 +143,18 @@ public class TurbineBuilderMenu extends AbstractContainerMenu {
         return new BlockPos(sizeData.get(4), sizeData.get(5), sizeData.get(6));
     }
 
-    public int getHeatSinkIndex() { return sizeData.get(7); }
-    public boolean isOpenTop() { return sizeData.get(8) != 0; }
+    public int getSelectedCoilIndex() { return sizeData.get(7); }
+    public int getHeatSinkIndex() { return getSelectedCoilIndex(); }
+    public int getCoilLayerCount() { return sizeData.get(8); }
     public int getRodPattern() { return sizeData.get(9); }
-    public int getPatternMode() { return sizeData.get(10); }
+    public boolean isOpenTop() { return sizeData.get(10) != 0; }
+    @Deprecated
+    public int getPatternMode() { return 0; }
     public boolean isBuilding() { return sizeData.get(11) != 0; }
     public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
     public int getBuildProgressPercent() { return sizeData.get(13); }
     public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
+    public int getPlacementAxisOrdinal() { return sizeData.get(15); }
 
     @Override
     public boolean stillValid(Player player) {

@@ -32,9 +32,12 @@ categories:
 
 <BlockImage id="turbine_rod_controller" scale="4" />
 
-The **Turbine Rod Controller** closes the **rod column** on the top interior layer of the rotor section. It defines the **axis** of the multiblock (six facing directions, like heating coils).
+The **Turbine Rod Controller** sits on the **closure layer** (top interior Y of the rotor section). There is **exactly one** per turbine. It defines the **axis** of the multiblock (six facing directions, like heating coils).
 
-- Every cell below it along that axis must be **Turbine Rod** blocks where your design places columns.
+- If the rod footprint is **odd×odd**, the controller goes on the single geometric center cell.
+- If one side is **even**, **two** center cells are valid (1×2 or 2×1); if **both** are even, **four** cells are valid (2×2). Manual builds may use any valid center; the **Turbine Builder** places the first valid center (minimum X, then Z) and preview shows that cell in white.
+
+- Rod columns are placed by pattern below the coil zone—not necessarily under the controller.
 
 - Rods must align with the controller axis (or the opposite direction). Misaligned rods are corrected during validation when possible.
 

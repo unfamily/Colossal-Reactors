@@ -1,10 +1,8 @@
 package net.unfamily.colossal_reactors.turbine;
 
-import net.unfamily.colossal_reactors.reactor.RodPatternLogic;
-
 /**
  * Rod column placement for turbine builder preview/build.
- * Efficient uses checkerboard; Productive fills all rod-space columns.
+ * Efficient / Productive affect blade ring growth only ({@link #targetBladeRingForLayer}), not which columns get rods.
  */
 public final class TurbineRodPatternLogic {
 
@@ -27,14 +25,11 @@ public final class TurbineRodPatternLogic {
         return TurbineRodSpaceLayout.interiorDepth(turbineDepth);
     }
 
+    /** Only the geometrically centered rod column gets a rod and blades. */
     public static boolean isRodColumn(int rx, int rz, int rw, int rd, int pattern) {
         if (rw <= 0 || rd <= 0) return false;
-        if (rx < 0 || rx >= rw || rz < 0 || rz >= rd) return false;
-        return switch (pattern) {
-            case PATTERN_EFFICIENT -> RodPatternLogic.isRodColumn(rx, rz, rw, rd, RodPatternLogic.PATTERN_CHECKERBOARD, false);
-            case PATTERN_PRODUCTIVE -> true;
-            default -> RodPatternLogic.isRodColumn(rx, rz, rw, rd, RodPatternLogic.PATTERN_CHECKERBOARD, false);
-        };
+        TurbineRodControllerLayout.Center center = TurbineRodControllerLayout.bestPrimaryCenter(rw, rd);
+        return rx == center.rx() && rz == center.rz();
     }
 
     public static boolean isRodForPreview(int rx, int ry, int rz, int rw, int rh, int rd, int pattern) {

@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.List;
 
 /**
- * One turbine generation entry: steam input, optional water output, RF per mB steam.
+ * One turbine generation entry: steam input, optional fluid output, RF per bucket (1000 mB) steam.
  */
 public record TurbineGenerationDefinition(
         ResourceLocation generationId,

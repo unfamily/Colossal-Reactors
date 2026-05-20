@@ -36,22 +36,27 @@ public final class ElecCoilLoader {
 
     public static void applyLoaded(List<ElecCoilDefinition> loaded) {
         DEFINITIONS.clear();
-        if (loaded != null && !loaded.isEmpty()) {
+        double empty = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
+        DEFINITIONS.add(new ElecCoilDefinition(List.of("minecraft:air"), empty, empty));
+        if (loaded != null) {
             for (ElecCoilDefinition def : loaded) {
                 ElecCoilDefinition sanitized = DatapackSelectorValidator.sanitizeElecCoil(def);
-                if (sanitized != null) {
-                    DEFINITIONS.add(sanitized);
+                if (sanitized == null || isAirOnlyDefinition(sanitized)) {
+                    continue;
                 }
+                DEFINITIONS.add(sanitized);
             }
-        }
-        if (DEFINITIONS.isEmpty()) {
-            DEFINITIONS.addAll(buildInternalDefaults());
         }
     }
 
-    private static List<ElecCoilDefinition> buildInternalDefaults() {
-        double empty = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
-        return List.of(new ElecCoilDefinition(List.of("minecraft:air"), empty, empty));
+    /** Entries shown in JEI (excludes internal air-only builder option). */
+    public static List<ElecCoilDefinition> getJeIDefinitions() {
+        return DEFINITIONS.stream().filter(def -> !isAirOnlyDefinition(def)).toList();
+    }
+
+    public static boolean isAirOnlyDefinition(ElecCoilDefinition def) {
+        return def != null && !def.validBlocks().isEmpty()
+                && def.validBlocks().stream().allMatch(ElecCoilLoader::isMinecraftAirSelector);
     }
 
     @Nullable

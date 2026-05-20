@@ -125,6 +125,36 @@ public final class JeiIngredientsHelper {
         return stack;
     }
 
+    /** First display stack for an elec coil entry (skips air-only selectors). */
+    public static List<ItemStack> getElecCoilDisplayStacks(List<String> validBlocks, RegistryAccess registryAccess) {
+        List<ItemStack> list = new ArrayList<>();
+        for (String selector : validBlocks) {
+            if (selector != null && selector.startsWith("#")) {
+                list.addAll(blockSelectorToItemStacks(selector, registryAccess));
+            } else if (selector != null) {
+                ResourceLocation id = ResourceLocation.tryParse(selector);
+                if (id != null && "minecraft".equals(id.getNamespace()) && "air".equals(id.getPath())) {
+                    list.add(heatSinkAirInteriorDisplayStack());
+                } else {
+                    list.addAll(blockSelectorToItemStacks(selector, registryAccess));
+                }
+            }
+            if (!list.isEmpty()) break;
+        }
+        return list;
+    }
+
+    /** Resolves turbine generation input selectors to fluid stacks for JEI. */
+    public static List<FluidStack> getTurbineGenerationInputFluids(List<String> inputs, RegistryAccess registryAccess) {
+        List<FluidStack> list = new ArrayList<>();
+        for (String input : inputs) {
+            if (input == null || input.isBlank()) continue;
+            list.addAll(selectorToFluidStacks(input, registryAccess));
+            if (!list.isEmpty()) break;
+        }
+        return list;
+    }
+
     /** Resolves block selectors (valid_blocks) to item stacks (block as item). */
     public static List<ItemStack> getBlockStacks(List<String> validBlocks, RegistryAccess registryAccess) {
         List<ItemStack> list = new ArrayList<>();

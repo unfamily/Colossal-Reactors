@@ -15,7 +15,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 
 /**
- * C2S: cycle a Reactor Builder option. optionType: 0=openTop, 1=rodPattern, 2=patternMode.
+ * C2S: cycle turbine builder options. optionType: 0=openTop, 1=rodPattern, 2=coilLayerCount, 3=placementAxis.
  * next=true = next option, next=false = previous (same as heat sink: left click=next, right click=previous).
  */
 public record TurbineBuilderOptionPayload(BlockPos pos, int optionType, boolean next) implements CustomPacketPayload {
@@ -45,9 +45,10 @@ public record TurbineBuilderOptionPayload(BlockPos pos, int optionType, boolean 
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof TurbineBuilderBlockEntity builder) {
                 switch (Math.max(0, packet.optionType())) {
-                    case 0 -> builder.cycleCoilLayerCount(packet.next());
+                    case 0 -> builder.cycleOpenTop(packet.next());
                     case 1 -> builder.cycleRodPattern(packet.next());
-                    case 2 -> builder.cycleRodPattern(packet.next());
+                    case 2 -> builder.cycleCoilLayerCount(packet.next());
+                    case 3 -> builder.cyclePlacementAxis(packet.next());
                     default -> {}
                 }
                 level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);

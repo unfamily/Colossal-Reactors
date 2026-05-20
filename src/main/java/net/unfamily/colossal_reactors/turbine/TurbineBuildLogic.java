@@ -7,23 +7,26 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.block.TurbineBladeBlock;
 import net.unfamily.colossal_reactors.block.TurbineBuilderBlock;
 import net.unfamily.colossal_reactors.block.TurbineRodBlock;
+import net.unfamily.colossal_reactors.block.TurbineRodControllerBlock;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.item.ModItems;
 
 /**
- * Server-side turbine build: frame, rod controllers, rods, blades, coil blocks.
+ * Server-side turbine build: frame, closure deck, rod controller, rods, blades, optional coil blocks.
  */
 public final class TurbineBuildLogic {
 
-    private static final int STAGE_FRAME = 0;
-    private static final int STAGE_ROD_CONTROLLERS = 1;
-    private static final int STAGE_RODS = 2;
-    private static final int STAGE_BLADES = 3;
-    private static final int STAGE_COILS = 4;
-    private static final int STAGE_DONE = 5;
+    public static final int STAGE_FRAME = 0;
+    public static final int STAGE_CLOSURE_DECK = 1;
+    public static final int STAGE_ROD_CONTROLLERS = 2;
+    public static final int STAGE_RODS = 3;
+    public static final int STAGE_BLADES = 4;
+    public static final int STAGE_COILS = 5;
+    public static final int STAGE_DONE = 6;
+
+    private enum PlaceResult { PLACED, WAIT, SKIP }
 
     private TurbineBuildLogic() {}
 
@@ -38,15 +41,24 @@ public final class TurbineBuildLogic {
                     BlockState st = level.getBlockState(new BlockPos(x, y, z));
                     boolean border = x == b.minX || x == b.maxX || y == b.minY || y == b.maxY || z == b.minZ || z == b.maxZ;
                     if (border) {
+                        if (y == b.maxY && builder.isOpenTop() && st.isAir()) {
+                            continue;
+                        }
                         if (!st.isAir() && !TurbineValidation.isShellBlock(st) && !st.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
                             return true;
                         }
                     } else {
-                        int iy = y - b.minY - 1;
-                        if (iy >= coilStart) {
-                            if (!st.isAir() && !ElecCoilLoader.isCoilBlock(st, level.registryAccess())) return true;
+                        if (y == b.closureWorldY && st.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
+                            continue;
+                        }
+                        if (y - b.minY - 1 >= coilStart) {
+                            if (!st.isAir() && !ElecCoilLoader.isCoilBlock(st, level.registryAccess())) {
+                                return true;
+                            }
                         } else if (!st.isAir() && !st.is(ModBlocks.TURBINE_ROD.get())
-                                && !st.is(ModBlocks.TURBINE_BLADE.get())) {
+                                && !st.is(ModBlocks.TURBINE_BLADE.get())
+                                && !st.is(ModBlocks.TURBINE_CASING.get())
+                                && !st.is(ModBlocks.TURBINE_GLASS.get())) {
                             return true;
                         }
                     }
@@ -58,7 +70,9 @@ public final class TurbineBuildLogic {
 
     public static boolean tick(TurbineBuilderBlockEntity builder, int steps) {
         for (int i = 0; i < Math.max(1, steps); i++) {
-            if (!tickOnce(builder)) return false;
+            if (!tickOnce(builder)) {
+                return false;
+            }
         }
         return builder.getBuildStage() < STAGE_DONE;
     }
@@ -72,8 +86,10 @@ public final class TurbineBuildLogic {
             builder.stopBuild(false);
             return false;
         }
+        boolean openTop = builder.isOpenTop();
         return switch (builder.getBuildStage()) {
-            case STAGE_FRAME -> tickFrame(level, builder, b);
+            case STAGE_FRAME -> tickFrame(level, builder, b, openTop);
+            case STAGE_CLOSURE_DECK -> tickClosureDeck(level, builder, b);
             case STAGE_ROD_CONTROLLERS -> tickRodControllers(level, builder, b);
             case STAGE_RODS -> tickRods(level, builder, b);
             case STAGE_BLADES -> tickBlades(level, builder, b);
@@ -85,17 +101,80 @@ public final class TurbineBuildLogic {
         };
     }
 
-    private static boolean tickFrame(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
-        for (int x = b.minX; x <= b.maxX; x++) {
-            for (int y = b.minY; y <= b.maxY; y++) {
-                for (int z = b.minZ; z <= b.maxZ; z++) {
-                    boolean border = x == b.minX || x == b.maxX || y == b.minY || y == b.maxY || z == b.minZ || z == b.maxZ;
-                    if (!border) continue;
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (y == b.maxY && isRodControllerColumn(x, z, b)) continue;
-                    if (tryPlace(level, builder, pos, ModBlocks.TURBINE_CASING.get())) {
+    private static boolean tickFrame(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b, boolean openTop) {
+        int x = builder.getBuildFrameX();
+        int y = builder.getBuildFrameY();
+        int z = builder.getBuildFrameZ();
+        if (x == Integer.MIN_VALUE) {
+            x = b.minX;
+            y = b.minY;
+            z = b.minZ;
+        }
+        for (int xx = x; xx <= b.maxX; xx++) {
+            int yy0 = (xx == x) ? y : b.minY;
+            for (int yy = yy0; yy <= b.maxY; yy++) {
+                int zz0 = (xx == x && yy == yy0) ? z : b.minZ;
+                for (int zz = zz0; zz <= b.maxZ; zz++) {
+                    if (yy == b.maxY && openTop) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue;
+                    }
+                    boolean onBorder = (xx == b.minX || xx == b.maxX || yy == b.minY || yy == b.maxY || zz == b.minZ || zz == b.maxZ);
+                    if (!onBorder) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue;
+                    }
+                    BlockPos pos = new BlockPos(xx, yy, zz);
+                    BlockState existing = level.getBlockState(pos);
+                    if (!canReplace(existing)) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        continue;
+                    }
+                    boolean edgeOrCorner = isEdgeOrCorner(xx, yy, zz, b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ);
+                    boolean topOrBottomFace = (yy == b.minY || yy == b.maxY);
+                    boolean preferCasing = edgeOrCorner || topOrBottomFace;
+                    ItemStack frame = resolveFrameStack(builder, preferCasing);
+                    if (frame.isEmpty()) {
+                        builder.setBuildFrameCursor(xx, yy, zz);
                         return true;
                     }
+                    if (tryPlaceFrame(level, builder, pos, frame)) {
+                        builder.setBuildFrameCursor(xx, yy, zz + 1);
+                        return true;
+                    }
+                    builder.setBuildFrameCursor(xx, yy, zz + 1);
+                }
+                builder.setBuildFrameCursor(xx, yy + 1, b.minZ);
+            }
+            builder.setBuildFrameCursor(xx + 1, b.minY, b.minZ);
+        }
+        builder.setBuildStage(STAGE_CLOSURE_DECK);
+        return true;
+    }
+
+    /** Casing deck separating rotor from coil zone; rod-controller cells stay air. */
+    private static boolean tickClosureDeck(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
+        int y = b.closureWorldY;
+        TurbineRodControllerLayout.Center center = TurbineRodControllerLayout.bestPrimaryCenter(b.rw, b.rd);
+        for (int x = b.minX + 1; x < b.maxX; x++) {
+            for (int z = b.minZ + 1; z < b.maxZ; z++) {
+                if (TurbineRodControllerLayout.isRodControllerWorldCell(x, z, b.minX, b.minZ, center)) {
+                    continue;
+                }
+                BlockPos pos = new BlockPos(x, y, z);
+                BlockState st = level.getBlockState(pos);
+                if (st.is(ModBlocks.TURBINE_CASING.get())) {
+                    continue;
+                }
+                if (!canReplace(st)) {
+                    continue;
+                }
+                ItemStack casing = resolveFrameStack(builder, true);
+                if (casing.isEmpty()) {
+                    return true;
+                }
+                if (tryPlaceFrame(level, builder, pos, casing)) {
+                    return true;
                 }
             }
         }
@@ -104,35 +183,67 @@ public final class TurbineBuildLogic {
     }
 
     private static boolean tickRodControllers(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
-        for (int x = b.minX + 1; x < b.maxX; x++) {
-            for (int z = b.minZ + 1; z < b.maxZ; z++) {
-                if (!isRodControllerColumn(x, z, b)) continue;
-                BlockPos pos = new BlockPos(x, b.maxY, z);
-                if (tryPlace(level, builder, pos, ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
-                    return true;
-                }
-            }
+        if (b.rw <= 0 || b.rd <= 0) {
+            builder.setBuildStage(STAGE_RODS);
+            return true;
+        }
+        TurbineRodControllerLayout.Center center = TurbineRodControllerLayout.bestPrimaryCenter(b.rw, b.rd);
+        BlockPos pos = new BlockPos(
+                TurbineRodControllerLayout.closureWorldX(b.minX, center.rx()),
+                b.closureWorldY,
+                TurbineRodControllerLayout.closureWorldZ(b.minZ, center.rz()));
+        Direction axis = builder.getPlacementAxis();
+        BlockState desired = ModBlocks.TURBINE_ROD_CONTROLLER.get().defaultBlockState()
+                .setValue(TurbineRodControllerBlock.FACING, axis);
+        BlockState current = level.getBlockState(pos);
+        if (current.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())
+                && current.hasProperty(TurbineRodControllerBlock.FACING)
+                && current.getValue(TurbineRodControllerBlock.FACING) == axis) {
+            builder.setBuildRodCtrlCursor(center.rx(), center.rz());
+            builder.setBuildStage(STAGE_RODS);
+            return true;
+        }
+        PlaceResult result = tryPlaceState(level, builder, pos, desired);
+        if (result == PlaceResult.WAIT) {
+            return true;
+        }
+        if (result == PlaceResult.PLACED) {
+            builder.setBuildRodCtrlCursor(center.rx(), center.rz());
+            builder.setBuildStage(STAGE_RODS);
+            return true;
         }
         builder.setBuildStage(STAGE_RODS);
         return true;
     }
 
     private static boolean tickRods(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
-        int coilStart = TurbineRodSpaceLayout.coilZoneStartY(b.interiorH, builder.getCoilLayerCount());
-        for (int x = b.minX + 1; x < b.maxX; x++) {
-            for (int z = b.minZ + 1; z < b.maxZ; z++) {
-                int rx = x - b.minX - 1;
-                int rz = z - b.minZ - 1;
-                if (!TurbineRodPatternLogic.isRodColumn(rx, rz, b.rw, b.rd, builder.getRodPattern())) continue;
-                for (int y = b.minY + 1; y < b.maxY; y++) {
-                    int iy = y - b.minY - 1;
-                    if (iy >= coilStart) continue;
+        int inset = TurbineRodSpaceLayout.rodSpaceInset();
+        Direction axis = builder.getPlacementAxis();
+        int x0 = b.minX + 1 + inset;
+        int x1 = b.minX + inset + b.rw;
+        int z0 = b.minZ + 1 + inset;
+        int z1 = b.minZ + inset + b.rd;
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                int rx = x - b.minX - 1 - inset;
+                int rz = z - b.minZ - 1 - inset;
+                if (!TurbineRodPatternLogic.isRodColumn(rx, rz, b.rw, b.rd, builder.getRodPattern())) {
+                    continue;
+                }
+                for (int y = b.minY + 1; y < b.closureWorldY; y++) {
                     BlockPos pos = new BlockPos(x, y, z);
                     BlockState existing = level.getBlockState(pos);
-                    if (existing.is(ModBlocks.TURBINE_ROD.get())) continue;
+                    if (existing.is(ModBlocks.TURBINE_ROD.get())
+                            && existing.hasProperty(TurbineRodBlock.FACING)
+                            && existing.getValue(TurbineRodBlock.FACING) == axis) {
+                        continue;
+                    }
                     BlockState rod = ModBlocks.TURBINE_ROD.get().defaultBlockState()
-                            .setValue(TurbineRodBlock.FACING, Direction.UP);
-                    if (tryPlaceState(level, builder, pos, rod)) return true;
+                            .setValue(TurbineRodBlock.FACING, axis);
+                    PlaceResult result = tryPlaceState(level, builder, pos, rod);
+                    if (result == PlaceResult.PLACED || result == PlaceResult.WAIT) {
+                        return true;
+                    }
                 }
             }
         }
@@ -141,20 +252,25 @@ public final class TurbineBuildLogic {
     }
 
     private static boolean tickBlades(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
-        int coilStart = TurbineRodSpaceLayout.coilZoneStartY(b.interiorH, builder.getCoilLayerCount());
-        for (int x = b.minX + 1; x < b.maxX; x++) {
-            for (int z = b.minZ + 1; z < b.maxZ; z++) {
-                int rx = x - b.minX - 1;
-                int rz = z - b.minZ - 1;
-                if (!TurbineRodPatternLogic.isRodColumn(rx, rz, b.rw, b.rd, builder.getRodPattern())) continue;
-                for (int y = b.minY + 1; y < b.maxY; y++) {
+        int inset = TurbineRodSpaceLayout.rodSpaceInset();
+        int x0 = b.minX + 1 + inset;
+        int x1 = b.minX + inset + b.rw;
+        int z0 = b.minZ + 1 + inset;
+        int z1 = b.minZ + inset + b.rd;
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                int rx = x - b.minX - 1 - inset;
+                int rz = z - b.minZ - 1 - inset;
+                if (!TurbineRodPatternLogic.isRodColumn(rx, rz, b.rw, b.rd, builder.getRodPattern())) {
+                    continue;
+                }
+                for (int y = b.minY + 1; y < b.closureWorldY; y++) {
                     int iy = y - b.minY - 1;
-                    if (iy >= coilStart) continue;
                     BlockPos rodPos = new BlockPos(x, y, z);
                     BlockState rodState = level.getBlockState(rodPos);
                     if (!rodState.is(ModBlocks.TURBINE_ROD.get())) continue;
                     Direction axis = rodState.getValue(TurbineRodBlock.FACING);
-                    int targetRing = TurbineRodPatternLogic.targetBladeRingForLayer(iy, coilStart, builder.getRodPattern());
+                    int targetRing = TurbineRodPatternLogic.targetBladeRingForLayer(iy, b.rh, builder.getRodPattern());
                     if (placeBladesToRing(level, builder, rodPos, rodState, axis, targetRing)) {
                         return true;
                     }
@@ -169,7 +285,9 @@ public final class TurbineBuildLogic {
                                              BlockPos rodPos, BlockState rodState, Direction axis, int targetRing) {
         while (TurbineBladePlacement.currentRing(level, rodPos, axis) <= targetRing
                 && TurbineBladePlacement.placeNextBlade(level, rodPos, rodState)) {
-            if (!consumeItem(level, builder, ModItems.TURBINE_BLADE.get())) return false;
+            if (!consumeItem(level, builder, ModItems.TURBINE_BLADE.get())) {
+                return true;
+            }
         }
         return false;
     }
@@ -186,9 +304,17 @@ public final class TurbineBuildLogic {
                 for (int y = b.minY + 1 + coilStart; y < b.maxY; y++) {
                     BlockPos pos = new BlockPos(x, y, z);
                     BlockState st = level.getBlockState(pos);
-                    if (ElecCoilLoader.isBlockMatchingSelectedCoil(st, idx, level.registryAccess())) continue;
+                    if (ElecCoilLoader.isBlockMatchingSelectedCoil(st, idx, level.registryAccess())) {
+                        continue;
+                    }
                     Block block = coilBlockFor(idx, level);
-                    if (block != null && tryPlace(level, builder, pos, block)) return true;
+                    if (block == null) {
+                        continue;
+                    }
+                    PlaceResult result = tryPlaceState(level, builder, pos, block.defaultBlockState());
+                    if (result == PlaceResult.PLACED || result == PlaceResult.WAIT) {
+                        return true;
+                    }
                 }
             }
         }
@@ -207,42 +333,97 @@ public final class TurbineBuildLogic {
         return level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.BLOCK).get(id);
     }
 
-    private static boolean tryPlace(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, Block block) {
-        return tryPlaceState(level, builder, pos, block.defaultBlockState());
+    private static boolean isEdgeOrCorner(int x, int y, int z, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        int onBoundary = 0;
+        if (x == minX || x == maxX) onBoundary++;
+        if (y == minY || y == maxY) onBoundary++;
+        if (z == minZ || z == maxZ) onBoundary++;
+        return onBoundary >= 2;
     }
 
-    private static boolean tryPlaceState(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, BlockState state) {
+    private static ItemStack findCasingItem(TurbineBuilderBlockEntity builder) {
+        Block casing = ModBlocks.TURBINE_CASING.get();
+        for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
+            ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
+            if (!stack.isEmpty() && stack.is(casing.asItem())) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack findGlassItem(TurbineBuilderBlockEntity builder) {
+        Block glass = ModBlocks.TURBINE_GLASS.get();
+        for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
+            ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
+            if (!stack.isEmpty() && stack.is(glass.asItem())) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack resolveFrameStack(TurbineBuilderBlockEntity builder, boolean preferCasing) {
+        ItemStack primary = preferCasing ? findCasingItem(builder) : findGlassItem(builder);
+        if (!primary.isEmpty()) {
+            return primary;
+        }
+        return preferCasing ? findGlassItem(builder) : findCasingItem(builder);
+    }
+
+    private static boolean tryPlaceFrame(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, ItemStack stack) {
+        Block block = Block.byItem(stack.getItem());
+        if (block != ModBlocks.TURBINE_CASING.get() && block != ModBlocks.TURBINE_GLASS.get()) {
+            return false;
+        }
+        if (!consumeOne(builder, stack.getItem())) {
+            return false;
+        }
+        return level.setBlock(pos, block.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
+    }
+
+    private static PlaceResult tryPlaceState(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, BlockState state) {
         BlockState existing = level.getBlockState(pos);
-        if (!existing.canBeReplaced() && !existing.isAir()) return false;
-        if (!consumeForBlock(builder, state.getBlock())) return false;
-        return level.setBlock(pos, state, Block.UPDATE_ALL);
+        if (!canReplace(existing)) {
+            return PlaceResult.SKIP;
+        }
+        if (!consumeForBlock(builder, state.getBlock())) {
+            return PlaceResult.WAIT;
+        }
+        level.setBlock(pos, state, net.minecraft.world.level.block.Block.UPDATE_ALL);
+        return PlaceResult.PLACED;
+    }
+
+    private static boolean canReplace(BlockState existing) {
+        return existing.canBeReplaced() || existing.isAir();
     }
 
     private static boolean consumeForBlock(TurbineBuilderBlockEntity builder, Block block) {
+        ServerLevel level = (ServerLevel) builder.getLevel();
+        if (level == null) return false;
         if (block == ModBlocks.TURBINE_BLADE.get()) {
-            return consumeItem((ServerLevel) builder.getLevel(), builder, ModItems.TURBINE_BLADE.get());
+            return consumeItem(level, builder, ModItems.TURBINE_BLADE.get());
         }
         ItemStack stack = new ItemStack(block);
-        return consumeItem((ServerLevel) builder.getLevel(), builder, stack.getItem());
+        return consumeItem(level, builder, stack.getItem());
+    }
+
+    private static boolean consumeOne(TurbineBuilderBlockEntity builder, net.minecraft.world.item.Item item) {
+        ServerLevel level = (ServerLevel) builder.getLevel();
+        if (level == null) return false;
+        return consumeItem(level, builder, item);
     }
 
     private static boolean consumeItem(ServerLevel level, TurbineBuilderBlockEntity builder, net.minecraft.world.item.Item item) {
         var handler = builder.getBufferHandler();
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack s = handler.getStackInSlot(i);
-            if (s.is(item)) {
-                s.shrink(1);
-                handler.setStackInSlot(i, s);
+            if (!s.isEmpty() && s.is(item)) {
+                handler.extractItem(i, 1, false);
                 return true;
             }
         }
         return false;
-    }
-
-    private static boolean isRodControllerColumn(int x, int z, BuildBounds b) {
-        int rx = x - b.minX - 1;
-        int rz = z - b.minZ - 1;
-        return rx >= 0 && rx < b.rw && rz >= 0 && rz < b.rd;
     }
 
     private static BuildBounds bounds(ServerLevel level, TurbineBuilderBlockEntity builder) {
@@ -262,13 +443,17 @@ public final class TurbineBuildLogic {
         int w = maxX - minX + 1;
         int h = maxY - minY + 1;
         int d = maxZ - minZ + 1;
+        int interiorH = TurbineRodSpaceLayout.interiorHeight(h);
+        int coilLayers = builder.getCoilLayerCount();
+        int closureWorldY = TurbineRodControllerLayout.closureWorldY(minY, interiorH, coilLayers);
         return new BuildBounds(minX, minY, minZ, maxX, maxY, maxZ, w, h, d,
                 TurbineRodPatternLogic.rodSpaceWidth(w),
-                TurbineRodPatternLogic.rodSpaceHeight(h, builder.getCoilLayerCount()),
+                TurbineRodPatternLogic.rodSpaceHeight(h, coilLayers),
                 TurbineRodPatternLogic.rodSpaceDepth(d),
-                TurbineRodSpaceLayout.interiorHeight(h));
+                interiorH, coilLayers, closureWorldY);
     }
 
     private record BuildBounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-                               int w, int h, int d, int rw, int rh, int rd, int interiorH) {}
+                               int w, int h, int d, int rw, int rh, int rd, int interiorH,
+                               int coilLayers, int closureWorldY) {}
 }

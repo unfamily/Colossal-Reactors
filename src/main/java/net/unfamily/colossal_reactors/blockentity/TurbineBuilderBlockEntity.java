@@ -77,6 +77,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final String TAG_BUILD_PROGRESS = "BuildProgress";
     private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
+    private static final String TAG_PLACEMENT_AXIS = "PlacementAxis";
     private static final String TAG_MARK_INPUT_FILTERS = "MarkInputFilters";
     private static final int BUFFER_SLOTS = 9 * 3;
 
@@ -164,10 +165,13 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int sizeDepth = 6;
     /** Heat sink option index for fill: 0 = Air, 1.. = ElecCoilLoader definition index. */
     private int selectedCoilIndex = 0;
-    /** When built: true = top face open for manual edits, false = closed. */
+    /** When built: true = absolute top face open (no top casing); rod controller still placed. */
+    private boolean openTop = false;
     private int coilLayerCount = net.unfamily.colossal_reactors.Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
-    /** Rod column pattern: 0=DOTS, 1=CHECKERBOARD, 2=EXPANSION. */
+    /** Blade growth pattern: 0=Efficient, 1=Productive. */
     private int rodPattern = 0;
+    /** Rod / rod-controller facing axis (default top-to-bottom rotor). */
+    private Direction placementAxis = Direction.DOWN;
     /** Pattern mode: 0=OPTIMIZED (-2 inset), 1=PRODUCTION (no inset), 2=ECONOMY (like optimized, border fill differs). */
     /** True when build is in progress (button shows Stop). */
     private boolean building = false;
@@ -239,18 +243,21 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 7 -> selectedCoilIndex;
                 case 8 -> coilLayerCount;
                 case 9 -> rodPattern;
-                case 10 -> 0;
+                case 10 -> openTop ? 1 : 0;
                 case 11 -> building ? 1 : 0;
                 case 12 -> invalidBlocksDetected ? 1 : 0;
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
+                case 15 -> placementAxis.ordinal();
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) {
+                return;
+            }
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -265,18 +272,24 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 7 -> selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, value));
                 case 8 -> coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, value));
                 case 9 -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, value));
-                case 10 -> { }
+                case 10 -> openTop = value != 0;
                 case 11 -> building = value != 0;
                 case 12 -> invalidBlocksDetected = value != 0;
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
+                case 15 -> {
+                    Direction[] dirs = Direction.values();
+                    if (value >= 0 && value < dirs.length) {
+                        placementAxis = dirs[value];
+                    }
+                }
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 15;
+            return 16;
         }
     };
 
@@ -364,6 +377,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSelectedCoilIndex() { return selectedCoilIndex; }
     public int getCoilLayerCount() { return coilLayerCount; }
     public int getRodPattern() { return rodPattern; }
+    public Direction getPlacementAxis() { return placementAxis; }
     public boolean isBuilding() { return building; }
     public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
     public int getBuildProgressPercent() { return buildProgressPercent; }
@@ -419,7 +433,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
             buildProgressPercent = computeBuildProgressPercent(serverLevel);
         }
-        if (buildStage >= 5) { // done
+        if (buildStage >= TurbineBuildLogic.STAGE_DONE) {
             buildProgressPercent = 100;
             stopBuild(false);
             return;
@@ -434,105 +448,40 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
 
     private int computeBuildProgressPercent(net.minecraft.server.level.ServerLevel serverLevel) {
         if (!buildProgressVisible) return 0;
-        BlockState builderState = serverLevel.getBlockState(getBlockPos());
-        if (!(builderState.getBlock() instanceof net.unfamily.colossal_reactors.block.TurbineBuilderBlock)) return buildProgressPercent;
-        Direction facing = builderState.getValue(net.unfamily.colossal_reactors.block.TurbineBuilderBlock.FACING);
-        AABB aabb = getTurbineVolumeAABB(getBlockPos(), facing, getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth());
-        int minX = (int) Math.floor(aabb.minX);
-        int minY = (int) Math.floor(aabb.minY);
-        int minZ = (int) Math.floor(aabb.minZ);
-        int maxX = (int) Math.floor(aabb.maxX - 1e-6);
-        int maxY = (int) Math.floor(aabb.maxY - 1e-6);
-        int maxZ = (int) Math.floor(aabb.maxZ - 1e-6);
-        int w = maxX - minX + 1;
-        int h = maxY - minY + 1;
-        int d = maxZ - minZ + 1;
+        if (buildStage >= TurbineBuildLogic.STAGE_DONE) return 100;
+        var counts = net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter.estimate(
+                serverLevel.registryAccess(),
+                getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth(),
+                getRodPattern(), getSelectedCoilIndex(), getCoilLayerCount(), isOpenTop());
+        long frameTotal = counts.frameShellTotal();
+        long deckTotal = counts.closureDeckCasings();
+        long rodCtrlTotal = counts.rodControllers();
+        long rodsTotal = counts.rods();
+        long bladesTotal = counts.blades();
+        long coilsTotal = counts.coilBlocks();
+        long total = frameTotal + deckTotal + rodCtrlTotal + rodsTotal + bladesTotal + coilsTotal;
+        if (total <= 0) return buildStage >= TurbineBuildLogic.STAGE_DONE ? 100 : 0;
 
-        int rw = net.unfamily.colossal_reactors.turbine.TurbineRodPatternLogic.rodSpaceWidth(w);
-        int rd = net.unfamily.colossal_reactors.turbine.TurbineRodPatternLogic.rodSpaceDepth(d);
-        int insetXZ = net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.rodSpaceInset();
+        long done = switch (buildStage) {
+            case TurbineBuildLogic.STAGE_FRAME -> 0;
+            case TurbineBuildLogic.STAGE_CLOSURE_DECK -> frameTotal;
+            case TurbineBuildLogic.STAGE_ROD_CONTROLLERS -> frameTotal + deckTotal;
+            case TurbineBuildLogic.STAGE_RODS -> frameTotal + deckTotal + rodCtrlTotal;
+            case TurbineBuildLogic.STAGE_BLADES -> frameTotal + deckTotal + rodCtrlTotal + rodsTotal;
+            case TurbineBuildLogic.STAGE_COILS -> frameTotal + deckTotal + rodCtrlTotal + rodsTotal + bladesTotal;
+            default -> total;
+        };
+        return (int) Math.max(0, Math.min(100, (done * 100L) / total));
+    }
 
-        long frameTotal = (long) w * h * d;
-        long rodCtrlTotal = (long) rw * rd;
-        long rodSpaceW = Math.max(0, w - 2L * insetXZ);
-        long rodSpaceD = Math.max(0, d - 2L * insetXZ);
-        long rodSpaceH = Math.max(0, h - 2L);
-        long rodsTotal = rodSpaceW * rodSpaceH * rodSpaceD;
-        long interiorTotal = Math.max(0, w - 2L) * Math.max(0, h - 2L) * Math.max(0, d - 2L);
-        long liquidsTotal = interiorTotal;
-        long heatTotal = interiorTotal;
-        long total = frameTotal + rodCtrlTotal + rodsTotal + liquidsTotal + heatTotal;
-        if (total <= 0) return 0;
+    public boolean isOpenTop() {
+        return openTop;
+    }
 
-        long done;
-        long stagePos;
-        long stageTotal;
-        switch (buildStage) {
-            case 0 -> {
-                done = 0;
-                stageTotal = Math.max(1, frameTotal);
-                int x = (buildFrameX == Integer.MIN_VALUE) ? minX : buildFrameX;
-                int y = (buildFrameY == Integer.MIN_VALUE) ? minY : buildFrameY;
-                int z = (buildFrameZ == Integer.MIN_VALUE) ? minZ : buildFrameZ;
-                long ix = Math.max(0, Math.min(w, x - minX));
-                long iy = Math.max(0, Math.min(h, y - minY));
-                long iz = Math.max(0, Math.min(d, z - minZ));
-                stagePos = (ix * h + iy) * d + iz;
-            }
-            case 1 -> {
-                done = frameTotal;
-                stageTotal = Math.max(1, rodCtrlTotal);
-                int rx = (buildRodCtrlRx == Integer.MIN_VALUE) ? 0 : buildRodCtrlRx;
-                int rz = (buildRodCtrlRz == Integer.MIN_VALUE) ? 0 : buildRodCtrlRz;
-                stagePos = (long) rx * rd + rz;
-            }
-            case 2 -> {
-                done = frameTotal + rodCtrlTotal;
-                stageTotal = Math.max(1, rodsTotal);
-                int lx = (buildRodLx == Integer.MIN_VALUE) ? insetXZ : buildRodLx;
-                int ly = (buildRodLy == Integer.MIN_VALUE) ? 1 : buildRodLy;
-                int lz = (buildRodLz == Integer.MIN_VALUE) ? insetXZ : buildRodLz;
-                long ilx = Math.max(0, Math.min(rodSpaceW, lx - insetXZ));
-                long ily = Math.max(0, Math.min(rodSpaceH, ly - 1));
-                long ilz = Math.max(0, Math.min(rodSpaceD, lz - insetXZ));
-                stagePos = (ilx * rodSpaceH + ily) * rodSpaceD + ilz;
-            }
-            case 3 -> {
-                done = frameTotal + rodCtrlTotal + rodsTotal;
-                stageTotal = Math.max(1, liquidsTotal);
-                int lx = (buildLiquidLx == Integer.MIN_VALUE) ? 1 : buildLiquidLx;
-                int ly = (buildLiquidLy == Integer.MIN_VALUE) ? 1 : buildLiquidLy;
-                int lz = (buildLiquidLz == Integer.MIN_VALUE) ? 1 : buildLiquidLz;
-                long iw = Math.max(0, w - 2L);
-                long ih = Math.max(0, h - 2L);
-                long idd = Math.max(0, d - 2L);
-                long ilx = Math.max(0, Math.min(iw, lx - 1));
-                long ily = Math.max(0, Math.min(ih, ly - 1));
-                long ilz = Math.max(0, Math.min(idd, lz - 1));
-                stagePos = (ilx * ih + ily) * idd + ilz;
-            }
-            case 4 -> {
-                done = frameTotal + rodCtrlTotal + rodsTotal + liquidsTotal;
-                stageTotal = Math.max(1, heatTotal);
-                int lx = (buildHeatLx == Integer.MIN_VALUE) ? 1 : buildHeatLx;
-                int ly = (buildHeatLy == Integer.MIN_VALUE) ? 1 : buildHeatLy;
-                int lz = (buildHeatLz == Integer.MIN_VALUE) ? 1 : buildHeatLz;
-                long iw = Math.max(0, w - 2L);
-                long ih = Math.max(0, h - 2L);
-                long idd = Math.max(0, d - 2L);
-                long ilx = Math.max(0, Math.min(iw, lx - 1));
-                long ily = Math.max(0, Math.min(ih, ly - 1));
-                long ilz = Math.max(0, Math.min(idd, lz - 1));
-                stagePos = (ilx * ih + ily) * idd + ilz;
-            }
-            default -> {
-                return 100;
-            }
-        }
-
-        long clamped = Math.max(0, Math.min(stageTotal, stagePos));
-        long progress = done + clamped;
-        return (int) Math.max(0, Math.min(100, (progress * 100L) / total));
+    /** Left click = open, right click = closed (same as reactor builder). */
+    public void cycleOpenTop(boolean next) {
+        openTop = next;
+        setChanged();
     }
 
     /** Cycle coil layer count. */
@@ -546,6 +495,18 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public void cycleRodPattern(boolean next) {
         if (next) rodPattern = (rodPattern + 1) % ROD_PATTERN_COUNT;
         else rodPattern = rodPattern <= 0 ? ROD_PATTERN_COUNT - 1 : rodPattern - 1;
+        setChanged();
+    }
+
+    /** Cycle placement axis (rod + rod controller facing). */
+    public void cyclePlacementAxis(boolean next) {
+        Direction[] dirs = Direction.values();
+        int idx = placementAxis.ordinal();
+        if (next) {
+            placementAxis = dirs[(idx + 1) % dirs.length];
+        } else {
+            placementAxis = dirs[(idx + dirs.length - 1) % dirs.length];
+        }
         setChanged();
     }
 
@@ -622,7 +583,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         FluidStack inItem = itemHandler.getFluidInTank(0);
         if (!inItem.isEmpty()) {
             if (getLevel() == null) return false;
-            if (ElecCoilLoader.getModifiersForFluid(inItem.getFluid(), getLevel().registryAccess()) == null)
+            if (net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader.getDefinitionForFluid(
+                    inItem.getFluid(), getLevel().registryAccess()) == null)
                 return false;
             if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
                 int filled = blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.EXECUTE);
@@ -668,6 +630,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_COIL_IDX, selectedCoilIndex);
         tag.putInt("CoilLayerCount", coilLayerCount);
         tag.putInt(TAG_ROD_PATTERN, rodPattern);
+        tag.putString(TAG_PLACEMENT_AXIS, placementAxis.getName());
+        tag.putBoolean(TAG_OPEN_TOP, openTop);
         tag.putBoolean(TAG_BUILDING, building);
         tag.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
         tag.putInt(TAG_BUILD_STAGE, buildStage);
@@ -735,6 +699,11 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_COIL_IDX)) selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, tag.getInt(TAG_COIL_IDX)));
         if (tag.contains("CoilLayerCount")) coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, tag.getInt("CoilLayerCount")));
         if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
+        if (tag.contains(TAG_PLACEMENT_AXIS)) {
+            Direction parsed = Direction.byName(tag.getString(TAG_PLACEMENT_AXIS));
+            if (parsed != null) placementAxis = parsed;
+        }
+        if (tag.contains(TAG_OPEN_TOP)) openTop = tag.getBoolean(TAG_OPEN_TOP);
         if (tag.contains(TAG_BUILDING)) building = tag.getBoolean(TAG_BUILDING);
         if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
         if (tag.contains(TAG_BUILD_PROGRESS)) buildProgressPercent = tag.getInt(TAG_BUILD_PROGRESS);

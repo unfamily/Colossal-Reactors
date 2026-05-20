@@ -23,7 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Loads turbine generation definitions from datapack JSON (steam in, RF out).
+ * Loads turbine generation definitions from datapack JSON (steam in, optional fluid out).
+ * {@link TurbineGenerationDefinition#rfProduction()} is RF per bucket (1000 mB steam).
  */
 public final class TurbineGenerationLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(TurbineGenerationLoader.class);
@@ -57,9 +58,31 @@ public final class TurbineGenerationLoader {
     private static void registerInternalDefaults() {
         List<String> inputs = List.of("#c:steam");
         String output = "minecraft:water";
-        double rf = Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
+        double rfPerBucket = Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get();
         DEFINITIONS.put(DEFAULT_GENERATION_ID, new TurbineGenerationDefinition(
-                DEFAULT_GENERATION_ID, inputs, output, rf, true));
+                DEFAULT_GENERATION_ID, inputs, output, rfPerBucket, true));
+    }
+
+    /** RF per mB steam from datapack value stored per bucket. */
+    public static double rfPerSteamMb(double rfPerBucket) {
+        return rfPerBucket / 1000.0;
+    }
+
+    public static String formatRfPerSteamMb(double rfPerBucket) {
+        return String.format("%.3f", rfPerSteamMb(rfPerBucket));
+    }
+
+    /** Entries with resolvable steam input (for JEI and builder simulation). */
+    public static List<TurbineGenerationDefinition> getVisibleDefinitions() {
+        return DEFINITIONS.values().stream()
+                .filter(def -> {
+                    if (def.inputs().isEmpty()) return false;
+                    return def.inputs().stream().anyMatch(sel ->
+                            sel != null && !sel.isBlank()
+                                    && DatapackSelectorValidator.isResolvableFluidSelector(sel));
+                })
+                .sorted(java.util.Comparator.comparing(d -> d.generationId().toString()))
+                .toList();
     }
 
     private static void processEntry(TurbineGenerationDefinition def) {
@@ -91,7 +114,7 @@ public final class TurbineGenerationLoader {
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
         double rf = json.has(KEY_RF_PRODUCTION)
                 ? json.get(KEY_RF_PRODUCTION).getAsDouble()
-                : Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
+                : Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get();
         boolean overwritable = json.has(KEY_OVERWRITABLE)
                 ? json.get(KEY_OVERWRITABLE).getAsBoolean()
                 : defaultOverwritable;

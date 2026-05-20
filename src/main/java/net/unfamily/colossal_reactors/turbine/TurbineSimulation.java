@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.turbine;
 
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.Config;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,6 +26,15 @@ public final class TurbineSimulation {
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
             int rodPattern, int coilIndex, int coilLayerCount) {
+        return simulateFromBuilderParams(registryAccess, sizeLeft, sizeRight, sizeHeight, sizeDepth,
+                rodPattern, coilIndex, coilLayerCount, null);
+    }
+
+    public static SimulationResult simulateFromBuilderParams(
+            RegistryAccess registryAccess,
+            int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
+            int rodPattern, int coilIndex, int coilLayerCount,
+            @Nullable ResourceLocation generationId) {
 
         int w = sizeLeft + sizeRight + 1;
         int h = sizeHeight;
@@ -75,8 +85,10 @@ public final class TurbineSimulation {
 
         double steam = validBlades * Config.TURBINE_STEAM_MB_PER_BLADE_PER_TICK.get()
                 * Config.TURBINE_CONSUMPTION_MULTIPLIER.get();
-        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
-        double rfPerMb = gen != null ? gen.rfProduction() : Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
+        TurbineGenerationDefinition gen = generationForSimulation(registryAccess, generationId);
+        double rfPerMb = gen != null
+                ? TurbineGenerationLoader.rfPerSteamMb(gen.rfProduction())
+                : TurbineGenerationLoader.rfPerSteamMb(Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get());
         double rf = steam * rfPerMb * coilEff * bladeEff * Config.TURBINE_PRODUCTION_MULTIPLIER.get();
         rf = Math.max(rf, Config.TURBINE_MIN_RF_PER_TICK.get());
 
@@ -87,5 +99,31 @@ public final class TurbineSimulation {
         }
 
         return new SimulationResult(rodColumns, bladeCount, coilBlocks, steam, rf, coilEff, bladeEff);
+    }
+
+    @Nullable
+    private static TurbineGenerationDefinition generationForSimulation(RegistryAccess registryAccess) {
+        return generationForSimulation(registryAccess, null);
+    }
+
+    @Nullable
+    private static TurbineGenerationDefinition generationForSimulation(
+            RegistryAccess registryAccess, @Nullable ResourceLocation generationId) {
+        if (generationId != null) {
+            TurbineGenerationDefinition def = TurbineGenerationLoader.get(generationId);
+            if (def != null) return def;
+        }
+        return TurbineGenerationLoader.getDefault();
+    }
+
+    public record RuntimeResult(long rfPerTick, double steamMbPerTick, double coilEfficiency, double bladeEfficiency) {}
+
+    /** Runtime tick estimate from validated structure (steam cap and RF output). */
+    public static RuntimeResult tickRuntime(net.minecraft.server.level.ServerLevel level, TurbineValidation.Result result) {
+        if (!result.valid()) {
+            return new RuntimeResult(0, 0, 0, 0);
+        }
+        long rf = (long) Math.min(Long.MAX_VALUE, result.estimatedRfPerTick());
+        return new RuntimeResult(rf, result.maxSteamMbPerTick(), result.coilEfficiency(), result.bladeEfficiency());
     }
 }
