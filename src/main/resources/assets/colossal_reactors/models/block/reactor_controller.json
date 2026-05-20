@@ -3,11 +3,11 @@
 	"credit": "Made with Blockbench",
 	"ambientocclusion": false,
 	"textures": {
-		"0": "colossal_reactors:block/controller/controller_front_off",
-		"1": "colossal_reactors:block/controller/controller_back",
-		"2": "colossal_reactors:block/controller/controller_frame",
-		"3": "colossal_reactors:block/controller/button",
-		"particle": "colossal_reactors:block/controller/controller_front_off"
+		"0": "colossal_reactors:block/reactor/controller/controller_front_off",
+		"1": "colossal_reactors:block/reactor/controller/controller_back",
+		"2": "colossal_reactors:block/reactor/controller/controller_frame",
+		"3": "colossal_reactors:block/reactor/controller/button",
+		"particle": "colossal_reactors:block/reactor/controller/controller_front_off"
 	},
 	"elements": [
 		{

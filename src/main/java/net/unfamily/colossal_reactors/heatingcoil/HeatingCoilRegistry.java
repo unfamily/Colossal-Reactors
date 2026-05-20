@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,25 +36,33 @@ public final class HeatingCoilRegistry {
      */
     public static synchronized List<ResourceLocation> getBuiltinCoilIds() {
         if (builtinCoilIds != null) return builtinCoilIds;
+        Map<ResourceLocation, HeatingCoilDefinition> merged = new LinkedHashMap<>();
+        for (HeatingCoilDefinition def : parseBuiltinFile()) {
+            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
+        }
+        int jarCount = merged.size();
+        for (var entry : HeatingCoilFilesystemLoader.loadFromGameDir().entrySet()) {
+            merged.put(entry.getKey(), DatapackSelectorValidator.sanitizeHeatingCoil(entry.getValue()));
+        }
+        DEFINITIONS.putAll(merged);
+        builtinCoilIds = List.copyOf(merged.keySet());
+        LOGGER.info("Heating coils for block registration: {} (jar={}, external={})",
+                builtinCoilIds.size(), jarCount, merged.size() - jarCount);
+        return new ArrayList<>(builtinCoilIds);
+    }
+
+    private static List<HeatingCoilDefinition> parseBuiltinFile() {
         try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
             if (stream == null) {
                 LOGGER.warn("Builtin heating coils not found: {}", BUILTIN_PATH);
-                builtinCoilIds = List.of();
-                return builtinCoilIds;
+                return List.of();
             }
             try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                List<HeatingCoilDefinition> list = HeatingCoilLoader.parse(reader, "builtin");
-                for (HeatingCoilDefinition def : list) {
-                    DEFINITIONS.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
-                }
-                builtinCoilIds = list.stream().map(HeatingCoilDefinition::id).toList();
-                LOGGER.info("Loaded {} builtin heating coil(s)", builtinCoilIds.size());
-                return new ArrayList<>(builtinCoilIds);
+                return HeatingCoilLoader.parse(reader, "builtin");
             }
         } catch (Exception e) {
             LOGGER.warn("Failed to load builtin heating coils: {}", e.getMessage());
-            builtinCoilIds = List.of();
-            return builtinCoilIds;
+            return List.of();
         }
     }
 
@@ -67,16 +76,8 @@ public final class HeatingCoilRegistry {
             return;
         }
         Map<ResourceLocation, HeatingCoilDefinition> merged = new HashMap<>();
-        try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
-            if (stream != null) {
-                try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                    for (HeatingCoilDefinition def : HeatingCoilLoader.parse(reader, "builtin")) {
-                        merged.put(def.id(), def);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.debug("Could not re-merge builtin heating coils on reload: {}", e.getMessage());
+        for (HeatingCoilDefinition def : parseBuiltinFile()) {
+            merged.put(def.id(), def);
         }
         for (HeatingCoilDefinition def : loaded.values()) {
             merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));

@@ -3,7 +3,7 @@
   "type": "connecting",
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "colossal_reactors:block/reactor_glass"
+    "all": "colossal_reactors:block/reactor/reactor_glass"
   },
   "connections": [
     {

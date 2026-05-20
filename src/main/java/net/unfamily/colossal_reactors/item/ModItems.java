@@ -45,6 +45,26 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.ROD_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> REACTOR_BUILDER = ITEMS.register("reactor_builder",
             () -> new BlockItem(ModBlocks.REACTOR_BUILDER.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_CASING = ITEMS.register("turbine_casing",
+            () -> new BlockItem(ModBlocks.TURBINE_CASING.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_GLASS = ITEMS.register("turbine_glass",
+            () -> new BlockItem(ModBlocks.TURBINE_GLASS.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_CONTROLLER = ITEMS.register("turbine_controller",
+            () -> new BlockItem(ModBlocks.TURBINE_CONTROLLER.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_POWER_PORT = ITEMS.register("turbine_power_port",
+            () -> new BlockItem(ModBlocks.TURBINE_POWER_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_HIGH_COND_POWER_PORT = ITEMS.register("turbine_high_cond_power_port",
+            () -> new BlockItem(ModBlocks.TURBINE_HIGH_COND_POWER_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_REDSTONE_PORT = ITEMS.register("turbine_redstone_port",
+            () -> new BlockItem(ModBlocks.TURBINE_REDSTONE_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.register("turbine_resource_port",
+            () -> new BlockItem(ModBlocks.TURBINE_RESOURCE_PORT.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.register("turbine_builder",
+            () -> new BlockItem(ModBlocks.TURBINE_BUILDER.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_ROD = ITEMS.register("turbine_rod",
+            () -> new BlockItem(ModBlocks.TURBINE_ROD.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.register("turbine_rod_controller",
+            () -> new BlockItem(ModBlocks.TURBINE_ROD_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.register("uranium_ingot",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.register("nuclear_waste",

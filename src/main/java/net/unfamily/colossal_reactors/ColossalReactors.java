@@ -180,6 +180,7 @@ public class ColossalReactors {
         @SubscribeEvent
         static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
             event.registerReloadListener(new ReactorDataReloadListener());
+            event.registerReloadListener(new LoadDataReloadListener());
         }
 
         @SubscribeEvent

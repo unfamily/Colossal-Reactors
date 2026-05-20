@@ -77,6 +77,48 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
 
+    // ----- Turbine (shell blocks, no block entities yet) -----
+    public static final DeferredBlock<Block> TURBINE_CASING = BLOCKS.register("turbine_casing",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<TurbineGlassBlock> TURBINE_GLASS = BLOCKS.register("turbine_glass",
+            TurbineGlassBlock::new);
+    public static final DeferredBlock<TurbineControllerBlock> TURBINE_CONTROLLER = BLOCKS.register("turbine_controller",
+            () -> new TurbineControllerBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)
+                    .noOcclusion()));
+    public static final DeferredBlock<Block> TURBINE_POWER_PORT = BLOCKS.register("turbine_power_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<Block> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.register("turbine_high_cond_power_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<Block> TURBINE_REDSTONE_PORT = BLOCKS.register("turbine_redstone_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<Block> TURBINE_RESOURCE_PORT = BLOCKS.register("turbine_resource_port",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<TurbineBuilderBlock> TURBINE_BUILDER = BLOCKS.register("turbine_builder",
+            () -> new TurbineBuilderBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+    public static final DeferredBlock<TurbineRodBlock> TURBINE_ROD = BLOCKS.register("turbine_rod",
+            () -> new TurbineRodBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)
+                    .noOcclusion()));
+    public static final DeferredBlock<Block> TURBINE_ROD_CONTROLLER = BLOCKS.register("turbine_rod_controller",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(2.0f)));
+
     // Resource ores (stone + deepslate)
     public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.register("uranium_ore",
             () -> new Block(BlockBehaviour.Properties.of()
