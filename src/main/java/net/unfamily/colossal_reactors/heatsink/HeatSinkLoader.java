@@ -15,6 +15,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluids;
+import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,42 +80,56 @@ public final class HeatSinkLoader {
      */
     public static void applyLoaded(List<HeatSinkDefinition> loaded) {
         DEFINITIONS.clear();
+        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         if (loaded != null && !loaded.isEmpty()) {
-            DEFINITIONS.addAll(loaded);
-        } else {
-            registerInternalDefaults();
+            for (HeatSinkDefinition def : loaded) {
+                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def, access);
+                if (sanitized != null) {
+                    DEFINITIONS.add(sanitized);
+                }
+            }
+        }
+        if (DEFINITIONS.isEmpty()) {
+            for (HeatSinkDefinition def : buildInternalDefaults()) {
+                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def, access);
+                if (sanitized != null) {
+                    DEFINITIONS.add(sanitized);
+                }
+            }
         }
     }
 
-    private static void registerInternalDefaults() {
-        DEFINITIONS.add(new HeatSinkDefinition(
+    private static List<HeatSinkDefinition> buildInternalDefaults() {
+        List<HeatSinkDefinition> defaults = new ArrayList<>();
+        defaults.add(new HeatSinkDefinition(
                 List.of("minecraft:air"),
                 List.of(),
                 1.0, 1.0, 0.16, false));
-        DEFINITIONS.add(new HeatSinkDefinition(
+        defaults.add(new HeatSinkDefinition(
                 List.of(),
                 List.of("#c:water"),
                 1.05, 1.15, 1.05, false)); // water: source and flowing both valid
-        DEFINITIONS.add(new HeatSinkDefinition(
+        defaults.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/diamond"),
                 List.of(),
                 1.8, 1.6, 1.8, true));
-        DEFINITIONS.add(new HeatSinkDefinition(
+        defaults.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/emerald"),
                 List.of(),
                 1.8, 1.6, 1.8, true));
-        DEFINITIONS.add(new HeatSinkDefinition(
+        defaults.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/netherite"),
                 List.of(),
                 1.7, 2.3, 1.7, true));
-        DEFINITIONS.add(new HeatSinkDefinition(
+        defaults.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/gold"),
                 List.of(),
                 1.7, 1.5, 1.7, true));
-        DEFINITIONS.add(new HeatSinkDefinition(
+        defaults.add(new HeatSinkDefinition(
                 List.of("#c:storage_blocks/graphite", "#minecraft:ice"),
                 List.of(),
                 2.5, -5.0, 2.5, true));
+        return defaults;
     }
 
     /** Parses a single heat sink definition from JSON (one file = one entry). Used by datapack reload listener. */

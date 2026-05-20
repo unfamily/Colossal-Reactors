@@ -11,6 +11,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -47,10 +48,28 @@ public class FuelLoader {
      */
     public static void applyLoaded(Map<ResourceLocation, FuelDefinition> loaded) {
         DEFINITIONS.clear();
+        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         registerInternalDefaults();
+        sanitizeRegisteredFuels(access);
         if (loaded != null) {
             for (FuelDefinition def : loaded.values()) {
-                processEntry(def);
+                FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(def, access);
+                if (sanitized != null) {
+                    processEntry(sanitized);
+                }
+            }
+        }
+    }
+
+    private static void sanitizeRegisteredFuels(RegistryAccess access) {
+        var it = DEFINITIONS.entrySet().iterator();
+        while (it.hasNext()) {
+            var entry = it.next();
+            FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(entry.getValue(), access);
+            if (sanitized == null) {
+                it.remove();
+            } else {
+                entry.setValue(sanitized);
             }
         }
     }
