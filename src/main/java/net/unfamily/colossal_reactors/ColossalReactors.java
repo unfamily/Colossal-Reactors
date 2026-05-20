@@ -37,6 +37,7 @@ import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import net.unfamily.colossal_reactors.client.ColossalClientSetup;
+import net.unfamily.colossal_reactors.client.ColossalReactorsClientEvents;
 import net.unfamily.colossal_reactors.client.GuideMeRegistration;
 import net.unfamily.colossal_reactors.client.ColossalFluidModels;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
@@ -69,8 +70,13 @@ public class ColossalReactors {
         net.unfamily.colossal_reactors.world.ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::registerCapabilities);
+
+        // GuideME is client-only; ModList check is enough on dedicated servers.
+        GuideMeRegistration.register();
+
         if (FMLEnvironment.getDist() == Dist.CLIENT) {
-            modEventBus.addListener(FMLClientSetupEvent.class, e -> e.enqueueWork(GuideMeRegistration::register));
+            modEventBus.addListener(FMLClientSetupEvent.class, e -> e.enqueueWork(() ->
+                    NeoForge.EVENT_BUS.register(ColossalReactorsClientEvents.class)));
             modEventBus.addListener(AddClientReloadListenersEvent.class, ColossalReactors::onAddClientReloadListeners);
             modEventBus.addListener(RegisterFluidModelsEvent.class, ColossalFluidModels::registerFluidModels);
             modEventBus.addListener(RegisterMenuScreensEvent.class, ColossalClientSetup::registerMenuScreens);

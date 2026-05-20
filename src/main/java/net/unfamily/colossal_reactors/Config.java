@@ -213,8 +213,25 @@ public class Config {
             .comment("How many build steps to execute per tick while building. Higher = faster, but heavier server load. Default: 2")
             .defineInRange("000_buildStepsPerTick", 2, 1, Integer.MAX_VALUE);
 
+    public static final ModConfigSpec.IntValue REACTOR_BUILDER_TANK_CAPACITY_MB = BUILDER
+            .comment("Reactor Builder internal fluid tank capacity in mB. Default: 64000")
+            .defineInRange("001_tankCapacityMb", 64000, 1000, Integer.MAX_VALUE);
+
     static {
         BUILDER.pop(); // builder
+    }
+
+    // ========== melter ==========
+    static {
+        BUILDER.comment("Melter fluid tank").push("melter");
+    }
+
+    public static final ModConfigSpec.IntValue MELTER_TANK_CAPACITY_MB = BUILDER
+            .comment("Melter internal fluid tank capacity in mB. Default: 64000")
+            .defineInRange("000_tankCapacityMb", 64000, 1000, Integer.MAX_VALUE);
+
+    static {
+        BUILDER.pop(); // melter
     }
 
     // ========== ports ==========

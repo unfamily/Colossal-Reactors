@@ -1,12 +1,11 @@
 package net.unfamily.colossal_reactors.datapack;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -31,29 +30,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Validates datapack selectors (item/block/fluid id or tag) against the active {@link RegistryAccess}
- * (server or client level) when available, otherwise {@link BuiltInRegistries}.
- * Empty tags and missing ids are dropped so they never appear in JEI, builder, or gameplay.
+ * Validates datapack selectors (item/block/fluid id or tag). Empty or missing tags are dropped
+ * selectively so entries like ruby/sapphire/peridot are skipped when the player has no gem blocks.
  */
 public final class DatapackSelectorValidator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DatapackSelectorValidator.class);
-    private static final TagKey<Block> PROBE_BLOCK_TAG = TagKey.create(Registries.BLOCK, Identifier.parse("minecraft:stone"));
 
     private DatapackSelectorValidator() {}
-
-    /**
-     * When false (block tags not resolvable yet), filters are no-ops so reload does not drop every
-     * {@code valid_blocks} entry. Must not key off item ids alone — iron ingot exists before block tags bind.
-     */
-    /** Exposed so loaders can rebuild when tag resolution becomes available (e.g. after joining a world). */
-    public static boolean isValidationActive() {
-        return tagHasEntries(PROBE_BLOCK_TAG, blockLookup());
-    }
-
-    private static boolean validationEnabled() {
-        return isValidationActive();
-    }
 
     @Nullable
     private static RegistryAccess activeRegistryAccess() {
@@ -74,7 +58,7 @@ public final class DatapackSelectorValidator {
         return null;
     }
 
-    private static HolderLookup.RegistryLookup<Item> itemLookup() {
+    private static Registry<Item> gameItemRegistry() {
         RegistryAccess access = activeRegistryAccess();
         if (access != null) {
             return access.lookupOrThrow(Registries.ITEM);
@@ -82,7 +66,7 @@ public final class DatapackSelectorValidator {
         return BuiltInRegistries.ITEM;
     }
 
-    private static HolderLookup.RegistryLookup<Block> blockLookup() {
+    private static Registry<Block> gameBlockRegistry() {
         RegistryAccess access = activeRegistryAccess();
         if (access != null) {
             return access.lookupOrThrow(Registries.BLOCK);
@@ -90,7 +74,7 @@ public final class DatapackSelectorValidator {
         return BuiltInRegistries.BLOCK;
     }
 
-    private static HolderLookup.RegistryLookup<Fluid> fluidLookup() {
+    private static Registry<Fluid> gameFluidRegistry() {
         RegistryAccess access = activeRegistryAccess();
         if (access != null) {
             return access.lookupOrThrow(Registries.FLUID);
@@ -103,10 +87,9 @@ public final class DatapackSelectorValidator {
         if (selector.startsWith("#")) {
             Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return false;
-            return tagHasEntries(TagKey.create(Registries.ITEM, tagId), itemLookup());
+            return itemTagHasEntries(TagKey.create(Registries.ITEM, tagId));
         }
-        Identifier id = Identifier.tryParse(selector);
-        return itemExists(id);
+        return itemExists(Identifier.tryParse(selector));
     }
 
     public static boolean isResolvableBlockSelector(String selector) {
@@ -114,10 +97,9 @@ public final class DatapackSelectorValidator {
         if (selector.startsWith("#")) {
             Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return false;
-            return tagHasEntries(TagKey.create(Registries.BLOCK, tagId), blockLookup());
+            return blockTagHasEntries(TagKey.create(Registries.BLOCK, tagId));
         }
-        Identifier id = Identifier.tryParse(selector);
-        return blockExists(id);
+        return blockExists(Identifier.tryParse(selector));
     }
 
     public static boolean isResolvableFluidSelector(String selector) {
@@ -125,14 +107,26 @@ public final class DatapackSelectorValidator {
         if (selector.startsWith("#")) {
             Identifier tagId = Identifier.tryParse(selector.substring(1));
             if (tagId == null) return false;
-            return tagHasEntries(TagKey.create(Registries.FLUID, tagId), fluidLookup());
+            return fluidTagHasEntries(TagKey.create(Registries.FLUID, tagId));
         }
-        Identifier id = Identifier.tryParse(selector);
-        return fluidExists(id);
+        return fluidExists(Identifier.tryParse(selector));
     }
 
-    private static <T> boolean tagHasEntries(TagKey<T> tagKey, HolderLookup.RegistryLookup<T> lookup) {
-        return lookup.get(tagKey)
+    /** Tag must have at least one member in game registry or built-in registry. */
+    private static boolean itemTagHasEntries(TagKey<Item> tagKey) {
+        return tagHasEntries(tagKey, gameItemRegistry()) || tagHasEntries(tagKey, BuiltInRegistries.ITEM);
+    }
+
+    private static boolean blockTagHasEntries(TagKey<Block> tagKey) {
+        return tagHasEntries(tagKey, gameBlockRegistry()) || tagHasEntries(tagKey, BuiltInRegistries.BLOCK);
+    }
+
+    private static boolean fluidTagHasEntries(TagKey<Fluid> tagKey) {
+        return tagHasEntries(tagKey, gameFluidRegistry()) || tagHasEntries(tagKey, BuiltInRegistries.FLUID);
+    }
+
+    private static <T> boolean tagHasEntries(TagKey<T> tagKey, Registry<T> registry) {
+        return registry.get(tagKey)
                 .map(tag -> tag.stream().anyMatch(h -> {
                     Object value = h.value();
                     return !(value instanceof Fluid fluid && fluid == Fluids.EMPTY);
@@ -142,28 +136,44 @@ public final class DatapackSelectorValidator {
 
     private static boolean itemExists(@Nullable Identifier id) {
         if (id == null) return false;
-        return itemLookup().get(ResourceKey.create(Registries.ITEM, id))
-                .map(h -> h.value() != Items.AIR)
-                .orElse(false);
+        if (itemExistsIn(id, gameItemRegistry())) return true;
+        return activeRegistryAccess() != null && itemExistsIn(id, BuiltInRegistries.ITEM);
+    }
+
+    private static boolean itemExistsIn(Identifier id, Registry<Item> registry) {
+        if (!registry.containsKey(id)) return false;
+        Item item = registry.getValue(id);
+        return item != null && item != Items.AIR;
     }
 
     private static boolean blockExists(@Nullable Identifier id) {
         if (id == null) return false;
-        if (Blocks.AIR.builtInRegistryHolder().is(id)) return true;
-        return blockLookup().get(ResourceKey.create(Registries.BLOCK, id))
-                .map(h -> h.value() != Blocks.AIR)
-                .orElse(false);
+        if ("air".equals(id.getPath()) && "minecraft".equals(id.getNamespace())) {
+            return blockExistsIn(id, gameBlockRegistry()) || blockExistsIn(id, BuiltInRegistries.BLOCK);
+        }
+        if (blockExistsIn(id, gameBlockRegistry())) return true;
+        return activeRegistryAccess() != null && blockExistsIn(id, BuiltInRegistries.BLOCK);
+    }
+
+    private static boolean blockExistsIn(Identifier id, Registry<Block> registry) {
+        if (!registry.containsKey(id)) return false;
+        Block block = registry.getValue(id);
+        return block != null && block != Blocks.AIR;
     }
 
     private static boolean fluidExists(@Nullable Identifier id) {
         if (id == null) return false;
-        return fluidLookup().get(ResourceKey.create(Registries.FLUID, id))
-                .map(h -> h.value() != Fluids.EMPTY)
-                .orElse(false);
+        if (fluidExistsIn(id, gameFluidRegistry())) return true;
+        return activeRegistryAccess() != null && fluidExistsIn(id, BuiltInRegistries.FLUID);
+    }
+
+    private static boolean fluidExistsIn(Identifier id, Registry<Fluid> registry) {
+        if (!registry.containsKey(id)) return false;
+        Fluid fluid = registry.getValue(id);
+        return fluid != null && fluid != Fluids.EMPTY;
     }
 
     public static List<String> filterItemSelectors(List<String> selectors) {
-        if (!validationEnabled()) return List.copyOf(selectors);
         List<String> out = new ArrayList<>();
         for (String selector : selectors) {
             if (isResolvableItemSelector(selector)) {
@@ -176,7 +186,6 @@ public final class DatapackSelectorValidator {
     }
 
     public static List<String> filterBlockSelectors(List<String> selectors) {
-        if (!validationEnabled()) return List.copyOf(selectors);
         List<String> out = new ArrayList<>();
         for (String selector : selectors) {
             if (isResolvableBlockSelector(selector)) {
@@ -189,7 +198,6 @@ public final class DatapackSelectorValidator {
     }
 
     public static List<String> filterFluidSelectors(List<String> selectors) {
-        if (!validationEnabled()) return List.copyOf(selectors);
         List<String> out = new ArrayList<>();
         for (String selector : selectors) {
             if (isResolvableFluidSelector(selector)) {
@@ -203,7 +211,6 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static FuelDefinition sanitizeFuel(FuelDefinition def) {
-        if (!validationEnabled()) return def;
         List<String> inputs = filterItemSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.fuelId().toString();
@@ -225,7 +232,6 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static CoolantDefinition sanitizeCoolant(CoolantDefinition def) {
-        if (!validationEnabled()) return def;
         List<String> inputs = filterFluidSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.coolantId().toString();
@@ -248,7 +254,6 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static HeatSinkDefinition sanitizeHeatSink(HeatSinkDefinition def) {
-        if (!validationEnabled()) return def;
         List<String> blocks = filterBlockSelectors(def.validBlocks());
         List<String> liquids = filterFluidSelectors(def.validLiquids());
         if (blocks.isEmpty() && liquids.isEmpty()) {
@@ -260,7 +265,6 @@ public final class DatapackSelectorValidator {
     }
 
     public static boolean isMelterRecipeResolvable(MelterRecipe recipe) {
-        if (!validationEnabled()) return true;
         boolean inputOk = recipe.inputIsTag()
                 ? isResolvableItemSelector("#" + recipe.inputId())
                 : isResolvableItemSelector(recipe.inputId().toString());
@@ -274,7 +278,6 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static MelterHeatEntry sanitizeMelterHeat(MelterHeatEntry entry) {
-        if (!validationEnabled()) return entry;
         List<Identifier> blockIds = new ArrayList<>();
         List<Boolean> blockIdIsTag = new ArrayList<>();
         for (int i = 0; i < entry.blockIds().size(); i++) {
@@ -314,7 +317,6 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static ConsumeOption sanitizeConsumeOption(ConsumeOption opt) {
-        if (!validationEnabled()) return opt;
         ConsumeOption.FluidRequirement fluid = opt.fluid();
         if (fluid != null) {
             String selector = fluid.isTag() ? "#" + fluid.tagOrId() : fluid.tagOrId().toString();
@@ -338,7 +340,6 @@ public final class DatapackSelectorValidator {
     }
 
     public static HeatingCoilDefinition sanitizeHeatingCoil(HeatingCoilDefinition def) {
-        if (!validationEnabled()) return def;
         List<ConsumeOption> consume = new ArrayList<>();
         for (ConsumeOption opt : def.consume()) {
             ConsumeOption sanitized = sanitizeConsumeOption(opt);

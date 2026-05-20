@@ -1,23 +1,27 @@
 package net.unfamily.colossal_reactors.client;
 
 import guideme.Guide;
+import guideme.GuideItemSettings;
+import guideme.Guides;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.Config;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Registers the GuideME guide on the client using a content folder that includes the optional
- * "Radiation Management & Instability" chapter only when relevant common-config toggles are on.
- */
+/** Registers the Colossal Reactors GuideME guide (client only). */
 public final class GuideMeRegistration {
+    private static final Identifier GUIDE_ID =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "guide");
     private static final AtomicBoolean REGISTERED = new AtomicBoolean(false);
 
     private GuideMeRegistration() {}
 
-    /** Called once from client setup; safe if GuideME is absent at compile/runtime classpath handling. */
+    /**
+     * Call from the mod constructor (see GuideME integration docs).
+     * Must run before resource reload so pages are picked up on first load.
+     */
     public static void register() {
         if (!ModList.get().isLoaded("guideme")) {
             return;
@@ -25,19 +29,21 @@ public final class GuideMeRegistration {
         if (!REGISTERED.compareAndSet(false, true)) {
             return;
         }
-        boolean optionalChapter = Boolean.TRUE.equals(Config.ENABLE_RADIATION_MANAGEMENT.get())
-                || Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get());
-        String folder = optionalChapter
-                ? "guides/colossal_reactors/guide"
-                : "guides/colossal_reactors/guide_nominal";
         try {
-            Guide.builder(Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "guide"))
-                    .folder(folder)
+            Guide.builder(GUIDE_ID)
+                    .itemSettings(GuideItemSettings.DEFAULT)
                     .build();
-            ColossalReactors.LOGGER.info("GuideME guide registered (folder={})", folder);
+            ColossalReactors.LOGGER.info("GuideME guide registered ({})", GUIDE_ID);
         } catch (Exception e) {
-            ColossalReactors.LOGGER.warn("Failed to register GuideME guide: {}", e.getMessage());
+            ColossalReactors.LOGGER.error("Failed to register GuideME guide", e);
             REGISTERED.set(false);
         }
+    }
+
+    public static ItemStack createGuideItemStack() {
+        if (!ModList.get().isLoaded("guideme")) {
+            return ItemStack.EMPTY;
+        }
+        return Guides.createGuideItem(GUIDE_ID);
     }
 }

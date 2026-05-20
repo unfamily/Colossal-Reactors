@@ -22,6 +22,7 @@ import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 import net.unfamily.colossal_reactors.radiation_scrubber.RadiationScrubberCatalystsLoader;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +60,9 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReactorDataReloadListener.class);
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+
+    @Nullable
+    private static ReactorReloadLoadedData lastLoadedData;
 
     private static final String TYPE_FUEL = "colossal_reactors:fuel";
     private static final String TYPE_COOLANT = "colossal_reactors:coolant";
@@ -136,17 +140,34 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
 
     @Override
     protected void apply(ReactorReloadLoadedData data, ResourceManager resourceManager, ProfilerFiller profiler) {
-        profiler.push("Colossal Reactors apply");
+        lastLoadedData = data;
+        applyToLoaders(data, profiler);
+    }
+
+    /** Re-apply last datapack payload when client world is ready (registry tags bound). */
+    public static void refreshFromLastLoaded() {
+        if (lastLoadedData != null) {
+            applyToLoaders(lastLoadedData, null);
+        }
+    }
+
+    private static void applyToLoaders(ReactorReloadLoadedData data, @Nullable ProfilerFiller profiler) {
+        if (profiler != null) {
+            profiler.push("Colossal Reactors apply");
+        }
         FuelLoader.applyLoaded(data.fuel());
         CoolantLoader.applyLoaded(data.coolant());
         HeatSinkLoader.applyLoaded(data.heatSinks());
         MelterRecipesLoader.applyLoaded(data.melterRecipes());
         MelterHeatsLoader.applyLoaded(data.melterHeats());
         RadiationScrubberCatalystsLoader.applyLoaded(data.radiationScrubberCatalysts(), data.radiationScrubberMult(), data.radiationScrubberGasMult());
-        profiler.pop();
+        if (profiler != null) {
+            profiler.pop();
+        }
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s)",
+            LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink entries in datapack, {} applied after sanitize, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s)",
                     data.fuel().size(), data.coolant().size(), data.heatSinks().size(),
+                    HeatSinkLoader.getAllDefinitions().size(),
                     data.melterRecipes().size(), data.melterHeats().size(), data.radiationScrubberCatalysts().size());
         }
     }

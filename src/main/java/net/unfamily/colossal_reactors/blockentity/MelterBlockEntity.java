@@ -46,7 +46,9 @@ import org.slf4j.LoggerFactory;
 public class MelterBlockEntity extends BlockEntity implements MenuProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MelterBlockEntity.class);
-    private static final int TANK_CAPACITY_MB = 4000;
+    private static int getTankCapacityMb() {
+        return Config.MELTER_TANK_CAPACITY_MB.get();
+    }
     /** Log at most every this many ticks when melter has input but does not advance (debug). */
     private static final int DEBUG_LOG_INTERVAL = 80;
     private static final String TAG_ITEMS = "Items";
@@ -61,7 +63,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         }
     };
 
-    private final FluidTank fluidTank = new FluidTank(TANK_CAPACITY_MB) {
+    private final FluidTank fluidTank = new FluidTank(getTankCapacityMb()) {
         @Override
         protected void onContentsChanged() {
             setChanged();

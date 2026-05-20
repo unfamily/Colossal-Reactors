@@ -41,6 +41,7 @@ import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.reactor.ReactorBuildMaterialCounter;
 import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 
 import java.util.ArrayList;
@@ -130,6 +131,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_ROW_WARNING_MESSAGE_Y = PREVIEW_BUTTON_Y;
     /** Second row of right buttons: aligned with Mark Input (left column). */
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
+    /** Calculate: column 2, directly under Pattern Mode (Optimized); row 2 buttons stay at RIGHT_ROW1_Y. */
+    private static final int CALCULATE_BUTTON_Y = RIGHT_ROW0_Y + RIGHT_BUTTON_H + GAP;
     /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 
@@ -149,8 +152,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int COOLANT_BUTTON_RIGHT_INSET = SIM_BUTTONS_HORIZONTAL_INSET;
     private static final int COOLANT_BUTTON_BOTTOM_INSET = 13;
 
-    /** Simulation view mode: same screen, different content (like Deep Drawer how to use / valid keys). */
-    private boolean isSimulationView = false;
+    private enum ViewMode { BUILDER, SIMULATION, CALCULATE }
+
+    /** Builder / simulation / calculate view on the same screen (like Deep Drawer sub-views). */
+    private ViewMode viewMode = ViewMode.BUILDER;
     /** Index into ordered coolant list for simulation view (which coolant type is shown). */
     private int simulationCoolantIndex = 0;
     /** Index into ordered fuel list for simulation view (which fuel type is shown). Default uranium if present. */
@@ -188,6 +193,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button coolantCycleButton;
     /** Shown only in simulation view: cycles fuel type (next to coolant). */
     private Button fuelCycleButton;
+    /** Shown in builder view: opens material estimate panel. */
+    private Button calculateButton;
 
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
@@ -256,6 +263,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                     .build();
             addRenderableWidget(rightBlockButtons[i]);
         }
+        calculateButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.calculate"), b -> switchToCalculateView())
+                .bounds(leftPos + RIGHT_COL2_X, topPos + CALCULATE_BUTTON_Y, RIGHT_BUTTON_W, RIGHT_BUTTON_H)
+                .build();
+        calculateButton.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.calculate.tooltip")));
+        addRenderableWidget(calculateButton);
         int coolantY = topPos + imageHeight - COOLANT_BUTTON_H - COOLANT_BUTTON_BOTTOM_INSET;
         int fuelX = leftPos + SIM_BUTTONS_HORIZONTAL_INSET;
         int coolantX = fuelX + FUEL_BUTTON_W + SIM_BUTTONS_GAP;
@@ -275,7 +287,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     public void containerTick() {
         super.containerTick();
         // Match StructureSaverMachineScreen / DeepDrawers: refresh labels in tick, not every extractLabels frame.
-        if (!isSimulationView) {
+        if (viewMode == ViewMode.BUILDER) {
             updateButtonTooltips();
         }
     }
@@ -425,7 +437,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void onCloseButtonClicked() {
-        if (isSimulationView) {
+        if (viewMode != ViewMode.BUILDER) {
             switchToBuilderView();
         } else {
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
@@ -433,19 +445,25 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void switchToSimulationView() {
-        isSimulationView = true;
+        viewMode = ViewMode.SIMULATION;
+        menu.setHideAllSlotsForSimulationView(true);
+        updateWidgetVisibility();
+    }
+
+    private void switchToCalculateView() {
+        viewMode = ViewMode.CALCULATE;
         menu.setHideAllSlotsForSimulationView(true);
         updateWidgetVisibility();
     }
 
     private void switchToBuilderView() {
-        isSimulationView = false;
+        viewMode = ViewMode.BUILDER;
         menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
     }
 
     private void updateWidgetVisibility() {
-        boolean showBuilder = !isSimulationView;
+        boolean showBuilder = viewMode == ViewMode.BUILDER;
         buttonUp.visible = showBuilder;
         buttonLeft.visible = showBuilder;
         buttonRight.visible = showBuilder;
@@ -454,13 +472,14 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonMarkInput.visible = showBuilder;
         buttonDumpFluid.visible = showBuilder;
         for (Button b : rightBlockButtons) b.visible = showBuilder;
+        if (calculateButton != null) calculateButton.visible = showBuilder;
         if (coolantCycleButton != null) {
-            coolantCycleButton.visible = isSimulationView;
-            if (isSimulationView) updateCoolantButtonLabel();
+            coolantCycleButton.visible = viewMode == ViewMode.SIMULATION;
+            if (viewMode == ViewMode.SIMULATION) updateCoolantButtonLabel();
         }
         if (fuelCycleButton != null) {
-            fuelCycleButton.visible = isSimulationView;
-            if (isSimulationView) updateFuelButtonLabel();
+            fuelCycleButton.visible = viewMode == ViewMode.SIMULATION;
+            if (viewMode == ViewMode.SIMULATION) updateFuelButtonLabel();
         }
     }
 
@@ -599,12 +618,12 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int x = (int) event.x();
         int y = (int) event.y();
         if (event.button() == 1) {
-            if (isSimulationView && coolantCycleButton != null && coolantCycleButton.visible && isInWidget(x, y, coolantCycleButton)) {
+            if (viewMode == ViewMode.SIMULATION && coolantCycleButton != null && coolantCycleButton.visible && isInWidget(x, y, coolantCycleButton)) {
                 playGuiClickSound();
                 cycleSimulationCoolant(false);
                 return true;
             }
-            if (isSimulationView && fuelCycleButton != null && fuelCycleButton.visible && isInWidget(x, y, fuelCycleButton)) {
+            if (viewMode == ViewMode.SIMULATION && fuelCycleButton != null && fuelCycleButton.visible && isInWidget(x, y, fuelCycleButton)) {
                 playGuiClickSound();
                 cycleSimulationFuel(false);
                 return true;
@@ -685,7 +704,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
-        if (isSimulationView) {
+        if (viewMode != ViewMode.BUILDER) {
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SIMULATION_BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
         } else {
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
@@ -774,6 +793,44 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
     }
 
+    private void renderCalculatePanel(GuiGraphicsExtractor guiGraphics) {
+        ReactorBuildMaterialCounter.BuildMaterialCounts counts = getCalculateCounts();
+        int y = SIM_PANEL_Y;
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.frame_casings", counts.frameCasings()),
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.face_casings", counts.faceCasings()),
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.rods", counts.rods()),
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.rod_controllers", counts.rodControllers()),
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.heat_sinks", counts.heatSinkCells()),
+                SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+        y += SIM_LINE_HEIGHT;
+        if (HeatSinkLoader.requiresLiquidPlacement(menu.getHeatSinkIndex()) && counts.heatSinkCells() > 0) {
+            guiGraphics.text(font,
+                    Component.translatable("gui.colossal_reactors.reactor_builder.calculate.fluid_mb", counts.estimatedFluidMb()),
+                    SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+        }
+    }
+
+    private ReactorBuildMaterialCounter.BuildMaterialCounts getCalculateCounts() {
+        int sizeLeft = menu.getSizeRight();
+        int sizeRight = menu.getSizeLeft();
+        return ReactorBuildMaterialCounter.estimate(
+                sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
+                menu.getRodPattern(), menu.getPatternMode(), menu.getHeatSinkIndex(), menu.isOpenTop());
+    }
+
     /** Current coolant for simulation: null = None (index 0), else the selected definition. */
     private CoolantDefinition getSimulationCoolantDef() {
         if (simulationCoolantIndex <= 0) return null;
@@ -818,11 +875,18 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
-        if (isSimulationView) {
+        if (viewMode == ViewMode.SIMULATION) {
             renderSimulationPanel(guiGraphics);
             Component simTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
             int titleX = (imageWidth - font.width(simTitle)) / 2;
             guiGraphics.text(font, simTitle, titleX, 6, GuiTextColors.TITLE, false);
+            return;
+        }
+        if (viewMode == ViewMode.CALCULATE) {
+            renderCalculatePanel(guiGraphics);
+            Component calcTitle = Component.translatable("gui.colossal_reactors.reactor_builder.calculate");
+            int titleX = (imageWidth - font.width(calcTitle)) / 2;
+            guiGraphics.text(font, calcTitle, titleX, 6, GuiTextColors.TITLE, false);
             return;
         }
 
@@ -859,7 +923,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     public void extractContents(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.extractContents(guiGraphics, mouseX, mouseY, partialTick);
-        if (!isSimulationView) {
+        if (viewMode == ViewMode.BUILDER) {
             renderMarkInputGhosts(guiGraphics);
         }
     }
@@ -888,7 +952,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         super.extractTooltip(guiGraphics, mouseX, mouseY);
-        if (isSimulationView) return;
+        if (viewMode != ViewMode.BUILDER) return;
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
         if (mouseX >= left && mouseX < left + FLUID_FILL_WIDTH && mouseY >= top && mouseY < top + FLUID_FILL_HEIGHT) {
@@ -913,8 +977,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        if (isSimulationView) {
-            // Same pipeline as AbstractContainerScreen: widgets, translated labels (sim stats), slots, tooltips.
+        if (viewMode != ViewMode.BUILDER) {
+            // Same pipeline as AbstractContainerScreen: widgets, translated labels (panel stats), slots, tooltips.
             extractContents(guiGraphics, mouseX, mouseY, partialTick);
             extractCarriedItem(guiGraphics, mouseX, mouseY);
             extractSnapbackItem(guiGraphics);
@@ -926,7 +990,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (isSimulationView && event.isEscape()) {
+        if (viewMode != ViewMode.BUILDER && event.isEscape()) {
             switchToBuilderView();
             return true;
         }

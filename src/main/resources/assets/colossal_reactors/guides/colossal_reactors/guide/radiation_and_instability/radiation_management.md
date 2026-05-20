@@ -1,9 +1,4 @@
 ---
-navigation:
-  parent: radiation_and_instability/risk-index.md
-  title: Radiation management
-  icon: radiation_scrubber
-  position: 10
 item_ids:
   - colossal_reactors:radiation_scrubber
   - colossal_reactors:radiation_cure
