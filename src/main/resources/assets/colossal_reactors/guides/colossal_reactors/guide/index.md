@@ -6,7 +6,7 @@ navigation:
 
 # Colossal Reactors
 
-Colossal Reactors adds multiblock fission reactors and supporting machines. This guide describes **how you interact** with blocks, ports, and processing machines in-game.
+Colossal Reactors adds multiblock **fission reactors**, **steam turbines**, and supporting machines. This guide describes **how you interact** with blocks, ports, and processing machines in-game.
 
 ## Contents
 

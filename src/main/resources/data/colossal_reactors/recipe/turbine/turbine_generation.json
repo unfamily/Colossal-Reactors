@@ -1,0 +1,13 @@
+{
+  "type": "colossal_reactors:coolant",
+  "entries": [
+    {
+      "coolant_id": "colossal_reactors:water",
+      "inputs": [
+        "#c:steam"
+      ],
+      "output": "minecraft:water",
+      "rf_production": 7
+    }
+  ]
+}

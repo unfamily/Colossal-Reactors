@@ -9,6 +9,8 @@ public final class GuiTextColors {
     public static final int BODY = 0xFF404040;
     /** Primary label text on dark GUI panels (legacy {@code 0xFFFFFF}). */
     public static final int PANEL_WHITE = 0xFFFFFFFF;
+    /** Section headers and {@code Status:} prefix on dark panels. */
+    public static final int PANEL_YELLOW_LIGHT = 0xFFFFDD88;
     public static final int ERROR = 0xFFFF0000;
 
     private GuiTextColors() {}

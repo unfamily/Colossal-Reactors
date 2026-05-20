@@ -49,21 +49,18 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Reactor Builder GUI. Background reactor_builder.png 230x240; simulation uses reactor_controller.png 230x300.
+ * Reactor Builder GUI. Background reactor_builder.png 230x240; simulation uses reactor_controller.png 230x240.
  * Like Deep Drawer Extractor: Simulation is a view mode (isSimulationView) on the same screen, not a separate Screen.
  */
 public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilderMenu> {
 
     private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(
             ColossalReactors.MODID, "textures/gui/reactor_builder.png");
-    private static final Identifier SIMULATION_BACKGROUND = Identifier.fromNamespaceAndPath(
-            ColossalReactors.MODID, "textures/gui/reactor_controller.png");
-
-    private static final int GUI_WIDTH = 230;
+    private static final int GUI_WIDTH = ReactorControllerGui.WIDTH;
     /** Builder inventory GUI ({@code reactor_builder.png}). */
     private static final int BUILDER_GUI_HEIGHT = 240;
     /** Reactor panel in simulation view ({@code reactor_controller.png}). */
-    private static final int REACTOR_GUI_HEIGHT = 300;
+    private static final int REACTOR_GUI_HEIGHT = ReactorControllerGui.HEIGHT;
 
     /** Close button (X): top right */
     private static final int CLOSE_BUTTON_Y = 5;
@@ -139,7 +136,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     /** Simulation view panel (same layout as reactor controller). */
     private static final int SIM_PANEL_X = 16;
-    private static final int SIM_PANEL_Y = 29;
+    private static final int SIM_PANEL_Y = GuiPanelScrollbar.TEXT_TOP;
     private static final int SIM_LINE_HEIGHT = 12;
     /** Stats lines on simulation panel (same as reactor controller GUI). */
     private static final int SIM_STATS_COLOR = GuiTextColors.PANEL_WHITE;
@@ -194,6 +191,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button coolantCycleButton;
     /** Shown only in simulation view: cycles fuel type (next to coolant). */
     private Button fuelCycleButton;
+    private final GuiPanelScrollbar simulationScrollbar = new GuiPanelScrollbar();
+
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
         // Window tall enough for simulation ({@code reactor_controller.png}); builder background uses {@link #BUILDER_GUI_HEIGHT}.
         super(menu, playerInventory, title, GUI_WIDTH, REACTOR_GUI_HEIGHT);
@@ -274,6 +273,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 .bounds(fuelX, coolantY, FUEL_BUTTON_W, COOLANT_BUTTON_H)
                 .build();
         addRenderableWidget(fuelCycleButton);
+        simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
     }
 
@@ -440,12 +440,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void switchToSimulationView() {
         viewMode = ViewMode.SIMULATION;
+        simulationScrollbar.resetScroll();
         menu.setHideAllSlotsForSimulationView(true);
+        simulationScrollbar.ensureButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
     }
 
     private void switchToBuilderView() {
         viewMode = ViewMode.BUILDER;
+        simulationScrollbar.disposeButtons(this::removeWidget);
         menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
     }
@@ -602,6 +605,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (viewMode == ViewMode.SIMULATION && event.button() == 0 && simulationScrollbar.mouseClicked(event.x(), event.y(), leftPos, topPos)) {
+            return true;
+        }
         int x = (int) event.x();
         int y = (int) event.y();
         if (event.button() == 1) {
@@ -672,6 +678,30 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
     }
 
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (event.button() == 0) {
+            simulationScrollbar.mouseReleased();
+        }
+        return super.mouseReleased(event);
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        simulationScrollbar.mouseMoved(mouseY);
+        super.mouseMoved(mouseX, mouseY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (viewMode == ViewMode.SIMULATION
+                && simulationScrollbar.isInPanelArea(mouseX, mouseY, leftPos, topPos, SIM_PANEL_X)
+                && simulationScrollbar.mouseScrolled(scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
     private static boolean isInBounds(int x, int y, int left, int top) {
         return x >= left && x < left + BUTTON_W && y >= top && y < top + BUTTON_H;
     }
@@ -692,7 +722,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
         if (viewMode != ViewMode.BUILDER) {
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SIMULATION_BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, REACTOR_GUI_HEIGHT, GUI_WIDTH, REACTOR_GUI_HEIGHT);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ReactorControllerGui.BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, REACTOR_GUI_HEIGHT, GUI_WIDTH, REACTOR_GUI_HEIGHT);
         } else {
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, BUILDER_GUI_HEIGHT, GUI_WIDTH, BUILDER_GUI_HEIGHT);
             int amount = menu.getFluidAmount();
@@ -713,58 +743,62 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         }
     }
 
-    /** Drawn inside {@code extractContents} pose translate({@code leftPos}, {@code topPos}) — coordinates are GUI-local. */
-    private void renderSimulationPanel(GuiGraphicsExtractor guiGraphics) {
-        int y = SIM_PANEL_Y;
-        Component statusKey = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
-        Component statusLine = Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey);
-        guiGraphics.text(font, statusLine, SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+    /** GUI-local coords inside {@code extractContents} translate. Order: status+stats, blank, required-for-build. */
+    private int renderSimulationPanel(GuiGraphicsExtractor guiGraphics) {
+        int y = SIM_PANEL_Y - simulationScrollbar.getScrollOffset();
+        int contentStart = y;
+        y = renderSimulationStatusAndStats(guiGraphics, y);
+        y += SIM_LINE_HEIGHT;
+        y = renderSimulationBuildRequirements(guiGraphics, y);
+        return y - contentStart;
+    }
+
+    private int renderSimulationStatusAndStats(GuiGraphicsExtractor guiGraphics, int y) {
+        ReactorPanelText.drawStatusLine(guiGraphics, font, SIM_PANEL_X, y,
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation"), null);
         y += SIM_LINE_HEIGHT;
 
-        // Simulator is always "ON": run virtual tick and show computed stats
         ReactorSimulation.SimulationResult result = getSimulationResult();
         int rodCount = result.rodCount();
-        int rodColumns = result.rodColumns();
-        int coolantBlocks = result.coolantBlockCount();
-        long energyPerTick = result.rfPerTick();
-        int coolantConsumed = result.coolantConsumedPerTick();
-        int steamPerTick = result.steamPerTick();
         String fuelStr = formatFuelPerTickSim(result.fuelPerTickHundredths());
 
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.rods", rodCount, rodColumns),
+                Component.translatable("gui.colossal_reactors.reactor_controller.rods", rodCount, result.rodColumns()),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", coolantBlocks),
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks",
+                        GuiNumberFormat.format(result.coolantBlockCount())),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", Long.toString(energyPerTick)),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production",
+                        GuiNumberFormat.format(result.rfPerTick())),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", coolantConsumed),
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume",
+                        GuiNumberFormat.format(result.coolantConsumedPerTick())),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", steamPerTick),
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production",
+                        GuiNumberFormat.format(result.steamPerTick())),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-
-        long fuelCap = (long) rodCount * (long) Config.ROD_MAX_FUEL_UNITS.get();
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_capacity", fuelCap),
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_capacity",
+                        GuiNumberFormat.format((long) rodCount * (long) Config.ROD_MAX_FUEL_UNITS.get())),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
-
-        long coolantCap = (long) rodCount * (long) net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity.getCoolantCapacityMb();
         guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_capacity", coolantCap),
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_capacity",
+                        GuiNumberFormat.format((long) rodCount
+                                * (long) net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity.getCoolantCapacityMb())),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         y += SIM_LINE_HEIGHT;
 
@@ -779,12 +813,18 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             guiGraphics.text(font, state, SIM_PANEL_X + font.width(stabilityLabel), y, stateColor, false);
             y += SIM_LINE_HEIGHT;
         }
-
-        y += SIM_LINE_HEIGHT;
-        renderMaterialCounts(guiGraphics, y);
+        return y;
     }
 
-    private void renderMaterialCounts(GuiGraphicsExtractor guiGraphics, int y) {
+    private int renderSimulationBuildRequirements(GuiGraphicsExtractor guiGraphics, int y) {
+        guiGraphics.text(font,
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.required_for_build"),
+                SIM_PANEL_X, y, GuiTextColors.PANEL_YELLOW_LIGHT, false);
+        y += SIM_LINE_HEIGHT;
+        return renderMaterialCounts(guiGraphics, y);
+    }
+
+    private int renderMaterialCounts(GuiGraphicsExtractor guiGraphics, int y) {
         ReactorBuildMaterialCounter.BuildMaterialCounts counts = getMaterialCounts();
         guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_builder.calculate.frame_casings", counts.frameCasings()),
@@ -810,7 +850,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             guiGraphics.text(font,
                     Component.translatable("gui.colossal_reactors.reactor_builder.calculate.fluid_mb", counts.estimatedFluidMb()),
                     SIM_PANEL_X, y, SIM_STATS_COLOR, false);
+            y += SIM_LINE_HEIGHT;
         }
+        return y;
     }
 
     private ReactorBuildMaterialCounter.BuildMaterialCounts getMaterialCounts() {
@@ -857,6 +899,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static String formatFuelPerTickSim(int hundredths) {
         if (hundredths <= 0) return "0";
         int intPart = hundredths / 100;
+        if (intPart >= 1000) {
+            return GuiNumberFormat.format(hundredths / 100.0);
+        }
         int frac = hundredths % 100;
         if (frac == 0) return String.valueOf(intPart);
         String fracStr = String.format("%02d", frac).replaceFirst("0+$", "");
@@ -866,7 +911,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         if (viewMode == ViewMode.SIMULATION) {
-            renderSimulationPanel(guiGraphics);
+            // Scissor coords are GUI-local; pose is already translated by extractContents.
+            guiGraphics.enableScissor(SIM_PANEL_X, SIM_PANEL_Y, GuiPanelScrollbar.TEXT_RIGHT, GuiPanelScrollbar.TEXT_BOTTOM);
+            int contentHeight = renderSimulationPanel(guiGraphics);
+            guiGraphics.disableScissor();
+            simulationScrollbar.setContentHeight(contentHeight);
             Component simTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation");
             int titleX = (imageWidth - font.width(simTitle)) / 2;
             guiGraphics.text(font, simTitle, titleX, 6, GuiTextColors.TITLE, false);
@@ -960,8 +1009,8 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (viewMode != ViewMode.BUILDER) {
-            // Same pipeline as AbstractContainerScreen: widgets, translated labels (panel stats), slots, tooltips.
             extractContents(guiGraphics, mouseX, mouseY, partialTick);
+            simulationScrollbar.render(guiGraphics, leftPos, topPos);
             extractCarriedItem(guiGraphics, mouseX, mouseY);
             extractSnapbackItem(guiGraphics);
             extractTooltip(guiGraphics, mouseX, mouseY);
@@ -981,6 +1030,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     @Override
     public void onClose() {
+        simulationScrollbar.disposeButtons(this::removeWidget);
         menu.setHideAllSlotsForSimulationView(false);
         super.onClose();
     }
