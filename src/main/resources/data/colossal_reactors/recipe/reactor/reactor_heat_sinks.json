@@ -42,19 +42,19 @@
     {
       "valid_blocks": ["#c:storage_blocks/ruby"],
       "fuel": 1.3,
-      "energy": 1.35,
+      "energy": 1.3,
       "overheating": 1.75
     },
     {
       "valid_blocks": ["#c:storage_blocks/sapphire"],
       "fuel": 1.3,
-      "energy": 1.35,
+      "energy": 1.3,
       "overheating": 1.75
     },
     {
       "valid_blocks": ["#c:storage_blocks/peridot"],
       "fuel": 1.4,
-      "energy": 1.38,
+      "energy": 1.4,
       "overheating": 1.76
     },
     {

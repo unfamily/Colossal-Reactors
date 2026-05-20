@@ -16,7 +16,7 @@ categories:
 
 Attach a **Resource Port** to the reactor casing to move items and/or fluids between the outside world and the reactor’s internal buffers.
 
-## Funzionalità
+## Features
 
 - **Mode** cycles how the port behaves toward the reactor (insert items/fluid, extract, or eject to world—exact names appear on the button).
 

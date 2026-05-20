@@ -40,6 +40,9 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
 
     private final @Nullable ReactorBuilderBlockEntity blockEntity;
 
+    /** Client: hide slots while simulation/calculate view is active. */
+    private boolean hideAllSlotsForSimulationView;
+
     public ReactorBuilderMenu(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
         this(containerId, playerInventory, playerInventory.player.level().getBlockEntity(buf.readBlockPos()));
     }
@@ -75,7 +78,12 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         for (int row = 0; row < BUFFER_ROWS; row++) {
             for (int col = 0; col < BUFFER_COLS; col++) {
                 int index = col + row * BUFFER_COLS;
-                addSlot(new SlotItemHandler(handler, index, BUFFER_X + col * 18, BUFFER_Y + row * 18));
+                addSlot(new SlotItemHandler(handler, index, BUFFER_X + col * 18, BUFFER_Y + row * 18) {
+                    @Override
+                    public boolean isActive() {
+                        return !hideAllSlotsForSimulationView;
+                    }
+                });
             }
         }
     }
@@ -84,12 +92,26 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 int invSlot = col + row * 9 + 9;
-                addSlot(new Slot(playerInventory, invSlot, PLAYER_X + col * 18, PLAYER_Y + row * 18));
+                addSlot(new Slot(playerInventory, invSlot, PLAYER_X + col * 18, PLAYER_Y + row * 18) {
+                    @Override
+                    public boolean isActive() {
+                        return !hideAllSlotsForSimulationView;
+                    }
+                });
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y));
+            addSlot(new Slot(playerInventory, col, PLAYER_X + col * 18, HOTBAR_Y) {
+                @Override
+                public boolean isActive() {
+                    return !hideAllSlotsForSimulationView;
+                }
+            });
         }
+    }
+
+    public void setHideAllSlotsForSimulationView(boolean hide) {
+        this.hideAllSlotsForSimulationView = hide;
     }
 
     public ItemStack getMarkInputFilter(int slot) {

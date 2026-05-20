@@ -2,7 +2,7 @@
 navigation:
   parent: machines/machines-index.md
   title: Heating coils
-  icon: reactor_casing
+  icon: heating_coil_energy_off
   position: 50
 ---
 
@@ -10,4 +10,4 @@ navigation:
 
 Heating coils are specialized blocks driven by **datapack-defined recipes**: each coil type may consume **items**, **fluid**, **energy**, or combinations, and switches between **off** and **on** visuals when running.
 
-* [Using heating coils](heating_coils.md)
+<SubPages icons={true} />

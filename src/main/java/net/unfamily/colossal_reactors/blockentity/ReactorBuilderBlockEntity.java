@@ -84,7 +84,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final int MIN_SIZE = 1;
 
     private static int getTankCapacityMb() {
-        return Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
+        return Config.REACTOR_BUILDER_TANK_CAPACITY_MB.get();
     }
 
     private static int getMaxWidth() {

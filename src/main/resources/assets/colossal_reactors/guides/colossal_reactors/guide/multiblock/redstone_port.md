@@ -16,7 +16,7 @@ categories:
 
 The **Redstone Port** connects reactor telemetry to redstone (for example comparator strength or reacting to dust/torch input, depending on version).
 
-## Funzionalità
+## Features
 
 - **Right-click** to open the configuration screen and choose how reactor state maps to redstone. Hover tooltips on buttons explain each mode.
 

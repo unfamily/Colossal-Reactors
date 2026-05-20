@@ -6,7 +6,7 @@
   "pattern": [
     " B ",
     "BAB",
-    " A "
+    " B "
   ],
   "key": {
     "A": { "item": "colossal_reactors:power_port" },

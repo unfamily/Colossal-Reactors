@@ -76,6 +76,8 @@ public class ColossalReactors {
         modEventBus.addListener(this::gatherData);
         modEventBus.addListener(this::registerCapabilities);
 
+        // GuideME is client-only; ModList check is enough on dedicated servers.
+        GuideMeRegistration.register();
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -162,7 +164,6 @@ public class ColossalReactors {
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
-                GuideMeRegistration.register();
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());

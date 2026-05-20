@@ -9,6 +9,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.client.GuideMeRegistration;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 
 public class ModCreativeModeTabs {
@@ -22,6 +23,10 @@ public class ModCreativeModeTabs {
                             .title(Component.translatable("itemGroup.colossal_reactors"))
                             .icon(() -> new ItemStack(ModItems.REACTOR_CONTROLLER.get()))
                             .displayItems((params, output) -> {
+                                var guide = GuideMeRegistration.createGuideItemStack();
+                                if (!guide.isEmpty()) {
+                                    output.accept(guide);
+                                }
                                 output.accept(ModItems.REACTOR_CONTROLLER.get());
                                 output.accept(ModItems.REACTOR_BUILDER.get());
                                 output.accept(ModItems.REACTOR_GLASS.get());

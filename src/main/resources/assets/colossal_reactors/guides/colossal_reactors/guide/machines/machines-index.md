@@ -10,5 +10,4 @@ navigation:
 
 Standalone processing blocks (not casing ports).
 
-* [Melter](melter.md)
-* [Heating coils](heating_coils/heating_coils-index.md)
+<SubPages icons={true} />
