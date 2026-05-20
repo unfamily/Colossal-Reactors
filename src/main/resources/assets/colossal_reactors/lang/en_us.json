@@ -202,7 +202,7 @@
   "gui.colossal_reactors.reactor_builder.calculate.rods": "Rods: %s",
   "gui.colossal_reactors.reactor_builder.calculate.rod_controllers": "Rod Controllers: %s",
   "gui.colossal_reactors.reactor_builder.calculate.heat_sinks": "Heat Sinks: %s",
-  "gui.colossal_reactors.reactor_builder.calculate.fluid_mb": "Fluid (est.): %s mB",
+  "gui.colossal_reactors.reactor_builder.calculate.fluid_mb": "Fluid Heat Sinks: %s mB",
   "gui.colossal_reactors.reactor_builder.simulation.tooltip": "Simulates reactor stats and estimates resources needed to build it.",
   "gui.colossal_reactors.reactor_builder.simulation.coolant_label": "Coolant",
   "gui.colossal_reactors.reactor_builder.simulation.coolant_none": "None",
