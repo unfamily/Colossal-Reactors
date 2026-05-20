@@ -35,9 +35,8 @@ public final class MelterRecipesLoader {
     public static void applyLoaded(List<MelterRecipe> loaded) {
         RECIPES.clear();
         if (loaded == null || loaded.isEmpty()) return;
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         for (MelterRecipe recipe : loaded) {
-            if (DatapackSelectorValidator.isMelterRecipeResolvable(recipe, access)) {
+            if (DatapackSelectorValidator.isMelterRecipeResolvable(recipe)) {
                 RECIPES.add(recipe);
             }
         }

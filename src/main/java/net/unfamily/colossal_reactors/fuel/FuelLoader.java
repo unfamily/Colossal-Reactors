@@ -48,28 +48,13 @@ public class FuelLoader {
      */
     public static void applyLoaded(Map<ResourceLocation, FuelDefinition> loaded) {
         DEFINITIONS.clear();
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         registerInternalDefaults();
-        sanitizeRegisteredFuels(access);
         if (loaded != null) {
             for (FuelDefinition def : loaded.values()) {
-                FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(def, access);
+                FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(def);
                 if (sanitized != null) {
                     processEntry(sanitized);
                 }
-            }
-        }
-    }
-
-    private static void sanitizeRegisteredFuels(RegistryAccess access) {
-        var it = DEFINITIONS.entrySet().iterator();
-        while (it.hasNext()) {
-            var entry = it.next();
-            FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(entry.getValue(), access);
-            if (sanitized == null) {
-                it.remove();
-            } else {
-                entry.setValue(sanitized);
             }
         }
     }

@@ -1,6 +1,5 @@
 package net.unfamily.colossal_reactors.heatingcoil;
 
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
@@ -44,9 +43,8 @@ public final class HeatingCoilRegistry {
             }
             try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 List<HeatingCoilDefinition> list = HeatingCoilLoader.parse(reader, "builtin");
-                RegistryAccess access = DatapackSelectorValidator.registryAccess();
                 for (HeatingCoilDefinition def : list) {
-                    DEFINITIONS.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def, access));
+                    DEFINITIONS.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
                 }
                 builtinCoilIds = list.stream().map(HeatingCoilDefinition::id).toList();
                 LOGGER.info("Loaded {} builtin heating coil(s)", builtinCoilIds.size());
@@ -68,13 +66,12 @@ public final class HeatingCoilRegistry {
             LOGGER.debug("Load data reload: no heating coil definitions, keeping existing registry");
             return;
         }
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         Map<ResourceLocation, HeatingCoilDefinition> merged = new HashMap<>();
         try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
             if (stream != null) {
                 try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                     for (HeatingCoilDefinition def : HeatingCoilLoader.parse(reader, "builtin")) {
-                        merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def, access));
+                        merged.put(def.id(), def);
                     }
                 }
             }
@@ -82,7 +79,7 @@ public final class HeatingCoilRegistry {
             LOGGER.debug("Could not re-merge builtin heating coils on reload: {}", e.getMessage());
         }
         for (HeatingCoilDefinition def : loaded.values()) {
-            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def, access));
+            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
         }
         DEFINITIONS.clear();
         DEFINITIONS.putAll(merged);

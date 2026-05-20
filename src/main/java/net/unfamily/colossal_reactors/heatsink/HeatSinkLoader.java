@@ -80,22 +80,16 @@ public final class HeatSinkLoader {
      */
     public static void applyLoaded(List<HeatSinkDefinition> loaded) {
         DEFINITIONS.clear();
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         if (loaded != null && !loaded.isEmpty()) {
             for (HeatSinkDefinition def : loaded) {
-                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def, access);
+                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def);
                 if (sanitized != null) {
                     DEFINITIONS.add(sanitized);
                 }
             }
         }
         if (DEFINITIONS.isEmpty()) {
-            for (HeatSinkDefinition def : buildInternalDefaults()) {
-                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def, access);
-                if (sanitized != null) {
-                    DEFINITIONS.add(sanitized);
-                }
-            }
+            DEFINITIONS.addAll(buildInternalDefaults());
         }
     }
 

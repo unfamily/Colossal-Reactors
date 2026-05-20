@@ -3,7 +3,6 @@ package net.unfamily.colossal_reactors.melter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import org.slf4j.Logger;
@@ -31,9 +30,8 @@ public final class MelterHeatsLoader {
     public static void applyLoaded(List<MelterHeatEntry> loaded) {
         ENTRIES.clear();
         if (loaded == null || loaded.isEmpty()) return;
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         for (MelterHeatEntry entry : loaded) {
-            MelterHeatEntry sanitized = DatapackSelectorValidator.sanitizeMelterHeat(entry, access);
+            MelterHeatEntry sanitized = DatapackSelectorValidator.sanitizeMelterHeat(entry);
             if (sanitized != null) {
                 ENTRIES.add(sanitized);
             }

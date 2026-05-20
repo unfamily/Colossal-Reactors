@@ -2,7 +2,6 @@ package net.unfamily.colossal_reactors.radiation_scrubber;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.core.RegistryAccess;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -28,9 +27,8 @@ public final class RadiationScrubberCatalystsLoader {
 
     /** Applied by ReactorDataReloadListener after merging all datapack files. */
     public static void applyLoaded(List<String> catalystsList, int multValue, int gasMultValue) {
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         catalysts = catalystsList != null
-                ? DatapackSelectorValidator.filterCatalystSelectors(catalystsList, access)
+                ? DatapackSelectorValidator.filterCatalystSelectors(catalystsList)
                 : new ArrayList<>();
         effectiveness = Math.max(1, multValue);
         gasDestroyMult = gasMultValue >= 1 ? gasMultValue : 1;
