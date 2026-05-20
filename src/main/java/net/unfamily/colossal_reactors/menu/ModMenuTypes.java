@@ -28,6 +28,13 @@ public class ModMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<ReactorBuilderMenu>> REACTOR_BUILDER_MENU =
             MENUS.register("reactor_builder", () -> IMenuTypeExtension.create(ReactorBuilderMenu::new));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<TurbineControllerMenu>> TURBINE_CONTROLLER_MENU =
+            MENUS.register("turbine_controller", () ->
+                    new MenuType<>(TurbineControllerMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<TurbineBuilderMenu>> TURBINE_BUILDER_MENU =
+            MENUS.register("turbine_builder", () -> IMenuTypeExtension.create(TurbineBuilderMenu::new));
+
     public static final DeferredHolder<MenuType<?>, MenuType<HeatingCoilMenu>> HEATING_COIL_MENU =
             MENUS.register("heating_coil", () ->
                     new MenuType<>(HeatingCoilMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));

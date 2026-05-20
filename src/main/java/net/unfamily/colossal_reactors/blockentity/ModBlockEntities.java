@@ -48,6 +48,16 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(ReactorBuilderBlockEntity::new,
                             ModBlocks.REACTOR_BUILDER.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineBuilderBlockEntity>> TURBINE_BUILDER_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_builder",
+                    () -> BlockEntityType.Builder.of(TurbineBuilderBlockEntity::new,
+                            ModBlocks.TURBINE_BUILDER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineControllerBlockEntity>> TURBINE_CONTROLLER_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_controller",
+                    () -> BlockEntityType.Builder.of(TurbineControllerBlockEntity::new,
+                            ModBlocks.TURBINE_CONTROLLER.get()).build(null));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HeatingCoilBlockEntity>> HEATING_COIL_BE =
             BLOCK_ENTITY_TYPES.register("heating_coil",
                     () -> BlockEntityType.Builder.of(HeatingCoilBlockEntity::new,

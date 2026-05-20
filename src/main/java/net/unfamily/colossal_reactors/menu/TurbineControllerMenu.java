@@ -1,0 +1,193 @@
+package net.unfamily.colossal_reactors.menu;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.SimpleContainerData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.unfamily.colossal_reactors.block.ControllerState;
+import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
+import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
+import net.unfamily.colossal_reactors.reactor.ReactorValidation;
+
+/**
+ * Menu for Reactor OS GUI when controller is ON. Syncs reactor stats and state for the dark panel.
+ */
+public class TurbineControllerMenu extends AbstractContainerMenu {
+
+    private final ContainerLevelAccess levelAccess;
+    private final ContainerData data;
+
+    private static final int INDEX_STATE = 0;
+    private static final int INDEX_ROD_COUNT = 1;
+    private static final int INDEX_ROD_COLUMNS = 2;
+    private static final int INDEX_COOLANT = 3;
+    private static final int INDEX_HAS_FUEL = 4;
+    private static final int INDEX_ENERGY_PER_TICK = 5;
+    private static final int INDEX_STEAM_PER_TICK = 6;
+    private static final int INDEX_WATER_PER_TICK = 7;
+    private static final int INDEX_FUEL_PER_TICK_HUNDREDTHS = 8;
+    private static final int INDEX_POS_X = 9;
+    private static final int INDEX_POS_Y = 10;
+    private static final int INDEX_POS_Z = 11;
+    private static final int INDEX_HAS_REDSTONE_PORT = 12;
+    private static final int INDEX_REDSTONE_GATE_SATISFIED = 13;
+    private static final int INDEX_STABILITY = 14;
+    private static final int INDEX_UNSTABILITY_ENABLED = 15;
+    private static final int INDEX_FUEL_STORED_UNITS = 16;
+    private static final int INDEX_FUEL_CAPACITY_UNITS = 17;
+    private static final int INDEX_COOLANT_STORED_MB = 18;
+    private static final int INDEX_COOLANT_CAPACITY_MB = 19;
+    private static final int INDEX_WASTE_STORED_UNITS = 20;
+    private static final int INDEX_WASTE_CAPACITY_UNITS = 21;
+    /** Upper 32 bits of {@link TurbineControllerBlockEntity#getLastRfPerTick()} (low bits in {@link #INDEX_ENERGY_PER_TICK}). */
+    private static final int INDEX_ENERGY_PER_TICK_HI = 22;
+    private static final int DATA_COUNT = 23;
+
+    public TurbineControllerMenu(int containerId, Inventory playerInventory, TurbineControllerBlockEntity blockEntity) {
+        super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
+        this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
+        this.data = new ContainerData() {
+            @Override
+            public int get(int index) {
+                var result = blockEntity.getCachedResult();
+                var blockState = blockEntity.getLevel() != null
+                        ? blockEntity.getLevel().getBlockState(blockEntity.getBlockPos())
+                        : null;
+                var state = (blockState != null && blockState.is(ModBlocks.REACTOR_CONTROLLER.get()))
+                        ? blockState.getValue(TurbineControllerBlock.STATE)
+                        : ControllerState.OFF;
+                return switch (index) {
+                    case INDEX_STATE -> state.ordinal();
+                    case INDEX_ROD_COUNT -> result != null ? result.rodCount() : 0;
+                    case INDEX_ROD_COLUMNS -> result != null ? result.rodColumns() : 0;
+                    case INDEX_COOLANT -> result != null ? result.coolantCount() : 0;
+                    case INDEX_HAS_FUEL -> blockEntity.getTotalFuelUnits() > 0 ? 1 : 0;
+                    case INDEX_ENERGY_PER_TICK -> (int) (blockEntity.getLastRfPerTick() & 0xFFFFFFFFL);
+                    case INDEX_ENERGY_PER_TICK_HI -> (int) (blockEntity.getLastRfPerTick() >>> 32);
+                    case INDEX_STEAM_PER_TICK -> blockEntity.getLastSteamPerTick();
+                    case INDEX_WATER_PER_TICK -> blockEntity.getLastWaterPerTick();
+                    case INDEX_FUEL_PER_TICK_HUNDREDTHS -> blockEntity.getLastFuelPerTickHundredths();
+                    case INDEX_POS_X -> blockEntity.getBlockPos().getX();
+                    case INDEX_POS_Y -> blockEntity.getBlockPos().getY();
+                    case INDEX_POS_Z -> blockEntity.getBlockPos().getZ();
+                    case INDEX_HAS_REDSTONE_PORT -> result != null && blockEntity.getLevel() != null
+                            ? (hasRedstonePortInResult(blockEntity.getLevel(), result) ? 1 : 0) : 0;
+                    case INDEX_REDSTONE_GATE_SATISFIED -> result != null && blockEntity.getLevel() instanceof ServerLevel sl
+                            ? (TurbineControllerBlock.isRedstoneGateSatisfied(sl, blockEntity, result) ? 1 : 0) : 1;
+                    case INDEX_STABILITY -> blockEntity.getStabilityPermille();
+                    case INDEX_UNSTABILITY_ENABLED -> Boolean.TRUE.equals(Config.REACTOR_UNSTABILITY.get()) ? 1 : 0;
+                    case INDEX_FUEL_STORED_UNITS -> (int) Math.min(Integer.MAX_VALUE, Math.max(0, Math.round(blockEntity.getTotalFuelUnits())));
+                    case INDEX_FUEL_CAPACITY_UNITS -> Math.max(0, blockEntity.getMaxFuelUnitsTotal());
+                    case INDEX_COOLANT_STORED_MB -> Math.max(0, blockEntity.getTotalCoolantMb());
+                    case INDEX_COOLANT_CAPACITY_MB -> Math.max(0, blockEntity.getCoolantCapacityMbTotal());
+                    case INDEX_WASTE_STORED_UNITS -> (int) Math.min(Integer.MAX_VALUE, Math.max(0, Math.round(blockEntity.getTotalWasteUnits())));
+                    case INDEX_WASTE_CAPACITY_UNITS -> Math.max(0, blockEntity.getMaxFuelUnitsTotal());
+                    default -> 0;
+                };
+            }
+
+            @Override
+            public void set(int index, int value) {}
+
+            @Override
+            public int getCount() {
+                return DATA_COUNT;
+            }
+        };
+        addDataSlots(data);
+    }
+
+    private static boolean hasRedstonePortInResult(net.minecraft.world.level.Level level, ReactorValidation.Result result) {
+        for (int x = result.minX(); x <= result.maxX(); x++) {
+            for (int y = result.minY(); y <= result.maxY(); y++) {
+                for (int z = result.minZ(); z <= result.maxZ(); z++) {
+                    if (level.getBlockState(new BlockPos(x, y, z)).is(ModBlocks.REDSTONE_PORT.get())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public TurbineControllerMenu(int containerId, Inventory playerInventory) {
+        super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
+        this.levelAccess = ContainerLevelAccess.NULL;
+        this.data = new SimpleContainerData(DATA_COUNT);
+        addDataSlots(data);
+    }
+
+    public int getControllerStateId() { return data.get(INDEX_STATE); }
+    public int getRodCount() { return data.get(INDEX_ROD_COUNT); }
+    public int getRodColumns() { return data.get(INDEX_ROD_COLUMNS); }
+    public int getCoolantCount() { return data.get(INDEX_COOLANT); }
+    public boolean hasFuel() { return data.get(INDEX_HAS_FUEL) != 0; }
+    /**
+     * Lower 32 bits only; use {@link #getEnergyPerTickLong()} for full RF/t when it can exceed {@link Integer#MAX_VALUE}.
+     */
+    public int getEnergyPerTick() { return data.get(INDEX_ENERGY_PER_TICK); }
+
+    /** RF/t last tick (actually pushed to power ports), full {@code long} from synced data slots. */
+    public long getEnergyPerTickLong() {
+        long low = data.get(INDEX_ENERGY_PER_TICK) & 0xFFFFFFFFL;
+        long hi = data.get(INDEX_ENERGY_PER_TICK_HI) & 0xFFFFFFFFL;
+        return (hi << 32) | low;
+    }
+    public int getSteamPerTick() { return data.get(INDEX_STEAM_PER_TICK); }
+    public int getWaterPerTick() { return data.get(INDEX_WATER_PER_TICK); }
+    /** Fuel consumption in fuel units/tick as hundredths (e.g. 26 = 0.26). */
+    public int getFuelPerTickHundredths() { return data.get(INDEX_FUEL_PER_TICK_HUNDREDTHS); }
+
+    /** Total stored fuel units (aggregated on controller). */
+    public int getFuelStoredUnits() { return data.get(INDEX_FUEL_STORED_UNITS); }
+    /** Max fuel capacity units (rodCount * rodMaxFuelUnits). */
+    public int getFuelCapacityUnits() { return data.get(INDEX_FUEL_CAPACITY_UNITS); }
+
+    public int getCoolantStoredMb() { return data.get(INDEX_COOLANT_STORED_MB); }
+    public int getCoolantCapacityMb() { return data.get(INDEX_COOLANT_CAPACITY_MB); }
+
+    public int getWasteStoredUnits() { return data.get(INDEX_WASTE_STORED_UNITS); }
+    public int getWasteCapacityUnits() { return data.get(INDEX_WASTE_CAPACITY_UNITS); }
+
+    /** Synced block pos for refresh button (client). */
+    public BlockPos getControllerBlockPos() {
+        return new BlockPos(data.get(INDEX_POS_X), data.get(INDEX_POS_Y), data.get(INDEX_POS_Z));
+    }
+
+    /** True if the reactor multiblock contains at least one redstone port. */
+    public boolean hasRedstonePort() {
+        return data.get(INDEX_HAS_REDSTONE_PORT) != 0;
+    }
+
+    /** True when the reactor can run this tick (no redstone ports, or at least one port active). */
+    public boolean isRedstoneGateSatisfied() {
+        return data.get(INDEX_REDSTONE_GATE_SATISFIED) != 0;
+    }
+
+    /** Reactor stability in permille 0–1000 (display as 0.0%–100.0%). */
+    public int getStabilityPermille() {
+        return data.get(INDEX_STABILITY);
+    }
+
+    /** True when reactor unstability (evil_things) is enabled; stability line is shown only then. */
+    public boolean isUnstabilityEnabled() {
+        return data.get(INDEX_UNSTABILITY_ENABLED) != 0;
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return stillValid(levelAccess, player, ModBlocks.REACTOR_CONTROLLER.get());
+    }
+
+    @Override
+    public ItemStack quickMoveStack(Player player, int index) {
+        return ItemStack.EMPTY;
+    }
+}

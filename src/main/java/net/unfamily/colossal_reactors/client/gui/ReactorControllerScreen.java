@@ -7,36 +7,30 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.neoforged.neoforge.network.PacketDistributor;
-import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.network.ReactorControllerRefreshPayload;
 
 /**
- * Reactor controller GUI. Background reactor_controller.png (230x300). Dark panel shows status, rods, coolant blocks, energy, coolant, exhaust coolant, fuel. Reboot button on the right, near bottom.
+ * Reactor controller GUI. Background reactor_controller.png (230x240). Dark panel shows status, rods, coolant blocks,
+ * energy, coolant, exhaust coolant, fuel. Reboot button on the right, near bottom. Scrollbar when content exceeds the panel.
  */
 public class ReactorControllerScreen extends AbstractContainerScreen<ReactorControllerMenu> {
 
-    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
-            ColossalReactors.MODID, "textures/gui/reactor_controller.png");
+    private static final int GUI_WIDTH = ReactorControllerGui.WIDTH;
+    private static final int GUI_HEIGHT = ReactorControllerGui.HEIGHT;
 
-    private static final int GUI_WIDTH = 230;
-    private static final int GUI_HEIGHT = 300;
-
-    /** Dark panel: top-left (11, 19), text offset 5px right and down; labels 5px lower */
     private static final int PANEL_X = 16;
-    private static final int PANEL_Y = 29;
+    private static final int PANEL_Y = GuiPanelScrollbar.TEXT_TOP;
     private static final int LINE_HEIGHT = 12;
     private static final int TEXT_COLOR = 0xFFFFFF;
+    private static final int CONTENT_LEFT = PANEL_X;
 
-    /** Close button (X): top right, same as iskandert_utilities */
     private static final int CLOSE_BUTTON_Y = 5;
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    /** Reboot button: bottom right, slightly above edge */
     private static final int REFRESH_BUTTON_WIDTH = 50;
     private static final int REFRESH_BUTTON_HEIGHT = 20;
     private static final int REFRESH_BUTTON_RIGHT_INSET = 12;
@@ -44,6 +38,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
 
     private Button closeButton;
     private Button refreshButton;
+    private final GuiPanelScrollbar panelScrollbar = new GuiPanelScrollbar();
 
     public ReactorControllerScreen(ReactorControllerMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -69,6 +64,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                 .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_controller.reboot.tooltip")))
                 .build();
         addRenderableWidget(refreshButton);
+        panelScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
     }
 
     private void sendRefresh() {
@@ -77,7 +73,13 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+        guiGraphics.blit(ReactorControllerGui.BACKGROUND, leftPos, topPos, 0, 0, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        panelScrollbar.render(guiGraphics, leftPos, topPos);
     }
 
     @Override
@@ -86,9 +88,15 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         int titleX = (imageWidth - titleW) / 2;
         guiGraphics.drawString(font, title, titleX, 5, 0x404040, false);
 
-        int y = PANEL_Y;
+        guiGraphics.enableScissor(leftPos + CONTENT_LEFT, topPos + PANEL_Y, leftPos + GuiPanelScrollbar.TEXT_RIGHT, topPos + GuiPanelScrollbar.TEXT_BOTTOM);
+        int contentHeight = drawPanelContent(guiGraphics, panelScrollbar.getScrollOffset());
+        guiGraphics.disableScissor();
+        panelScrollbar.setContentHeight(contentHeight);
+    }
+
+    private int drawPanelContent(GuiGraphics guiGraphics, int scrollOffset) {
+        int y = PANEL_Y - scrollOffset;
         int stateId = menu.getControllerStateId();
-        // When ON but redstone port blocks, show OFF
         boolean effectivelyOff = (stateId == 2 && menu.hasRedstonePort() && !menu.isRedstoneGateSatisfied());
         Component statusKey = switch (stateId) {
             case 0 -> Component.translatable("gui.colossal_reactors.reactor_controller.status.off");
@@ -97,11 +105,10 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                     ? Component.translatable("gui.colossal_reactors.reactor_controller.status.off")
                     : Component.translatable("gui.colossal_reactors.reactor_controller.status.on");
         };
-        Component statusLine = Component.translatable("gui.colossal_reactors.reactor_controller.status", statusKey);
-        if (!menu.hasRedstonePort()) {
-            statusLine = statusLine.copy().append(Component.literal(" ")).append(Component.translatable("gui.colossal_reactors.reactor_controller.status.requires_redstone_port"));
-        }
-        guiGraphics.drawString(font, statusLine, PANEL_X, y, TEXT_COLOR, false);
+        Component trailing = !menu.hasRedstonePort()
+                ? Component.literal(" ").append(Component.translatable("gui.colossal_reactors.reactor_controller.status.requires_redstone_port"))
+                : null;
+        ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y, statusKey, trailing);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
@@ -110,11 +117,11 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", menu.getCoolantCount()),
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks",
+                        GuiNumberFormat.format(menu.getCoolantCount())),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
-        // Production/consumption only when reactor is actually running (ON and redstone satisfied)
         boolean reactorRunning = (stateId == 2 && !effectivelyOff);
         long energyPerTick = reactorRunning ? menu.getEnergyPerTickLong() : 0L;
         int waterPerTick = reactorRunning ? menu.getWaterPerTick() : 0;
@@ -122,17 +129,20 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         int fuelHundredths = reactorRunning ? menu.getFuelPerTickHundredths() : 0;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", Long.toString(energyPerTick)),
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production",
+                        GuiNumberFormat.format(energyPerTick)),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", waterPerTick),
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume",
+                        GuiNumberFormat.format(waterPerTick)),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", steamPerTick),
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production",
+                        GuiNumberFormat.format(steamPerTick)),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
@@ -146,7 +156,8 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         int stored = menu.getFuelStoredUnits();
         String fillStr = cap > 0 ? String.format("%d", (int) Math.round((stored * 100.0) / cap)) : "0";
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_capacity", cap, fillStr),
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_capacity",
+                        GuiNumberFormat.format(cap), fillStr),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
@@ -154,7 +165,8 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         int wasteStored = menu.getWasteStoredUnits();
         String wasteFillStr = wasteCap > 0 ? String.format("%d", (int) Math.round((wasteStored * 100.0) / wasteCap)) : "0";
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.waste_capacity", wasteStored, wasteFillStr),
+                Component.translatable("gui.colossal_reactors.reactor_controller.waste_capacity",
+                        GuiNumberFormat.format(wasteStored), wasteFillStr),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
@@ -162,7 +174,8 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         int coolantStored = menu.getCoolantStoredMb();
         String coolantFillStr = coolantCap > 0 ? String.format("%d", (int) Math.round((coolantStored * 100.0) / coolantCap)) : "0";
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_capacity", coolantCap, coolantFillStr),
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_capacity",
+                        GuiNumberFormat.format(coolantCap), coolantFillStr),
                 PANEL_X, y, TEXT_COLOR, false);
         y += LINE_HEIGHT;
 
@@ -173,20 +186,62 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
             guiGraphics.drawString(font, label, PANEL_X, y, TEXT_COLOR, false);
             int stabilityColor = stabilityColorFromPermille(permille);
             guiGraphics.drawString(font, stabilityStr, PANEL_X + font.width(label), y, stabilityColor, false);
+            y += LINE_HEIGHT;
         }
+
+        return y - (PANEL_Y - scrollOffset);
     }
 
-    /** Green at 100% stability, red at 0%; interpolates in between. */
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && panelScrollbar.mouseClicked(mouseX, mouseY, leftPos, topPos)) {
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            panelScrollbar.mouseReleased();
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        panelScrollbar.mouseMoved(mouseY);
+        super.mouseMoved(mouseX, mouseY);
+    }
+
+    @Override
+    public void onClose() {
+        panelScrollbar.disposeButtons(this::removeWidget);
+        super.onClose();
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (panelScrollbar.isInPanelArea(mouseX, mouseY, leftPos, topPos, CONTENT_LEFT)
+                && panelScrollbar.mouseScrolled(scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
     private static int stabilityColorFromPermille(int permille) {
         float t = Math.max(0, Math.min(1000, permille)) / 1000f;
         int r = (int) (255 * (1f - t));
         int g = (int) (255 * t);
-        return 0xFF000000 | (r << 16) | (g << 8) | 0;
+        return 0xFF000000 | (r << 16) | (g << 8);
     }
 
     private static String formatFuelPerTick(int hundredths) {
         if (hundredths <= 0) return "0";
         int intPart = hundredths / 100;
+        if (intPart >= 1000) {
+            return GuiNumberFormat.format(hundredths / 100.0);
+        }
         int frac = hundredths % 100;
         if (frac == 0) {
             return String.valueOf(intPart);
