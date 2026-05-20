@@ -114,8 +114,15 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .strength(2.0f)
                     .noOcclusion()));
-    public static final DeferredBlock<Block> TURBINE_ROD_CONTROLLER = BLOCKS.register("turbine_rod_controller",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<TurbineBladeBlock> TURBINE_BLADE = BLOCKS.register("turbine_blade",
+            () -> new TurbineBladeBlock(BlockBehaviour.Properties.of()
+                    .sound(SoundType.METAL)
+                    .strength(-1.0f, 3600000.0f)
+                    .noCollission()
+                    .noOcclusion()
+                    .noLootTable()));
+    public static final DeferredBlock<TurbineRodControllerBlock> TURBINE_ROD_CONTROLLER = BLOCKS.register("turbine_rod_controller",
+            () -> new TurbineRodControllerBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
 

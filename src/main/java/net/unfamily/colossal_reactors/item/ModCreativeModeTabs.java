@@ -43,6 +43,7 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.TURBINE_GLASS.get());
                                 output.accept(ModItems.TURBINE_CASING.get());
                                 output.accept(ModItems.TURBINE_ROD.get());
+                                output.accept(ModItems.TURBINE_BLADE.get());
                                 output.accept(ModItems.TURBINE_ROD_CONTROLLER.get());
                                 output.accept(ModItems.TURBINE_POWER_PORT.get());
                                 output.accept(ModItems.TURBINE_HIGH_COND_POWER_PORT.get());

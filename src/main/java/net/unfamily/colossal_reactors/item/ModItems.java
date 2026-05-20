@@ -63,6 +63,8 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.TURBINE_BUILDER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_ROD = ITEMS.register("turbine_rod",
             () -> new BlockItem(ModBlocks.TURBINE_ROD.get(), new Item.Properties()));
+    public static final DeferredItem<TurbineBladeItem> TURBINE_BLADE = ITEMS.register("turbine_blade",
+            () -> new TurbineBladeItem(ModBlocks.TURBINE_BLADE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.register("turbine_rod_controller",
             () -> new BlockItem(ModBlocks.TURBINE_ROD_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.register("uranium_ingot",

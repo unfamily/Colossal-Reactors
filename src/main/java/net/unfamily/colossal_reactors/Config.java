@@ -307,6 +307,22 @@ public class Config {
         BUILDER.pop();
     }
 
+    // ========== turbine ==========
+    static {
+        BUILDER.comment("Turbine multiblock (shell)").push("turbine");
+        BUILDER.comment("Balanced blade rings on turbine rods").push("blade");
+    }
+
+    public static final ModConfigSpec.IntValue MAX_TURBINE_BLADE_RING = BUILDER
+            .comment("Maximum blade distance from a turbine rod in blocks (ring index). Each complete ring adds four blades.",
+                    "Default 31 allows a 63x63 internal span with the rod at the center ((63 - 1) / 2).")
+            .defineInRange("000_maxBladeRing", 31, 1, 64);
+
+    static {
+        BUILDER.pop(); // blade
+        BUILDER.pop(); // turbine
+    }
+
     // ========== evil_things ==========
     static {
         BUILDER.comment("Optional integrations that may be considered overpowered or disruptive. All default: false.",
