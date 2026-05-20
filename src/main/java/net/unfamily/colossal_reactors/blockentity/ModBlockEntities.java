@@ -55,6 +55,14 @@ public class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register("radiation_scrubber",
                     () -> new BlockEntityType<>(RadiationScrubberBlockEntity::new, ModBlocks.RADIATION_SCRUBBER.get()));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineBuilderBlockEntity>> TURBINE_BUILDER_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_builder",
+                    () -> new BlockEntityType<>(TurbineBuilderBlockEntity::new, ModBlocks.TURBINE_BUILDER.get()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineControllerBlockEntity>> TURBINE_CONTROLLER_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_controller",
+                    () -> new BlockEntityType<>(TurbineControllerBlockEntity::new, ModBlocks.TURBINE_CONTROLLER.get()));
+
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITY_TYPES.register(eventBus);
     }

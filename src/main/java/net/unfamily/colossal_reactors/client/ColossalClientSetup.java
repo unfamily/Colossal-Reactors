@@ -8,6 +8,8 @@ import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen;
 import net.unfamily.colossal_reactors.client.gui.ReactorBuilderScreen;
 import net.unfamily.colossal_reactors.client.gui.ReactorControllerScreen;
+import net.unfamily.colossal_reactors.client.gui.TurbineBuilderScreen;
+import net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
@@ -33,6 +35,8 @@ public final class ColossalClientSetup {
         event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
         event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
         event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
+        event.register(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), TurbineControllerScreen::new);
+        event.register(ModMenuTypes.TURBINE_BUILDER_MENU.get(), TurbineBuilderScreen::new);
         event.register(ModMenuTypes.HEATING_COIL_MENU.get(), HeatingCoilScreen::new);
         event.register(ModMenuTypes.MELTER_MENU.get(), MelterScreen::new);
         event.register(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), RadiationScrubberScreen::new);

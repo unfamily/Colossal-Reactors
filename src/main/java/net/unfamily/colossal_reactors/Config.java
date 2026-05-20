@@ -22,6 +22,14 @@ public class Config {
             .comment("Log why the Melter is not advancing when it has input (no recipe, fluid not found, heat product). Default: false")
             .define("002_melter_debug", false);
 
+    public static final ModConfigSpec.ConfigValue<Boolean> TURBINE_VALIDATION_DEBUG = BUILDER
+            .comment("Dump full turbine validation to log (info level). Default: false")
+            .define("004_turbine_validation_debug", false);
+
+    public static final ModConfigSpec.ConfigValue<Boolean> TURBINE_SIMULATION_DEBUG = BUILDER
+            .comment("Log turbine simulation (coil/blade eff, steam, RF/tick). Default: false")
+            .define("005_turbine_simulation_debug", false);
+
     public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_RADIATION_MANAGEMENT = BUILDER
             .comment("Does not enable radiation in Colossal Reactors reactors. Enable radiation management features (Radiation Scrubber, Radiation Cure). When true and Mekanism is installed, items and recipes appear in creative tab and are craftable. Default: false")
             .define("003_enable_radiation_management", false);
@@ -55,13 +63,13 @@ public class Config {
     }
 
     public static final ModConfigSpec.IntValue MAX_REACTOR_WIDTH = BUILDER
-            .comment("Maximum reactor width (X or Z). Default: 64")
+            .comment("Maximum reactor width (X or Z). Default: 65")
             .defineInRange("000_maxReactorWidth", 65, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue MAX_REACTOR_LENGTH = BUILDER
             .comment("Maximum reactor length (X or Z). Default: 64")
             .defineInRange("001_maxReactorLength", 65, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue MAX_REACTOR_HEIGHT = BUILDER
-            .comment("Maximum reactor height (Y). Default: 64")
+            .comment("Maximum reactor height (Y). Default: 65")
             .defineInRange("002_maxReactorHeight", 65, 1, Integer.MAX_VALUE);
 
     static {
@@ -81,28 +89,7 @@ public class Config {
             .defineInRange("101c_minFuelUnitsPerTick", 0.05, 0.0, 100.0);
     public static final ModConfigSpec.IntValue ROD_MAX_FUEL_UNITS = BUILDER
             .comment("Max fuel units per reactor rod (shared capacity). Default: 10000")
-            .defineInRange("000_rodMaxFuelUnits", 1000, 1, Integer.MAX_VALUE);
-
-    static {
-        BUILDER.pop();
-    }
-
-    // --- reactor.balance ---
-    static {
-        BUILDER.comment("Reactor balance (size scaling curves)").push("balance");
-    }
-
-    public static final ModConfigSpec.IntValue ROD_ENERGY_SCALING_MODE = BUILDER
-            .comment("Energy scaling mode vs effectiveRodCount. 0=Legacy (n*log), 1=Power (n^exp), 2=Saturating (n/(1+n/k)). Default: 1")
-            .defineInRange("000_rodEnergyScalingMode", 1, 0, 2);
-
-    public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_EXPONENT = BUILDER
-            .comment("When rodEnergyScalingMode=1: exponent for n^exp. Smaller = flatter for large reactors. Default: 0.90")
-            .defineInRange("001_rodEnergyScalingExponent", 0.90, 0.05, 1.50);
-
-    public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_SATURATION_K = BUILDER
-            .comment("When rodEnergyScalingMode=2: saturation constant k for n/(1+n/k). Default: 600")
-            .defineInRange("002_rodEnergyScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
+            .defineInRange("000_rodMaxFuelUnits", 10000, 1, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -154,6 +141,27 @@ public class Config {
     public static final ModConfigSpec.DoubleValue ROD_ADJACENCY_PENALTY = BUILDER
             .comment("Penalty per horizontal neighbor (rod or border). Default: 0.25")
             .defineInRange("106c_rodAdjacencyPenalty", 0.25, 0.0, 1.0);
+
+    static {
+        BUILDER.pop();
+    }
+
+    // --- reactor.balance ---
+    static {
+        BUILDER.comment("Reactor balance (size scaling curves)").push("balance");
+    }
+
+    public static final ModConfigSpec.IntValue ROD_ENERGY_SCALING_MODE = BUILDER
+            .comment("Energy scaling mode vs effectiveRodCount. 0=Legacy (n*log), 1=Power (n^exp), 2=Saturating (n/(1+n/k)). Default: 1")
+            .defineInRange("000_rodEnergyScalingMode", 1, 0, 2);
+
+    public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_EXPONENT = BUILDER
+            .comment("When rodEnergyScalingMode=1: exponent for n^exp. Smaller = flatter for large reactors. Default: 0.90")
+            .defineInRange("001_rodEnergyScalingExponent", 0.90, 0.05, 1.50);
+
+    public static final ModConfigSpec.DoubleValue ROD_ENERGY_SCALING_SATURATION_K = BUILDER
+            .comment("When rodEnergyScalingMode=2: saturation constant k for n/(1+n/k). Default: 600")
+            .defineInRange("002_rodEnergyScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -275,6 +283,31 @@ public class Config {
         BUILDER.pop();
     }
 
+    // --- ports.turbine ---
+    static {
+        BUILDER.comment("Turbine ports").push("turbine");
+    }
+
+    public static final ModConfigSpec.IntValue TURBINE_RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
+            .comment("Turbine resource port fluid tank capacity in mB. Default: 16000")
+            .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue TURBINE_POWER_PORT_CAPACITY = BUILDER
+            .comment("Turbine power port buffer capacity in RF. Default: max int")
+            .defineInRange("000_powerPortCapacity", Integer.MAX_VALUE, 1000, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue TURBINE_POWER_PORT_MAX_EXTRACT = BUILDER
+            .comment("Turbine power port max extraction per tick (RF/t). Default: max int")
+            .defineInRange("001_powerPortMaxExtract", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.LongValue TURBINE_HIGH_COND_POWER_PORT_CAPACITY = BUILDER
+            .comment("Turbine high-conduction power port capacity in RF. Default: 1000000000")
+            .defineInRange("100_highCondPowerPortCapacity", 1_000_000_000L, 1000L, Long.MAX_VALUE);
+    public static final ModConfigSpec.LongValue TURBINE_HIGH_COND_POWER_PORT_MAX_EXTRACT = BUILDER
+            .comment("Turbine high-conduction power port max extraction per tick. Default: 1000000000")
+            .defineInRange("101_highCondPowerPortMaxExtract", 1_000_000_000L, 1L, Long.MAX_VALUE);
+
+    static {
+        BUILDER.pop();
+    }
+
     static {
         BUILDER.pop(); // ports
     }
@@ -309,7 +342,64 @@ public class Config {
 
     // ========== turbine ==========
     static {
-        BUILDER.comment("Turbine multiblock (shell)").push("turbine");
+        BUILDER.comment("Turbine multiblock and simulation").push("turbine");
+    }
+
+    static {
+        BUILDER.comment("Maximum turbine dimensions").push("size");
+    }
+
+    public static final ModConfigSpec.IntValue MAX_TURBINE_WIDTH = BUILDER
+            .comment("Maximum turbine width (X or Z). Default: 65")
+            .defineInRange("000_maxTurbineWidth", 65, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue MAX_TURBINE_LENGTH = BUILDER
+            .comment("Maximum turbine length (X or Z). Default: 65")
+            .defineInRange("001_maxTurbineLength", 65, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue MAX_TURBINE_HEIGHT = BUILDER
+            .comment("Maximum turbine height (Y). Default: 65")
+            .defineInRange("002_maxTurbineHeight", 65, 1, Integer.MAX_VALUE);
+
+    static {
+        BUILDER.pop();
+    }
+
+    static {
+        BUILDER.comment("Turbine capacity and defaults (rf_production primary source is datapack)").push("base");
+    }
+
+    public static final ModConfigSpec.DoubleValue TURBINE_MIN_RF_PER_TICK = BUILDER
+            .comment("Minimum RF/t produced by any running turbine. Default: 0")
+            .defineInRange("101b_minRfPerTick", 0.0, 0.0, Double.MAX_VALUE);
+    public static final ModConfigSpec.DoubleValue TURBINE_DEFAULT_RF_PER_STEAM_BUCKET = BUILDER
+            .comment("Fallback RF per bucket (1000 mB) steam when datapack entry is missing. Default: 7000")
+            .defineInRange("000_defaultRfPerSteamBucket", 7000.0, 0.0, Double.MAX_VALUE);
+    public static final ModConfigSpec.IntValue TURBINE_DEFAULT_COIL_LAYER_COUNT = BUILDER
+            .comment("Default Y layers for coil zone in turbine builder. Default: 3")
+            .defineInRange("001_defaultCoilLayerCount", 3, 1, 32);
+
+    static {
+        BUILDER.pop();
+    }
+
+    static {
+        BUILDER.comment("Turbine balance (global multipliers and steam cap)").push("balance");
+    }
+
+    public static final ModConfigSpec.DoubleValue TURBINE_PRODUCTION_MULTIPLIER = BUILDER
+            .comment("Production multiplier for turbine RF output. Default: 1")
+            .defineInRange("000_productionMultiplier", 1.0, 0.0, 100.0);
+    public static final ModConfigSpec.DoubleValue TURBINE_CONSUMPTION_MULTIPLIER = BUILDER
+            .comment("Consumption multiplier for turbine steam input. Default: 1")
+            .defineInRange("001_consumptionMultiplier", 1.0, 0.0, 100.0);
+    public static final ModConfigSpec.DoubleValue TURBINE_STEAM_MB_PER_BLADE_PER_TICK = BUILDER
+            .comment("Max mB steam per tick per valid balanced blade. Default: 1000")
+            .defineInRange("010_steamMbPerBladePerTick", 1000.0, 1.0, Double.MAX_VALUE);
+
+    static {
+        BUILDER.pop();
+    }
+
+    static {
         BUILDER.comment("Balanced blade rings on turbine rods").push("blade");
     }
 
@@ -317,10 +407,62 @@ public class Config {
             .comment("Maximum blade distance from a turbine rod in blocks (ring index). Each complete ring adds four blades.",
                     "Default 31 allows a 63x63 internal span with the rod at the center ((63 - 1) / 2).")
             .defineInRange("000_maxBladeRing", 31, 1, 64);
+    public static final ModConfigSpec.DoubleValue TURBINE_BLADE_EFFICIENCY_BONUS_PER_ASCENDING_LAYER = BUILDER
+            .comment("Blade efficiency bonus per ascending layer (+3%% = 0.03). Default: 0.03")
+            .defineInRange("001_efficiencyBonusPerAscendingLayer", 0.03, 0.0, 1.0);
+    public static final ModConfigSpec.DoubleValue TURBINE_BLADE_EFFICIENCY_MALUS_PER_DESCENDING_LAYER = BUILDER
+            .comment("Blade efficiency malus per descending layer after bonus break. Default: 0.03")
+            .defineInRange("002_efficiencyMalusPerDescendingLayer", 0.03, 0.0, 1.0);
+    public static final ModConfigSpec.BooleanValue TURBINE_REQUIRE_BALANCED_BLADE_RINGS = BUILDER
+            .comment("Require complete blade rings (4, 8, 12...) for steam cap counting. Default: true")
+            .define("003_requireBalancedBladeRings", true);
 
     static {
-        BUILDER.pop(); // blade
+        BUILDER.pop();
+    }
+
+    static {
+        BUILDER.comment("Elec coil zone tuning").push("coil");
+    }
+
+    public static final ModConfigSpec.DoubleValue TURBINE_EMPTY_COIL_EFFICIENCY = BUILDER
+            .comment("Efficiency for air or unknown blocks in coil zone. Default: 0.3")
+            .defineInRange("000_emptyCoilEfficiency", 0.3, 0.0, 10.0);
+
+    static {
+        BUILDER.pop();
+    }
+
+    static {
+        BUILDER.comment("Structure validation").push("validation");
+    }
+
+    public static final ModConfigSpec.IntValue TURBINE_VALIDATION_INTERVAL_TICKS = BUILDER
+            .comment("Ticks between turbine structure re-validation when ON. Default: 200")
+            .defineInRange("000_turbineValidationIntervalTicks", 200, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.BooleanValue ALLOW_MULTIPLE_TURBINE_CONTROLLERS = BUILDER
+            .comment("If false, turbine is valid only with exactly one turbine controller. Default: false")
+            .define("001_allowMultipleTurbineControllers", false);
+
+    static {
+        BUILDER.pop();
         BUILDER.pop(); // turbine
+    }
+
+    // ========== turbine_builder ==========
+    static {
+        BUILDER.comment("Turbine Builder (construction speed and behavior)").push("turbine_builder");
+    }
+
+    public static final ModConfigSpec.IntValue TURBINE_BUILDER_BUILD_STEPS_PER_TICK = BUILDER
+            .comment("Build steps per tick while building. Default: 2")
+            .defineInRange("000_buildStepsPerTick", 2, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue TURBINE_BUILDER_TANK_CAPACITY_MB = BUILDER
+            .comment("Turbine Builder internal fluid tank capacity in mB. Default: 64000")
+            .defineInRange("001_tankCapacityMb", 64000, 1000, Integer.MAX_VALUE);
+
+    static {
+        BUILDER.pop();
     }
 
     // ========== evil_things ==========

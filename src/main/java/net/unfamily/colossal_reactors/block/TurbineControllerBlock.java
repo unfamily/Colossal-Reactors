@@ -3,23 +3,34 @@ package net.unfamily.colossal_reactors.block;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
+import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
-/**
- * Turbine controller shell — collision matches Blockbench model (same layout as {@link ReactorControllerBlock}).
- */
-public class TurbineControllerBlock extends HorizontalDirectionalBlock {
+/** Turbine controller: validate multiblock on click, open GUI when valid. */
+public class TurbineControllerBlock extends BaseEntityBlock {
 
+    public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
     public static final MapCodec<TurbineControllerBlock> CODEC = simpleCodec(TurbineControllerBlock::new);
     public static final EnumProperty<TurbineVisualState> VISUAL =
             EnumProperty.create("visual", TurbineVisualState.class);
@@ -68,7 +79,7 @@ public class TurbineControllerBlock extends HorizontalDirectionalBlock {
             Block.box(10, 1, 2, 16, 3, 4),
             Block.box(15, 12, 1, 16, 14, 15));
 
-    public TurbineControllerBlock(BlockBehaviour.Properties properties) {
+    public TurbineControllerBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
@@ -76,8 +87,90 @@ public class TurbineControllerBlock extends HorizontalDirectionalBlock {
     }
 
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
+    protected MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new TurbineControllerBlockEntity(pos, state);
+    }
+
+    @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        BlockEntity be = level.getBlockEntity(pos);
+        if (!(be instanceof TurbineControllerBlockEntity controllerBe)) {
+            return;
+        }
+        Direction into = state.getValue(FACING).getOpposite();
+        BlockPos startPos = pos.relative(into);
+        TurbineVisualState current = state.getValue(VISUAL);
+
+        if (current == TurbineVisualState.VALIDATING) {
+            int coilLayers = Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
+            TurbineValidation.Result result = TurbineValidation.validateWithRodAlignment(level, startPos, into, coilLayers);
+            controllerBe.setCachedResult(result);
+            TurbineVisualState next = result.valid() ? TurbineVisualState.ON : TurbineVisualState.OFF;
+            level.setBlock(pos, state.setValue(VISUAL, next), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+            controllerBe.setChanged();
+            controllerBe.notifyValidationResult();
+            if (next == TurbineVisualState.ON) {
+                controllerBe.tickSimulation(level);
+                level.scheduleTick(pos, this, 1);
+            }
+            return;
+        }
+
+        if (current == TurbineVisualState.ON) {
+            TurbineValidation.Result result = controllerBe.getCachedResult();
+            boolean revalidate = (level.getGameTime() % Config.TURBINE_VALIDATION_INTERVAL_TICKS.get()) == 0;
+            if (revalidate) {
+                int coilLayers = Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
+                result = TurbineValidation.validateWithRodAlignment(level, startPos, into, coilLayers);
+                if (!result.valid()) {
+                    controllerBe.setCachedResult(result);
+                    level.setBlock(pos, state.setValue(VISUAL, TurbineVisualState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+                    controllerBe.setChanged();
+                    return;
+                }
+                controllerBe.setCachedResult(result);
+                controllerBe.setChanged();
+            }
+            if (result != null && result.valid()) {
+                controllerBe.tickSimulation(level);
+            }
+            level.scheduleTick(pos, this, 1);
+        }
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (!(level.getBlockEntity(pos) instanceof TurbineControllerBlockEntity controllerBe)) {
+            return InteractionResult.PASS;
+        }
+        if (state.getValue(VISUAL) == TurbineVisualState.ON) {
+            if (controllerBe.getCachedResult().valid()) {
+                controllerBe.tickSimulation((ServerLevel) level);
+                if (player instanceof ServerPlayer sp) {
+                    sp.openMenu(controllerBe, pos);
+                }
+            }
+            return InteractionResult.CONSUME;
+        }
+        controllerBe.setLastInteractingPlayer(player);
+        level.setBlock(pos, state.setValue(VISUAL, TurbineVisualState.VALIDATING), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.scheduleTick(pos, this, 1);
+        }
+        return InteractionResult.SUCCESS;
     }
 
     @Override

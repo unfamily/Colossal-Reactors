@@ -30,6 +30,7 @@ import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
@@ -107,6 +108,10 @@ public class ColossalReactors {
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidResourceCapability());
+        event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.TURBINE_BUILDER_BE.get(),
+                (be, direction) -> ((TurbineBuilderBlockEntity) be).getItemResourceHandlerForCapability());
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.TURBINE_BUILDER_BE.get(),
+                (be, direction) -> ((TurbineBuilderBlockEntity) be).getFluidResourceCapability());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyHandlerForCapability());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),

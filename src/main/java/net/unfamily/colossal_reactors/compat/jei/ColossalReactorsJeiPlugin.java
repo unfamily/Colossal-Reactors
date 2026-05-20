@@ -7,13 +7,15 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.client.gui.MelterScreen;
+import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
@@ -35,7 +37,9 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
                 new HeatSinkRecipeCategory(helper),
                 new MelterRecipeCategory(helper),
                 new MelterHeatSourceRecipeCategory(helper),
-                new HeatingCoilRecipeCategory(helper)
+                new HeatingCoilRecipeCategory(helper),
+                new ElecCoilRecipeCategory(helper),
+                new TurbineGenerationRecipeCategory(helper)
         );
     }
 
@@ -57,10 +61,13 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
                 })
                 .toList();
         registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
+        registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getJeIDefinitions());
+        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, TurbineGenerationLoader.getVisibleDefinitions());
     }
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
+        // Click on Melter progress bar (77, 34, 24x16) opens JEI to Melter recipe category
         registration.addRecipeClickArea(MelterScreen.class, MelterScreen.getProgressBarX(), MelterScreen.getProgressBarY(),
                 MelterScreen.getProgressBarWidth(), MelterScreen.getProgressBarHeight(), MelterRecipeCategory.RECIPE_TYPE);
     }
@@ -68,13 +75,16 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         ItemStack controller = new ItemStack(ModBlocks.REACTOR_CONTROLLER.get());
-        registration.addCraftingStation(CoolantRecipeCategory.RECIPE_TYPE, controller);
-        registration.addCraftingStation(FuelRecipeCategory.RECIPE_TYPE, controller);
-        registration.addCraftingStation(HeatSinkRecipeCategory.RECIPE_TYPE, controller);
+        registration.addRecipeCatalyst(controller, CoolantRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(controller, FuelRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(controller, HeatSinkRecipeCategory.RECIPE_TYPE);
 
-        ItemStack melter = new ItemStack(ModBlocks.MELTER.get());
-        registration.addCraftingStation(MelterRecipeCategory.RECIPE_TYPE, melter);
-        registration.addCraftingStation(MelterHeatSourceRecipeCategory.RECIPE_TYPE, melter);
-        registration.addCraftingStation(HeatingCoilRecipeCategory.RECIPE_TYPE, melter);
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterHeatSourceRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), HeatingCoilRecipeCategory.RECIPE_TYPE);
+
+        ItemStack turbine = new ItemStack(ModBlocks.TURBINE_CONTROLLER.get());
+        registration.addRecipeCatalyst(turbine, ElecCoilRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(turbine, TurbineGenerationRecipeCategory.RECIPE_TYPE);
     }
 }

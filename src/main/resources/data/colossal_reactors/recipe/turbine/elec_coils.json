@@ -2,12 +2,6 @@
   "type": "colossal_reactors:elec_coils",
   "entries": [
     {
-      "valid_blocks": ["minecraft:air"],
-      "must_source": false,
-      "eff_coe": 0.3,
-      "eff_max": 0.3
-    },
-    {
       "valid_blocks": ["#c:storage_blocks/netherite"],
       "eff_coe": 1.15,
       "eff_max": 1.5

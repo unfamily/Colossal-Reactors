@@ -1,5 +1,6 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -7,8 +8,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
@@ -18,7 +19,6 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,13 +33,6 @@ public final class JeiIngredientsHelper {
     private static final int DISPLAY_AMOUNT_ITEMS = 1;
 
     private JeiIngredientsHelper() {}
-
-    /** Display-only stack for {@code minecraft:air} heat sink entries (no block item in vanilla). */
-    public static ItemStack heatSinkAirInteriorDisplayStack() {
-        ItemStack stack = new ItemStack(Items.STRUCTURE_VOID);
-        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("jei.colossal_reactors.heat_sink.air_interior"));
-        return stack;
-    }
 
     /**
      * Simplifies the consume/produce ratio by dividing both by the max until one is 1 or less.
@@ -124,6 +117,43 @@ public final class JeiIngredientsHelper {
         return selectorToItemStacks(output, registryAccess);
     }
 
+    /** Display-only stack for {@code minecraft:air} heat sink entries (no block item in vanilla). */
+    public static ItemStack heatSinkAirInteriorDisplayStack() {
+        ItemStack stack = new ItemStack(Items.STRUCTURE_VOID);
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("jei.colossal_reactors.heat_sink.air_interior"));
+        return stack;
+    }
+
+    /** First display stack for an elec coil entry (skips air-only selectors). */
+    public static List<ItemStack> getElecCoilDisplayStacks(List<String> validBlocks, RegistryAccess registryAccess) {
+        List<ItemStack> list = new ArrayList<>();
+        for (String selector : validBlocks) {
+            if (selector != null && selector.startsWith("#")) {
+                list.addAll(blockSelectorToItemStacks(selector, registryAccess));
+            } else if (selector != null) {
+                Identifier id = Identifier.tryParse(selector);
+                if (id != null && "minecraft".equals(id.getNamespace()) && "air".equals(id.getPath())) {
+                    list.add(heatSinkAirInteriorDisplayStack());
+                } else {
+                    list.addAll(blockSelectorToItemStacks(selector, registryAccess));
+                }
+            }
+            if (!list.isEmpty()) break;
+        }
+        return list;
+    }
+
+    /** Resolves turbine generation input selectors to fluid stacks for JEI. */
+    public static List<FluidStack> getTurbineGenerationInputFluids(List<String> inputs, RegistryAccess registryAccess) {
+        List<FluidStack> list = new ArrayList<>();
+        for (String input : inputs) {
+            if (input == null || input.isBlank()) continue;
+            list.addAll(selectorToFluidStacks(input, registryAccess));
+            if (!list.isEmpty()) break;
+        }
+        return list;
+    }
+
     /** Resolves block selectors (valid_blocks) to item stacks (block as item). */
     public static List<ItemStack> getBlockStacks(List<String> validBlocks, RegistryAccess registryAccess) {
         List<ItemStack> list = new ArrayList<>();
@@ -163,14 +193,8 @@ public final class JeiIngredientsHelper {
 
     private static ItemStack fluidToBucket(Fluid fluid) {
         if (fluid == null || fluid == Fluids.EMPTY) return ItemStack.EMPTY;
-        for (Item item : BuiltInRegistries.ITEM) {
-            ItemStack stack = new ItemStack(item, 1);
-            FluidStack in = FluidUtil.getFirstStackContained(stack);
-            if (!in.isEmpty() && in.getFluid() == fluid) {
-                return new ItemStack(item, DISPLAY_AMOUNT_ITEMS);
-            }
-        }
-        return ItemStack.EMPTY;
+        ItemStack bucket = fluid.getFluidType().getBucket(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
+        return bucket == null || bucket.isEmpty() ? ItemStack.EMPTY : bucket.copyWithCount(DISPLAY_AMOUNT_ITEMS);
     }
 
     private static List<FluidStack> selectorToFluidStacks(String selector, RegistryAccess registryAccess) {
@@ -185,8 +209,8 @@ public final class JeiIngredientsHelper {
         } else {
             Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(h -> h.value()).orElse(Fluids.EMPTY);
-                if (fluid != Fluids.EMPTY) {
+                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(Holder::value).orElse(null);
+                if (fluid != null && fluid != Fluids.EMPTY) {
                     list.add(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
                 }
             }
@@ -206,8 +230,8 @@ public final class JeiIngredientsHelper {
         } else {
             Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Item item = BuiltInRegistries.ITEM.get(id).map(h -> h.value()).orElse(Items.AIR);
-                if (item != Items.AIR) {
+                Item item = BuiltInRegistries.ITEM.get(id).map(Holder::value).orElse(null);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) {
                     list.add(new ItemStack(item, DISPLAY_AMOUNT_ITEMS));
                 }
             }
@@ -230,10 +254,10 @@ public final class JeiIngredientsHelper {
         } else {
             Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Block block = BuiltInRegistries.BLOCK.get(id).map(h -> h.value()).orElse(Blocks.AIR);
-                if (block == Blocks.AIR) {
+                Block block = BuiltInRegistries.BLOCK.get(id).map(Holder::value).orElse(null);
+                if (block != null && block == Blocks.AIR) {
                     list.add(heatSinkAirInteriorDisplayStack());
-                } else if (block != Blocks.AIR) {
+                } else if (block != null && block != Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
                 }
             }
@@ -258,8 +282,8 @@ public final class JeiIngredientsHelper {
                                     if (!stack.isEmpty()) list.add(stack);
                                 })));
             } else {
-                Block block = BuiltInRegistries.BLOCK.get(id).map(h -> h.value()).orElse(Blocks.AIR);
-                if (block != Blocks.AIR) {
+                Block block = BuiltInRegistries.BLOCK.get(id).map(Holder::value).orElse(null);
+                if (block != null && block != net.minecraft.world.level.block.Blocks.AIR) {
                     list.add(new ItemStack(block.asItem(), DISPLAY_AMOUNT_ITEMS));
                 }
             }
@@ -281,8 +305,8 @@ public final class JeiIngredientsHelper {
                         lookup.get(tagKey).ifPresent(holders ->
                                 holders.forEach(h -> list.add(new FluidStack(h.value(), DISPLAY_AMOUNT_MB)))));
             } else {
-                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(h -> h.value()).orElse(Fluids.EMPTY);
-                if (fluid != Fluids.EMPTY) {
+                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(Holder::value).orElse(null);
+                if (fluid != null && fluid != Fluids.EMPTY) {
                     list.add(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
                 }
             }

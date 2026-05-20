@@ -20,6 +20,8 @@ import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
+import net.unfamily.colossal_reactors.turbine.ElecCoilDefinition;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
 import org.jetbrains.annotations.Nullable;
@@ -262,6 +264,31 @@ public final class DatapackSelectorValidator {
         }
         return new HeatSinkDefinition(blocks, liquids, def.fuelMultiplier(), def.energyMultiplier(),
                 def.overheatingMultiplier(), def.mustSource());
+    }
+
+    @Nullable
+    public static TurbineGenerationDefinition sanitizeTurbineGeneration(TurbineGenerationDefinition def) {
+        List<String> inputs = filterFluidSelectors(def.inputs());
+        if (inputs.isEmpty()) {
+            LOGGER.debug("Skipped turbine generation {}: no resolvable inputs", def.generationId());
+            return null;
+        }
+        String output = def.output();
+        if (output != null && !output.isBlank() && !isResolvableFluidSelector(output)) {
+            LOGGER.debug("Skipped turbine generation {}: unresolved output '{}'", def.generationId(), output);
+            return null;
+        }
+        return new TurbineGenerationDefinition(def.generationId(), inputs, output, def.rfProduction(), def.overwritable());
+    }
+
+    @Nullable
+    public static ElecCoilDefinition sanitizeElecCoil(ElecCoilDefinition def) {
+        List<String> blocks = filterBlockSelectors(def.validBlocks());
+        if (blocks.isEmpty()) {
+            LOGGER.debug("Skipped elec coil entry: no resolvable valid_blocks");
+            return null;
+        }
+        return new ElecCoilDefinition(blocks, def.effCoe(), def.effMax());
     }
 
     public static boolean isMelterRecipeResolvable(MelterRecipe recipe) {

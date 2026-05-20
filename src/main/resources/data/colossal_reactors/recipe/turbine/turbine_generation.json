@@ -1,5 +1,5 @@
 {
-  "type": "colossal_reactors:coolant",
+  "type": "colossal_reactors:turbine_generation",
   "entries": [
     {
       "coolant_id": "colossal_reactors:water",
@@ -7,7 +7,7 @@
         "#c:steam"
       ],
       "output": "minecraft:water",
-      "rf_production": 7
+      "rf_production": 7000
     }
   ]
 }

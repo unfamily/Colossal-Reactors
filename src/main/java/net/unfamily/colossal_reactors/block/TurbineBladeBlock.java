@@ -41,7 +41,7 @@ public class TurbineBladeBlock extends DirectionalBlock {
     }
 
     @Override
-    public RenderShape getRenderShape(BlockState state) {
+    protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 

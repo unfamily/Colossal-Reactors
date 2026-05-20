@@ -81,6 +81,36 @@ public class ModPayloads {
                 FluidTankDumpPayload.STREAM_CODEC,
                 FluidTankDumpPayload::handle
         );
+        registrar.playToServer(
+                TurbineBuilderSizePayload.TYPE,
+                TurbineBuilderSizePayload.STREAM_CODEC,
+                TurbineBuilderSizePayload::handle
+        );
+        registrar.playToServer(
+                TurbinePreviewPayload.TYPE,
+                TurbinePreviewPayload.STREAM_CODEC,
+                TurbinePreviewPayload::handle
+        );
+        registrar.playToServer(
+                TurbineBuilderCoilPayload.TYPE,
+                TurbineBuilderCoilPayload.STREAM_CODEC,
+                TurbineBuilderCoilPayload::handle
+        );
+        registrar.playToServer(
+                TurbineBuilderOptionPayload.TYPE,
+                TurbineBuilderOptionPayload.STREAM_CODEC,
+                TurbineBuilderOptionPayload::handle
+        );
+        registrar.playToServer(
+                TurbineBuilderBuildPayload.TYPE,
+                TurbineBuilderBuildPayload.STREAM_CODEC,
+                TurbineBuilderBuildPayload::handle
+        );
+        registrar.playToServer(
+                TurbineBuilderMarkInputPayload.TYPE,
+                TurbineBuilderMarkInputPayload.STREAM_CODEC,
+                TurbineBuilderMarkInputPayload::handle
+        );
     }
 
     /** S2C: send one preview marker to the player (called from server in ReactorPreviewPayload handler). */

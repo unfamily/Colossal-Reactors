@@ -166,10 +166,7 @@ public final class TurbineBladePlacement {
      * Places the next blade on the rod. Returns true if placed.
      */
     public static boolean placeNextBlade(Level level, BlockPos rodPos, BlockState rodState) {
-        if (!(rodState.getBlock() instanceof TurbineRodBlock)) {
-            return false;
-        }
-        if (!rodState.hasProperty(TurbineRodBlock.FACING)) {
+        if (!(rodState.getBlock() instanceof TurbineRodBlock) || !rodState.hasProperty(TurbineRodBlock.FACING)) {
             return false;
         }
         Direction rodAxis = rodState.getValue(TurbineRodBlock.FACING);

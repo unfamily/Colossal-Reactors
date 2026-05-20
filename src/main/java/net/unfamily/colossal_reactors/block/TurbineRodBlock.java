@@ -3,11 +3,8 @@ package net.unfamily.colossal_reactors.block;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -44,7 +41,7 @@ public class TurbineRodBlock extends DirectionalBlock {
     }
 
     @Override
-    public RenderShape getRenderShape(BlockState state) {
+    protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
@@ -58,17 +55,4 @@ public class TurbineRodBlock extends DirectionalBlock {
         return TurbineRodShapes.forFacing(state.getValue(FACING));
     }
 
-    @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide()) {
-            TurbineBladePlacement.dropBladesOnRod(level, pos, state);
-        }
-        return super.playerWillDestroy(level, pos, state, player);
-    }
-
-    @Override
-    public void wasExploded(ServerLevel level, BlockPos pos, Explosion explosion) {
-        TurbineBladePlacement.dropBladesOnRod(level, pos, level.getBlockState(pos));
-        super.wasExploded(level, pos, explosion);
-    }
 }
