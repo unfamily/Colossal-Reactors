@@ -21,7 +21,7 @@ public class ReactorSimulationScreen extends Screen {
             ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
-    private static final int GUI_HEIGHT = 240;
+    private static final int GUI_HEIGHT = 300;
 
     /** Close button (X): top right */
     private static final int CLOSE_BUTTON_Y = 5;
