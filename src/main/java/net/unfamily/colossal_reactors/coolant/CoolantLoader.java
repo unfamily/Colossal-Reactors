@@ -60,28 +60,13 @@ public class CoolantLoader {
      */
     public static void applyLoaded(Map<Identifier, CoolantDefinition> loaded) {
         DEFINITIONS.clear();
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         registerInternalDefaults();
-        sanitizeRegisteredCoolants(access);
         if (loaded != null) {
             for (CoolantDefinition def : loaded.values()) {
-                CoolantDefinition sanitized = DatapackSelectorValidator.sanitizeCoolant(def, access);
+                CoolantDefinition sanitized = DatapackSelectorValidator.sanitizeCoolant(def);
                 if (sanitized != null) {
                     processEntry(sanitized);
                 }
-            }
-        }
-    }
-
-    private static void sanitizeRegisteredCoolants(RegistryAccess access) {
-        var it = DEFINITIONS.entrySet().iterator();
-        while (it.hasNext()) {
-            var entry = it.next();
-            CoolantDefinition sanitized = DatapackSelectorValidator.sanitizeCoolant(entry.getValue(), access);
-            if (sanitized == null) {
-                it.remove();
-            } else {
-                entry.setValue(sanitized);
             }
         }
     }

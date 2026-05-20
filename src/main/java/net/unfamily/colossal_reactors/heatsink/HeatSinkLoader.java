@@ -45,13 +45,44 @@ public final class HeatSinkLoader {
     private static final String KEY_MUST_SOURCE = "must_source";
 
     private static final List<HeatSinkDefinition> DEFINITIONS = new ArrayList<>();
+    private static List<HeatSinkDefinition> rawDefinitions = List.of();
+    private static boolean useInternalDefaults = true;
+    private static boolean lastValidationActive = false;
 
     private HeatSinkLoader() {}
+
+    private static void ensureDefinitionsFresh() {
+        boolean active = DatapackSelectorValidator.isValidationActive();
+        if (active != lastValidationActive) {
+            rebuildDefinitions();
+        }
+    }
+
+    private static void rebuildDefinitions() {
+        DEFINITIONS.clear();
+        List<HeatSinkDefinition> source = useInternalDefaults ? buildInternalDefaults() : rawDefinitions;
+        boolean active = DatapackSelectorValidator.isValidationActive();
+        if (active) {
+            for (HeatSinkDefinition def : source) {
+                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def);
+                if (sanitized != null) {
+                    DEFINITIONS.add(sanitized);
+                }
+            }
+        } else {
+            DEFINITIONS.addAll(source);
+        }
+        if (DEFINITIONS.isEmpty()) {
+            DEFINITIONS.addAll(buildInternalDefaults());
+        }
+        lastValidationActive = active;
+    }
 
     /**
      * Solid auto-placement tick skips synthetic air (index 0) and definitions whose blocks are only {@code minecraft:air} (no item to place).
      */
     public static boolean shouldSkipSolidHeatSinkAutoPlacement(int selectedHeatSinkIndex) {
+        ensureDefinitionsFresh();
         if (selectedHeatSinkIndex <= 0) return true;
         int defIdx = selectedHeatSinkIndex - 1;
         if (defIdx < 0 || defIdx >= DEFINITIONS.size()) return true;
@@ -81,24 +112,14 @@ public final class HeatSinkLoader {
      * Applies loaded datapack data: clears, then uses loaded list or internal defaults if empty.
      */
     public static void applyLoaded(List<HeatSinkDefinition> loaded) {
-        DEFINITIONS.clear();
-        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         if (loaded != null && !loaded.isEmpty()) {
-            for (HeatSinkDefinition def : loaded) {
-                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def, access);
-                if (sanitized != null) {
-                    DEFINITIONS.add(sanitized);
-                }
-            }
+            rawDefinitions = new ArrayList<>(loaded);
+            useInternalDefaults = false;
+        } else {
+            rawDefinitions = List.of();
+            useInternalDefaults = true;
         }
-        if (DEFINITIONS.isEmpty()) {
-            for (HeatSinkDefinition def : buildInternalDefaults()) {
-                HeatSinkDefinition sanitized = DatapackSelectorValidator.sanitizeHeatSink(def, access);
-                if (sanitized != null) {
-                    DEFINITIONS.add(sanitized);
-                }
-            }
-        }
+        rebuildDefinitions();
     }
 
     private static List<HeatSinkDefinition> buildInternalDefaults() {
@@ -164,6 +185,7 @@ public final class HeatSinkLoader {
      * True if this block state is allowed as interior coolant: air, any block matching valid_blocks, or a liquid block (using fluid type/source identity for valid_liquids). Flowing or unknown liquid is allowed and treated as air (does not block the reactor).
      */
     public static boolean isHeatSinkBlock(BlockState state, RegistryAccess registryAccess) {
+        ensureDefinitionsFresh();
         if (state.isAir()) return true;
         return getModifiersForBlock(state, registryAccess) != null;
     }
@@ -172,6 +194,7 @@ public final class HeatSinkLoader {
      * Returns fuel and energy multipliers for this block (air = 1.0, 1.0). Checks valid_blocks first, then if the state is a liquid block uses the fluid type (source identity) for valid_liquids/tag checks; flowing blocks use that same identity. When must_source is true, flowing is not counted as heat sink but is allowed and treated as air (1.0, 1.0, 1.0). Non-source that cannot be counted as valid heat sink (unknown liquid or flowing when must_source) does not block the reactor and is treated as air.
      */
     public static HeatSinkModifiers getModifiersForBlock(BlockState state, RegistryAccess registryAccess) {
+        ensureDefinitionsFresh();
         for (HeatSinkDefinition def : DEFINITIONS) {
             for (String selector : def.validBlocks()) {
                 if (blockMatches(state, selector, registryAccess)) {
@@ -215,6 +238,7 @@ public final class HeatSinkLoader {
      * Returns fuel, energy and overheating multipliers for this fluid from valid_liquids entries, or null if no match.
      */
     public static HeatSinkModifiers getModifiersForFluid(Fluid fluid, RegistryAccess registryAccess) {
+        ensureDefinitionsFresh();
         if (fluid == null || fluid == Fluids.EMPTY) return null;
         for (HeatSinkDefinition def : DEFINITIONS) {
             for (String selector : def.validLiquids()) {
@@ -240,6 +264,7 @@ public final class HeatSinkLoader {
      * Used by GUI simulation when all heat sink positions are the same selected type.
      */
     public static HeatSinkModifiers getModifiersForHeatSinkIndex(RegistryAccess registryAccess, int index) {
+        ensureDefinitionsFresh();
         if (index <= 0) return modifiersForInteriorAirLike();
         int defIdx = index - 1;
         if (defIdx >= DEFINITIONS.size()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
@@ -293,6 +318,7 @@ public final class HeatSinkLoader {
      * Used by reactor builder: place liquid from tank only when the coolant filter is set to that liquid.
      */
     public static boolean isFluidMatchingSelectedHeatSink(RegistryAccess registryAccess, int selectedHeatSinkIndex, Fluid fluid) {
+        ensureDefinitionsFresh();
         if (fluid == null || fluid == Fluids.EMPTY) return false;
         if (selectedHeatSinkIndex <= 0) return false;
         int defIdx = selectedHeatSinkIndex - 1;
@@ -313,6 +339,7 @@ public final class HeatSinkLoader {
      * Used by reactor builder to place only the chosen block type.
      */
     public static boolean isBlockMatchingSelectedHeatSink(BlockState state, int selectedHeatSinkIndex, RegistryAccess registryAccess) {
+        ensureDefinitionsFresh();
         if (selectedHeatSinkIndex <= 0) return false;
         int defIdx = selectedHeatSinkIndex - 1;
         if (defIdx >= DEFINITIONS.size()) return false;
@@ -325,16 +352,19 @@ public final class HeatSinkLoader {
 
     /** Returns a copy of all heat sink definitions (e.g. for JEI or other display). */
     public static List<HeatSinkDefinition> getAllDefinitions() {
+        ensureDefinitionsFresh();
         return List.copyOf(DEFINITIONS);
     }
 
     /** Number of heat sink options for builder GUI: 1 (Air) + one per definition. */
     public static int getHeatSinkOptionCount() {
+        ensureDefinitionsFresh();
         return 1 + DEFINITIONS.size();
     }
 
     /** True when the builder heat-sink option places interior liquid (valid_liquids non-empty). */
     public static boolean requiresLiquidPlacement(int selectedHeatSinkIndex) {
+        ensureDefinitionsFresh();
         if (selectedHeatSinkIndex <= 0) return false;
         int defIdx = selectedHeatSinkIndex - 1;
         if (defIdx < 0 || defIdx >= DEFINITIONS.size()) return false;
@@ -343,6 +373,7 @@ public final class HeatSinkLoader {
 
     /** Display name for option index (0 = Air, 1.. = first block/fluid name from that definition). */
     public static Component getOptionDisplayName(RegistryAccess registryAccess, int index) {
+        ensureDefinitionsFresh();
         if (index <= 0) return Component.translatable("block.minecraft.air");
         int defIdx = index - 1;
         if (defIdx >= DEFINITIONS.size()) return Component.literal("?");
