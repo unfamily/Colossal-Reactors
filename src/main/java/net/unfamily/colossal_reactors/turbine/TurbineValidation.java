@@ -95,12 +95,13 @@ public final class TurbineValidation {
         }
 
         RegistryAccess registry = level.registryAccess();
-        int interiorH = height - 2;
-        int coilLayers = TurbineRodSpaceLayout.coilLayerCount(interiorH, coilLayerCount);
-        int coilStartInteriorY = TurbineRodSpaceLayout.coilZoneStartY(interiorH, coilLayers);
-
-        int rw = TurbineRodPatternLogic.rodSpaceWidth(width);
-        int rd = TurbineRodPatternLogic.rodSpaceDepth(length);
+        Direction rotorAxis = findRodControllerAxis(level, minX, minY, minZ, maxX, maxY, maxZ);
+        if (rotorAxis == null) {
+            return Result.invalid();
+        }
+        TurbineRotorLayout layout = TurbineRotorLayout.from(
+                minX, minY, minZ, maxX, maxY, maxZ, width, height, length, coilLayerCount, rotorAxis);
+        int coilStartInterior = layout.coilStartInterior();
 
         int bladeCount = 0;
         int validBladeCount = 0;
@@ -121,10 +122,11 @@ public final class TurbineValidation {
                             return Result.invalid();
                         }
                     } else {
-                        int interiorY = y - minY - 1;
-                        boolean coilLayer = interiorY >= coilStartInteriorY;
+                        boolean coilLayer = layout.isCoilZoneWorld(x, y, z);
                         if (state.is(ModBlocks.TURBINE_ROD.get())) {
-                            // ok
+                            if (coilLayer) {
+                                return Result.invalid();
+                            }
                         } else if (state.is(ModBlocks.TURBINE_BLADE.get())) {
                             bladeCount++;
                             validBladeCount++;
@@ -155,18 +157,15 @@ public final class TurbineValidation {
             }
         }
 
-        int closureWorldY = TurbineRodControllerLayout.closureWorldY(minY, interiorH, coilLayers);
-        if (!validateRodControllerPlacement(level, minX, minY, minZ, maxX, maxY, maxZ, rw, rd, closureWorldY)) {
+        if (!validateRodControllerPlacement(level, minX, minY, minZ, maxX, maxY, maxZ, layout)) {
             return Result.invalid();
         }
 
         double coilEff = coilBlockCount > 0
                 ? Math.min(sumCoe / coilBlockCount, sumMax / coilBlockCount)
                 : Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
-        Direction axis = findRodControllerAxis(level, minX, minY, minZ, maxX, maxY, maxZ, coilLayerCount);
-        double bladeEff = axis != null
-                ? TurbineBladeEfficiency.computeFromBounds(level, minX, minY, minZ, maxX, maxY, maxZ, axis)
-                : 1.0;
+        double bladeEff = TurbineBladeEfficiency.computeFromBounds(
+                level, minX, minY, minZ, maxX, maxY, maxZ, rotorAxis);
 
         if (Boolean.TRUE.equals(Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get())) {
             validBladeCount = countValidBalancedBlades(level, minX, minY, minZ, maxX, maxY, maxZ);
@@ -205,54 +204,52 @@ public final class TurbineValidation {
         return total;
     }
 
-    /**
-     * Exactly one rod controller on the closure layer (rotor/coil boundary), at a {@link TurbineRodControllerLayout#validCenters} cell.
-     */
+    /** Exactly one rod controller with facing matching rotor growth axis. */
     private static boolean validateRodControllerPlacement(
-            Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-            int rw, int rd, int closureWorldY) {
-        if (rw <= 0 || rd <= 0) {
-            return false;
-        }
+            Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, TurbineRotorLayout layout) {
         int found = 0;
         for (int x = minX + 1; x < maxX; x++) {
-            for (int z = minZ + 1; z < maxZ; z++) {
-                BlockState s = level.getBlockState(new BlockPos(x, closureWorldY, z));
-                if (!s.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
-                    continue;
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    BlockState s = level.getBlockState(new BlockPos(x, y, z));
+                    if (!s.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
+                        continue;
+                    }
+                    if (!s.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)
+                            || s.getValue(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)
+                            != layout.growthAxis()) {
+                        return false;
+                    }
+                    found++;
                 }
-                int rx = TurbineRodControllerLayout.worldToRodSpaceX(minX, x);
-                int rz = TurbineRodControllerLayout.worldToRodSpaceZ(minZ, z);
-                if (!TurbineRodControllerLayout.isValidCenter(rx, rz, rw, rd)) {
-                    return false;
-                }
-                found++;
             }
         }
         return found == 1;
     }
 
     @javax.annotation.Nullable
-    public static Direction findRodControllerAxis(Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int coilLayerCount) {
-        int w = maxX - minX + 1;
-        int d = maxZ - minZ + 1;
-        int interiorH = Math.max(0, (maxY - minY + 1) - 2);
-        int coilLayers = TurbineRodSpaceLayout.coilLayerCount(interiorH, coilLayerCount);
-        int closureWorldY = TurbineRodControllerLayout.closureWorldY(minY, interiorH, coilLayers);
-        int rw = TurbineRodPatternLogic.rodSpaceWidth(w);
-        int rd = TurbineRodPatternLogic.rodSpaceDepth(d);
-        for (TurbineRodControllerLayout.Center center : TurbineRodControllerLayout.validCenters(rw, rd)) {
-            BlockPos p = new BlockPos(
-                    TurbineRodControllerLayout.closureWorldX(minX, center.rx()),
-                    closureWorldY,
-                    TurbineRodControllerLayout.closureWorldZ(minZ, center.rz()));
-            BlockState s = level.getBlockState(p);
-            if (s.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())
-                    && s.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)) {
-                return s.getValue(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING);
+    public static Direction findRodControllerAxis(
+            Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        for (int x = minX + 1; x < maxX; x++) {
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    BlockState s = level.getBlockState(new BlockPos(x, y, z));
+                    if (s.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())
+                            && s.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)) {
+                        return s.getValue(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING);
+                    }
+                }
             }
         }
         return null;
+    }
+
+    /** @deprecated Use {@link #findRodControllerAxis(Level, int, int, int, int, int, int)}. */
+    @Deprecated
+    @javax.annotation.Nullable
+    public static Direction findRodControllerAxis(
+            Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int coilLayerCount) {
+        return findRodControllerAxis(level, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     /** Server: align opposite-facing rods, then validate. */
@@ -265,16 +262,19 @@ public final class TurbineValidation {
             return probe;
         }
         Direction axis = findRodControllerAxis(level, probe.minX(), probe.minY(), probe.minZ(),
-                probe.maxX(), probe.maxY(), probe.maxZ(), coilLayerCount);
+                probe.maxX(), probe.maxY(), probe.maxZ());
         if (axis == null) {
             return Result.invalid();
         }
-        int interiorH = probe.maxY() - probe.minY() - 1;
-        int coils = TurbineRodSpaceLayout.coilLayerCount(interiorH, coilLayerCount);
-        int coilStart = TurbineRodSpaceLayout.coilZoneStartY(interiorH, coils);
+        int w = probe.maxX() - probe.minX() + 1;
+        int h = probe.maxY() - probe.minY() + 1;
+        int d = probe.maxZ() - probe.minZ() + 1;
+        TurbineRotorLayout layout = TurbineRotorLayout.from(
+                probe.minX(), probe.minY(), probe.minZ(), probe.maxX(), probe.maxY(), probe.maxZ(),
+                w, h, d, coilLayerCount, axis);
         TurbineRodAlignment.correctOppositeRods(server,
                 probe.minX(), probe.minY(), probe.minZ(), probe.maxX(), probe.maxY(), probe.maxZ(),
-                coilStart, axis);
+                layout);
         return validate(level, start, intoTurbine, coilLayerCount);
     }
 

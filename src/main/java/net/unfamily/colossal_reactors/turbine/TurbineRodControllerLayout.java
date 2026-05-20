@@ -91,20 +91,21 @@ public final class TurbineRodControllerLayout {
         return minY + closureInteriorY(interiorHeight, coilLayers);
     }
 
+    /** World X for rod-space column {@code rx} (first interior cell is {@code minX + 1}). */
     public static int closureWorldX(int minX, int rx) {
-        return minX + 1 + TurbineRodSpaceLayout.rodSpaceInset() + rx;
+        return minX + 1 + rx;
     }
 
     public static int closureWorldZ(int minZ, int rz) {
-        return minZ + 1 + TurbineRodSpaceLayout.rodSpaceInset() + rz;
+        return minZ + 1 + rz;
     }
 
     public static int worldToRodSpaceX(int minX, int worldX) {
-        return worldX - minX - 1 - TurbineRodSpaceLayout.rodSpaceInset();
+        return worldX - minX - 1;
     }
 
     public static int worldToRodSpaceZ(int minZ, int worldZ) {
-        return worldZ - minZ - 1 - TurbineRodSpaceLayout.rodSpaceInset();
+        return worldZ - minZ - 1;
     }
 
     public static boolean isRodControllerWorldCell(int worldX, int worldZ, int minX, int minZ, Center center) {

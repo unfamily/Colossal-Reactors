@@ -41,6 +41,7 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
+import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.turbine.TurbineSimulation;
@@ -128,6 +129,10 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private static final int RIGHT_ROW_WARNING_MESSAGE_Y = PREVIEW_BUTTON_Y;
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
+    /** Coil layer count: below placement-axis (col 2), ~1.5 button width, right-aligned with that column. */
+    private static final int COIL_LAYERS_BUTTON_X = RIGHT_COL1_X;
+    private static final int COIL_LAYERS_BUTTON_W = RIGHT_COL2_X + RIGHT_BUTTON_W - RIGHT_COL1_X;
+    private static final int COIL_LAYERS_BUTTON_Y = RIGHT_ROW0_Y + RIGHT_BUTTON_H + GAP;
 
     /** Simulation view panel (same layout as reactor controller). */
     private static final int SIM_PANEL_X = 16;
@@ -176,6 +181,8 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     /** Right block: 0=Coil, 1=Pattern, 2=Placement axis, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
     private static final int RIGHT_BUTTON_COUNT = 6;
     private final Button[] rightBlockButtons = new Button[RIGHT_BUTTON_COUNT];
+    /** Coil zone layer count (below placement-axis column). */
+    private Button coilLayersButton;
     /** Shown only in simulation view: cycles turbine steam generation recipe. */
     private Button steamGenerationButton;
     private final GuiPanelScrollbar simulationScrollbar = new GuiPanelScrollbar();
@@ -247,6 +254,10 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                     .build();
             addRenderableWidget(rightBlockButtons[i]);
         }
+        coilLayersButton = Button.builder(getCoilLayersButtonLabel(), b -> onCoilLayersClick(true))
+                .bounds(leftPos + COIL_LAYERS_BUTTON_X, topPos + COIL_LAYERS_BUTTON_Y, COIL_LAYERS_BUTTON_W, RIGHT_BUTTON_H)
+                .build();
+        addRenderableWidget(coilLayersButton);
         int steamY = topPos + imageHeight - STEAM_BUTTON_H - COOLANT_BUTTON_BOTTOM_INSET;
         int steamX = leftPos + SIM_BUTTONS_HORIZONTAL_INSET;
         steamGenerationButton = Button.builder(Component.translatable("gui.colossal_reactors.turbine_builder.simulation.steam_default"), b -> cycleSimulationGeneration(true))
@@ -379,6 +390,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         for (Button b : rightBlockButtons) {
             if (b != null) b.visible = showBuilder;
         }
+        if (coilLayersButton != null) coilLayersButton.visible = showBuilder;
         if (steamGenerationButton != null) {
             steamGenerationButton.visible = viewMode == ViewMode.SIMULATION;
             if (viewMode == ViewMode.SIMULATION) updateSteamGenerationButtonLabel();
@@ -401,10 +413,23 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         };
     }
 
+    private TurbinePlacementAxis currentPlacementAxis() {
+        return TurbinePlacementAxis.fromIndex(menu.getPlacementAxisOrdinal());
+    }
+
     private Component getPlacementAxisShortLabel() {
-        Direction[] dirs = Direction.values();
-        int ord = Math.max(0, Math.min(dirs.length - 1, menu.getPlacementAxisOrdinal()));
-        return Component.translatable("gui.colossal_reactors.turbine_builder.placement_axis.short." + dirs[ord].getName());
+        return Component.translatable("gui.colossal_reactors.turbine_builder.placement_axis.short." + currentPlacementAxis().id());
+    }
+
+    private MutableComponent getPlacementAxisTooltip() {
+        return Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.placement_axis.header")
+                .append(Component.literal("\n"))
+                .append(Component.translatable(
+                        "gui.colossal_reactors.turbine_builder.tooltip.placement_axis.flow." + currentPlacementAxis().id()))
+                .append(Component.literal("\n"))
+                .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_left"))
+                .append(Component.literal("\n"))
+                .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_right"));
     }
 
     private boolean isShiftDown() {
@@ -420,6 +445,20 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         return Component.translatable("block.minecraft.air");
     }
 
+    private int effectiveCoilLayerCount() {
+        int interiorH = net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.interiorHeight(menu.getSizeH() + 1);
+        return net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.coilLayerCount(interiorH, menu.getCoilLayerCount());
+    }
+
+    private Component getCoilLayersButtonLabel() {
+        return Component.translatable("gui.colossal_reactors.turbine_builder.coil_layers", menu.getCoilLayerCount());
+    }
+
+    private void onCoilLayersClick(boolean next) {
+        if (menu.getBlockEntity() == null) return;
+        ClientPacketDistributor.sendToServer(new TurbineBuilderOptionPayload(menu.getBlockPos(), 2, next));
+    }
+
     private void onRightBlockClick(int index) {
         if (index == 4) {
             switchToSimulationView();
@@ -428,11 +467,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         if (menu.getBlockEntity() == null) return;
         BlockPos pos = menu.getBlockPos();
         if (index == 0) {
-            if (isShiftDown()) {
-                ClientPacketDistributor.sendToServer(new TurbineBuilderOptionPayload(pos, 2, true));
-            } else {
-                ClientPacketDistributor.sendToServer(new TurbineBuilderCoilPayload(pos, true));
-            }
+            ClientPacketDistributor.sendToServer(new TurbineBuilderCoilPayload(pos, true));
         }
         if (index == 1) ClientPacketDistributor.sendToServer(new TurbineBuilderOptionPayload(pos, 1, true));
         if (index == 2) ClientPacketDistributor.sendToServer(new TurbineBuilderOptionPayload(pos, 3, true));
@@ -452,9 +487,23 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                         .append(Component.literal("\n"))
                         .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_left"))
                         .append(Component.literal("\n"))
-                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_right"))
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_layers_shift", menu.getCoilLayerCount()))));
+                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_right"))));
+        if (coilLayersButton != null) {
+            coilLayersButton.setMessage(getCoilLayersButtonLabel());
+            MutableComponent layersTip = Component.translatable(
+                    "gui.colossal_reactors.turbine_builder.tooltip.coil_layers", effectiveCoilLayerCount());
+            if (effectiveCoilLayerCount() != menu.getCoilLayerCount()) {
+                layersTip.append(Component.literal("\n"))
+                        .append(Component.translatable(
+                                "gui.colossal_reactors.turbine_builder.tooltip.coil_layers_capped",
+                                effectiveCoilLayerCount(), menu.getCoilLayerCount()));
+            }
+            layersTip.append(Component.literal("\n"))
+                    .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_left"))
+                    .append(Component.literal("\n"))
+                    .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_right"));
+            coilLayersButton.setTooltip(Tooltip.create(layersTip));
+        }
         rightBlockButtons[1].setTooltip(Tooltip.create(
                 Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.pattern." + menu.getRodPattern())
                         .append(Component.literal("\n"))
@@ -462,12 +511,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                         .append(Component.literal("\n"))
                         .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_right"))));
         rightBlockButtons[1].setMessage(getRightButtonLabel(1));
-        rightBlockButtons[2].setTooltip(Tooltip.create(
-                Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.placement_axis", getPlacementAxisShortLabel())
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_left"))
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.tooltip.coil_right"))));
+        rightBlockButtons[2].setTooltip(Tooltip.create(getPlacementAxisTooltip()));
         rightBlockButtons[2].setMessage(getRightButtonLabel(2));
         rightBlockButtons[3].setTooltip(Tooltip.create(
                 Component.translatable(menu.isOpenTop()
@@ -532,14 +576,13 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                 sendSize(2, false);
                 return true;
             }
+            if (coilLayersButton != null && coilLayersButton.visible && isInWidget(x, y, coilLayersButton)) {
+                onCoilLayersClick(false);
+                return true;
+            }
             if (isInRightBlockButton(x, y, 0)) {
                 if (menu.getBlockEntity() != null) {
-                    BlockPos pos = menu.getBlockPos();
-                    if (isShiftDown()) {
-                        ClientPacketDistributor.sendToServer(new TurbineBuilderOptionPayload(pos, 2, false));
-                    } else {
-                        ClientPacketDistributor.sendToServer(new TurbineBuilderCoilPayload(pos, false));
-                    }
+                    ClientPacketDistributor.sendToServer(new TurbineBuilderCoilPayload(menu.getBlockPos(), false));
                 }
                 return true;
             }
@@ -786,10 +829,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             int r = (int) (255 * (1f - t));
             int g = (int) (255 * t);
             int progressColor = 0xFF000000 | (r << 16) | (g << 8);
-            Component prefix = Component.translatable("gui.colossal_reactors.turbine_builder.building_progress_label");
-            guiGraphics.text(font, prefix, WARNING_RIGHT_X, buildingTextY, 0x404040, false);
-            int pctX = WARNING_RIGHT_X + font.width(prefix);
-            guiGraphics.text(font, Component.literal(percent + "%"), pctX, buildingTextY, progressColor, false);
+            guiGraphics.text(font, Component.literal(percent + "%"), WARNING_RIGHT_X, buildingTextY, progressColor, false);
         }
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.text(font, Component.translatable("gui.colossal_reactors.turbine_builder.warning.invalid_blocks"),

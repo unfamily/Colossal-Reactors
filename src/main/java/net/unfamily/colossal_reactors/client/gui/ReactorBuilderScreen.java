@@ -939,10 +939,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             int r = (int) (255 * (1f - t));
             int g = (int) (255 * t);
             int progressColor = 0xFF000000 | (r << 16) | (g << 8);
-            Component prefix = Component.translatable("gui.colossal_reactors.reactor_builder.building_progress_label");
-            guiGraphics.text(font, prefix, WARNING_RIGHT_X, buildingTextY, GuiTextColors.TITLE, false);
-            int pctX = WARNING_RIGHT_X + font.width(prefix);
-            guiGraphics.text(font, Component.literal(percent + "%"), pctX, buildingTextY, progressColor, false);
+            guiGraphics.text(font, Component.literal(percent + "%"), WARNING_RIGHT_X, buildingTextY, progressColor, false);
         }
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.text(font,

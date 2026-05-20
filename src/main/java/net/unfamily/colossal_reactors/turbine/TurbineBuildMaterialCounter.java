@@ -38,6 +38,7 @@ public final class TurbineBuildMaterialCounter {
         int rh = TurbineRodPatternLogic.rodSpaceHeight(h, coilLayerCount);
         int rd = TurbineRodPatternLogic.rodSpaceDepth(d);
 
+        int closureLy = TurbineRodControllerLayout.closureInteriorY(interiorH, coils);
         int frameCasings = 0;
         int faceCasings = 0;
         int maxY = h - 1;
@@ -49,7 +50,7 @@ public final class TurbineBuildMaterialCounter {
                     if (!onBorder) continue;
                     boolean edgeOrCorner = isEdgeOrCorner(lx, ly, lz, 0, 0, 0, w - 1, maxY, d - 1);
                     boolean topOrBottomFace = (ly == 0 || ly == maxY);
-                    if (edgeOrCorner || topOrBottomFace) frameCasings++;
+                    if (edgeOrCorner || topOrBottomFace || ly == closureLy) frameCasings++;
                     else faceCasings++;
                 }
             }

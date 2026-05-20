@@ -22,17 +22,16 @@ public final class TurbineRodAlignment {
     public static void correctOppositeRods(
             ServerLevel level,
             int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-            int coilStartInteriorY,
-            Direction controllerAxis) {
-        if (controllerAxis == null) {
+            TurbineRotorLayout layout) {
+        if (layout == null) {
             return;
         }
+        Direction controllerAxis = layout.growthAxis();
         Direction opposite = controllerAxis.getOpposite();
         for (int x = minX + 1; x < maxX; x++) {
             for (int z = minZ + 1; z < maxZ; z++) {
                 for (int y = minY + 1; y < maxY; y++) {
-                    int interiorY = y - minY - 1;
-                    if (interiorY >= coilStartInteriorY) {
+                    if (layout.interiorIndexFromWorld(x, y, z) >= layout.coilStartInterior()) {
                         continue;
                     }
                     BlockPos rodPos = new BlockPos(x, y, z);
