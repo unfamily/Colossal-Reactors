@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.melter;
 
 import com.google.gson.JsonObject;
 import net.minecraft.core.RegistryAccess;
+import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -33,7 +34,13 @@ public final class MelterRecipesLoader {
 
     public static void applyLoaded(List<MelterRecipe> loaded) {
         RECIPES.clear();
-        if (loaded != null) RECIPES.addAll(loaded);
+        if (loaded == null || loaded.isEmpty()) return;
+        RegistryAccess access = DatapackSelectorValidator.registryAccess();
+        for (MelterRecipe recipe : loaded) {
+            if (DatapackSelectorValidator.isMelterRecipeResolvable(recipe, access)) {
+                RECIPES.add(recipe);
+            }
+        }
     }
 
     public static List<MelterRecipe> getAll() {

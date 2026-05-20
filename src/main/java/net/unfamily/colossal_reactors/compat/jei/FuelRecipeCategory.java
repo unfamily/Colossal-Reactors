@@ -26,7 +26,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 74;
+    private static final int HEIGHT = 64;
 
     public static final IRecipeType<FuelDefinition> RECIPE_TYPE = IRecipeType.create(UID, FuelDefinition.class);
 
@@ -100,20 +100,14 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         guiGraphics.text(font, consumeFuel, margin, textY, color, false);
         guiGraphics.text(font, produceWaste, margin, textY + lineHeight, color, false);
 
-        String baseRf = formatRfPerTick(recipe.baseRfPerTick());
+        double fuelPower = recipe.baseRfPerTick() * Config.PRODUCTION_MULTIPLIER.get();
         guiGraphics.text(font,
-                Component.translatable("jei.colossal_reactors.fuel.production_rf", baseRf),
+                Component.translatable("jei.colossal_reactors.fuel.power", formatFuelPower(fuelPower)),
                 margin, textY + lineHeight * 2, color, false);
-
-        double mult = Config.PRODUCTION_MULTIPLIER.get();
-        String effectiveRf = formatRfPerTick(recipe.baseRfPerTick() * mult);
-        guiGraphics.text(font,
-                Component.translatable("jei.colossal_reactors.fuel.production_rf_config", effectiveRf, mult),
-                margin, textY + lineHeight * 3, color, false);
     }
 
-    private static String formatRfPerTick(double rfPerTick) {
-        if (rfPerTick == (long) rfPerTick) return String.valueOf((long) rfPerTick);
-        return String.format("%.1f", rfPerTick);
+    private static String formatFuelPower(double power) {
+        if (power == (long) power) return String.valueOf((long) power);
+        return String.format("%.1f", power);
     }
 }

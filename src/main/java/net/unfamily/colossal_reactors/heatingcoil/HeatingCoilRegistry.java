@@ -1,7 +1,9 @@
 package net.unfamily.colossal_reactors.heatingcoil;
 
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +57,9 @@ public final class HeatingCoilRegistry {
             builtinCoilIds = List.of();
             return builtinCoilIds;
         }
+        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         for (HeatingCoilDefinition def : list) {
-            DEFINITIONS.put(def.id(), def);
+            DEFINITIONS.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def, access));
         }
         builtinCoilIds = list.stream().map(HeatingCoilDefinition::id).toList();
         LOGGER.info("Loaded {} builtin heating coil(s)", builtinCoilIds.size());
@@ -73,11 +76,14 @@ public final class HeatingCoilRegistry {
             LOGGER.debug("Load data reload: no heating coil definitions, keeping existing registry");
             return;
         }
+        RegistryAccess access = DatapackSelectorValidator.registryAccess();
         Map<Identifier, HeatingCoilDefinition> merged = new HashMap<>();
         for (HeatingCoilDefinition def : parseBuiltinFile()) {
-            merged.put(def.id(), def);
+            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def, access));
         }
-        merged.putAll(loaded);
+        for (HeatingCoilDefinition def : loaded.values()) {
+            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def, access));
+        }
         DEFINITIONS.clear();
         DEFINITIONS.putAll(merged);
     }
