@@ -1,0 +1,23 @@
+{
+	"format_version": "1.9.0",
+	"credit": "Made with Blockbench",
+	"textures": {
+		"0": "turbine_blade",
+		"particle": "turbine_blade"
+	},
+	"elements": [
+		{
+			"from": [1.75, 5.75, -0.25],
+			"to": [14.25, 8.25, 16.25],
+			"rotation": {"angle": 22.5, "axis": "z", "origin": [8, 6, 14]},
+			"faces": {
+				"north": {"uv": [2, 1, 14, 3], "texture": "#0"},
+				"east": {"uv": [0, 1, 16, 3], "texture": "#0"},
+				"south": {"uv": [2, 1, 14, 3], "texture": "#0"},
+				"west": {"uv": [0, 1, 16, 3], "texture": "#0"},
+				"up": {"uv": [2, 0, 14, 16], "texture": "#0"},
+				"down": {"uv": [2, 0, 14, 16], "texture": "#0"}
+			}
+		}
+	]
+}

@@ -33,6 +33,16 @@ public class ModItems {
     public static final DeferredItem<BlockItem> RADIATION_SCRUBBER = ITEMS.registerSimpleBlockItem(ModBlocks.RADIATION_SCRUBBER);
     public static final DeferredItem<BlockItem> ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.ROD_CONTROLLER);
     public static final DeferredItem<BlockItem> REACTOR_BUILDER = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_BUILDER);
+    public static final DeferredItem<BlockItem> TURBINE_CASING = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_CASING);
+    public static final DeferredItem<BlockItem> TURBINE_GLASS = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_GLASS);
+    public static final DeferredItem<BlockItem> TURBINE_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_CONTROLLER);
+    public static final DeferredItem<BlockItem> TURBINE_POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_POWER_PORT);
+    public static final DeferredItem<BlockItem> TURBINE_HIGH_COND_POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_HIGH_COND_POWER_PORT);
+    public static final DeferredItem<BlockItem> TURBINE_REDSTONE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_REDSTONE_PORT);
+    public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_RESOURCE_PORT);
+    public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_BUILDER);
+    public static final DeferredItem<BlockItem> TURBINE_ROD = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD);
+    public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD_CONTROLLER);
 
     public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.registerSimpleItem("uranium_ingot");
     public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.registerSimpleItem("nuclear_waste");

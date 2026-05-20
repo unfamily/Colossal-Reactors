@@ -79,6 +79,45 @@ public class ModBlocks {
             ReactorBuilderBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
 
+    // ----- Turbine (shell blocks, no block entities yet) -----
+    public static final DeferredBlock<Block> TURBINE_CASING = BLOCKS.registerBlock("turbine_casing",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+    public static final DeferredBlock<TurbineGlassBlock> TURBINE_GLASS = BLOCKS.registerBlock("turbine_glass",
+            TurbineGlassBlock::new,
+            p -> p.sound(SoundType.GLASS)
+                    .instrument(NoteBlockInstrument.HAT)
+                    .strength(0.3f)
+                    .noOcclusion()
+                    .isValidSpawn((s, l, pos, e) -> false)
+                    .isRedstoneConductor((s, l, pos) -> false)
+                    .isSuffocating((s, l, pos) -> false)
+                    .isViewBlocking((s, l, pos) -> false));
+    public static final DeferredBlock<TurbineControllerBlock> TURBINE_CONTROLLER = BLOCKS.registerBlock("turbine_controller",
+            TurbineControllerBlock::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion());
+    public static final DeferredBlock<Block> TURBINE_POWER_PORT = BLOCKS.registerBlock("turbine_power_port",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+    public static final DeferredBlock<Block> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.registerBlock("turbine_high_cond_power_port",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+    public static final DeferredBlock<Block> TURBINE_REDSTONE_PORT = BLOCKS.registerBlock("turbine_redstone_port",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+    public static final DeferredBlock<Block> TURBINE_RESOURCE_PORT = BLOCKS.registerBlock("turbine_resource_port",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+    public static final DeferredBlock<TurbineBuilderBlock> TURBINE_BUILDER = BLOCKS.registerBlock("turbine_builder",
+            TurbineBuilderBlock::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+    public static final DeferredBlock<TurbineRodBlock> TURBINE_ROD = BLOCKS.registerBlock("turbine_rod",
+            TurbineRodBlock::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion());
+    public static final DeferredBlock<Block> TURBINE_ROD_CONTROLLER = BLOCKS.registerBlock("turbine_rod_controller",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(2.0f));
+
     // Resource ores (stone + deepslate)
     public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.registerBlock("uranium_ore",
             Block::new,

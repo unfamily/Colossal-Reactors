@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,16 +52,18 @@ public final class HeatingCoilRegistry {
      */
     public static synchronized List<Identifier> getBuiltinCoilIds() {
         if (builtinCoilIds != null) return builtinCoilIds;
-        List<HeatingCoilDefinition> list = parseBuiltinFile();
-        if (list.isEmpty()) {
-            builtinCoilIds = List.of();
-            return builtinCoilIds;
+        Map<Identifier, HeatingCoilDefinition> merged = new LinkedHashMap<>();
+        for (HeatingCoilDefinition def : parseBuiltinFile()) {
+            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
         }
-        for (HeatingCoilDefinition def : list) {
-            DEFINITIONS.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
+        int jarCount = merged.size();
+        for (var entry : HeatingCoilFilesystemLoader.loadFromGameDir().entrySet()) {
+            merged.put(entry.getKey(), DatapackSelectorValidator.sanitizeHeatingCoil(entry.getValue()));
         }
-        builtinCoilIds = list.stream().map(HeatingCoilDefinition::id).toList();
-        LOGGER.info("Loaded {} builtin heating coil(s)", builtinCoilIds.size());
+        DEFINITIONS.putAll(merged);
+        builtinCoilIds = List.copyOf(merged.keySet());
+        LOGGER.info("Heating coils for block registration: {} (jar={}, external={})",
+                builtinCoilIds.size(), jarCount, merged.size() - jarCount);
         return new ArrayList<>(builtinCoilIds);
     }
 

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "colossal_reactors:block/turbine/turbine/rod_controller_top",
+    "front": "colossal_reactors:block/turbine/turbine/rod_controller_side",
+    "side": "colossal_reactors:block/turbine/turbine/rod_controller_side"
+  }
+}

@@ -6,7 +6,7 @@
     "type": "connecting",
     "parent": "minecraft:block/cube_all",
     "textures": {
-      "all": "colossal_reactors:block/reactor_casing"
+      "all": "colossal_reactors:block/reactor/reactor_casing"
     },
     "connections": [
       {

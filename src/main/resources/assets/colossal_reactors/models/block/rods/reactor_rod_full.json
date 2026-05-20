@@ -4,10 +4,10 @@
 	"ambientocclusion": false,
 	"render_type": "cutout",
 	"textures": {
-		"0": "colossal_reactors:block/rod/reactor_rod_top",
-		"1": "colossal_reactors:block/rod/reactor_rod_side",
-		"3": "colossal_reactors:block/rod/uranium",
-		"particle": "colossal_reactors:block/rod/reactor_rod_side"
+		"0": "colossal_reactors:block/reactor/rod/reactor_rod_top",
+		"1": "colossal_reactors:block/reactor/rod/reactor_rod_side",
+		"3": "colossal_reactors:block/reactor/rod/uranium",
+		"particle": "colossal_reactors:block/reactor/rod/reactor_rod_side"
 	},
 	"elements": [
 		{

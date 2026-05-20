@@ -1,7 +1,7 @@
 {
   "variants": {
     "": {
-      "model": "colossal_reactors:block/rod_controller"
+      "model": "colossal_reactors:block/reactor/rod_controller"
     }
   }
 }
