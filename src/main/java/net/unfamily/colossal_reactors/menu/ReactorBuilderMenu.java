@@ -19,7 +19,7 @@ import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Menu for Reactor Builder GUI. Texture 230x230; all slot X positions +27px from left (buffer, player, hotbar).
+ * Menu for Reactor Builder GUI. Texture 230x240; all slot X positions +27px from left (buffer, player, hotbar).
  */
 public class ReactorBuilderMenu extends AbstractContainerMenu {
 

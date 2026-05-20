@@ -49,7 +49,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Reactor Builder GUI. Background reactor_builder.png 230x240; slots offset +27px right from left edge.
+ * Reactor Builder GUI. Background reactor_builder.png 230x240; simulation uses reactor_controller.png 230x300.
  * Like Deep Drawer Extractor: Simulation is a view mode (isSimulationView) on the same screen, not a separate Screen.
  */
 public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilderMenu> {
@@ -60,7 +60,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
-    private static final int GUI_HEIGHT = 240;
+    /** Builder inventory GUI ({@code reactor_builder.png}). */
+    private static final int BUILDER_GUI_HEIGHT = 240;
+    /** Reactor panel in simulation view ({@code reactor_controller.png}). */
+    private static final int REACTOR_GUI_HEIGHT = 300;
 
     /** Close button (X): top right */
     private static final int CLOSE_BUTTON_Y = 5;
@@ -131,8 +134,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_ROW_WARNING_MESSAGE_Y = PREVIEW_BUTTON_Y;
     /** Second row of right buttons: aligned with Mark Input (left column). */
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
-    /** Calculate: column 2, directly under Pattern Mode (Optimized); row 2 buttons stay at RIGHT_ROW1_Y. */
-    private static final int CALCULATE_BUTTON_Y = RIGHT_ROW0_Y + RIGHT_BUTTON_H + GAP;
     /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
 
@@ -152,9 +153,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int COOLANT_BUTTON_RIGHT_INSET = SIM_BUTTONS_HORIZONTAL_INSET;
     private static final int COOLANT_BUTTON_BOTTOM_INSET = 13;
 
-    private enum ViewMode { BUILDER, SIMULATION, CALCULATE }
+    private enum ViewMode { BUILDER, SIMULATION }
 
-    /** Builder / simulation / calculate view on the same screen (like Deep Drawer sub-views). */
+    /** Builder / simulation view on the same screen (like Deep Drawer sub-views). */
     private ViewMode viewMode = ViewMode.BUILDER;
     /** Index into ordered coolant list for simulation view (which coolant type is shown). */
     private int simulationCoolantIndex = 0;
@@ -193,11 +194,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button coolantCycleButton;
     /** Shown only in simulation view: cycles fuel type (next to coolant). */
     private Button fuelCycleButton;
-    /** Shown in builder view: opens material estimate panel. */
-    private Button calculateButton;
-
     public ReactorBuilderScreen(ReactorBuilderMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title, GUI_WIDTH, GUI_HEIGHT);
+        // Window tall enough for simulation ({@code reactor_controller.png}); builder background uses {@link #BUILDER_GUI_HEIGHT}.
+        super(menu, playerInventory, title, GUI_WIDTH, REACTOR_GUI_HEIGHT);
     }
 
     @Override
@@ -263,11 +262,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                     .build();
             addRenderableWidget(rightBlockButtons[i]);
         }
-        calculateButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.calculate"), b -> switchToCalculateView())
-                .bounds(leftPos + RIGHT_COL2_X, topPos + CALCULATE_BUTTON_Y, RIGHT_BUTTON_W, RIGHT_BUTTON_H)
-                .build();
-        calculateButton.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.calculate.tooltip")));
-        addRenderableWidget(calculateButton);
         int coolantY = topPos + imageHeight - COOLANT_BUTTON_H - COOLANT_BUTTON_BOTTOM_INSET;
         int fuelX = leftPos + SIM_BUTTONS_HORIZONTAL_INSET;
         int coolantX = fuelX + FUEL_BUTTON_W + SIM_BUTTONS_GAP;
@@ -450,12 +444,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         updateWidgetVisibility();
     }
 
-    private void switchToCalculateView() {
-        viewMode = ViewMode.CALCULATE;
-        menu.setHideAllSlotsForSimulationView(true);
-        updateWidgetVisibility();
-    }
-
     private void switchToBuilderView() {
         viewMode = ViewMode.BUILDER;
         menu.setHideAllSlotsForSimulationView(false);
@@ -472,7 +460,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonMarkInput.visible = showBuilder;
         buttonDumpFluid.visible = showBuilder;
         for (Button b : rightBlockButtons) b.visible = showBuilder;
-        if (calculateButton != null) calculateButton.visible = showBuilder;
         if (coolantCycleButton != null) {
             coolantCycleButton.visible = viewMode == ViewMode.SIMULATION;
             if (viewMode == ViewMode.SIMULATION) updateCoolantButtonLabel();
@@ -705,9 +692,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     public void extractBackground(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
         if (viewMode != ViewMode.BUILDER) {
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SIMULATION_BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SIMULATION_BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, REACTOR_GUI_HEIGHT, GUI_WIDTH, REACTOR_GUI_HEIGHT);
         } else {
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, GUI_HEIGHT, GUI_WIDTH, GUI_HEIGHT);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, GUI_WIDTH, BUILDER_GUI_HEIGHT, GUI_WIDTH, BUILDER_GUI_HEIGHT);
             int amount = menu.getFluidAmount();
             int capacity = menu.getFluidCapacity();
             int fluidId = menu.getFluidId();
@@ -790,12 +777,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                             : "gui.colossal_reactors.reactor_builder.simulation.stability_unstable");
             int stateColor = ok ? 0xFF00CC00 : 0xFFCC3333;
             guiGraphics.text(font, state, SIM_PANEL_X + font.width(stabilityLabel), y, stateColor, false);
+            y += SIM_LINE_HEIGHT;
         }
+
+        y += SIM_LINE_HEIGHT;
+        renderMaterialCounts(guiGraphics, y);
     }
 
-    private void renderCalculatePanel(GuiGraphicsExtractor guiGraphics) {
-        ReactorBuildMaterialCounter.BuildMaterialCounts counts = getCalculateCounts();
-        int y = SIM_PANEL_Y;
+    private void renderMaterialCounts(GuiGraphicsExtractor guiGraphics, int y) {
+        ReactorBuildMaterialCounter.BuildMaterialCounts counts = getMaterialCounts();
         guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_builder.calculate.frame_casings", counts.frameCasings()),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
@@ -815,15 +805,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         guiGraphics.text(font,
                 Component.translatable("gui.colossal_reactors.reactor_builder.calculate.heat_sinks", counts.heatSinkCells()),
                 SIM_PANEL_X, y, SIM_STATS_COLOR, false);
-        y += SIM_LINE_HEIGHT;
         if (HeatSinkLoader.requiresLiquidPlacement(menu.getHeatSinkIndex()) && counts.heatSinkCells() > 0) {
+            y += SIM_LINE_HEIGHT;
             guiGraphics.text(font,
                     Component.translatable("gui.colossal_reactors.reactor_builder.calculate.fluid_mb", counts.estimatedFluidMb()),
                     SIM_PANEL_X, y, SIM_STATS_COLOR, false);
         }
     }
 
-    private ReactorBuildMaterialCounter.BuildMaterialCounts getCalculateCounts() {
+    private ReactorBuildMaterialCounter.BuildMaterialCounts getMaterialCounts() {
         int sizeLeft = menu.getSizeRight();
         int sizeRight = menu.getSizeLeft();
         return ReactorBuildMaterialCounter.estimate(
@@ -882,14 +872,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             guiGraphics.text(font, simTitle, titleX, 6, GuiTextColors.TITLE, false);
             return;
         }
-        if (viewMode == ViewMode.CALCULATE) {
-            renderCalculatePanel(guiGraphics);
-            Component calcTitle = Component.translatable("gui.colossal_reactors.reactor_builder.calculate");
-            int titleX = (imageWidth - font.width(calcTitle)) / 2;
-            guiGraphics.text(font, calcTitle, titleX, 6, GuiTextColors.TITLE, false);
-            return;
-        }
-
         int titleX = (imageWidth - font.width(title)) / 2;
         guiGraphics.text(font, title, titleX, 6, GuiTextColors.TITLE, false);
 

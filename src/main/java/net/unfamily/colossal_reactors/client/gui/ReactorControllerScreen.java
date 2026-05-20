@@ -14,7 +14,7 @@ import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.network.ReactorControllerRefreshPayload;
 
 /**
- * Reactor controller GUI. Background reactor_controller.png (230x240). Dark panel shows status, rods, coolant blocks, energy, coolant, exhaust coolant, fuel. Reboot button on the right, near bottom.
+ * Reactor controller GUI. Background reactor_controller.png (230x300). Dark panel shows status, rods, coolant blocks, energy, coolant, exhaust coolant, fuel. Reboot button on the right, near bottom.
  */
 public class ReactorControllerScreen extends AbstractContainerScreen<ReactorControllerMenu> {
 
@@ -22,7 +22,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
             ColossalReactors.MODID, "textures/gui/reactor_controller.png");
 
     private static final int GUI_WIDTH = 230;
-    private static final int GUI_HEIGHT = 240;
+    private static final int GUI_HEIGHT = 300;
 
     /** Dark panel: top-left (11, 19), text offset 5px right and down; labels 5px lower */
     private static final int PANEL_X = 16;
