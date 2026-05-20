@@ -5,5 +5,9 @@
   "textures": {
     "all": "colossal_reactors:block/turbine/turbine_glass"
   },
-  "connections": [{ "type": "is_same_block" }]
+  "connections": [
+    {
+      "type": "is_same_block"
+    }
+  ]
 }

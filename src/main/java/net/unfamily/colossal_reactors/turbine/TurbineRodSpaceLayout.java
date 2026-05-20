@@ -27,11 +27,19 @@ public final class TurbineRodSpaceLayout {
         return Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
     }
 
+    /** Maximum coil layers that fit (at least one interior layer remains for rods). */
+    public static int maxCoilLayersForInterior(int interiorAlong) {
+        if (interiorAlong <= 1) {
+            return 1;
+        }
+        return interiorAlong - 1;
+    }
+
     /** Y layers in interior reserved for elec coils (top of interior). */
     public static int coilLayerCount(int interiorHeight, int requestedCoilLayers) {
         int def = defaultCoilLayerCount();
         int layers = requestedCoilLayers > 0 ? requestedCoilLayers : def;
-        return Math.min(Math.max(1, layers), Math.max(1, interiorHeight - 1));
+        return Math.min(Math.max(1, layers), maxCoilLayersForInterior(interiorHeight));
     }
 
     /** First interior Y index (0-based) for coil zone. */
@@ -44,7 +52,10 @@ public final class TurbineRodSpaceLayout {
         return interiorY >= coilZoneStartY(interiorHeight, coilLayers);
     }
 
+    /**
+     * Extra inset inside the interior for rod-space indices. Zero: {@link #interiorWidth} already excludes the shell.
+     */
     public static int rodSpaceInset() {
-        return FRAME_INSET;
+        return 0;
     }
 }

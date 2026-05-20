@@ -10,6 +10,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
@@ -116,6 +118,32 @@ public final class ElecCoilLoader {
         ElecCoilDefinition def = DEFINITIONS.get(selectedCoilIndex);
         if (def.validBlocks().isEmpty()) return true;
         return def.validBlocks().stream().allMatch(ElecCoilLoader::isMinecraftAirSelector);
+    }
+
+    /** First placeable block state for builder auto-fill (supports tags). */
+    @Nullable
+    public static BlockState placementStateForOption(int selectedCoilIndex, RegistryAccess registryAccess) {
+        if (shouldSkipSolidCoilAutoPlacement(selectedCoilIndex)) {
+            return null;
+        }
+        for (String selector : DEFINITIONS.get(selectedCoilIndex).validBlocks()) {
+            BlockState state = getFirstBlockStateFromSelector(selector, registryAccess);
+            if (state != null && !state.isAir()) {
+                return state;
+            }
+        }
+        return null;
+    }
+
+    public static boolean itemMatchesSelectedCoil(ItemStack stack, int selectedCoilIndex, RegistryAccess registryAccess) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        if (!(stack.getItem() instanceof BlockItem blockItem)) {
+            return false;
+        }
+        return isBlockMatchingSelectedCoil(blockItem.getBlock().defaultBlockState(),
+                selectedCoilIndex, registryAccess);
     }
 
     public static boolean isBlockMatchingSelectedCoil(BlockState state, int selectedCoilIndex, RegistryAccess registryAccess) {

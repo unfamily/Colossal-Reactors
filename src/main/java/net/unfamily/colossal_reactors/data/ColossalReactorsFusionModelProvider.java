@@ -46,5 +46,31 @@ public class ColossalReactorsFusionModelProvider extends FusionModelProvider {
                                 .build()
                 )
         );
+
+        // Turbine glass - same connecting translucent pattern as reactor glass
+        this.addModel(
+                ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/turbine/turbine_glass"),
+                ModelInstance.of(
+                        DefaultModelTypes.CONNECTING,
+                        ConnectingModelDataBuilder.builder()
+                                .parent(ResourceLocation.withDefaultNamespace("block/cube_all"))
+                                .texture("all", ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/turbine/turbine_glass"))
+                                .connections("all", DefaultConnectionPredicates.isSameBlock())
+                                .build()
+                )
+        );
+
+        // Turbine casing
+        this.addModel(
+                ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/turbine/turbine_casing"),
+                ModelInstance.of(
+                        DefaultModelTypes.CONNECTING,
+                        ConnectingModelDataBuilder.builder()
+                                .parent(ResourceLocation.withDefaultNamespace("block/cube_all"))
+                                .texture("all", ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "block/turbine/turbine_casing"))
+                                .connections("all", DefaultConnectionPredicates.isSameBlock())
+                                .build()
+                )
+        );
     }
 }

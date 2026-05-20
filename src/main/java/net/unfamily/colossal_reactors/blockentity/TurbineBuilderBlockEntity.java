@@ -35,6 +35,7 @@ import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
 import net.unfamily.colossal_reactors.menu.TurbineBuilderMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildLogic;
+import net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -170,8 +171,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int coilLayerCount = net.unfamily.colossal_reactors.Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
     /** Blade growth pattern: 0=Efficient, 1=Productive. */
     private int rodPattern = 0;
-    /** Rod / rod-controller facing axis (default top-to-bottom rotor). */
-    private Direction placementAxis = Direction.DOWN;
+    /** Index into {@link net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis} (6 flow directions). */
+    private int placementAxisIndex = net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.DEFAULT_INDEX;
     /** Pattern mode: 0=OPTIMIZED (-2 inset), 1=PRODUCTION (no inset), 2=ECONOMY (like optimized, border fill differs). */
     /** True when build is in progress (button shows Stop). */
     private boolean building = false;
@@ -248,7 +249,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected ? 1 : 0;
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
-                case 15 -> placementAxis.ordinal();
+                case 15 -> placementAxisIndex;
                 default -> 0;
             };
         }
@@ -278,9 +279,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
                 case 15 -> {
-                    Direction[] dirs = Direction.values();
-                    if (value >= 0 && value < dirs.length) {
-                        placementAxis = dirs[value];
+                    if (value >= 0 && value < net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.count()) {
+                        placementAxisIndex = value;
                     }
                 }
                 default -> {}
@@ -376,8 +376,42 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSizeDepth() { return sizeDepth; }
     public int getSelectedCoilIndex() { return selectedCoilIndex; }
     public int getCoilLayerCount() { return coilLayerCount; }
+
+    /** Effective coil layers after clamping to interior extent along placement axis. */
+    public int getEffectiveCoilLayerCount() {
+        return TurbineRodSpaceLayout.coilLayerCount(interiorExtentAlongPlacementAxis(), coilLayerCount);
+    }
+
+    private int interiorExtentAlongPlacementAxis() {
+        int w = sizeLeft + sizeRight + 1;
+        int h = sizeHeight + 1;
+        int d = sizeDepth + 1;
+        return switch (getPlacementAxis().getAxis()) {
+            case Y -> TurbineRodSpaceLayout.interiorHeight(h);
+            case Z -> TurbineRodSpaceLayout.interiorDepth(d);
+            case X -> TurbineRodSpaceLayout.interiorWidth(w);
+            default -> TurbineRodSpaceLayout.interiorHeight(h);
+        };
+    }
+
+    private int maxCoilLayersForCurrentHeight() {
+        return Math.min(COIL_LAYER_MAX, TurbineRodSpaceLayout.maxCoilLayersForInterior(interiorExtentAlongPlacementAxis()));
+    }
+
+    /** Lowers stored coil layers when the turbine is too short for the current setting. */
+    private void clampCoilLayerCountToFit() {
+        int max = maxCoilLayersForCurrentHeight();
+        if (coilLayerCount > max) {
+            coilLayerCount = Math.max(COIL_LAYER_MIN, max);
+            setChanged();
+        }
+    }
     public int getRodPattern() { return rodPattern; }
-    public Direction getPlacementAxis() { return placementAxis; }
+    public int getPlacementAxisIndex() { return placementAxisIndex; }
+
+    public Direction getPlacementAxis() {
+        return net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromIndex(placementAxisIndex).facing();
+    }
     public boolean isBuilding() { return building; }
     public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
     public int getBuildProgressPercent() { return buildProgressPercent; }
@@ -484,10 +518,14 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
-    /** Cycle coil layer count. */
+    /** Cycle coil layer count (1 .. max for current turbine height). */
     public void cycleCoilLayerCount(boolean next) {
-        if (next) coilLayerCount = coilLayerCount >= COIL_LAYER_MAX ? COIL_LAYER_MIN : coilLayerCount + 1;
-        else coilLayerCount = coilLayerCount <= COIL_LAYER_MIN ? COIL_LAYER_MAX : coilLayerCount - 1;
+        int maxForSize = maxCoilLayersForCurrentHeight();
+        if (next) {
+            coilLayerCount = coilLayerCount >= maxForSize ? COIL_LAYER_MIN : coilLayerCount + 1;
+        } else {
+            coilLayerCount = coilLayerCount <= COIL_LAYER_MIN ? maxForSize : coilLayerCount - 1;
+        }
         setChanged();
     }
 
@@ -498,14 +536,16 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
-    /** Cycle placement axis (rod + rod controller facing). */
+    /** Cycle placement axis (6 flow directions: D-U, U-D, N-S, …). */
     public void cyclePlacementAxis(boolean next) {
-        Direction[] dirs = Direction.values();
-        int idx = placementAxis.ordinal();
+        int n = net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.count();
         if (next) {
-            placementAxis = dirs[(idx + 1) % dirs.length];
+            placementAxisIndex = (placementAxisIndex + 1) % n;
         } else {
-            placementAxis = dirs[(idx + dirs.length - 1) % dirs.length];
+            placementAxisIndex = (placementAxisIndex + n - 1) % n;
+        }
+        if (building) {
+            resetBuildProgress();
         }
         setChanged();
     }
@@ -551,7 +591,10 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public void adjustSize(int direction, boolean increment, int amount) {
         int delta = increment ? amount : -amount;
         switch (direction) {
-            case 0 -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), sizeHeight + delta));
+            case 0 -> {
+                sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), sizeHeight + delta));
+                clampCoilLayerCountToFit();
+            }
             case 1 -> {
                 int newR = Math.max(0, Math.min(getMaxWidth() - sizeLeft, sizeRight + delta));
                 sizeRight = newR;
@@ -630,7 +673,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_COIL_IDX, selectedCoilIndex);
         tag.putInt("CoilLayerCount", coilLayerCount);
         tag.putInt(TAG_ROD_PATTERN, rodPattern);
-        tag.putString(TAG_PLACEMENT_AXIS, placementAxis.getName());
+        tag.putString(TAG_PLACEMENT_AXIS, net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromIndex(placementAxisIndex).id());
+        tag.putInt("PlacementAxisIndex", placementAxisIndex);
         tag.putBoolean(TAG_OPEN_TOP, openTop);
         tag.putBoolean(TAG_BUILDING, building);
         tag.putBoolean(TAG_INVALID_BLOCKS, invalidBlocksDetected);
@@ -698,10 +742,21 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_SIZE_D)) sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), tag.getInt(TAG_SIZE_D)));
         if (tag.contains(TAG_COIL_IDX)) selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, tag.getInt(TAG_COIL_IDX)));
         if (tag.contains("CoilLayerCount")) coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, tag.getInt("CoilLayerCount")));
+        clampCoilLayerCountToFit();
         if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
-        if (tag.contains(TAG_PLACEMENT_AXIS)) {
-            Direction parsed = Direction.byName(tag.getString(TAG_PLACEMENT_AXIS));
-            if (parsed != null) placementAxis = parsed;
+        if (tag.contains("PlacementAxisIndex")) {
+            placementAxisIndex = Math.max(0,
+                    Math.min(net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.count() - 1,
+                            tag.getInt("PlacementAxisIndex")));
+        } else if (tag.contains(TAG_PLACEMENT_AXIS)) {
+            String raw = tag.getString(TAG_PLACEMENT_AXIS);
+            net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis axis =
+                    net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromId(raw);
+            if (axis == net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.UP_DOWN
+                    && !raw.contains("_")) {
+                axis = net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromLegacyDirectionName(raw);
+            }
+            placementAxisIndex = axis.ordinal();
         }
         if (tag.contains(TAG_OPEN_TOP)) openTop = tag.getBoolean(TAG_OPEN_TOP);
         if (tag.contains(TAG_BUILDING)) building = tag.getBoolean(TAG_BUILDING);
