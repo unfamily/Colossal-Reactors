@@ -66,6 +66,7 @@ public class ColossalReactors {
 
         NeoForge.EVENT_BUS.addListener(this::onAddServerReloadListeners);
 
+        // Gas (steam): NeoForge 26.x via iska_lib only — 1.21.1 Colossal Reactors uses in-mod gas, not this library.
         IskaLibGases.registerGas(modEventBus, MODID, "steam", 0xFFE8F0F0);
 
         ModBlocks.BLOCKS.register(modEventBus);
