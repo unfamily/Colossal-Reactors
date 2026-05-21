@@ -2,6 +2,8 @@ package net.unfamily.colossal_reactors.block;
 
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.blockentity.TurbineRedstonePortBlockEntity;
@@ -22,5 +24,11 @@ public class TurbineRedstonePortBlock extends RedstonePortBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new TurbineRedstonePortBlockEntity(pos, state);
+    }
+
+    @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+        super.neighborChanged(state, level, pos, block, fromPos, isMoving);
+        TurbineControllerBlock.notifyTurbineRedstoneChanged(level, pos);
     }
 }

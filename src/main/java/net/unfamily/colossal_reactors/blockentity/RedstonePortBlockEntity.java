@@ -23,7 +23,7 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
 
     private static final String TAG_REDSTONE_MODE = "RedstoneMode";
 
-    private int redstoneMode = RedstoneMode.NONE.getId();
+    private int redstoneMode = RedstoneMode.LOW.getId();
 
     public RedstonePortBlockEntity(BlockPos pos, BlockState state) {
         this(ModBlockEntities.REDSTONE_PORT_BE.get(), pos, state);
@@ -42,7 +42,9 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
      * NONE: always true; LOW: true when signal is 0; HIGH: true when signal &gt; 0; DISABLED: false.
      */
     public boolean isRedstoneActive(Level level) {
-        if (level == null || level.isClientSide()) return false;
+        if (level == null) {
+            return false;
+        }
         int power = level.getBestNeighborSignal(worldPosition);
         boolean hasSignal = power > 0;
         return switch (RedstoneMode.fromId(redstoneMode)) {
@@ -59,6 +61,9 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
         RedstoneMode m = RedstoneMode.fromId(mode);
         this.redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
         setChanged();
+        if (level != null) {
+            net.unfamily.colossal_reactors.block.TurbineControllerBlock.notifyTurbineRedstoneChanged(level, worldPosition);
+        }
     }
 
     /** Called when a neighboring block updates so controller gate checks see fresh signal state. */

@@ -64,4 +64,5 @@ public class TurbineBladeBlock extends DirectionalBlock {
     public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         return 0.0f;
     }
+
 }

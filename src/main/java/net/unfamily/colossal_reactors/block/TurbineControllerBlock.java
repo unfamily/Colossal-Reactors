@@ -11,6 +11,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -97,6 +98,17 @@ public class TurbineControllerBlock extends BaseEntityBlock {
     @Override
     public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
+    }
+
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        if (!level.isClientSide() || state.getValue(VISUAL) != TurbineVisualState.ON) {
+            return;
+        }
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof TurbineControllerBlockEntity controller) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.ensureAssemblyState(controller);
+        }
     }
 
     @Override
@@ -191,7 +203,16 @@ public class TurbineControllerBlock extends BaseEntityBlock {
      */
     public static boolean isRedstoneGateSatisfied(ServerLevel level, TurbineControllerBlockEntity controllerBe,
             TurbineValidation.Result result) {
-        if (controllerBe == null || result == null || !result.valid()) {
+        return isRedstoneGateSatisfied((Level) level, controllerBe, result);
+    }
+
+    /**
+     * Redstone port modes (NONE/LOW/HIGH/DISABLED): when any port is "active", production and rotor may run.
+     * Works on client for immediate rotor response; server remains authoritative via {@code setRuntimeStats}.
+     */
+    public static boolean isRedstoneGateSatisfied(Level level, TurbineControllerBlockEntity controllerBe,
+            TurbineValidation.Result result) {
+        if (controllerBe == null || result == null || !result.valid() || level == null) {
             return false;
         }
         long[] ports = controllerBe.getCachedRedstonePortPositions();
@@ -205,6 +226,41 @@ public class TurbineControllerBlock extends BaseEntityBlock {
             }
         }
         return false;
+    }
+
+    /** Called when a turbine redstone port neighbor signal changes. */
+    public static void notifyTurbineRedstoneChanged(Level level, BlockPos portPos) {
+        if (level.isClientSide()) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onClientRedstoneChanged(level, portPos);
+            return;
+        }
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ChunkPos center = new ChunkPos(portPos);
+        for (int cx = center.x - 1; cx <= center.x + 1; cx++) {
+            for (int cz = center.z - 1; cz <= center.z + 1; cz++) {
+                if (!serverLevel.hasChunk(cx, cz)) {
+                    continue;
+                }
+                for (BlockEntity be : serverLevel.getChunk(cx, cz).getBlockEntities().values()) {
+                    if (!(be instanceof TurbineControllerBlockEntity controller)) {
+                        continue;
+                    }
+                    BlockState ctrl = serverLevel.getBlockState(controller.getBlockPos());
+                    if (!ctrl.is(ModBlocks.TURBINE_CONTROLLER.get())
+                            || ctrl.getValue(VISUAL) != TurbineVisualState.ON) {
+                        continue;
+                    }
+                    for (long portLong : controller.getCachedRedstonePortPositions()) {
+                        if (portPos.equals(BlockPos.of(portLong))) {
+                            controller.refreshGateAndRuntime(serverLevel);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

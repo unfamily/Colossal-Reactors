@@ -52,6 +52,7 @@ import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 
 import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
 import net.unfamily.colossal_reactors.client.GuideMeRegistration;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -65,6 +66,7 @@ public class ColossalReactors {
         modEventBus.addListener(this::commonSetup);
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
@@ -182,10 +184,14 @@ public class ColossalReactors {
     static class ClientModEvents {
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
+            NeoForge.EVENT_BUS.addListener(
+                    net.neoforged.neoforge.client.event.ClientTickEvent.Post.class,
+                    e -> net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.clientTick());
             event.enqueueWork(() -> {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.TURBINE_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
+                net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration.registerRenderLayers();
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.GELID_BREEZIUM.block().get(), RenderType.translucent());
             });
@@ -201,6 +207,16 @@ public class ColossalReactors {
         static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
             event.registerReloadListener(new ReactorDataReloadListener());
             event.registerReloadListener(new LoadDataReloadListener());
+        }
+
+        @SubscribeEvent
+        static void onModifyBakingResult(net.neoforged.neoforge.client.event.ModelEvent.ModifyBakingResult event) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration.onModifyBakingResult(event);
+        }
+
+        @SubscribeEvent
+        static void registerTurbineBer(EntityRenderersEvent.RegisterRenderers event) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration.registerRenderers(event);
         }
 
         @SubscribeEvent

@@ -1,6 +1,5 @@
 package net.unfamily.colossal_reactors.menu;
 
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -56,8 +55,7 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
                     }
                     case INDEX_VISUAL -> visual.ordinal();
                     case INDEX_HAS_REDSTONE_PORT -> be.getCachedRedstonePortPositions().length > 0 ? 1 : 0;
-                    case INDEX_REDSTONE_GATE_SATISFIED -> level instanceof ServerLevel sl && r.valid()
-                            ? (TurbineControllerBlock.isRedstoneGateSatisfied(sl, be, r) ? 1 : 0) : 1;
+                    case INDEX_REDSTONE_GATE_SATISFIED -> be.isRedstoneGateOpen() ? 1 : 0;
                     default -> 0;
                 };
             }

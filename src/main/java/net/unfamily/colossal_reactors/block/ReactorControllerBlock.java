@@ -26,6 +26,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.unfamily.colossal_reactors.ClientConfig;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
@@ -192,7 +193,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
             if (result != null && result.valid()) {
                 // Always allow filling/visuals even when "off" by redstone gate.
                 ReactorFiller.tickFill(level, controllerBe);
-                if (!Boolean.TRUE.equals(Config.DISABLE_RODS_RENDERING_UPDATE.get())) {
+                if (ClientConfig.shouldUpdateReactorRodFillVisuals()) {
                     controllerBe.tickRodVisuals(level);
                 }
                 // Production/consumption only when redstone gate is satisfied.

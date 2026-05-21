@@ -111,7 +111,9 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
         ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y, statusKey, trailing);
         y += LINE_HEIGHT;
 
-        boolean turbineRunning = visualId == TurbineVisualState.ON.ordinal() && !effectivelyOff;
+        boolean turbineRunning = visualId == TurbineVisualState.ON.ordinal()
+                && !effectivelyOff
+                && menu.getRfPerTick() > 0L;
         long rfPerTick = turbineRunning ? menu.getRfPerTick() : 0L;
         int steamPerTick = turbineRunning ? menu.getSteamPerTick() : 0;
         double bladeEff = turbineRunning ? menu.getBladeEff() : 0.0;
