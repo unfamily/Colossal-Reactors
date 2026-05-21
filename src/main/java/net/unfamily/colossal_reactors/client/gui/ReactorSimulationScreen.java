@@ -96,35 +96,25 @@ public class ReactorSimulationScreen extends Screen {
         ReactorPanelText.drawStatusLine(guiGraphics, font, leftPos + PANEL_X, y, statusKey, null);
         y += LINE_HEIGHT;
 
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.rods", 0, 0),
-                leftPos + PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks", 0),
-                leftPos + PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production", 0),
-                leftPos + PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume", 0),
-                leftPos + PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production", 0),
-                leftPos + PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", "0"),
-                leftPos + PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
+        int textX = leftPos + PANEL_X;
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.rods.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.rods.value", 0, 0));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.coolant_blocks.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks.value", "0"));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.energy_production.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production.value", "0"));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.water_consume.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume.value", "0"));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.steam_production.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production.value", "0"));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.fuel_units.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units.value", "0"));
 
         return y - contentStart;
     }

@@ -27,6 +27,8 @@ public final class TurbineValidation {
         SHELL_GAP,
         ROD_IN_COIL_ZONE,
         COIL_ZONE_BLOCK,
+        ROD_NOT_TO_FLOOR,
+        UNBALANCED_BLADES,
         EXTERIOR_CONTROLLER_COUNT,
         INTERIOR_UNKNOWN
     }
@@ -185,34 +187,49 @@ public final class TurbineValidation {
         if (rodScan.count == 0) {
             return fail(FailureCode.NO_ROD_CONTROLLER, null, report.build());
         }
-        if (rodScan.count > 1) {
-            return fail(FailureCode.MULTIPLE_ROD_CONTROLLERS, rodScan.lastPos, report.build());
-        }
         if (rodScan.onBorder) {
             return fail(FailureCode.ROD_CONTROLLER_BORDER, rodScan.lastPos, report.build());
         }
 
-        Direction rotorAxis = rodScan.axis;
-        if (rotorAxis == null) {
+        Direction provisionalAxis = rodScan.axis;
+        if (provisionalAxis == null) {
             return fail(FailureCode.ROD_CONTROLLER_FACING, rodScan.lastPos, report.build());
         }
-        report.growthAxis(rotorAxis);
 
         int coilLayersUsed = requestedCoilLayers >= 0
                 ? TurbineRodSpaceLayout.appliedCoilLayerCount(
-                interiorExtentAlong(rotorAxis, width, height, length), requestedCoilLayers)
-                : inferCoilLayersFromStructure(level, minX, minY, minZ, maxX, maxY, maxZ, rotorAxis, registry);
+                interiorExtentAlong(provisionalAxis, width, height, length), requestedCoilLayers)
+                : inferCoilLayersFromStructure(level, minX, minY, minZ, maxX, maxY, maxZ, provisionalAxis, registry);
 
         TurbineRotorLayout layout = TurbineRotorLayout.from(
-                minX, minY, minZ, maxX, maxY, maxZ, width, height, length, coilLayersUsed, rotorAxis);
+                minX, minY, minZ, maxX, maxY, maxZ, width, height, length, coilLayersUsed, provisionalAxis);
         report.plane(layout.closureCoord(), layout.coilStartInterior(), layout.closureInteriorIndex(), coilLayersUsed);
+
+        TurbineRodControllerLayout.Center rodCenter = layout.primaryCenter();
+        BlockPos primaryControllerPos = layout.controllerPos(rodCenter);
+        BlockState primaryController = level.getBlockState(primaryControllerPos);
+        if (!isRodController(primaryController)) {
+            return fail(FailureCode.NO_ROD_CONTROLLER, primaryControllerPos, report.build());
+        }
+        if (primaryController.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)) {
+            provisionalAxis = primaryController.getValue(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING);
+        }
+        int otherControllers = countRodControllersExcept(level, minX, minY, minZ, maxX, maxY, maxZ, primaryControllerPos);
+        report.rodControllersFound(1 + otherControllers);
+        if (otherControllers > 0) {
+            return fail(FailureCode.MULTIPLE_ROD_CONTROLLERS, findExtraRodController(level, minX, minY, minZ, maxX, maxY, maxZ, primaryControllerPos), report.build());
+        }
+        if (xOnBorder(primaryControllerPos, minX, maxX, minY, maxY, minZ, maxZ)) {
+            return fail(FailureCode.ROD_CONTROLLER_BORDER, primaryControllerPos, report.build());
+        }
+
+        Direction rotorAxis = provisionalAxis;
+        report.growthAxis(rotorAxis);
 
         int bladeCount = 0;
         int coilBlockCount = 0;
         double sumCoe = 0;
         double sumMax = 0;
-        TurbineRodControllerLayout.Center rodCenter = layout.primaryCenter();
-
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
@@ -264,32 +281,39 @@ public final class TurbineValidation {
             }
         }
 
+        BlockPos rodFloorFailure = findRodNotReachingFloor(level, layout);
+        if (rodFloorFailure != null) {
+            return fail(FailureCode.ROD_NOT_TO_FLOOR, rodFloorFailure, report.build());
+        }
+        if (Boolean.TRUE.equals(Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get())) {
+            BlockPos unbalanced = findUnbalancedBladesOnRod(level, layout);
+            if (unbalanced != null) {
+                return fail(FailureCode.UNBALANCED_BLADES, unbalanced, report.build());
+            }
+        }
+
         double coilEff = coilBlockCount > 0
                 ? Math.min(sumCoe / coilBlockCount, sumMax / coilBlockCount)
                 : Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
-        double bladeEff = TurbineBladeEfficiency.computeFromBounds(
-                level, minX, minY, minZ, maxX, maxY, maxZ, rotorAxis);
+        double bladeEff = TurbineBladeEfficiency.computeFromRotorLayout(
+                level, layout, minX, minY, minZ, maxX, maxY, maxZ);
 
         int validBladeCount = bladeCount;
         if (Boolean.TRUE.equals(Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get())) {
-            validBladeCount = countValidBalancedBlades(level, minX, minY, minZ, maxX, maxY, maxZ);
+            validBladeCount = countValidBalancedBlades(level, layout, minX, minY, minZ, maxX, maxY, maxZ);
         }
 
-        double steamCap = validBladeCount * Config.TURBINE_STEAM_MB_PER_BLADE_PER_TICK.get()
-                * Config.TURBINE_CONSUMPTION_MULTIPLIER.get();
-        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
-        double rfPerMb = gen != null
-                ? TurbineGenerationLoader.rfPerSteamMb(gen.rfProduction())
-                : TurbineGenerationLoader.rfPerSteamMb(Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get());
-        double rf = steamCap * rfPerMb * coilEff * bladeEff * Config.TURBINE_PRODUCTION_MULTIPLIER.get();
-        rf = Math.max(rf, Config.TURBINE_MIN_RF_PER_TICK.get());
+        TurbineProductionMath.ProductionEstimate production = TurbineProductionMath.compute(
+                bladeCount, validBladeCount, coilBlockCount, coilEff, bladeEff,
+                TurbineGenerationLoader.getDefault());
 
         ValidationReport finalReport = report.build();
         logDebug(finalReport, null, true);
 
         return new Result(true, null, null, finalReport,
                 minX, minY, minZ, maxX, maxY, maxZ,
-                bladeCount, validBladeCount, coilBlockCount, coilEff, bladeEff, steamCap, rf);
+                bladeCount, validBladeCount, coilBlockCount, coilEff, bladeEff,
+                production.maxSteamMbPerTick(), production.estimatedRfPerTick());
     }
 
     private static int interiorExtentAlong(Direction axis, int width, int height, int length) {
@@ -389,8 +413,7 @@ public final class TurbineValidation {
                     }
                     scan.count++;
                     scan.lastPos = new BlockPos(x, y, z);
-                    boolean onBorder = x == minX || x == maxX || y == minY || y == maxY || z == minZ || z == maxZ;
-                    if (onBorder) {
+                    if (xOnBorder(scan.lastPos, minX, maxX, minY, maxY, minZ, maxZ)) {
                         scan.onBorder = true;
                     }
                     if (s.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)) {
@@ -400,6 +423,46 @@ public final class TurbineValidation {
             }
         }
         return scan;
+    }
+
+    private static boolean xOnBorder(BlockPos p, int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
+        return p.getX() == minX || p.getX() == maxX || p.getY() == minY || p.getY() == maxY
+                || p.getZ() == minZ || p.getZ() == maxZ;
+    }
+
+    private static int countRodControllersExcept(
+            Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockPos except) {
+        int count = 0;
+        for (int x = minX + 1; x < maxX; x++) {
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (p.equals(except)) {
+                        continue;
+                    }
+                    if (level.getBlockState(p).is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    @Nullable
+    private static BlockPos findExtraRodController(
+            Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockPos except) {
+        for (int x = minX + 1; x < maxX; x++) {
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (!p.equals(except) && level.getBlockState(p).is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
+                        return p;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static Result fail(FailureCode failure, @Nullable BlockPos pos, ValidationReport report) {
@@ -480,6 +543,10 @@ public final class TurbineValidation {
                     "message.colossal_reactors.turbine_invalid.rod_in_coil_zone");
             case COIL_ZONE_BLOCK -> net.minecraft.network.chat.Component.translatable(
                     "message.colossal_reactors.turbine_invalid.coil_zone_block");
+            case ROD_NOT_TO_FLOOR -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.turbine_invalid.rod_not_to_floor");
+            case UNBALANCED_BLADES -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.turbine_invalid.unbalanced_blades");
             case EXTERIOR_CONTROLLER_COUNT -> net.minecraft.network.chat.Component.translatable(
                     "message.colossal_reactors.turbine_invalid.exterior_controller_count", r.exteriorControllers());
             case INTERIOR_UNKNOWN -> net.minecraft.network.chat.Component.translatable(
@@ -509,18 +576,82 @@ public final class TurbineValidation {
                 report.exteriorControllers());
     }
 
-    private static int countValidBalancedBlades(Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+    /**
+     * Each rod column along the growth axis must be continuous from the rotor floor (layer 0).
+     */
+    @Nullable
+    private static BlockPos findRodNotReachingFloor(Level level, TurbineRotorLayout layout) {
+        int layers = layout.closureInteriorIndex();
+        for (int ca = 0; ca < layout.crossSizeA(); ca++) {
+            for (int cb = 0; cb < layout.crossSizeB(); cb++) {
+                for (int layer = 1; layer < layers; layer++) {
+                    BlockPos pos = layout.rodPos(layer, ca, cb);
+                    BlockState state = level.getBlockState(pos);
+                    if (!state.is(ModBlocks.TURBINE_ROD.get())) {
+                        continue;
+                    }
+                    BlockPos below = layout.rodPos(layer - 1, ca, cb);
+                    if (!level.getBlockState(below).is(ModBlocks.TURBINE_ROD.get())) {
+                        return pos;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Fails when any rod carries a blade count that is not a multiple of four (complete rings).
+     */
+    @Nullable
+    private static BlockPos findUnbalancedBladesOnRod(Level level, TurbineRotorLayout layout) {
+        Direction growthAxis = layout.growthAxis();
+        int layers = layout.closureInteriorIndex();
+        for (int layer = 0; layer < layers; layer++) {
+            for (int ca = 0; ca < layout.crossSizeA(); ca++) {
+                for (int cb = 0; cb < layout.crossSizeB(); cb++) {
+                    BlockPos pos = layout.rodPos(layer, ca, cb);
+                    BlockState state = level.getBlockState(pos);
+                    if (!state.is(ModBlocks.TURBINE_ROD.get())
+                            || !state.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING)) {
+                        continue;
+                    }
+                    Direction rodAxis = state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING);
+                    if (rodAxis.getAxis() != growthAxis.getAxis()) {
+                        continue;
+                    }
+                    int blades = TurbineBladePlacement.totalBladesOnRod(level, pos, rodAxis);
+                    if (blades > 0 && blades % 4 != 0) {
+                        return pos;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Sums balanced blades (multiples of 4 per rod) for production steam cap. */
+    private static int countValidBalancedBlades(
+            Level level, TurbineRotorLayout layout,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        Direction growthAxis = layout.growthAxis();
         int total = 0;
         for (int x = minX + 1; x < maxX; x++) {
             for (int y = minY + 1; y < maxY; y++) {
                 for (int z = minZ + 1; z < maxZ; z++) {
+                    if (!layout.isInRodZone(x, y, z)) {
+                        continue;
+                    }
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState state = level.getBlockState(p);
                     if (state.is(ModBlocks.TURBINE_ROD.get())
                             && state.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING)) {
                         Direction rodAxis = state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING);
+                        if (rodAxis.getAxis() != growthAxis.getAxis()) {
+                            continue;
+                        }
                         int blades = TurbineBladePlacement.totalBladesOnRod(level, p, rodAxis);
-                        if (blades % 4 == 0) {
+                        if (blades > 0 && blades % 4 == 0) {
                             total += blades;
                         }
                     }

@@ -79,9 +79,6 @@ public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinitio
                 margin, textY, color, false);
         g.text(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_max", formatMultiplier(recipe.effMax())),
                 margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
-        g.text(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_combined",
-                        formatMultiplier(Math.min(recipe.effCoe(), recipe.effMax()))),
-                margin, textY + 2 * JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
     }
 
     private static String formatMultiplier(double value) {

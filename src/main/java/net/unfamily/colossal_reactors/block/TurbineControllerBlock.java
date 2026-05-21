@@ -26,6 +26,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
+import net.unfamily.colossal_reactors.turbine.TurbineSimulation;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
 /** Turbine controller: validate multiblock on click, open GUI when valid. */
@@ -134,6 +135,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
                 result = TurbineValidation.validateWithRodAlignment(level, startPos, into, -1);
                 if (!result.valid()) {
                     controllerBe.setCachedResult(result);
+                    TurbineSimulation.flushFluidBuffersToEject(level, controllerBe);
                     level.setBlock(pos, state.setValue(VISUAL, TurbineVisualState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
                     controllerBe.setChanged();
                     return;

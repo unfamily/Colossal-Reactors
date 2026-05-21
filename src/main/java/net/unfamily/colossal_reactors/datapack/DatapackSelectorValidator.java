@@ -41,6 +41,16 @@ public final class DatapackSelectorValidator {
 
     private DatapackSelectorValidator() {}
 
+    /**
+     * Skip selector filtering when registries/tags are not ready (e.g. early client resource reload).
+     * Matches 1.21.1: without this, fuel JSON (e.g. uranium 400 RF/t) is dropped and internal defaults (200) remain.
+     */
+    private static boolean validationEnabled() {
+        Identifier logs = Identifier.parse("minecraft:logs");
+        Identifier iron = Identifier.parse("minecraft:iron_ingot");
+        return itemTagHasEntries(TagKey.create(Registries.ITEM, logs)) || itemExists(iron);
+    }
+
     @Nullable
     private static RegistryAccess activeRegistryAccess() {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
@@ -176,6 +186,7 @@ public final class DatapackSelectorValidator {
     }
 
     public static List<String> filterItemSelectors(List<String> selectors) {
+        if (!validationEnabled()) return List.copyOf(selectors);
         List<String> out = new ArrayList<>();
         for (String selector : selectors) {
             if (isResolvableItemSelector(selector)) {
@@ -188,6 +199,7 @@ public final class DatapackSelectorValidator {
     }
 
     public static List<String> filterBlockSelectors(List<String> selectors) {
+        if (!validationEnabled()) return List.copyOf(selectors);
         List<String> out = new ArrayList<>();
         for (String selector : selectors) {
             if (isResolvableBlockSelector(selector)) {
@@ -200,6 +212,7 @@ public final class DatapackSelectorValidator {
     }
 
     public static List<String> filterFluidSelectors(List<String> selectors) {
+        if (!validationEnabled()) return List.copyOf(selectors);
         List<String> out = new ArrayList<>();
         for (String selector : selectors) {
             if (isResolvableFluidSelector(selector)) {
@@ -213,6 +226,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static FuelDefinition sanitizeFuel(FuelDefinition def) {
+        if (!validationEnabled()) return def;
         List<String> inputs = filterItemSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.fuelId().toString();
@@ -234,6 +248,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static CoolantDefinition sanitizeCoolant(CoolantDefinition def) {
+        if (!validationEnabled()) return def;
         List<String> inputs = filterFluidSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.coolantId().toString();
@@ -256,6 +271,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static HeatSinkDefinition sanitizeHeatSink(HeatSinkDefinition def) {
+        if (!validationEnabled()) return def;
         List<String> blocks = filterBlockSelectors(def.validBlocks());
         List<String> liquids = filterFluidSelectors(def.validLiquids());
         if (blocks.isEmpty() && liquids.isEmpty()) {
@@ -268,6 +284,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static TurbineGenerationDefinition sanitizeTurbineGeneration(TurbineGenerationDefinition def) {
+        if (!validationEnabled()) return def;
         List<String> inputs = filterFluidSelectors(def.inputs());
         if (inputs.isEmpty()) {
             LOGGER.debug("Skipped turbine generation {}: no resolvable inputs", def.generationId());
@@ -283,6 +300,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static ElecCoilDefinition sanitizeElecCoil(ElecCoilDefinition def) {
+        if (!validationEnabled()) return def;
         List<String> blocks = filterBlockSelectors(def.validBlocks());
         if (blocks.isEmpty()) {
             LOGGER.debug("Skipped elec coil entry: no resolvable valid_blocks");
@@ -292,6 +310,7 @@ public final class DatapackSelectorValidator {
     }
 
     public static boolean isMelterRecipeResolvable(MelterRecipe recipe) {
+        if (!validationEnabled()) return true;
         boolean inputOk = recipe.inputIsTag()
                 ? isResolvableItemSelector("#" + recipe.inputId())
                 : isResolvableItemSelector(recipe.inputId().toString());
@@ -305,6 +324,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static MelterHeatEntry sanitizeMelterHeat(MelterHeatEntry entry) {
+        if (!validationEnabled()) return entry;
         List<Identifier> blockIds = new ArrayList<>();
         List<Boolean> blockIdIsTag = new ArrayList<>();
         for (int i = 0; i < entry.blockIds().size(); i++) {
@@ -344,6 +364,7 @@ public final class DatapackSelectorValidator {
 
     @Nullable
     public static ConsumeOption sanitizeConsumeOption(ConsumeOption opt) {
+        if (!validationEnabled()) return opt;
         ConsumeOption.FluidRequirement fluid = opt.fluid();
         if (fluid != null) {
             String selector = fluid.isTag() ? "#" + fluid.tagOrId() : fluid.tagOrId().toString();
@@ -367,6 +388,7 @@ public final class DatapackSelectorValidator {
     }
 
     public static HeatingCoilDefinition sanitizeHeatingCoil(HeatingCoilDefinition def) {
+        if (!validationEnabled()) return def;
         List<ConsumeOption> consume = new ArrayList<>();
         for (ConsumeOption opt : def.consume()) {
             ConsumeOption sanitized = sanitizeConsumeOption(opt);

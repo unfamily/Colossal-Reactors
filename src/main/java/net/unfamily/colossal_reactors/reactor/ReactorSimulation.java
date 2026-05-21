@@ -369,13 +369,13 @@ public final class ReactorSimulation {
             double sumOverheatingAdj, double sumOverheatingNon, double baseRf) {
         int volume = (result.maxX() - result.minX() + 1) * (result.maxY() - result.minY() + 1) * (result.maxZ() - result.minZ() + 1);
         double thermalStress = thermalStressSizeFactor(interiorMaxSpanBlocks(result));
-        double weightedOverheat = weightedOverheatingForStability(sumOverheatingAdj, sumOverheatingNon) * thermalStress;
+        double weightedOverheat = weightedOverheatingForStability(sumOverheatingAdj, sumOverheatingNon) / thermalStress;
         double heatSinkCoolingRF = baseRf * 0.5 * weightedOverheat;
         double fluidCoolingRF = 0;
         if (waterMode && coolantDef != null && coolantDef.rfToCoolantFactor() > 0) {
             fluidCoolingRF = (waterConsumedThisTick / coolantDef.rfToCoolantFactor()) * coolantDef.overheatingMultiplier();
             if (Boolean.TRUE.equals(Config.THERMAL_STRESS_SCALE_FLUID_COOLING.get())) {
-                fluidCoolingRF *= thermalStress;
+                fluidCoolingRF /= thermalStress;
             }
         }
         double totalCooling = heatSinkCoolingRF + fluidCoolingRF;

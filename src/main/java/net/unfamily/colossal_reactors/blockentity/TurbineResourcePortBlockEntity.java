@@ -18,6 +18,6 @@ public class TurbineResourcePortBlockEntity extends ResourcePortBlockEntity {
 
     @Override
     public Component getDisplayName() {
-        return Component.translatable("block.colossal_reactors.turbine_resource_port");
+        return Component.translatable("gui.colossal_reactors.resource_port.title");
     }
 }

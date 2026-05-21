@@ -1,7 +1,13 @@
 package net.unfamily.colossal_reactors.blockentity;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.network.chat.Component;
@@ -20,9 +26,14 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.unfamily.colossal_reactors.block.TurbineVisualState;
 import net.unfamily.colossal_reactors.menu.TurbineControllerMenu;
+import net.unfamily.colossal_reactors.turbine.TurbineFiller;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.turbine.TurbineSimulation;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
@@ -31,6 +42,16 @@ import org.jetbrains.annotations.Nullable;
  * Turbine controller: caches validation and runtime stats for GUI.
  */
 public class TurbineControllerBlockEntity extends BlockEntity implements MenuProvider {
+
+    private static final String TAG_STEAM_BUFFER = "SteamBuffer";
+    private static final String TAG_OUTPUT_BUFFER = "OutputBuffer";
+
+    public record FluidBufferEntry(Identifier fluidId, int mb) {}
+
+    private static final Codec<FluidBufferEntry> FLUID_BUFFER_CODEC = RecordCodecBuilder.create(i -> i.group(
+            Identifier.CODEC.fieldOf("FluidId").forGetter(FluidBufferEntry::fluidId),
+            Codec.INT.fieldOf("Mb").forGetter(FluidBufferEntry::mb)
+    ).apply(i, FluidBufferEntry::new));
 
     private TurbineValidation.Result cachedResult = TurbineValidation.Result.invalid();
     private long[] cachedPowerPortPositions = new long[0];
@@ -43,6 +64,11 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     private double lastBladeEff;
     @Nullable
     private Player lastInteractingPlayer;
+
+    private final List<FluidBufferEntry> steamInputEntries = new ArrayList<>();
+    private final List<FluidBufferEntry> outputReturnEntries = new ArrayList<>();
+    private int cachedSteamConsumeMbPerTick = 1;
+    private boolean cachedOutputReturnBuffer;
 
     public TurbineControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TURBINE_CONTROLLER_BE.get(), pos, state);
@@ -64,6 +90,128 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
 
     public void setCachedResult(TurbineValidation.Result result) {
         this.cachedResult = result != null ? result : TurbineValidation.Result.invalid();
+        setChanged();
+    }
+
+    public int getCachedSteamConsumeMbPerTick() {
+        return Math.max(1, cachedSteamConsumeMbPerTick);
+    }
+
+    public int getSteamInputCapacityMb() {
+        return getCachedSteamConsumeMbPerTick();
+    }
+
+    public int getOutputReturnCapacityMb() {
+        return cachedOutputReturnBuffer ? getCachedSteamConsumeMbPerTick() : 0;
+    }
+
+    public int getTotalSteamInputMb() {
+        return totalMbInList(steamInputEntries);
+    }
+
+    public int getTotalOutputReturnMb() {
+        return totalMbInList(outputReturnEntries);
+    }
+
+    public int addSteamInput(Fluid fluid, int amountMb) {
+        return addFluidToList(steamInputEntries, getSteamInputCapacityMb(), fluid, amountMb);
+    }
+
+    public int consumeSteamInput(Fluid fluid, int amountMb) {
+        return consumeFluidFromList(steamInputEntries, fluid, amountMb);
+    }
+
+    public int addOutputReturn(Fluid fluid, int amountMb) {
+        if (!cachedOutputReturnBuffer) return 0;
+        return addFluidToList(outputReturnEntries, getOutputReturnCapacityMb(), fluid, amountMb);
+    }
+
+    public int consumeOutputReturn(Fluid fluid, int amountMb) {
+        return consumeFluidFromList(outputReturnEntries, fluid, amountMb);
+    }
+
+    public List<FluidBufferEntry> getOutputReturnEntries() {
+        return List.copyOf(outputReturnEntries);
+    }
+
+    public void updateFluidBufferCapacities(ServerLevel level, TurbineValidation.Result result) {
+        if (result == null || !result.valid()) {
+            cachedSteamConsumeMbPerTick = 1;
+            cachedOutputReturnBuffer = false;
+            return;
+        }
+        cachedSteamConsumeMbPerTick = Math.max(1, (int) Math.ceil(result.maxSteamMbPerTick()));
+        var gen = TurbineGenerationLoader.getDefault();
+        Fluid outputFluid = TurbineGenerationLoader.getOutputFluid(gen, level.registryAccess());
+        cachedOutputReturnBuffer = outputFluid != null && outputFluid != Fluids.EMPTY;
+        clampFluidBuffers();
+    }
+
+    private void clampFluidBuffers() {
+        clampFluidListToCapacity(steamInputEntries, getSteamInputCapacityMb());
+        clampFluidListToCapacity(outputReturnEntries, getOutputReturnCapacityMb());
+    }
+
+    private static int totalMbInList(List<FluidBufferEntry> list) {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, list.stream().mapToLong(FluidBufferEntry::mb).sum()));
+    }
+
+    private int addFluidToList(List<FluidBufferEntry> list, int maxTotalMb, Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY || maxTotalMb <= 0) return 0;
+        Identifier id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        int total = totalMbInList(list);
+        int add = Math.min(amountMb, Math.max(0, maxTotalMb - total));
+        if (add <= 0) return 0;
+        for (int i = 0; i < list.size(); i++) {
+            FluidBufferEntry e = list.get(i);
+            if (id.equals(e.fluidId())) {
+                list.set(i, new FluidBufferEntry(id, e.mb() + add));
+                setChanged();
+                return add;
+            }
+        }
+        list.add(new FluidBufferEntry(id, add));
+        setChanged();
+        return add;
+    }
+
+    private int consumeFluidFromList(List<FluidBufferEntry> list, Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        Identifier id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        int remaining = amountMb;
+        int consumed = 0;
+        for (int i = 0; i < list.size() && remaining > 0; i++) {
+            FluidBufferEntry e = list.get(i);
+            if (!id.equals(e.fluidId())) continue;
+            int take = Math.min(remaining, Math.max(0, e.mb()));
+            if (take <= 0) continue;
+            int left = e.mb() - take;
+            consumed += take;
+            remaining -= take;
+            if (left <= 0) {
+                list.remove(i);
+                i--;
+            } else {
+                list.set(i, new FluidBufferEntry(id, left));
+            }
+        }
+        if (consumed > 0) setChanged();
+        return consumed;
+    }
+
+    private void clampFluidListToCapacity(List<FluidBufferEntry> list, int maxTotalMb) {
+        int excess = totalMbInList(list) - maxTotalMb;
+        if (excess <= 0) return;
+        for (int i = list.size() - 1; i >= 0 && excess > 0; i--) {
+            FluidBufferEntry e = list.get(i);
+            int take = Math.min(e.mb(), excess);
+            int left = e.mb() - take;
+            excess -= take;
+            if (left <= 0) list.remove(i);
+            else list.set(i, new FluidBufferEntry(e.fluidId(), left));
+        }
         setChanged();
     }
 
@@ -141,6 +289,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             setRuntimeStats(0, 0, false);
             return;
         }
+        updateFluidBufferCapacities(level, cachedResult);
+        TurbineFiller.tickFill(level, this);
         TurbineSimulation.tick(level, this);
         lastCoilEff = cachedResult.coilEfficiency();
         lastBladeEff = cachedResult.bladeEfficiency();
@@ -181,6 +331,14 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             output.putDouble("val_steamCap", cachedResult.maxSteamMbPerTick());
             output.putDouble("val_rfEst", cachedResult.estimatedRfPerTick());
         }
+        output.putInt("SteamConsumeMb", cachedSteamConsumeMbPerTick);
+        output.putBoolean("OutputReturnBuf", cachedOutputReturnBuffer);
+        if (!steamInputEntries.isEmpty()) {
+            output.store(TAG_STEAM_BUFFER, Codec.list(FLUID_BUFFER_CODEC), List.copyOf(steamInputEntries));
+        }
+        if (!outputReturnEntries.isEmpty()) {
+            output.store(TAG_OUTPUT_BUFFER, Codec.list(FLUID_BUFFER_CODEC), List.copyOf(outputReturnEntries));
+        }
     }
 
     @Override
@@ -213,6 +371,21 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
                     input.getDoubleOr("val_rfEst", 0.0));
         } else {
             cachedResult = TurbineValidation.Result.invalid();
+        }
+        cachedSteamConsumeMbPerTick = Math.max(1, input.getIntOr("SteamConsumeMb", 1));
+        cachedOutputReturnBuffer = input.getBooleanOr("OutputReturnBuf", false);
+        steamInputEntries.clear();
+        for (FluidBufferEntry e : input.listOrEmpty(TAG_STEAM_BUFFER, FLUID_BUFFER_CODEC)) {
+            if (e != null && e.fluidId() != null && e.mb() > 0) steamInputEntries.add(e);
+        }
+        outputReturnEntries.clear();
+        for (FluidBufferEntry e : input.listOrEmpty(TAG_OUTPUT_BUFFER, FLUID_BUFFER_CODEC)) {
+            if (e != null && e.fluidId() != null && e.mb() > 0) outputReturnEntries.add(e);
+        }
+        if (level instanceof ServerLevel sl && cachedResult.valid()) {
+            updateFluidBufferCapacities(sl, cachedResult);
+        } else {
+            clampFluidBuffers();
         }
     }
 

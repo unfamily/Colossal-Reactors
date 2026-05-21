@@ -13,6 +13,7 @@ import net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
+import net.unfamily.colossal_reactors.network.ClearPreviewPayload;
 import net.unfamily.colossal_reactors.network.ReactorPreviewMarkerPayload;
 
 /**
@@ -27,7 +28,11 @@ public final class ColossalClientSetup {
         event.registrar(ColossalReactors.MODID).versioned("1").playToClient(
                 ReactorPreviewMarkerPayload.TYPE,
                 ReactorPreviewMarkerPayload.STREAM_CODEC,
-                ClientPayloadHandlers::handlePreviewMarker);
+                ClientPayloadHandlers::handlePreviewMarker)
+                .playToClient(
+                        ClearPreviewPayload.TYPE,
+                        ClearPreviewPayload.STREAM_CODEC,
+                        ClearPreviewPayload::handle);
     }
 
     public static void registerMenuScreens(RegisterMenuScreensEvent event) {

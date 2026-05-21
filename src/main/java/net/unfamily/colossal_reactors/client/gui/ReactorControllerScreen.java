@@ -108,73 +108,60 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y, statusKey, trailing);
         y += LINE_HEIGHT;
 
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.rods", menu.getRodCount(), menu.getRodColumns()),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks",
-                        GuiNumberFormat.format(menu.getCoolantCount())),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
         boolean reactorRunning = (stateId == 2 && !effectivelyOff);
         long energyPerTick = reactorRunning ? menu.getEnergyPerTickLong() : 0L;
         int waterPerTick = reactorRunning ? menu.getWaterPerTick() : 0;
         int steamPerTick = reactorRunning ? menu.getSteamPerTick() : 0;
         int fuelHundredths = reactorRunning ? menu.getFuelPerTickHundredths() : 0;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production",
-                        GuiNumberFormat.format(energyPerTick)),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume",
-                        GuiNumberFormat.format(waterPerTick)),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production",
-                        GuiNumberFormat.format(steamPerTick)),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
-
         String fuelStr = formatFuelPerTick(fuelHundredths);
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
+
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.rods.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.rods.value",
+                        menu.getRodCount(), menu.getRodColumns()));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.coolant_blocks.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks.value",
+                        GuiNumberFormat.format(menu.getCoolantCount())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.energy_production.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production.value",
+                        GuiNumberFormat.format(energyPerTick)));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.water_consume.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume.value",
+                        GuiNumberFormat.format(waterPerTick)));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.steam_production.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production.value",
+                        GuiNumberFormat.format(steamPerTick)));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.fuel_units.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units.value", fuelStr));
 
         int cap = menu.getFuelCapacityUnits();
         int stored = menu.getFuelStoredUnits();
         String fillStr = cap > 0 ? String.format("%d", (int) Math.round((stored * 100.0) / cap)) : "0";
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_capacity",
-                        GuiNumberFormat.format(cap), fillStr),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.fuel_capacity.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_capacity.value",
+                        GuiNumberFormat.format(cap), fillStr));
 
         int wasteCap = menu.getWasteCapacityUnits();
         int wasteStored = menu.getWasteStoredUnits();
         String wasteFillStr = wasteCap > 0 ? String.format("%d", (int) Math.round((wasteStored * 100.0) / wasteCap)) : "0";
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.waste_capacity",
-                        GuiNumberFormat.format(wasteStored), wasteFillStr),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.waste_capacity.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.waste_capacity.value",
+                        GuiNumberFormat.format(wasteStored), wasteFillStr));
 
         int coolantCap = menu.getCoolantCapacityMb();
         int coolantStored = menu.getCoolantStoredMb();
         String coolantFillStr = coolantCap > 0 ? String.format("%d", (int) Math.round((coolantStored * 100.0) / coolantCap)) : "0";
-        guiGraphics.text(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_capacity",
-                        GuiNumberFormat.format(coolantCap), coolantFillStr),
-                PANEL_X, y, TEXT_COLOR, false);
-        y += LINE_HEIGHT;
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.coolant_capacity.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_capacity.value",
+                        GuiNumberFormat.format(coolantCap), coolantFillStr));
 
         if (menu.isUnstabilityEnabled()) {
             int permille = reactorRunning ? menu.getStabilityPermille() : 1000;

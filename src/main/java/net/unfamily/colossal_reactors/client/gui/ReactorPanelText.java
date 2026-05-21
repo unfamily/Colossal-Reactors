@@ -34,4 +34,29 @@ public final class ReactorPanelText {
         }
         return xAfter;
     }
+
+    public static int drawMetricLine(
+            GuiGraphicsExtractor graphics,
+            Font font,
+            int x,
+            int y,
+            Component label,
+            Component value) {
+        graphics.text(font, label, x, y, GuiTextColors.PANEL_YELLOW_LIGHT, false);
+        int xAfter = x + font.width(label);
+        graphics.text(font, value, xAfter, y, GuiTextColors.PANEL_WHITE, false);
+        return xAfter + font.width(value);
+    }
+
+    public static int drawMetricRow(
+            GuiGraphicsExtractor graphics,
+            Font font,
+            int x,
+            int y,
+            int lineHeight,
+            String labelKey,
+            Component value) {
+        drawMetricLine(graphics, font, x, y, Component.translatable(labelKey), value);
+        return y + lineHeight;
+    }
 }

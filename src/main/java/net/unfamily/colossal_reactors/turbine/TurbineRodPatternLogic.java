@@ -24,9 +24,14 @@ public final class TurbineRodPatternLogic {
         return TurbineRodSpaceLayout.interiorDepth(turbineDepth);
     }
 
-    /** Only the geometrically centered rod column gets a rod and blades. */
+    /**
+     * Single rod column at the primary center (aligned with the one {@link TurbineRodControllerLayout} cell).
+     * Efficient / Productive change {@link #targetBladeRingForLayer} only, not which column gets rods.
+     */
     public static boolean isRodColumn(int rx, int rz, int rw, int rd, int pattern) {
-        if (rw <= 0 || rd <= 0) return false;
+        if (rw <= 0 || rd <= 0) {
+            return false;
+        }
         TurbineRodControllerLayout.Center center = TurbineRodControllerLayout.bestPrimaryCenter(rw, rd);
         return rx == center.rx() && rz == center.rz();
     }
@@ -36,14 +41,16 @@ public final class TurbineRodPatternLogic {
         return isRodColumn(rx, rz, rw, rd, pattern);
     }
 
-    /** Target blade ring for layer ry (0 = bottom). Efficient grows rings; Productive uses max. */
+    /**
+     * Target blade ring index for rotor layer {@code ry} (0 = bottom along growth axis).
+     * Efficient: +1 ring per layer (4, 8, 12, … blades) up to {@link TurbineBladePlacement#maxRing()}.
+     * Productive: full rings on every layer immediately.
+     */
     public static int targetBladeRingForLayer(int ry, int rh, int pattern) {
         int maxRing = TurbineBladePlacement.maxRing();
         if (pattern == PATTERN_PRODUCTIVE) {
             return maxRing;
         }
-        if (rh <= 1) return 1;
-        int step = Math.max(1, maxRing / Math.max(1, rh - 1));
-        return Math.min(maxRing, 1 + ry * step);
+        return Math.min(maxRing, 1 + ry);
     }
 }

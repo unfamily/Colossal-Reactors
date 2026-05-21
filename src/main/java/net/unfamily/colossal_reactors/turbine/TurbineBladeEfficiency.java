@@ -50,6 +50,61 @@ public final class TurbineBladeEfficiency {
         return computeMultiplier(layerCounts);
     }
 
+    /**
+     * Runtime production: blade-efficiency curve uses only rod-zone layers (not coil-cap layers along full interior height).
+     */
+    public static double computeFromRotorLayout(Level level, TurbineRotorLayout layout,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        return computeMultiplier(collectRodZoneLayerBladeCounts(level, layout, minX, minY, minZ, maxX, maxY, maxZ));
+    }
+
+    public static List<Integer> collectRodZoneLayerBladeCounts(Level level, TurbineRotorLayout layout,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        List<Integer> counts = new ArrayList<>();
+        int rodLayers = layout.closureInteriorIndex();
+        for (int layer = 0; layer < rodLayers; layer++) {
+            counts.add(maxBalancedBladesOnRodZoneLayer(level, layout, layer, minX, minY, minZ, maxX, maxY, maxZ));
+        }
+        trimLeadingZeroLayers(counts);
+        if (counts.isEmpty()) {
+            counts.add(0);
+        }
+        return counts;
+    }
+
+    /**
+     * Drops empty layers below the lowest rod segment so partial columns (not reaching the rotor floor)
+     * do not penalize the ascending blade-efficiency curve.
+     */
+    private static void trimLeadingZeroLayers(List<Integer> counts) {
+        while (counts.size() > 1 && counts.getFirst() == 0) {
+            counts.removeFirst();
+        }
+    }
+
+    private static int maxBalancedBladesOnRodZoneLayer(Level level, TurbineRotorLayout layout, int layerIndex,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        int max = 0;
+        for (int x = minX + 1; x < maxX; x++) {
+            for (int y = minY + 1; y < maxY; y++) {
+                for (int z = minZ + 1; z < maxZ; z++) {
+                    if (!layout.isInRodZone(x, y, z) || layout.interiorIndexFromWorld(x, y, z) != layerIndex) {
+                        continue;
+                    }
+                    BlockState state = level.getBlockState(new BlockPos(x, y, z));
+                    if (state.is(ModBlocks.TURBINE_ROD.get()) && state.hasProperty(TurbineRodBlock.FACING)) {
+                        Direction rodAxis = state.getValue(TurbineRodBlock.FACING);
+                        if (rodAxis.getAxis() != layout.growthAxis().getAxis()) {
+                            continue;
+                        }
+                        max = Math.max(max, countBalancedBlades(level, new BlockPos(x, y, z), rodAxis));
+                    }
+                }
+            }
+        }
+        return max;
+    }
+
     public static List<Integer> collectLayerBladeCounts(Level level, int minX, int minY, int minZ,
                                                         int maxX, int maxY, int maxZ, Direction axis) {
         List<Integer> counts = new ArrayList<>();
@@ -80,7 +135,9 @@ public final class TurbineBladeEfficiency {
                 BlockState state = level.getBlockState(p);
                 if (state.is(ModBlocks.TURBINE_ROD.get()) && state.hasProperty(TurbineRodBlock.FACING)) {
                     Direction rodAxis = state.getValue(TurbineRodBlock.FACING);
-                    if (rodAxis.getAxis() == axis.getAxis()) continue;
+                    if (rodAxis.getAxis() != axis.getAxis()) {
+                        continue;
+                    }
                     int blades = countBalancedBlades(level, p, rodAxis);
                     max = Math.max(max, blades);
                 }

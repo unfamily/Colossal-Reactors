@@ -28,7 +28,7 @@ Open the controller by **right-clicking** the block when the multiblock is valid
 
 ## Stopping the reactor without breaking it
 
-To **turn the reactor off cleanly** (without mining controller or casing), route **stop / disable** through a **Redstone Port**: configure it so an external redstone signal can **halt** or **hold off** operation while the multiblock stays formed. Exact modes depend on your version—check the [Redstone Port](redstone_port.md) page.
+To **turn the reactor off cleanly** (without mining controller or casing), route **stop / disable** through a **Reactor Redstone Port**: configure it so an external redstone signal can **halt** or **hold off** operation while the multiblock stays formed. Exact modes depend on your version—check the [Reactor Redstone Port](redstone_port.md) page.
 
 If extra **stability** readouts are enabled for your pack, they appear on this screen—see [Reactor instability](reactor_instability.md) when relevant.
 

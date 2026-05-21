@@ -61,9 +61,14 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
         setChanged();
     }
 
+    /** Called when a neighboring block updates so controller gate checks see fresh signal state. */
+    public void onRedstoneNeighborChanged() {
+        setChanged();
+    }
+
     @Override
     public Component getDisplayName() {
-        return Component.translatable("block.colossal_reactors.redstone_port");
+        return Component.translatable("gui.colossal_reactors.redstone_port.title");
     }
 
     @Nullable

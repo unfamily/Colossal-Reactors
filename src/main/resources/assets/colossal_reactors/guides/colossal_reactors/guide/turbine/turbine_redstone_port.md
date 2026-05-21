@@ -20,6 +20,6 @@ The **Turbine Redstone Port** links turbine status to **redstone** (for example 
 
 - **Right-click** to choose how turbine state affects redstone. Tooltips on each button explain the mode.
 
-- Use it to **stop or pause** the turbine from outside without breaking the multiblock—same idea as the [fission reactor Redstone Port](../multiblock/redstone_port.md).
+- Use it to **stop or pause** the turbine from outside without breaking the multiblock—same idea as the [Reactor Redstone Port](../multiblock/redstone_port.md).
 
 - Place it so dust, comparators, or machines on the **outside** of the shell can reach it.

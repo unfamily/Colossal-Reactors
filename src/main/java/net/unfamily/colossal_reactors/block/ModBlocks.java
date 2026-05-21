@@ -57,7 +57,7 @@ public class ModBlocks {
 
     public static final DeferredBlock<RedstonePortBlock> REDSTONE_PORT = BLOCKS.registerBlock("redstone_port",
             RedstonePortBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).isRedstoneConductor((state, level, pos) -> false));
 
     public static final DeferredBlock<ResourcePortBlock> RESOURCE_PORT = BLOCKS.registerBlock("resource_port",
             ResourcePortBlock::new,
@@ -104,7 +104,7 @@ public class ModBlocks {
             p -> p.sound(SoundType.METAL).strength(2.0f));
     public static final DeferredBlock<TurbineRedstonePortBlock> TURBINE_REDSTONE_PORT = BLOCKS.registerBlock("turbine_redstone_port",
             TurbineRedstonePortBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).isRedstoneConductor((state, level, pos) -> false));
     public static final DeferredBlock<TurbineResourcePortBlock> TURBINE_RESOURCE_PORT = BLOCKS.registerBlock("turbine_resource_port",
             TurbineResourcePortBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));

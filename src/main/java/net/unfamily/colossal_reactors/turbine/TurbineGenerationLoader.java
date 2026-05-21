@@ -140,6 +140,23 @@ public final class TurbineGenerationLoader {
     }
 
     @Nullable
+    public static Fluid getOutputFluid(@Nullable TurbineGenerationDefinition def, RegistryAccess registryAccess) {
+        if (def == null || def.output() == null || def.output().isBlank()) {
+            return null;
+        }
+        String output = def.output().trim();
+        if (output.startsWith("#")) {
+            return getFirstFluidFromTag(output, registryAccess);
+        }
+        Identifier id = Identifier.tryParse(output);
+        if (id == null) {
+            return null;
+        }
+        Fluid fluid = BuiltInRegistries.FLUID.getValue(id);
+        return fluid != null && fluid != Fluids.EMPTY ? fluid : null;
+    }
+
+    @Nullable
     public static Fluid getFirstFluidFromTag(String selector, RegistryAccess registryAccess) {
         if (selector == null || !selector.startsWith("#")) return null;
         Identifier tagId = Identifier.tryParse(selector.substring(1));

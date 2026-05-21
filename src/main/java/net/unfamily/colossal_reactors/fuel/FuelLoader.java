@@ -63,13 +63,13 @@ public class FuelLoader {
         Identifier uraniumId = ReactorRodBlockEntity.URANIUM_FUEL_ID;
         int unitsPerFuel = 1000;
         int unitsPerWaste = 1000;
-        double baseRf = 200.0;
+        // Match data/colossal_reactors/recipe/reactor/reactor_fuel.json (1.21.1 source of truth)
+        double baseRf = 400.0;
         double baseFuelUnitsPerTick = 0.03;
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
         DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
 
-        // Azurite: 500 base RF, 500 fuel units per ingot, 1500 consumed units per 1 waste (nuclear_waste)
         Identifier azuriteId = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
         DEFINITIONS.put(azuriteId, new FuelDefinition(
                 azuriteId,
@@ -77,7 +77,7 @@ public class FuelLoader {
                 ColossalReactors.MODID + ":nuclear_waste",
                 500,
                 1500,
-                500.0,
+                1000.0,
                 baseFuelUnitsPerTick,
                 true
         ));

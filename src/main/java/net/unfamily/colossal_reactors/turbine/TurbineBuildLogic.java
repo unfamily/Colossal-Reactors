@@ -6,6 +6,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.TurbineBuilderBlock;
 import net.unfamily.colossal_reactors.block.TurbineRodBlock;
@@ -132,7 +134,7 @@ public final class TurbineBuildLogic {
                     }
                     BlockPos pos = new BlockPos(xx, yy, zz);
                     BlockState existing = level.getBlockState(pos);
-                    if (!canReplace(existing)) {
+                    if (!canReplaceForSolidBlock(level, pos)) {
                         builder.setBuildFrameCursor(xx, yy, zz + 1);
                         continue;
                     }
@@ -248,7 +250,7 @@ public final class TurbineBuildLogic {
 
     private static boolean tryPlaceClosureCasing(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos) {
         BlockState st = level.getBlockState(pos);
-        if (st.is(ModBlocks.TURBINE_CASING.get()) || !canReplace(st)) {
+        if (st.is(ModBlocks.TURBINE_CASING.get()) || !canReplaceForSolidBlock(level, pos)) {
             return false;
         }
         if (resolveFrameStack(builder, true).isEmpty()) {
@@ -440,7 +442,7 @@ public final class TurbineBuildLogic {
                         if (ElecCoilLoader.isBlockMatchingSelectedCoil(existing, idx, level.registryAccess())) {
                             continue;
                         }
-                        if (!canReplace(existing)) {
+                        if (!canReplaceForSolidBlock(level, pos)) {
                             continue;
                         }
                         if (!consumeCoilFromBuffer(builder, idx, level)) {
@@ -538,7 +540,7 @@ public final class TurbineBuildLogic {
 
     private static PlaceResult tryPlaceState(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, BlockState state) {
         BlockState existing = level.getBlockState(pos);
-        if (!canReplace(existing)) {
+        if (!canReplaceForSolidBlock(level, pos)) {
             return PlaceResult.SKIP;
         }
         if (!consumeForBlock(builder, state.getBlock())) {
@@ -548,8 +550,38 @@ public final class TurbineBuildLogic {
         return PlaceResult.PLACED;
     }
 
-    private static boolean canReplace(BlockState existing) {
-        return existing.canBeReplaced() || existing.isAir();
+    private static boolean canReplaceForSolidBlock(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) {
+            return true;
+        }
+        if (!state.canBeReplaced()) {
+            return false;
+        }
+        FluidState fluidState = state.getFluidState();
+        if (fluidState.isSource()) {
+            return false;
+        }
+        return true;
+    }
+
+    @SuppressWarnings("unused")
+    private static boolean canReplaceForLiquid(ServerLevel level, BlockPos pos, Fluid fluidToPlace) {
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) {
+            return true;
+        }
+        if (!state.canBeReplaced()) {
+            return false;
+        }
+        FluidState fluidState = state.getFluidState();
+        if (fluidState.isEmpty()) {
+            return true;
+        }
+        if (fluidState.isSource()) {
+            return false;
+        }
+        return true;
     }
 
     private static boolean consumeForBlock(TurbineBuilderBlockEntity builder, Block block) {

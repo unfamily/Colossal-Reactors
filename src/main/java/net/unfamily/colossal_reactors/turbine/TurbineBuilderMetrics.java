@@ -17,6 +17,14 @@ public final class TurbineBuilderMetrics {
             List<Integer> layerBladeCounts
     ) {}
 
+    /** Blade/rod totals for one virtual build (matches {@link TurbineBuildLogic} placement). */
+    public record RodBladeCounts(
+            int rodBlocks,
+            int bladeItems,
+            int validBladeItems,
+            List<Integer> layerMaxBladesPerRod
+    ) {}
+
     private TurbineBuilderMetrics() {}
 
     public static Estimate fromShellSizes(
@@ -32,26 +40,21 @@ public final class TurbineBuilderMetrics {
         TurbinePlacementAxis placement = TurbinePlacementAxis.fromIndex(placementAxisIndex);
         int interiorAlong = interiorAlongPlacement(w, h, d, placement);
         int appliedCoils = TurbineRodSpaceLayout.appliedCoilLayerCount(interiorAlong, storedCoilSetting);
-
         TurbineRotorLayout layout = TurbineRotorLayout.from(
                 0, 0, 0, w - 1, h - 1, d - 1, w, h, d, appliedCoils, placement.facing());
-        int rodExtent = layout.rodExtent();
-
-        int bladeItems = 0;
-        List<Integer> layerBladeCounts = new ArrayList<>();
-        for (int layer = 0; layer < rodExtent; layer++) {
-            int ring = TurbineRodPatternLogic.targetBladeRingForLayer(layer, rodExtent, rodPattern);
-            int layerBlades = ring * 4;
-            bladeItems += layerBlades;
-            layerBladeCounts.add(layerBlades);
-        }
+        RodBladeCounts blades = countRodsAndBlades(layout, rodPattern);
 
         int coilBlocks = 0;
         if (!ElecCoilLoader.shouldSkipSolidCoilAutoPlacement(coilIndex)) {
             coilBlocks = layout.crossSizeA() * layout.crossSizeB() * appliedCoils;
         }
 
-        return new Estimate(rodExtent, bladeItems, coilBlocks, rodExtent, layerBladeCounts);
+        return new Estimate(
+                blades.rodBlocks(),
+                blades.bladeItems(),
+                coilBlocks,
+                layout.rodExtent(),
+                blades.layerMaxBladesPerRod());
     }
 
     public static int balancedBladesForSteam(int bladeItems) {
@@ -59,6 +62,90 @@ public final class TurbineBuilderMetrics {
             return bladeItems;
         }
         return (bladeItems / 4) * 4;
+    }
+
+    /**
+     * Metrics for a turbine built exactly as the builder would place it (aligned with {@link TurbineValidation}).
+     */
+    public record IdealBuildMetrics(
+            int bladeCount,
+            int validBladeCount,
+            int coilBlockCount,
+            double coilEfficiency,
+            double bladeEfficiency,
+            TurbineRotorLayout layout
+    ) {}
+
+    public static IdealBuildMetrics idealBuildMetrics(
+            int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
+            int placementAxisIndex,
+            int storedCoilSetting,
+            int rodPattern,
+            int coilIndex) {
+
+        int w = sizeLeft + sizeRight + 1;
+        int h = sizeHeight + 1;
+        int d = sizeDepth + 1;
+        TurbinePlacementAxis placement = TurbinePlacementAxis.fromIndex(placementAxisIndex);
+        int interiorAlong = interiorAlongPlacement(w, h, d, placement);
+        int appliedCoils = TurbineRodSpaceLayout.appliedCoilLayerCount(interiorAlong, storedCoilSetting);
+        TurbineRotorLayout layout = TurbineRotorLayout.from(
+                0, 0, 0, w - 1, h - 1, d - 1, w, h, d, appliedCoils, placement.facing());
+        RodBladeCounts blades = countRodsAndBlades(layout, rodPattern);
+
+        int coilBlocks = 0;
+        if (!ElecCoilLoader.shouldSkipSolidCoilAutoPlacement(coilIndex)) {
+            coilBlocks = layout.crossSizeA() * layout.crossSizeB() * appliedCoils;
+        }
+
+        double coilEff;
+        if (coilBlocks > 0 && coilIndex >= 0 && coilIndex < ElecCoilLoader.getAllDefinitions().size()) {
+            ElecCoilDefinition coilDef = ElecCoilLoader.getAllDefinitions().get(coilIndex);
+            coilEff = Math.min(coilDef.effCoe(), coilDef.effMax());
+        } else {
+            coilEff = net.unfamily.colossal_reactors.Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
+        }
+
+        double bladeEff = TurbineBladeEfficiency.computeMultiplier(blades.layerMaxBladesPerRod());
+
+        return new IdealBuildMetrics(
+                blades.bladeItems(),
+                blades.validBladeItems(),
+                coilBlocks,
+                coilEff,
+                bladeEff,
+                layout);
+    }
+
+    /**
+     * Counts rods and blades like {@link TurbineBuildLogic}: one rod stack at the primary center column,
+     * {@code targetBladeRingForLayer(t) * 4} blades on that rod per layer {@code t}.
+     */
+    public static RodBladeCounts countRodsAndBlades(TurbineRotorLayout layout, int rodPattern) {
+        int rodBlocks = 0;
+        int bladeItems = 0;
+        int validBladeItems = 0;
+        List<Integer> layerMaxBladesPerRod = new ArrayList<>();
+        boolean requireBalanced = Boolean.TRUE.equals(
+                net.unfamily.colossal_reactors.Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get());
+        int rw = layout.crossSizeA();
+        int rd = layout.crossSizeB();
+        boolean hasRodColumn = rw > 0 && rd > 0;
+
+        for (int t = 0; t < layout.rodExtent(); t++) {
+            int ring = TurbineRodPatternLogic.targetBladeRingForLayer(t, layout.rodExtent(), rodPattern);
+            int bladesPerRod = ring * 4;
+            int rodsOnLayer = hasRodColumn ? 1 : 0;
+            rodBlocks += rodsOnLayer;
+            int layerBlades = bladesPerRod * rodsOnLayer;
+            bladeItems += layerBlades;
+            if (!requireBalanced || bladesPerRod % 4 == 0) {
+                validBladeItems += layerBlades;
+            }
+            layerMaxBladesPerRod.add(bladesPerRod);
+        }
+
+        return new RodBladeCounts(rodBlocks, bladeItems, validBladeItems, layerMaxBladesPerRod);
     }
 
     private static int interiorAlongPlacement(int w, int h, int d, TurbinePlacementAxis placement) {

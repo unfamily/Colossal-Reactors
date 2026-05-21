@@ -16,6 +16,7 @@ import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 
 /**
  * C2S: discard all fluid in the block's internal tank (GUI dump button).
@@ -44,6 +45,8 @@ public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload 
             boolean emptied = false;
             if (be instanceof ReactorBuilderBlockEntity builder) {
                 emptied = builder.dumpFluidTankContents();
+            } else if (be instanceof TurbineBuilderBlockEntity turbineBuilder) {
+                emptied = turbineBuilder.dumpFluidTankContents();
             } else if (be instanceof ResourcePortBlockEntity port) {
                 emptied = port.dumpFluidTankContents();
             } else if (be instanceof MelterBlockEntity melter) {
