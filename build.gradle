@@ -126,6 +126,7 @@ configurations {
 }
 
 dependencies {
+    // Gas/steam: implemented in-mod (net.unfamily.colossal_reactors.gas). Do not add iska_lib (26.x only).
     // guideME optional dependency (CurseForge)
     // If runtime_itemlist_mod is set to "guideme" we load it at runtime,
     // otherwise we keep it as compileOnly for optional integration.

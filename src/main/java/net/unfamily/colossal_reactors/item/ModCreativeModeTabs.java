@@ -10,6 +10,7 @@ import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
+import net.unfamily.colossal_reactors.gas.ModGases;
 
 public class ModCreativeModeTabs {
 
@@ -82,6 +83,7 @@ public class ModCreativeModeTabs {
                                 output.accept(ModFluids.MOLTEN_TOUGH_ALLOY.bucket().get());
                                 output.accept(ModFluids.ENDER_GOO.bucket().get());
                                 output.accept(ModFluids.GELID_BREEZIUM.bucket().get());
+                                output.accept(new ItemStack(ModGases.steam().bucketItem()));
                             })
                             .build());
 

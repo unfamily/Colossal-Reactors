@@ -33,27 +33,37 @@ public final class ElecCoilLoader {
     private static final String KEY_EFF_MAX = "eff_max";
 
     private static final List<ElecCoilDefinition> DEFINITIONS = new ArrayList<>();
+    /** Parsed datapack entries; sanitized when registries/tags are ready (see {@link #rebuildDefinitions()}). */
+    private static List<ElecCoilDefinition> rawDatapackCoils = List.of();
 
     private ElecCoilLoader() {}
 
     public static void applyLoaded(List<ElecCoilDefinition> loaded) {
-        DEFINITIONS.clear();
-        double empty = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
-        DEFINITIONS.add(new ElecCoilDefinition(List.of("minecraft:air"), empty, empty));
-        if (loaded != null) {
-            for (ElecCoilDefinition def : loaded) {
-                ElecCoilDefinition sanitized = DatapackSelectorValidator.sanitizeElecCoil(def);
-                if (sanitized == null || isAirOnlyDefinition(sanitized)) {
-                    continue;
-                }
-                DEFINITIONS.add(sanitized);
-            }
+        synchronized (ElecCoilLoader.class) {
+            rawDatapackCoils = loaded != null ? List.copyOf(loaded) : List.of();
+            rebuildDefinitions();
         }
     }
 
-    /** Entries shown in JEI (excludes internal air-only builder option). */
+    private static void rebuildDefinitions() {
+        DEFINITIONS.clear();
+        double empty = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
+        DEFINITIONS.add(new ElecCoilDefinition(List.of("minecraft:air"), empty, empty));
+        for (ElecCoilDefinition def : rawDatapackCoils) {
+            ElecCoilDefinition sanitized = DatapackSelectorValidator.sanitizeElecCoil(def);
+            if (sanitized == null || isAirOnlyDefinition(sanitized)) {
+                continue;
+            }
+            DEFINITIONS.add(sanitized);
+        }
+    }
+
+    /** Entries shown in JEI (excludes air-only; requires resolvable block selectors). */
     public static List<ElecCoilDefinition> getJeIDefinitions() {
-        return DEFINITIONS.stream().filter(def -> !isAirOnlyDefinition(def)).toList();
+        return DEFINITIONS.stream()
+                .filter(def -> !isAirOnlyDefinition(def))
+                .filter(def -> DatapackSelectorValidator.sanitizeElecCoil(def) != null)
+                .toList();
     }
 
     public static boolean isAirOnlyDefinition(ElecCoilDefinition def) {

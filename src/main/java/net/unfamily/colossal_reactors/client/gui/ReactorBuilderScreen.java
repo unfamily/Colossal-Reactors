@@ -280,15 +280,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private static List<ResourceLocation> getOrderedCoolantIds() {
-        List<ResourceLocation> ids = new ArrayList<>(CoolantLoader.getAll().keySet());
-        ids.sort(ResourceLocation::compareTo);
-        return ids;
+        return new ArrayList<>(CoolantLoader.getVisibleCoolantIds());
     }
 
     private static List<ResourceLocation> getOrderedFuelIds() {
-        List<ResourceLocation> ids = new ArrayList<>(FuelLoader.getAll().keySet());
-        ids.sort(ResourceLocation::compareTo);
-        return ids;
+        return new ArrayList<>(FuelLoader.getVisibleFuelIds());
     }
 
     /** Index of uranium in ordered fuel list, or 0 if not found / empty. */

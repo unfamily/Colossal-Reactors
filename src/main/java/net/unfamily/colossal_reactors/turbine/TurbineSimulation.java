@@ -207,6 +207,11 @@ public final class TurbineSimulation {
                 }
             }
         }
+        Fluid internalSteam = BuiltInRegistries.FLUID.get(
+                ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "gas_fluid_steam"));
+        if (internalSteam != null && internalSteam != Fluids.EMPTY) {
+            return internalSteam;
+        }
         return TurbineGenerationLoader.getFirstFluidFromTag("#c:steam", registryAccess);
     }
 

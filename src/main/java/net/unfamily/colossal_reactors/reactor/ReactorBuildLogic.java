@@ -199,19 +199,22 @@ public final class ReactorBuildLogic {
         return true;
     }
 
+    /** Frame shell: complete each absolute Y layer (bottom → top) before the next. */
     private static boolean tickFrame(ReactorBuilderBlockEntity builder, ServerLevel level,
                                      int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
                                      int insetXZ, int rw, int rd, int pattern, boolean expansionRodAtCenter, boolean openTop) {
         int x = builder.getBuildFrameX();
         int y = builder.getBuildFrameY();
         int z = builder.getBuildFrameZ();
-        if (x == Integer.MIN_VALUE) {
-            x = minX; y = minY; z = minZ;
+        if (y == Integer.MIN_VALUE) {
+            y = minY;
+            x = minX;
+            z = minZ;
         }
-        for (int xx = x; xx <= maxX; xx++) {
-            int yy0 = (xx == x) ? y : minY;
-            for (int yy = yy0; yy <= maxY; yy++) {
-                int zz0 = (xx == x && yy == yy0) ? z : minZ;
+        for (int yy = y; yy <= maxY; yy++) {
+            int xx0 = (yy == y) ? x : minX;
+            for (int xx = xx0; xx <= maxX; xx++) {
+                int zz0 = (yy == y && xx == xx0) ? z : minZ;
                 for (int zz = zz0; zz <= maxZ; zz++) {
                     if (yy == maxY && openTop) {
                         builder.setBuildFrameCursor(xx, yy, zz + 1);
@@ -234,11 +237,10 @@ public final class ReactorBuildLogic {
                     boolean edgeOrCorner = isEdgeOrCorner(xx, yy, zz, minX, minY, minZ, maxX, maxY, maxZ);
                     boolean topOrBottomFace = (yy == minY || yy == maxY);
                     boolean preferCasing = edgeOrCorner || topOrBottomFace;
-                    ItemStack frame = preferCasing ? findCasingBlock(builder) : findGlassBlock(builder);
-                    if (frame.isEmpty()) frame = preferCasing ? findGlassBlock(builder) : findCasingBlock(builder);
+                    ItemStack frame = resolveFrameStack(builder, preferCasing);
                     if (frame.isEmpty()) {
                         builder.setBuildFrameCursor(xx, yy, zz);
-                        return true; // wait for materials at this position
+                        return true; // wait until any shell block is available
                     }
                     if (tryPlaceFrame(builder, level, pos, frame)) {
                         builder.setBuildFrameCursor(xx, yy, zz + 1);
@@ -246,9 +248,9 @@ public final class ReactorBuildLogic {
                     }
                     builder.setBuildFrameCursor(xx, yy, zz + 1);
                 }
-                builder.setBuildFrameCursor(xx, yy + 1, minZ);
+                builder.setBuildFrameCursor(xx + 1, yy, minZ);
             }
-            builder.setBuildFrameCursor(xx + 1, minY, minZ);
+            builder.setBuildFrameCursor(minX, yy + 1, minZ);
         }
         return false;
     }
@@ -493,11 +495,22 @@ public final class ReactorBuildLogic {
         return onBoundary >= 2;
     }
 
+    /** Preferred shell type for this face, falling back to the other when the preferred one is unavailable. */
+    private static ItemStack resolveFrameStack(ReactorBuilderBlockEntity builder, boolean preferCasing) {
+        ItemStack primary = preferCasing ? findCasingBlock(builder) : findGlassBlock(builder);
+        if (!primary.isEmpty()) {
+            return primary;
+        }
+        return preferCasing ? findGlassBlock(builder) : findCasingBlock(builder);
+    }
+
     private static ItemStack findCasingBlock(ReactorBuilderBlockEntity builder) {
         Block casing = ModBlocks.REACTOR_CASING.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == casing) return stack;
+            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == casing) {
+                return stack;
+            }
         }
         return ItemStack.EMPTY;
     }
@@ -506,14 +519,18 @@ public final class ReactorBuildLogic {
         Block glass = ModBlocks.REACTOR_GLASS.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == glass) return stack;
+            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == glass) {
+                return stack;
+            }
         }
         return ItemStack.EMPTY;
     }
 
     private static boolean tryPlaceFrame(ReactorBuilderBlockEntity builder, ServerLevel level, BlockPos pos, ItemStack stack) {
         Block block = Block.byItem(stack.getItem());
-        if (block == Blocks.AIR || !ReactorValidation.isShellBlock(block.defaultBlockState())) return false;
+        if (block == Blocks.AIR || !ReactorValidation.isShellBlock(block.defaultBlockState())) {
+            return false;
+        }
         level.setBlock(pos, block.defaultBlockState(), 3);
         consumeOne(builder, stack);
         return true;

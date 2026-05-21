@@ -130,6 +130,28 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
                     LOGGER.debug("Could not load builtin radiation_scrubber_catalysts.json: {}", e.getMessage());
                 }
             }
+            ResourceLocation builtinTurbineGeneration = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/turbine/turbine_generation.json");
+            if (turbineGeneration.isEmpty() || !stacks.containsKey(builtinTurbineGeneration)) {
+                try {
+                    for (Resource resource : resourceManager.getResourceStack(builtinTurbineGeneration)) {
+                        processOneResource(builtinTurbineGeneration, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                                radiationScrubberCatalysts, turbineGeneration, elecCoils, rsMult, rsGasMult);
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Could not load builtin turbine_generation.json: {}", e.getMessage());
+                }
+            }
+            ResourceLocation builtinElecCoils = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/turbine/elec_coils.json");
+            if (elecCoils.isEmpty() || !stacks.containsKey(builtinElecCoils)) {
+                try {
+                    for (Resource resource : resourceManager.getResourceStack(builtinElecCoils)) {
+                        processOneResource(builtinElecCoils, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                                radiationScrubberCatalysts, turbineGeneration, elecCoils, rsMult, rsGasMult);
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Could not load builtin elec_coils.json: {}", e.getMessage());
+                }
+            }
             prepareProfiler.pop();
             return new LoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats, radiationScrubberCatalysts,
                     turbineGeneration, elecCoils, rsMult[0], rsGasMult[0]);
@@ -145,10 +167,11 @@ public class ReactorDataReloadListener implements PreparableReloadListener {
             ElecCoilLoader.applyLoaded(data.elecCoils());
             applyProfiler.pop();
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s), {} turbine generation, {} elec coil",
+                LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s), {} turbine generation in datapack, {} applied, {} elec coil in datapack, {} applied",
                         data.fuel().size(), data.coolant().size(), data.heatSinks().size(),
                         data.melterRecipes().size(), data.melterHeats().size(), data.radiationScrubberCatalysts().size(),
-                        data.turbineGeneration().size(), data.elecCoils().size());
+                        data.turbineGeneration().size(), TurbineGenerationLoader.getAll().size(),
+                        data.elecCoils().size(), ElecCoilLoader.getCoilOptionCount());
             }
         }, applyExecutor);
     }

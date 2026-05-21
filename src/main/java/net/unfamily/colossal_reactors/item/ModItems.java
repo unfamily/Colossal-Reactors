@@ -61,8 +61,8 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.TURBINE_RESOURCE_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.register("turbine_builder",
             () -> new BlockItem(ModBlocks.TURBINE_BUILDER.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> TURBINE_ROD = ITEMS.register("turbine_rod",
-            () -> new BlockItem(ModBlocks.TURBINE_ROD.get(), new Item.Properties()));
+    public static final DeferredItem<TurbineRodItem> TURBINE_ROD = ITEMS.register("turbine_rod",
+            () -> new TurbineRodItem(ModBlocks.TURBINE_ROD.get(), new Item.Properties()));
     public static final DeferredItem<TurbineBladeItem> TURBINE_BLADE = ITEMS.register("turbine_blade",
             () -> new TurbineBladeItem(ModBlocks.TURBINE_BLADE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.register("turbine_rod_controller",

@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.turbine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -11,6 +12,8 @@ import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.TurbineBladeBlock;
 import net.unfamily.colossal_reactors.block.TurbineRodBlock;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +44,7 @@ public final class TurbineBladePlacement {
     }
 
     /** Blade count on one lateral axis from the rod outward (capped by config). */
-    public static int depthAlong(Level level, BlockPos rodPos, Direction lateralDir) {
+    public static int depthAlong(BlockGetter level, BlockPos rodPos, Direction lateralDir) {
         Block blade = ModBlocks.TURBINE_BLADE.get();
         int depth = 0;
         BlockPos pos = rodPos.relative(lateralDir);
@@ -153,6 +156,7 @@ public final class TurbineBladePlacement {
         for (BlockPos bladePos : blades) {
             level.removeBlock(bladePos, false);
         }
+        refreshRodConnectorRender(level, rodPos);
         int remaining = blades.size();
         int maxStack = new ItemStack(ModItems.TURBINE_BLADE.get()).getMaxStackSize();
         while (remaining > 0) {
@@ -163,7 +167,7 @@ public final class TurbineBladePlacement {
     }
 
     /**
-     * Places the next blade on the rod. Returns true if placed.
+     * Places the next blade on the current ring (balanced lateral pick). Returns true if placed.
      */
     public static boolean placeNextBlade(Level level, BlockPos rodPos, BlockState rodState) {
         if (!(rodState.getBlock() instanceof TurbineRodBlock) || !rodState.hasProperty(TurbineRodBlock.FACING)) {
@@ -175,12 +179,49 @@ public final class TurbineBladePlacement {
             return false;
         }
         int ring = currentRing(level, rodPos, rodAxis);
+        if (ring > maxRing()) {
+            return false;
+        }
         BlockPos placePos = rodPos.relative(lateral.get(), ring);
         if (!level.getBlockState(placePos).canBeReplaced()) {
             return false;
         }
         BlockState bladeState = ModBlocks.TURBINE_BLADE.get().defaultBlockState()
                 .setValue(TurbineBladeBlock.FACING, lateral.get());
-        return level.setBlock(placePos, bladeState, Block.UPDATE_ALL);
+        boolean placed = level.setBlock(placePos, bladeState, Block.UPDATE_ALL);
+        if (placed) {
+            refreshRodConnectorRender(level, rodPos);
+        }
+        return placed;
+    }
+
+    /** Walks from a blade toward its rod along the blade {@link TurbineBladeBlock#FACING} axis. */
+    public static Optional<BlockPos> findRodFromBlade(Level level, BlockPos bladePos, BlockState bladeState) {
+        if (!bladeState.is(ModBlocks.TURBINE_BLADE.get()) || !bladeState.hasProperty(TurbineBladeBlock.FACING)) {
+            return Optional.empty();
+        }
+        Direction towardRod = bladeState.getValue(TurbineBladeBlock.FACING).getOpposite();
+        BlockPos scan = bladePos.relative(towardRod);
+        int cap = maxRing() + 1;
+        for (int step = 0; step <= cap; step++) {
+            BlockState at = level.getBlockState(scan);
+            if (at.is(ModBlocks.TURBINE_ROD.get())) {
+                return Optional.of(scan);
+            }
+            if (!at.is(ModBlocks.TURBINE_BLADE.get())) {
+                return Optional.empty();
+            }
+            scan = scan.relative(towardRod);
+        }
+        return Optional.empty();
+    }
+
+    /** Rebuilds client rod meshes after blade layout on a lateral side changes. */
+    public static void refreshRodConnectorRender(Level level, BlockPos rodPos) {
+        BlockState rod = level.getBlockState(rodPos);
+        if (!rod.is(ModBlocks.TURBINE_ROD.get())) {
+            return;
+        }
+        level.sendBlockUpdated(rodPos, rod, rod, Block.UPDATE_ALL);
     }
 }
