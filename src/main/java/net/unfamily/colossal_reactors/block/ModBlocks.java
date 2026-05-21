@@ -96,17 +96,17 @@ public class ModBlocks {
     public static final DeferredBlock<TurbineControllerBlock> TURBINE_CONTROLLER = BLOCKS.registerBlock("turbine_controller",
             TurbineControllerBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion());
-    public static final DeferredBlock<Block> TURBINE_POWER_PORT = BLOCKS.registerBlock("turbine_power_port",
-            Block::new,
+    public static final DeferredBlock<TurbinePowerPortBlock> TURBINE_POWER_PORT = BLOCKS.registerBlock("turbine_power_port",
+            TurbinePowerPortBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
-    public static final DeferredBlock<Block> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.registerBlock("turbine_high_cond_power_port",
-            Block::new,
+    public static final DeferredBlock<TurbineHighCondPowerPortBlock> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.registerBlock("turbine_high_cond_power_port",
+            TurbineHighCondPowerPortBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
-    public static final DeferredBlock<Block> TURBINE_REDSTONE_PORT = BLOCKS.registerBlock("turbine_redstone_port",
-            Block::new,
+    public static final DeferredBlock<TurbineRedstonePortBlock> TURBINE_REDSTONE_PORT = BLOCKS.registerBlock("turbine_redstone_port",
+            TurbineRedstonePortBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
-    public static final DeferredBlock<Block> TURBINE_RESOURCE_PORT = BLOCKS.registerBlock("turbine_resource_port",
-            Block::new,
+    public static final DeferredBlock<TurbineResourcePortBlock> TURBINE_RESOURCE_PORT = BLOCKS.registerBlock("turbine_resource_port",
+            TurbineResourcePortBlock::new,
             p -> p.sound(SoundType.METAL).strength(2.0f));
     public static final DeferredBlock<TurbineBuilderBlock> TURBINE_BUILDER = BLOCKS.registerBlock("turbine_builder",
             TurbineBuilderBlock::new,

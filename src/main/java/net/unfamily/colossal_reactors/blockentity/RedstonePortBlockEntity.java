@@ -7,6 +7,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -25,7 +26,11 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
     private int redstoneMode = RedstoneMode.NONE.getId();
 
     public RedstonePortBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.REDSTONE_PORT_BE.get(), pos, state);
+        this(ModBlockEntities.REDSTONE_PORT_BE.get(), pos, state);
+    }
+
+    protected RedstonePortBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
 
     public int getRedstoneMode() {

@@ -32,6 +32,9 @@ import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineHighCondPowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbinePowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
@@ -116,6 +119,14 @@ public class ColossalReactors {
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyHandlerForCapability());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
                 (be, direction) -> ((HighCondPowerPortBlockEntity) be).getEnergyHandlerForCapability());
+        event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
+                (be, direction) -> ((TurbineResourcePortBlockEntity) be).getItemResourceHandlerForCapability());
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
+                (be, direction) -> ((TurbineResourcePortBlockEntity) be).getFluidResourceHandlerForCapability());
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.TURBINE_POWER_PORT_BE.get(),
+                (be, direction) -> ((TurbinePowerPortBlockEntity) be).getEnergyHandlerForCapability());
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(),
+                (be, direction) -> ((TurbineHighCondPowerPortBlockEntity) be).getEnergyHandlerForCapability());
         // Heating coil: by default only front face accepts items/fluids/energy; all_sides overrides that; no_* disables type
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
                 (be, direction) -> ((HeatingCoilBlockEntity) be).allowsCapabilityOnSide(direction)

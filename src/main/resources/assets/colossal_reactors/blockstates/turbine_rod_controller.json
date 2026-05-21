@@ -1,6 +1,6 @@
 {
   "variants": {
-    "facing=down": { "model": "colossal_reactors:block/turbine/turbine_rod_controller" },
+    "facing=down": { "model": "colossal_reactors:block/turbine/turbine_rod_controller", "x": 180 },
     "facing=up": { "model": "colossal_reactors:block/turbine/turbine_rod_controller" },
     "facing=north": { "model": "colossal_reactors:block/turbine/turbine_rod_controller", "x": 90 },
     "facing=south": { "model": "colossal_reactors:block/turbine/turbine_rod_controller", "x": 90, "y": 180 },

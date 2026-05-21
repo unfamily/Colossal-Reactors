@@ -2,8 +2,8 @@
 	"format_version": "1.9.0",
 	"credit": "Made with Blockbench",
 	"textures": {
-		"0": "colossal_reactors:block/turbine/turbine/turbine_rod",
-		"particle": "colossal_reactors:block/turbine/turbine/turbine_rod"
+		"0": "colossal_reactors:block/turbine/rod/turbine_rod",
+		"particle": "colossal_reactors:block/turbine/rod/turbine_rod"
 	},
 	"elements": [
 		{

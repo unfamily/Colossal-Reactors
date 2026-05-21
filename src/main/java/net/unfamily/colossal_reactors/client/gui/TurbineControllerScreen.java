@@ -24,9 +24,7 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
     private static final int TEXT_COLOR = GuiTextColors.PANEL_WHITE;
     private static final int PANEL_TEXT_WIDTH = GuiPanelScrollbar.TEXT_RIGHT - PANEL_X;
 
-    private static final int CLOSE_BUTTON_Y = 5;
-    private static final int CLOSE_BUTTON_SIZE = 12;
-    private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
+    private static final int CLOSE_BUTTON_X = ReactorControllerGui.closeButtonX(GUI_WIDTH);
 
     private Button closeButton;
     private final GuiPanelScrollbar panelScrollbar = new GuiPanelScrollbar();
@@ -43,7 +41,8 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
                 minecraft.player.closeContainer();
             }
         })
-                .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .bounds(leftPos + CLOSE_BUTTON_X, topPos + ReactorControllerGui.HEADER_BUTTON_Y,
+                        ReactorControllerGui.HEADER_BUTTON_SIZE, ReactorControllerGui.HEADER_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
         panelScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
@@ -66,7 +65,7 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
     protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.text(font, title, titleX, 5, GuiTextColors.TITLE, false);
+        guiGraphics.text(font, title, titleX, ReactorControllerGui.titleLabelY(font), GuiTextColors.TITLE, false);
 
         guiGraphics.enableScissor(PANEL_X, PANEL_Y, GuiPanelScrollbar.TEXT_RIGHT, GuiPanelScrollbar.TEXT_BOTTOM);
         int contentHeight = drawPanelContent(guiGraphics, panelScrollbar.getScrollOffset());

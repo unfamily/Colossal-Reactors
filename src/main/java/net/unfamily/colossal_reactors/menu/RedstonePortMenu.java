@@ -60,7 +60,13 @@ public class RedstonePortMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return stillValid(levelAccess, player, ModBlocks.REDSTONE_PORT.get());
+        return levelAccess.evaluate((level, pos) -> {
+            var state = level.getBlockState(pos);
+            if (!state.is(ModBlocks.REDSTONE_PORT.get()) && !state.is(ModBlocks.TURBINE_REDSTONE_PORT.get())) {
+                return false;
+            }
+            return player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64;
+        }).orElse(false);
     }
 
     @Override

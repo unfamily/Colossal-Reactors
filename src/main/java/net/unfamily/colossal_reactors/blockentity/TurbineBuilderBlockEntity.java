@@ -200,7 +200,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int buildHeatLx = Integer.MIN_VALUE, buildHeatLy = Integer.MIN_VALUE, buildHeatLz = Integer.MIN_VALUE;
 
     private static final int ROD_PATTERN_COUNT = 2;
-    private static final int COIL_LAYER_MIN = 1;
+    private static final int COIL_LAYER_MIN = 0;
     private static final int COIL_LAYER_MAX = 32;
 
     public void resetBuildProgress() {

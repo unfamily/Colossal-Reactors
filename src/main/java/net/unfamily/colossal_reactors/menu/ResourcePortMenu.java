@@ -61,7 +61,13 @@ public class ResourcePortMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return stillValid(levelAccess, player, ModBlocks.RESOURCE_PORT.get());
+        return levelAccess.evaluate((level, pos) -> {
+            var state = level.getBlockState(pos);
+            if (!state.is(ModBlocks.RESOURCE_PORT.get()) && !state.is(ModBlocks.TURBINE_RESOURCE_PORT.get())) {
+                return false;
+            }
+            return player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64;
+        }).orElse(false);
     }
 
     @Override

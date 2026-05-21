@@ -24,6 +24,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
@@ -119,6 +120,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
             controllerBe.setChanged();
             controllerBe.notifyValidationResult();
             if (next == TurbineVisualState.ON) {
+                controllerBe.rebuildPartCaches(level, result);
                 controllerBe.tickSimulation(level);
                 level.scheduleTick(pos, this, 1);
             }
@@ -128,7 +130,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
         if (current == TurbineVisualState.ON) {
             TurbineValidation.Result result = controllerBe.getCachedResult();
             boolean revalidate = (level.getGameTime() % Config.TURBINE_VALIDATION_INTERVAL_TICKS.get()) == 0;
-            if (revalidate) {
+            if (revalidate || !result.valid()) {
                 result = TurbineValidation.validateWithRodAlignment(level, startPos, into, -1);
                 if (!result.valid()) {
                     controllerBe.setCachedResult(result);
@@ -137,9 +139,10 @@ public class TurbineControllerBlock extends BaseEntityBlock {
                     return;
                 }
                 controllerBe.setCachedResult(result);
+                controllerBe.rebuildPartCaches(level, result);
                 controllerBe.setChanged();
             }
-            if (result != null && result.valid()) {
+            if (result.valid()) {
                 controllerBe.tickSimulation(level);
             }
             level.scheduleTick(pos, this, 1);
@@ -155,11 +158,19 @@ public class TurbineControllerBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
         if (state.getValue(VISUAL) == TurbineVisualState.ON) {
-            if (controllerBe.getCachedResult().valid()) {
-                controllerBe.tickSimulation((ServerLevel) level);
-                if (player instanceof ServerPlayer sp) {
-                    sp.openMenu(controllerBe, pos);
+            ServerLevel serverLevel = (ServerLevel) level;
+            Direction into = state.getValue(FACING).getOpposite();
+            if (!controllerBe.getCachedResult().valid()) {
+                TurbineValidation.Result refreshed = controllerBe.refreshValidationCache(serverLevel, into);
+                if (refreshed.valid()) {
+                    controllerBe.rebuildPartCaches(serverLevel, refreshed);
                 }
+            }
+            if (controllerBe.getCachedResult().valid()) {
+                controllerBe.tickSimulation(serverLevel);
+            }
+            if (player instanceof ServerPlayer sp) {
+                sp.openMenu(controllerBe, pos);
             }
             return InteractionResult.CONSUME;
         }
@@ -169,6 +180,24 @@ public class TurbineControllerBlock extends BaseEntityBlock {
             serverLevel.scheduleTick(pos, this, 1);
         }
         return InteractionResult.SUCCESS;
+    }
+
+    public static boolean isRedstoneGateSatisfied(ServerLevel level, TurbineControllerBlockEntity controllerBe,
+            TurbineValidation.Result result) {
+        if (controllerBe == null || result == null || !result.valid()) {
+            return false;
+        }
+        long[] ports = controllerBe.getCachedRedstonePortPositions();
+        if (ports.length == 0) {
+            return true;
+        }
+        for (long p : ports) {
+            BlockEntity portBe = level.getBlockEntity(BlockPos.of(p));
+            if (portBe instanceof RedstonePortBlockEntity port && port.isRedstoneActive(level)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

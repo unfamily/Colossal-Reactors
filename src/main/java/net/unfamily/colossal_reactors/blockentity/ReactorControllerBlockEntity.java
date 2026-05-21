@@ -136,10 +136,10 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     /** Called from block tick when VALIDATING -> ON/OFF; shows message in action bar. */
     public void notifyValidationResult() {
         if (lastInteractingPlayer != null && cachedResult != null) {
-            Component message = cachedResult.valid()
-                    ? Component.translatable("message.colossal_reactors.reactor_valid")
-                    : Component.translatable("message.colossal_reactors.reactor_invalid");
-            lastInteractingPlayer.sendSystemMessage(message, true);
+            lastInteractingPlayer.sendSystemMessage(ReactorValidation.failureMessage(cachedResult), true);
+            if (level != null) {
+                ReactorValidation.sendFailureMarkers(lastInteractingPlayer, level, cachedResult);
+            }
             lastInteractingPlayer = null;
         }
     }
@@ -638,18 +638,20 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         super.loadAdditional(input);
         Optional<Integer> minX = input.getInt("val_minX");
         if (minX.isPresent()) {
+            int minY = input.getIntOr("val_minY", 0);
+            int minZ = input.getIntOr("val_minZ", 0);
+            int maxX = input.getIntOr("val_maxX", 0);
+            int maxY = input.getIntOr("val_maxY", 0);
+            int maxZ = input.getIntOr("val_maxZ", 0);
+            int rodColumns = input.getIntOr("val_rodColumns", 0);
+            ReactorValidation.ValidationReport report = new ReactorValidation.ValidationReport(
+                    minX.get(), minY, minZ, maxX, maxY, maxZ,
+                    maxX - minX.get() + 1, maxY - minY + 1, maxZ - minZ + 1,
+                    0, rodColumns);
             cachedResult = new ReactorValidation.Result(
-                    true,
-                    minX.get(),
-                    input.getIntOr("val_minY", 0),
-                    input.getIntOr("val_minZ", 0),
-                    input.getIntOr("val_maxX", 0),
-                    input.getIntOr("val_maxY", 0),
-                    input.getIntOr("val_maxZ", 0),
-                    input.getIntOr("val_rodCount", 0),
-                    input.getIntOr("val_rodColumns", 0),
-                    input.getIntOr("val_coolantCount", 0)
-            );
+                    true, null, null, report,
+                    minX.get(), minY, minZ, maxX, maxY, maxZ,
+                    input.getIntOr("val_rodCount", 0), rodColumns, input.getIntOr("val_coolantCount", 0));
         } else {
             cachedResult = null;
         }

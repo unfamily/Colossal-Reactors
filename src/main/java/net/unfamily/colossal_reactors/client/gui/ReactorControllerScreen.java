@@ -27,9 +27,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private static final int TEXT_COLOR = GuiTextColors.PANEL_WHITE;
     private static final int CONTENT_LEFT = PANEL_X;
 
-    private static final int CLOSE_BUTTON_Y = 5;
-    private static final int CLOSE_BUTTON_SIZE = 12;
-    private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
+    private static final int CLOSE_BUTTON_X = ReactorControllerGui.closeButtonX(GUI_WIDTH);
 
     private static final int REFRESH_BUTTON_WIDTH = 50;
     private static final int REFRESH_BUTTON_HEIGHT = 20;
@@ -50,7 +48,8 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         closeButton = Button.builder(Component.literal("\u2715"), b -> {
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         })
-                .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .bounds(leftPos + CLOSE_BUTTON_X, topPos + ReactorControllerGui.HEADER_BUTTON_Y,
+                        ReactorControllerGui.HEADER_BUTTON_SIZE, ReactorControllerGui.HEADER_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
         int refreshX = leftPos + imageWidth - REFRESH_BUTTON_WIDTH - REFRESH_BUTTON_RIGHT_INSET;
@@ -83,7 +82,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     protected void extractLabels(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.text(font, title, titleX, 5, GuiTextColors.TITLE, false);
+        guiGraphics.text(font, title, titleX, ReactorControllerGui.titleLabelY(font), GuiTextColors.TITLE, false);
 
         // Scissor coords are GUI-local; pose is already translated by extractContents.
         guiGraphics.enableScissor(CONTENT_LEFT, PANEL_Y, GuiPanelScrollbar.TEXT_RIGHT, GuiPanelScrollbar.TEXT_BOTTOM);
