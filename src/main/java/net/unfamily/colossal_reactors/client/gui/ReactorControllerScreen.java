@@ -27,9 +27,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     private static final int TEXT_COLOR = 0xFFFFFF;
     private static final int CONTENT_LEFT = PANEL_X;
 
-    private static final int CLOSE_BUTTON_Y = 5;
-    private static final int CLOSE_BUTTON_SIZE = 12;
-    private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
+    private static final int CLOSE_BUTTON_X = ReactorControllerGui.closeButtonX(GUI_WIDTH);
 
     private static final int REFRESH_BUTTON_WIDTH = 50;
     private static final int REFRESH_BUTTON_HEIGHT = 20;
@@ -54,7 +52,8 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         })
-                .bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)
+                .bounds(leftPos + CLOSE_BUTTON_X, topPos + ReactorControllerGui.HEADER_BUTTON_Y,
+                        ReactorControllerGui.HEADER_BUTTON_SIZE, ReactorControllerGui.HEADER_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
         int refreshX = leftPos + imageWidth - REFRESH_BUTTON_WIDTH - REFRESH_BUTTON_RIGHT_INSET;
@@ -86,7 +85,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         int titleW = font.width(title);
         int titleX = (imageWidth - titleW) / 2;
-        guiGraphics.drawString(font, title, titleX, 5, 0x404040, false);
+        guiGraphics.drawString(font, title, titleX, ReactorControllerGui.titleLabelY(font), 0x404040, false);
 
         guiGraphics.enableScissor(leftPos + CONTENT_LEFT, topPos + PANEL_Y, leftPos + GuiPanelScrollbar.TEXT_RIGHT, topPos + GuiPanelScrollbar.TEXT_BOTTOM);
         int contentHeight = drawPanelContent(guiGraphics, panelScrollbar.getScrollOffset());

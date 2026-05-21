@@ -330,7 +330,7 @@ public final class TurbineValidation {
         if (layersWithCoil > 0) {
             return Math.min(layersWithCoil, maxLayers);
         }
-        return TurbineRodSpaceLayout.coilLayerCount(
+        return TurbineRodSpaceLayout.appliedCoilLayerCount(
                 interiorAlong, Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get());
     }
 

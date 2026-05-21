@@ -13,6 +13,7 @@ import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -42,7 +43,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final String TAG_PORT_FILTER = "PortFilter";
     private static final int SLOT_SIZE = 1;
 
-    private static int getTankCapacityMb() {
+    protected int tankCapacityMb() {
         return Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
     }
 
@@ -60,7 +61,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     };
 
-    private final FluidTank fluidTank = new FluidTank(getTankCapacityMb()) {
+    private final FluidTank fluidTank = new FluidTank(tankCapacityMb()) {
         @Override
         protected void onContentsChanged() {
             setChanged();
@@ -107,7 +108,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     };
 
     public ResourcePortBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.RESOURCE_PORT_BE.get(), pos, state);
+        this(ModBlockEntities.RESOURCE_PORT_BE.get(), pos, state);
+    }
+
+    protected ResourcePortBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
 
     /** Raw handler for menu and internal use (no mode/filter restriction). */

@@ -119,8 +119,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
     // Align right block row 0 with the up arrow (ROW1_Y). Row 1 aligns with Mark Input.
     private static final int RIGHT_ROW0_Y = ROW1_Y;
-    /** Y for invalid-blocks message (same band as former second button row). */
-    private static final int RIGHT_ROW_WARNING_MESSAGE_Y = PREVIEW_BUTTON_Y;
+    /** Invalid-blocks warning: vertically centered on the Preview button row (left column). */
+    private static int warningYAlignedToPreview(int lineHeight) {
+        return PREVIEW_BUTTON_Y + (BUTTON_H - lineHeight) / 2;
+    }
     /** Second row of right buttons: aligned with Mark Input (left column). */
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
     /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
@@ -903,7 +905,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.drawString(font,
                     Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks"),
-                    WARNING_RIGHT_X, RIGHT_ROW_WARNING_MESSAGE_Y, 0xFF0000, false);
+                    WARNING_RIGHT_X, warningYAlignedToPreview(font.lineHeight), 0xFF0000, false);
         }
     }
 

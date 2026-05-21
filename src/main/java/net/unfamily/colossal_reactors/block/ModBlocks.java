@@ -89,20 +89,20 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .strength(2.0f)
                     .noOcclusion()));
-    public static final DeferredBlock<Block> TURBINE_POWER_PORT = BLOCKS.register("turbine_power_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<TurbinePowerPortBlock> TURBINE_POWER_PORT = BLOCKS.register("turbine_power_port",
+            () -> new TurbinePowerPortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
-    public static final DeferredBlock<Block> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.register("turbine_high_cond_power_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<TurbineHighCondPowerPortBlock> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.register("turbine_high_cond_power_port",
+            () -> new TurbineHighCondPowerPortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
-    public static final DeferredBlock<Block> TURBINE_REDSTONE_PORT = BLOCKS.register("turbine_redstone_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<TurbineRedstonePortBlock> TURBINE_REDSTONE_PORT = BLOCKS.register("turbine_redstone_port",
+            () -> new TurbineRedstonePortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
-    public static final DeferredBlock<Block> TURBINE_RESOURCE_PORT = BLOCKS.register("turbine_resource_port",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<TurbineResourcePortBlock> TURBINE_RESOURCE_PORT = BLOCKS.register("turbine_resource_port",
+            () -> new TurbineResourcePortBlock(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)
                     .strength(2.0f)));
     public static final DeferredBlock<TurbineBuilderBlock> TURBINE_BUILDER = BLOCKS.register("turbine_builder",

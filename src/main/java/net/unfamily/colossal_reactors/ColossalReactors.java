@@ -31,6 +31,9 @@ import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineHighCondPowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbinePowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
@@ -100,6 +103,18 @@ public class ColossalReactors {
         if (ModList.get().isLoaded("brandonscore")) {
             event.registerBlockEntity(CapabilityOP.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
                     (be, direction) -> ((HighCondPowerPortBlockEntity) be).getOpStorageForCapability());
+        }
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
+                (be, direction) -> ((TurbineResourcePortBlockEntity) be).getItemHandlerForCapability());
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
+                (be, direction) -> ((TurbineResourcePortBlockEntity) be).getFluidHandlerForCapability());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.TURBINE_POWER_PORT_BE.get(),
+                (be, direction) -> ((TurbinePowerPortBlockEntity) be).getEnergyStorageForCapability());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(),
+                (be, direction) -> ((TurbineHighCondPowerPortBlockEntity) be).getEnergyStorageForCapability());
+        if (ModList.get().isLoaded("brandonscore")) {
+            event.registerBlockEntity(CapabilityOP.BLOCK, ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(),
+                    (be, direction) -> ((TurbineHighCondPowerPortBlockEntity) be).getOpStorageForCapability());
         }
         // Heating coil: by default only front face accepts items/fluids/energy; all_sides overrides that; no_* disables type
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),

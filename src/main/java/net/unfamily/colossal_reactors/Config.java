@@ -374,8 +374,8 @@ public class Config {
             .comment("Fallback RF per bucket (1000 mB) steam when datapack entry is missing. Default: 7000")
             .defineInRange("000_defaultRfPerSteamBucket", 7000.0, 0.0, Double.MAX_VALUE);
     public static final ModConfigSpec.IntValue TURBINE_DEFAULT_COIL_LAYER_COUNT = BUILDER
-            .comment("Default Y layers for coil zone in turbine builder. Default: 3")
-            .defineInRange("001_defaultCoilLayerCount", 3, 1, 32);
+            .comment("Default coil-layer setting in turbine builder (GUI shows this + 1). Default: 1 (= 2 layers in GUI)")
+            .defineInRange("001_defaultCoilLayerCount", 1, 0, 32);
 
     static {
         BUILDER.pop();

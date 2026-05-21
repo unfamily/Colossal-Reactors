@@ -2,43 +2,81 @@ package net.unfamily.colossal_reactors.reactor;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.network.ModPayloads;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Validates reactor multiblock structure: parallelepiped, casing border, rod columns with rod_controller on top.
- * Bounds are found by walking the shell: down+left to find min corner, up+right+depth to find max corner.
  */
 public final class ReactorValidation {
 
-    public record Result(boolean valid, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-                        int rodCount, int rodColumns, int coolantCount) {}
+    public enum FailureCode {
+        BAD_START,
+        CONTROLLER_FACE_Y,
+        TOO_LARGE,
+        SHELL_GAP,
+        INTERIOR_UNKNOWN,
+        ROD_COLUMN_INCOMPLETE,
+        ROD_COUNT_MISMATCH,
+        EXTERIOR_CONTROLLER_COUNT
+    }
+
+    public record ValidationReport(
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+            int width, int height, int length,
+            int exteriorControllers,
+            int rodColumnsExpected
+    ) {
+        public static ValidationReport empty() {
+            return new ValidationReport(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+    }
+
+    public record Result(
+            boolean valid,
+            @Nullable FailureCode failure,
+            @Nullable BlockPos failurePos,
+            ValidationReport report,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+            int rodCount, int rodColumns, int coolantCount
+    ) {
+        public static Result invalid() {
+            return invalid(FailureCode.BAD_START, null, ValidationReport.empty());
+        }
+
+        public static Result invalid(FailureCode failure, @Nullable BlockPos failurePos, ValidationReport report) {
+            return new Result(false, failure, failurePos, report,
+                    report.minX(), report.minY(), report.minZ(),
+                    report.maxX(), report.maxY(), report.maxZ(),
+                    0, 0, 0);
+        }
+    }
+
+    private static final int MARKER_COLOR_ERROR = 0xE0FF0000;
+    private static final int MARKER_COLOR_ROD_HINT = 0x80FF8800;
+    private static final int MARKER_DURATION_TICKS = 400;
 
     private ReactorValidation() {}
 
-    /**
-     * Validate reactor structure. The given pos should be the block "behind" the controller (inside the reactor shell).
-     * The direction is from controller towards that block (into the reactor).
-     */
     public static Result validate(Level level, BlockPos start, Direction intoReactor) {
-        if (Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
-            ColossalReactors.LOGGER.info("[ReactorValidation] validate() called: start={} direction={}", start, intoReactor);
-        }
+        ValidationReportBuilder report = new ValidationReportBuilder();
+
         if (start == null || level == null || !level.isLoaded(start)) {
-            return invalid(level, start, "null or unloaded start");
+            return fail(FailureCode.BAD_START, start, report.build());
         }
         if (!isShellBlock(level.getBlockState(start))) {
-            return invalid(level, start, "start block is not shell: " + level.getBlockState(start).getBlock().getDescriptionId());
+            return fail(FailureCode.BAD_START, start, report.build());
+        }
+        if (intoReactor.getAxis() == Direction.Axis.Y) {
+            return fail(FailureCode.CONTROLLER_FACE_Y, start, report.build());
         }
 
-        // Controller on a vertical face: intoReactor must be horizontal (so "left/right" are along the face)
-        if (intoReactor.getAxis() == Direction.Axis.Y) {
-            return invalid(level, start, "intoReactor must be horizontal (controller on vertical face)");
-        }
         Direction left = intoReactor.getCounterClockWise();
         Direction right = intoReactor.getClockWise();
 
@@ -48,35 +86,27 @@ public final class ReactorValidation {
         int maxHorizontal = Math.max(maxW, maxL);
 
         BlockPos pos = start;
-        int steps;
-
-        // Walk down until next block is not shell (never exceed config height)
-        steps = 0;
+        int steps = 0;
         while (steps < maxH && isShellOrRodController(level.getBlockState(pos.below()))) {
             pos = pos.below();
             steps++;
         }
-        // Walk left until next block is not shell (never exceed config horizontal)
         steps = 0;
         while (steps < maxHorizontal && isShellOrRodController(level.getBlockState(pos.relative(left)))) {
             pos = pos.relative(left);
             steps++;
         }
         BlockPos minCorner = pos;
-
-        // Walk up until next block is not shell
         steps = 0;
         while (steps < maxH && isShellOrRodController(level.getBlockState(pos.above()))) {
             pos = pos.above();
             steps++;
         }
-        // Walk right until next block is not shell
         steps = 0;
         while (steps < maxHorizontal && isShellOrRodController(level.getBlockState(pos.relative(right)))) {
             pos = pos.relative(right);
             steps++;
         }
-        // Walk into reactor (depth): step only into shell or rod; never step from shell into air (that would be outside)
         steps = 0;
         while (steps < maxHorizontal && canStepDepth(level, pos, intoReactor)) {
             pos = pos.relative(intoReactor);
@@ -90,14 +120,14 @@ public final class ReactorValidation {
         int maxX = Math.max(minCorner.getX(), maxCorner.getX());
         int maxY = Math.max(minCorner.getY(), maxCorner.getY());
         int maxZ = Math.max(minCorner.getZ(), maxCorner.getZ());
-
         int width = maxX - minX + 1;
         int length = maxZ - minZ + 1;
         int height = maxY - minY + 1;
-        debug("CORNERS: minCorner={} maxCorner={} bounds=[{} {} {}]..[{} {} {}] width={} length={} height={}",
-                minCorner, maxCorner, minX, minY, minZ, maxX, maxY, maxZ, width, length, height);
+
+        report.bounds(minX, minY, minZ, maxX, maxY, maxZ, width, height, length);
+
         if (width > maxW || length > maxL || height > maxH) {
-            return invalid(level, start, "reactor too large: " + width + "x" + length + "x" + height + " (max " + maxW + "x" + maxL + "x" + maxH + ")");
+            return fail(FailureCode.TOO_LARGE, start, report.build());
         }
 
         int rodCount = 0;
@@ -112,7 +142,7 @@ public final class ReactorValidation {
 
                     if (onBorder) {
                         if (!isShellBlock(state) && !isRodController(state)) {
-                            return invalid(level, start, "border must be shell or rod_controller at " + p + " = " + state.getBlock().getDescriptionId());
+                            return fail(FailureCode.SHELL_GAP, p, report.build());
                         }
                     } else {
                         if (state.is(ModBlocks.REACTOR_ROD.get())) {
@@ -120,14 +150,12 @@ public final class ReactorValidation {
                         } else if (state.isAir() || HeatSinkLoader.isHeatSinkBlock(state, level.registryAccess())) {
                             coolantCount++;
                         } else {
-                            return invalid(level, start, "interior must be rod, air or heat sink at " + p + " = " + state.getBlock().getDescriptionId());
+                            return fail(FailureCode.INTERIOR_UNKNOWN, p, report.build());
                         }
                     }
                 }
             }
         }
-
-        debug("BORDER/INTERIOR scan: rodCount={} coolantCount={}", rodCount, coolantCount);
 
         int interiorFloorY = minY + 1;
         int interiorCeilingY = maxY - 1;
@@ -139,32 +167,113 @@ public final class ReactorValidation {
                     for (int y = interiorFloorY; y <= interiorCeilingY; y++) {
                         BlockPos columnPos = new BlockPos(x, y, z);
                         if (!level.getBlockState(columnPos).is(ModBlocks.REACTOR_ROD.get())) {
-                            return invalid(level, start, "rod column incomplete at " + columnPos + " (column " + x + "," + z + ")");
+                            report.rodColumnsExpected(rodColumnsExpected);
+                            return fail(FailureCode.ROD_COLUMN_INCOMPLETE, columnPos, report.build());
                         }
                     }
                 }
             }
         }
-        debug("ROD COLUMNS: rodColumnsExpected={} interiorHeight={}", rodColumnsExpected, interiorCeilingY - interiorFloorY + 1);
+        report.rodColumnsExpected(rodColumnsExpected);
+
         if (rodColumnsExpected > 0 && rodCount != rodColumnsExpected * (interiorCeilingY - interiorFloorY + 1)) {
-            return invalid(level, start, "rod count mismatch: rodCount=" + rodCount + " expected " + rodColumnsExpected + "*" + (interiorCeilingY - interiorFloorY + 1));
+            return fail(FailureCode.ROD_COUNT_MISMATCH, new BlockPos(minX + 1, interiorFloorY, minZ + 1), report.build());
         }
 
         if (!Boolean.TRUE.equals(Config.ALLOW_MULTIPLE_REACTOR_CONTROLLERS.get())) {
             int controllerCount = countReactorControllersOnOuterFaces(level, minX, minY, minZ, maxX, maxY, maxZ);
+            report.exteriorControllers(controllerCount);
             if (controllerCount != 1) {
-                return invalid(level, start, "reactor must have exactly one reactor controller on outer faces (found " + controllerCount + "). Enable allowMultipleReactorControllers in config to allow more.");
+                return fail(FailureCode.EXTERIOR_CONTROLLER_COUNT, null, report.build());
             }
         }
 
-        Result result = new Result(true, minX, minY, minZ, maxX, maxY, maxZ, rodCount, rodColumnsExpected, coolantCount);
-        debug("VALID result: valid=true min=({},{},{}) max=({},{},{}) rodCount={} rodColumns={} coolantCount={}",
-                result.minX(), result.minY(), result.minZ(), result.maxX(), result.maxY(), result.maxZ(),
-                result.rodCount(), result.rodColumns(), result.coolantCount());
+        Result result = new Result(true, null, null, report.build(),
+                minX, minY, minZ, maxX, maxY, maxZ, rodCount, rodColumnsExpected, coolantCount);
+        logDebug(report.build(), null, true);
         return result;
     }
 
-    /** True if the block is part of the reactor shell (casing, glass, any port). Used for adjacency penalty. */
+    private static Result fail(FailureCode failure, @Nullable BlockPos pos, ValidationReport report) {
+        logDebug(report, failure, false);
+        return Result.invalid(failure, pos, report);
+    }
+
+    public static void sendFailureMarkers(ServerPlayer player, Level level, Result result) {
+        if (result.valid() || result.failure() == null) {
+            return;
+        }
+        if (result.failurePos() != null) {
+            ModPayloads.sendPreviewMarker(player, result.failurePos(), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
+        }
+        if (result.failure() != FailureCode.ROD_COLUMN_INCOMPLETE) {
+            return;
+        }
+        ValidationReport r = result.report();
+        if (r.width() <= 0 || r.rodColumnsExpected() <= 0) {
+            return;
+        }
+        int interiorFloorY = r.minY() + 1;
+        int interiorCeilingY = r.maxY() - 1;
+        for (int x = r.minX() + 1; x < r.maxX(); x++) {
+            for (int z = r.minZ() + 1; z < r.maxZ(); z++) {
+                if (!level.getBlockState(new BlockPos(x, r.maxY(), z)).is(ModBlocks.ROD_CONTROLLER.get())) {
+                    continue;
+                }
+                for (int y = interiorFloorY; y <= interiorCeilingY; y++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (result.failurePos() != null && result.failurePos().equals(p)) {
+                        continue;
+                    }
+                    if (!level.getBlockState(p).is(ModBlocks.REACTOR_ROD.get())) {
+                        ModPayloads.sendPreviewMarker(player, p, MARKER_COLOR_ROD_HINT, MARKER_DURATION_TICKS);
+                    }
+                }
+            }
+        }
+    }
+
+    public static net.minecraft.network.chat.Component failureMessage(Result result) {
+        if (result.valid() || result.failure() == null) {
+            return net.minecraft.network.chat.Component.translatable("message.colossal_reactors.reactor_valid");
+        }
+        return failureMessage(result.failure(), result.report());
+    }
+
+    public static net.minecraft.network.chat.Component failureMessage(FailureCode failure, ValidationReport r) {
+        return switch (failure) {
+            case BAD_START -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.bad_start");
+            case CONTROLLER_FACE_Y -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.controller_face_y");
+            case TOO_LARGE -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.too_large",
+                    r.width(), r.height(), r.length());
+            case SHELL_GAP -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.shell_gap");
+            case INTERIOR_UNKNOWN -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.interior_unknown");
+            case ROD_COLUMN_INCOMPLETE -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.rod_column_incomplete");
+            case ROD_COUNT_MISMATCH -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.rod_count_mismatch");
+            case EXTERIOR_CONTROLLER_COUNT -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.exterior_controller_count", r.exteriorControllers());
+        };
+    }
+
+    private static void logDebug(ValidationReport report, @Nullable FailureCode failure, boolean valid) {
+        if (!Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
+            return;
+        }
+        net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
+                "[ReactorValidation] valid={} failure={} bounds=[{} {} {}]..[{} {} {}] size={}x{}x{} extCtrl={} rodCols={}",
+                valid, failure,
+                report.minX(), report.minY(), report.minZ(), report.maxX(), report.maxY(), report.maxZ(),
+                report.width(), report.height(), report.length(),
+                report.exteriorControllers(), report.rodColumnsExpected());
+    }
+
     public static boolean isShellBlock(BlockState state) {
         return state.is(ModBlocks.REACTOR_CASING.get())
                 || state.is(ModBlocks.REACTOR_GLASS.get())
@@ -177,55 +286,47 @@ public final class ReactorValidation {
         return isShellBlock(state) || state.is(ModBlocks.ROD_CONTROLLER.get());
     }
 
-    /** Can step in depth direction: into shell or rod; into air or heat sink only when current is interior (not shell, else we'd step outside). */
     private static boolean canStepDepth(Level level, BlockPos pos, Direction intoReactor) {
         BlockPos next = pos.relative(intoReactor);
         BlockState nextState = level.getBlockState(next);
         BlockState currentState = level.getBlockState(pos);
         if (isShellOrRodController(nextState)) return true;
         if (nextState.is(ModBlocks.REACTOR_ROD.get())) return true;
-        if (!isShellOrRodController(currentState) && (nextState.isAir() || HeatSinkLoader.isHeatSinkBlock(nextState, level.registryAccess()))) return true;
-        return false;
+        return !isShellOrRodController(currentState)
+                && (nextState.isAir() || HeatSinkLoader.isHeatSinkBlock(nextState, level.registryAccess()));
     }
 
     private static boolean isRodController(BlockState state) {
         return state.is(ModBlocks.ROD_CONTROLLER.get());
     }
 
-    /** Count reactor controller blocks on the 6 outer faces of the reactor box (one step outside min/max). */
     private static int countReactorControllersOnOuterFaces(Level level, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         int count = 0;
-        // Face x = minX - 1
         for (int y = minY; y <= maxY; y++) {
             for (int z = minZ; z <= maxZ; z++) {
                 if (level.getBlockState(new BlockPos(minX - 1, y, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
             }
         }
-        // Face x = maxX + 1
         for (int y = minY; y <= maxY; y++) {
             for (int z = minZ; z <= maxZ; z++) {
                 if (level.getBlockState(new BlockPos(maxX + 1, y, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
             }
         }
-        // Face y = minY - 1
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
                 if (level.getBlockState(new BlockPos(x, minY - 1, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
             }
         }
-        // Face y = maxY + 1
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
                 if (level.getBlockState(new BlockPos(x, maxY + 1, z)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
             }
         }
-        // Face z = minZ - 1
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 if (level.getBlockState(new BlockPos(x, y, minZ - 1)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
             }
         }
-        // Face z = maxZ + 1
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 if (level.getBlockState(new BlockPos(x, y, maxZ + 1)).is(ModBlocks.REACTOR_CONTROLLER.get())) count++;
@@ -234,20 +335,35 @@ public final class ReactorValidation {
         return count;
     }
 
-    private static Result invalid() {
-        return new Result(false, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    }
+    private static final class ValidationReportBuilder {
+        private int minX, minY, minZ, maxX, maxY, maxZ;
+        private int width, height, length;
+        private int exteriorControllers;
+        private int rodColumnsExpected;
 
-    private static Result invalid(Level level, BlockPos start, String reason) {
-        if (Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
-            ColossalReactors.LOGGER.info("[ReactorValidation] INVALID: {} (start={})", reason, start);
+        void bounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int w, int h, int l) {
+            this.minX = minX;
+            this.minY = minY;
+            this.minZ = minZ;
+            this.maxX = maxX;
+            this.maxY = maxY;
+            this.maxZ = maxZ;
+            this.width = w;
+            this.height = h;
+            this.length = l;
         }
-        return invalid();
-    }
 
-    private static void debug(String format, Object... args) {
-        if (Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
-            ColossalReactors.LOGGER.info("[ReactorValidation] " + format, args);
+        void exteriorControllers(int count) {
+            this.exteriorControllers = count;
+        }
+
+        void rodColumnsExpected(int count) {
+            this.rodColumnsExpected = count;
+        }
+
+        ValidationReport build() {
+            return new ValidationReport(minX, minY, minZ, maxX, maxY, maxZ, width, height, length,
+                    exteriorControllers, rodColumnsExpected);
         }
     }
 }

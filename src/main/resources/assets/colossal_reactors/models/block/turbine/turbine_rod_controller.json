@@ -1,8 +1,22 @@
 {
-  "parent": "minecraft:block/orientable",
   "textures": {
-    "top": "colossal_reactors:block/turbine/turbine/rod_controller_top",
-    "front": "colossal_reactors:block/turbine/turbine/rod_controller_side",
-    "side": "colossal_reactors:block/turbine/turbine/rod_controller_side"
-  }
+    "top": "colossal_reactors:block/turbine/rod/rod_controller_top",
+    "bottom": "colossal_reactors:block/turbine/rod/rod_controller_bottom",
+    "side": "colossal_reactors:block/turbine/rod/rod_controller_side",
+    "particle": "colossal_reactors:block/turbine/rod/rod_controller_side"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "up": { "texture": "#top", "cullface": "up" },
+        "down": { "texture": "#bottom", "cullface": "down" },
+        "north": { "texture": "#side", "cullface": "north" },
+        "south": { "texture": "#side", "cullface": "south" },
+        "east": { "texture": "#side", "cullface": "east" },
+        "west": { "texture": "#side", "cullface": "west" }
+      }
+    }
+  ]
 }

@@ -112,10 +112,10 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     /** Called from block tick when VALIDATING -> ON/OFF; shows message in action bar. */
     public void notifyValidationResult() {
         if (lastInteractingPlayer != null && cachedResult != null) {
-            Component message = cachedResult.valid()
-                    ? Component.translatable("message.colossal_reactors.reactor_valid")
-                    : Component.translatable("message.colossal_reactors.reactor_invalid");
-            lastInteractingPlayer.displayClientMessage(message, true);
+            lastInteractingPlayer.displayClientMessage(ReactorValidation.failureMessage(cachedResult), true);
+            if (level != null) {
+                ReactorValidation.sendFailureMarkers(lastInteractingPlayer, level, cachedResult);
+            }
             lastInteractingPlayer = null;
         }
     }
@@ -620,12 +620,21 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     public void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         if (tag.contains("val_minX")) {
+            int minX = tag.getInt("val_minX");
+            int minY = tag.getInt("val_minY");
+            int minZ = tag.getInt("val_minZ");
+            int maxX = tag.getInt("val_maxX");
+            int maxY = tag.getInt("val_maxY");
+            int maxZ = tag.getInt("val_maxZ");
+            int rodColumns = tag.getInt("val_rodColumns");
+            ReactorValidation.ValidationReport report = new ReactorValidation.ValidationReport(
+                    minX, minY, minZ, maxX, maxY, maxZ,
+                    maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1,
+                    0, rodColumns);
             cachedResult = new ReactorValidation.Result(
-                    true,
-                    tag.getInt("val_minX"), tag.getInt("val_minY"), tag.getInt("val_minZ"),
-                    tag.getInt("val_maxX"), tag.getInt("val_maxY"), tag.getInt("val_maxZ"),
-                    tag.getInt("val_rodCount"), tag.getInt("val_rodColumns"), tag.getInt("val_coolantCount")
-            );
+                    true, null, null, report,
+                    minX, minY, minZ, maxX, maxY, maxZ,
+                    tag.getInt("val_rodCount"), rodColumns, tag.getInt("val_coolantCount"));
         } else {
             cachedResult = null;
         }

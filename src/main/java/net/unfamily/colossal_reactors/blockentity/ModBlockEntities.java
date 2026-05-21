@@ -58,6 +58,26 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(TurbineControllerBlockEntity::new,
                             ModBlocks.TURBINE_CONTROLLER.get()).build(null));
 
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbinePowerPortBlockEntity>> TURBINE_POWER_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_power_port",
+                    () -> BlockEntityType.Builder.of(TurbinePowerPortBlockEntity::new,
+                            ModBlocks.TURBINE_POWER_PORT.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineHighCondPowerPortBlockEntity>> TURBINE_HIGH_COND_POWER_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_high_cond_power_port",
+                    () -> BlockEntityType.Builder.of(TurbineHighCondPowerPortBlockEntity::new,
+                            ModBlocks.TURBINE_HIGH_COND_POWER_PORT.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineResourcePortBlockEntity>> TURBINE_RESOURCE_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_resource_port",
+                    () -> BlockEntityType.Builder.of(TurbineResourcePortBlockEntity::new,
+                            ModBlocks.TURBINE_RESOURCE_PORT.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurbineRedstonePortBlockEntity>> TURBINE_REDSTONE_PORT_BE =
+            BLOCK_ENTITY_TYPES.register("turbine_redstone_port",
+                    () -> BlockEntityType.Builder.of(TurbineRedstonePortBlockEntity::new,
+                            ModBlocks.TURBINE_REDSTONE_PORT.get()).build(null));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HeatingCoilBlockEntity>> HEATING_COIL_BE =
             BLOCK_ENTITY_TYPES.register("heating_coil",
                     () -> BlockEntityType.Builder.of(HeatingCoilBlockEntity::new,

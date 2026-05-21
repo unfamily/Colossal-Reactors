@@ -48,8 +48,10 @@ public final class TurbineRodSpaceLayout {
      */
     public static int appliedCoilLayerCount(int interiorAlong, int storedSetting) {
         int maxSetting = maxCoilLayerSettingForInterior(interiorAlong);
-        int stored = storedSetting > 0 ? storedSetting : Math.min(defaultCoilLayerCount(), maxSetting);
-        stored = Math.min(Math.max(1, stored), maxSetting);
+        int stored = storedSetting >= 0
+                ? storedSetting
+                : Math.min(defaultCoilLayerCount(), maxSetting);
+        stored = Math.min(Math.max(0, stored), maxSetting);
         return Math.min(stored + 1, maxCoilLayersForInterior(interiorAlong));
     }
 

@@ -120,7 +120,9 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private static final int RIGHT_COL1_X = RIGHT_BLOCK_X + RIGHT_BUTTON_W + GAP;
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
     private static final int RIGHT_ROW0_Y = ROW1_Y;
-    private static final int RIGHT_ROW_WARNING_MESSAGE_Y = PREVIEW_BUTTON_Y;
+    private static int warningYAlignedToPreview(int lineHeight) {
+        return PREVIEW_BUTTON_Y + (BUTTON_H - lineHeight) / 2;
+    }
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
     /** Coil layer count: below placement-axis; spans col 1–2 (build % is digits-only at {@link #WARNING_RIGHT_X}). */
@@ -831,7 +833,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.drawString(font,
                     Component.translatable("gui.colossal_reactors.turbine_builder.warning.invalid_blocks"),
-                    WARNING_RIGHT_X, RIGHT_ROW_WARNING_MESSAGE_Y, 0xFF0000, false);
+                    WARNING_RIGHT_X, warningYAlignedToPreview(font.lineHeight), 0xFF0000, false);
         }
     }
 
