@@ -87,11 +87,8 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
-        long rfPerBucket = Math.round(recipe.rfProduction());
-        g.text(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket", rfPerBucket),
-                margin, textY, color, false);
         g.text(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_mb",
                         TurbineGenerationLoader.formatRfPerSteamMb(recipe.rfProduction())),
-                margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
+                margin, textY, color, false);
     }
 }

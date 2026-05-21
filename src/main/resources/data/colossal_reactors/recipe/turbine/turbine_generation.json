@@ -7,7 +7,7 @@
         "#c:steam"
       ],
       "output": "minecraft:water",
-      "rf_production": 4000
+      "rf_production": 4
     }
   ]
 }

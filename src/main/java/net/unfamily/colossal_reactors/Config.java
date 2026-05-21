@@ -366,9 +366,9 @@ public class Config {
     public static final ModConfigSpec.DoubleValue TURBINE_MIN_RF_PER_TICK = BUILDER
             .comment("Minimum RF/t produced by any running turbine. Default: 0")
             .defineInRange("101b_minRfPerTick", 0.0, 0.0, Double.MAX_VALUE);
-    public static final ModConfigSpec.DoubleValue TURBINE_DEFAULT_RF_PER_STEAM_BUCKET = BUILDER
-            .comment("Fallback RF per bucket (1000 mB) steam when datapack entry is missing. Default: 4000 (= 4 RF/mB)")
-            .defineInRange("000_defaultRfPerSteamBucket", 4000.0, 0.0, Double.MAX_VALUE);
+    public static final ModConfigSpec.DoubleValue TURBINE_DEFAULT_RF_PER_STEAM_MB = BUILDER
+            .comment("Fallback RF per mB steam when datapack entry is missing. Default: 4")
+            .defineInRange("000_defaultRfPerSteamMb", 4.0, 0.0, Double.MAX_VALUE);
     public static final ModConfigSpec.IntValue TURBINE_DEFAULT_COIL_LAYER_COUNT = BUILDER
             .comment("Default coil-layer setting in turbine builder (GUI shows this + 1). Default: 1 (= 2 layers in GUI)")
             .defineInRange("001_defaultCoilLayerCount", 1, 0, 32);

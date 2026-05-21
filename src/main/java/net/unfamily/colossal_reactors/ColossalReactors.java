@@ -24,7 +24,9 @@ import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.unfamily.iskalib.gas.GasRegistrationRegisters;
 import net.unfamily.iskalib.gas.IskaLibGases;
+import net.unfamily.iskalib.gas.RegisteredGas;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
@@ -56,6 +58,9 @@ public class ColossalReactors {
     public static final String MODID = "colossal_reactors";
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    /** Registered via {@link IskaLibGases} on {@link ModBlocks#BLOCKS} / {@link ModItems#ITEMS} / {@link ModFluids}. */
+    public static RegisteredGas STEAM_GAS;
+
     private static final Identifier REACTOR_DATA_RELOAD_ID = Identifier.fromNamespaceAndPath(MODID, "reactor_data");
     private static final Identifier LOAD_DATA_RELOAD_ID = Identifier.fromNamespaceAndPath(MODID, "load_data");
 
@@ -66,13 +71,22 @@ public class ColossalReactors {
 
         NeoForge.EVENT_BUS.addListener(this::onAddServerReloadListeners);
 
-        // Gas (steam): NeoForge 26.x via iska_lib only — 1.21.1 Colossal Reactors uses in-mod gas, not this library.
-        IskaLibGases.registerGas(modEventBus, MODID, "steam", 0xFFE8F0F0);
-
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModFluids.FLUID_TYPES.register(modEventBus);
         ModFluids.FLUIDS.register(modEventBus);
+
+        // Gas (steam): NeoForge 26.x via iska_lib — uses this mod's deferred registers (no second registrar).
+        STEAM_GAS = IskaLibGases.registerGas(
+                modEventBus,
+                new GasRegistrationRegisters(
+                        ModFluids.FLUID_TYPES,
+                        ModFluids.FLUIDS,
+                        ModBlocks.BLOCKS,
+                        ModItems.ITEMS),
+                MODID,
+                "steam",
+                0xFFE8F0F0);
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
         ModPayloads.register(modEventBus);
@@ -110,6 +124,7 @@ public class ColossalReactors {
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
+        IskaLibGases.registerCapabilities(event);
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((ResourcePortBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),

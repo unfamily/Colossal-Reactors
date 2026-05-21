@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "colossal_reactors:gas_fluid_steam",
+    "colossal_reactors:gas_fluid_steam_flowing"
+  ]
+}

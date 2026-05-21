@@ -5,7 +5,7 @@ import net.minecraft.resources.Identifier;
 import java.util.List;
 
 /**
- * One turbine generation entry: steam input, optional fluid output, RF per bucket (1000 mB) steam.
+ * One turbine generation entry: steam input, optional fluid output, {@code rf_production} is RF per mB steam.
  */
 public record TurbineGenerationDefinition(
         Identifier generationId,
