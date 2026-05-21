@@ -55,4 +55,23 @@ public class TurbineRodBlock extends DirectionalBlock {
         return TurbineRodShapes.forFacing(state.getValue(FACING));
     }
 
+    @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (!level.isClientSide() && !oldState.is(state.getBlock())) {
+            TurbineControllerBlock.notifyTurbineStructureChanged(level, pos);
+        }
+    }
+
+    @Override
+    protected void spawnAfterBreak(
+            BlockState state,
+            net.minecraft.server.level.ServerLevel level,
+            BlockPos pos,
+            net.minecraft.world.item.ItemStack tool,
+            boolean dropExperience) {
+        TurbineBladePlacement.dropBladesOnRod(level, pos, state);
+        TurbineControllerBlock.notifyTurbineStructureChanged(level, pos);
+        super.spawnAfterBreak(state, level, pos, tool, dropExperience);
+    }
 }

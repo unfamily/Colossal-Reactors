@@ -14,7 +14,7 @@ public class TurbineRodControllerBlock extends DirectionalBlock {
 
     public TurbineRodControllerBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
     }
 
     @Override

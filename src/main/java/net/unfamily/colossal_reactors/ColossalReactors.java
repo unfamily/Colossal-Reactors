@@ -16,7 +16,6 @@ import net.neoforged.neoforge.client.event.RegisterFluidModelsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -90,7 +89,6 @@ public class ColossalReactors {
             modEventBus.addListener(ModelEvent.RegisterLoaders.class, ColossalModelLoaders::registerModelLoaders);
             modEventBus.addListener(EntityRenderersEvent.RegisterRenderers.class, TurbineRotorClientRegistration::registerRenderers);
             modEventBus.addListener(ModelEvent.ModifyBakingResult.class, TurbineRotorClientRegistration::onModifyBakingResult);
-            modEventBus.addListener(RegisterPayloadHandlersEvent.class, ColossalClientSetup::registerPayloadHandlers);
         }
 
     }

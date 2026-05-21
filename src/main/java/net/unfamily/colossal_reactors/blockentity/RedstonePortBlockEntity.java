@@ -12,6 +12,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.unfamily.colossal_reactors.menu.RedstonePortMenu;
 import org.jetbrains.annotations.Nullable;
 
@@ -59,6 +60,9 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
         RedstoneMode m = RedstoneMode.fromId(mode);
         this.redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
         setChanged();
+        if (level != null) {
+            TurbineControllerBlock.notifyTurbineRedstoneChanged(level, worldPosition);
+        }
     }
 
     /** Called when a neighboring block updates so controller gate checks see fresh signal state. */

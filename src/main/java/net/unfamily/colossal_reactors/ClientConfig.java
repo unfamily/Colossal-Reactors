@@ -36,18 +36,41 @@ public final class ClientConfig {
             .define("enable_rotor_rotation", true);
 
     public static final ModConfigSpec.DoubleValue TURBINE_ROTOR_MAX_DEG_PER_TICK = BUILDER
-            .comment("Maximum rotation speed in degrees per tick at full load (RF or steam vs estimated max). Default: 10")
-            .defineInRange("rotor_max_deg_per_tick", 10.0, 0.1, 270.0);
+            .comment("Maximum rotation speed in degrees per tick at full load (RF or steam vs estimated max). Default: 30")
+            .defineInRange("rotor_max_deg_per_tick", 30.0, 0.1, 270.0);
 
     public static final ModConfigSpec.DoubleValue TURBINE_ROTOR_MIN_LOAD_TO_SPIN = BUILDER
             .comment("Minimum load factor (0-1) before the rotor starts spinning visually. Default: 0.01")
             .defineInRange("rotor_min_load_to_spin", 0.01, 0.0, 1.0);
+
+    public static final ModConfigSpec.IntValue TURBINE_ROTOR_STRUCTURE_CHECK_INTERVAL_TICKS = BUILDER
+            .comment("Ticks between client-side rod layout checks for nearby turbines. Default: 20")
+            .defineInRange("rotor_structure_check_interval_ticks", 20, 5, 200);
+
+    public static final ModConfigSpec.BooleanValue TURBINE_ROTOR_RENDER_OFFSCREEN = BUILDER
+            .comment("When true, rotor BER may run outside the camera frustum (heavier). Default: false")
+            .define("rotor_render_offscreen", false);
 
     static {
         BUILDER.pop();
     }
 
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    /** Hard cap for turbine rotor render/simulation range (blocks). */
+    public static final int TURBINE_ROTOR_RENDER_DISTANCE_CAP_BLOCKS = 64;
+
+    /**
+     * Effective rotor distance: player render distance in blocks, capped at {@link #TURBINE_ROTOR_RENDER_DISTANCE_CAP_BLOCKS}.
+     */
+    public static int getTurbineRotorRenderDistanceBlocks() {
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.options == null) {
+            return TURBINE_ROTOR_RENDER_DISTANCE_CAP_BLOCKS;
+        }
+        int renderChunks = mc.options.getEffectiveRenderDistance();
+        return Math.min(renderChunks * 16, TURBINE_ROTOR_RENDER_DISTANCE_CAP_BLOCKS);
+    }
 
     /** Whether the server should tick reactor rod FILL blockstate updates. */
     public static boolean shouldUpdateReactorRodFillVisuals() {

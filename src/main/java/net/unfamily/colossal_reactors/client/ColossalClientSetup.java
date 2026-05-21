@@ -1,8 +1,6 @@
 package net.unfamily.colossal_reactors.client;
 
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
 import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen;
@@ -13,27 +11,14 @@ import net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen;
 import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
-import net.unfamily.colossal_reactors.network.ClearPreviewPayload;
-import net.unfamily.colossal_reactors.network.ReactorPreviewMarkerPayload;
 
 /**
- * Client-only menu ↔ screen binding (NeoForge 26: {@link RegisterMenuScreensEvent}) and S2C payloads.
+ * Client-only menu ↔ screen binding (NeoForge 26: {@link RegisterMenuScreensEvent}).
+ * S2C payloads are registered in {@link net.unfamily.colossal_reactors.network.ModPayloads}.
  */
 public final class ColossalClientSetup {
 
     private ColossalClientSetup() {}
-
-    /** S2C: reactor footprint preview markers (handler stays client-only). */
-    public static void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        event.registrar(ColossalReactors.MODID).versioned("1").playToClient(
-                ReactorPreviewMarkerPayload.TYPE,
-                ReactorPreviewMarkerPayload.STREAM_CODEC,
-                ClientPayloadHandlers::handlePreviewMarker)
-                .playToClient(
-                        ClearPreviewPayload.TYPE,
-                        ClearPreviewPayload.STREAM_CODEC,
-                        ClearPreviewPayload::handle);
-    }
 
     public static void registerMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenuTypes.RESOURCE_PORT_MENU.get(), ResourcePortScreen::new);

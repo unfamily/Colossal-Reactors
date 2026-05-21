@@ -61,12 +61,14 @@ public class TurbineControllerBlockEntityRenderer
             ModelFeatureRenderer.CrumblingOverlay breakProgress) {
         state.rods.clear();
         state.controllerPos = be.getBlockPos();
+        TurbineRotorClientRegistry.ensureAssemblyState(be);
+        if (!TurbineRotorClientRegistry.shouldRunBer(be)) {
+            state.renderAssembly = false;
+            return;
+        }
+        TurbineRotorAnimationManager.pollController(be, partialTicks);
         TurbineRotorAnimationManager.RotorState anim = TurbineRotorAnimationManager.getState(be.getBlockPos());
         if (anim == null) {
-            TurbineRotorAnimationManager.ensureAssemblyState(be);
-            anim = TurbineRotorAnimationManager.getState(be.getBlockPos());
-        }
-        if (anim == null || !anim.isAssemblyReady()) {
             state.renderAssembly = false;
             return;
         }
@@ -123,12 +125,13 @@ public class TurbineControllerBlockEntityRenderer
 
     @Override
     public boolean shouldRenderOffScreen() {
-        return ClientConfig.TURBINE_ROTOR_ROTATION_ENABLED.get();
+        return ClientConfig.TURBINE_ROTOR_ROTATION_ENABLED.get()
+                && ClientConfig.TURBINE_ROTOR_RENDER_OFFSCREEN.get();
     }
 
     @Override
     public int getViewDistance() {
-        return 256;
+        return ClientConfig.getTurbineRotorRenderDistanceBlocks();
     }
 
     private static int packedLight(Level level, BlockPos pos) {

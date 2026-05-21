@@ -4,12 +4,20 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
@@ -25,7 +33,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
+import net.unfamily.colossal_reactors.block.TurbineRodBlock;
 import net.unfamily.colossal_reactors.block.TurbineVisualState;
+import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistry;
+import net.unfamily.colossal_reactors.client.turbine.TurbineRotorSimulationSource;
 import net.unfamily.colossal_reactors.menu.TurbineControllerMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineFiller;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
@@ -44,8 +55,23 @@ import org.jetbrains.annotations.Nullable;
  */
 public class TurbineControllerBlockEntity extends BlockEntity implements MenuProvider {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TurbineControllerBlockEntity.class);
+
     private static final String TAG_STEAM_BUFFER = "SteamBuffer";
     private static final String TAG_OUTPUT_BUFFER = "OutputBuffer";
+    /** Lightweight client sync (rotation packet), not a full chunk save. */
+    private static final String TAG_RUNTIME_ONLY = "RuntimeOnly";
+    /** Rod/port geometry sync when {@link #rebuildPartCaches} changes structure. */
+    private static final String TAG_STRUCTURE_ONLY = "StructureOnly";
+    private static final String TAG_STRUCTURE_REVISION = "StructureRevision";
+
+    /** When true, {@link #getUpdateTag} sends only runtime/rotation fields. */
+    private transient boolean syncRuntimeOnly;
+    /** When true, next {@link #getUpdateTag} sends rod positions + revision. */
+    private transient boolean syncStructureOnly;
+
+    /** Incremented on each {@link #rebuildPartCaches}; client invalidates rotor geometry when it changes. */
+    private int structureRevision;
 
     public record FluidBufferEntry(Identifier fluidId, int mb) {}
 
@@ -64,6 +90,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     private boolean redstoneGateOpen;
     private long lastRfPerTick;
     private double lastSteamPerTick;
+    /** 0..1 production factor synced to client for rotor speed (RF vs estimated max). */
+    private float rotorLoadFactor;
     private double lastCoilEff;
     private double lastBladeEff;
     @Nullable
@@ -87,10 +115,36 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
 
     public long[] getCachedRodPositions() { return cachedRodPositions; }
     public byte[] getCachedRodFacings() { return cachedRodFacings; }
+    public int getStructureRevision() { return structureRevision; }
     public long getLastRfPerTick() { return lastRfPerTick; }
     public double getLastSteamPerTick() { return lastSteamPerTick; }
+    public float getRotorLoadFactor() { return rotorLoadFactor; }
     public double getLastCoilEff() { return lastCoilEff; }
     public double getLastBladeEff() { return lastBladeEff; }
+
+    /** Copies synced runtime fields from another controller (e.g. server BE in integrated SP). */
+    public void mirrorRuntimeStatsFrom(TurbineControllerBlockEntity other) {
+        if (other == this) {
+            return;
+        }
+        lastRfPerTick = other.lastRfPerTick;
+        lastSteamPerTick = other.lastSteamPerTick;
+        powered = other.powered;
+        redstoneGateOpen = other.redstoneGateOpen;
+        rotorLoadFactor = other.rotorLoadFactor;
+        cachedOutputReturnBuffer = other.cachedOutputReturnBuffer;
+    }
+
+    /** Copies structure fields used for client rotor geometry (integrated SP server authority). */
+    public void mirrorRotorStructureFrom(TurbineControllerBlockEntity other) {
+        if (other == this) {
+            return;
+        }
+        cachedResult = other.cachedResult;
+        cachedRodPositions = other.cachedRodPositions.clone();
+        cachedRodFacings = other.cachedRodFacings.clone();
+        structureRevision = other.structureRevision;
+    }
 
     public void setLastInteractingPlayer(@Nullable Player player) {
         this.lastInteractingPlayer = player;
@@ -98,11 +152,41 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
 
     public void setCachedResult(TurbineValidation.Result result) {
         this.cachedResult = result != null ? result : TurbineValidation.Result.invalid();
+        if (level != null) {
+            rebuildPartCaches(level, cachedResult);
+        } else if (!this.cachedResult.valid()) {
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
+            cachedPowerPortPositions = new long[0];
+            cachedResourcePortPositions = new long[0];
+            cachedRedstonePortPositions = new long[0];
+        }
+        setChanged();
+    }
+
+    /** Client-only validation cache fill without sending a server update. */
+    public void applyClientValidationResult(Level level, TurbineValidation.Result result) {
+        this.cachedResult = result != null ? result : TurbineValidation.Result.invalid();
         if (!this.cachedResult.valid()) {
             cachedRodPositions = new long[0];
             cachedRodFacings = new byte[0];
+            return;
         }
-        setChanged();
+        rebuildPartCaches(level, result);
+    }
+
+    /**
+     * Client-only validation update without bumping {@link #structureRevision}
+     * (avoids spurious geometry resets on other turbines).
+     */
+    public void applyClientValidationResultQuiet(Level level, TurbineValidation.Result result) {
+        this.cachedResult = result != null ? result : TurbineValidation.Result.invalid();
+        if (!this.cachedResult.valid()) {
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
+            return;
+        }
+        rebuildPartCachesQuiet(level, result);
     }
 
     public int getCachedSteamConsumeMbPerTick() {
@@ -258,14 +342,168 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     }
 
     public void setRuntimeStats(long rfPerTick, double steamPerTick, boolean powered, boolean redstoneGateOpen) {
+        float newLoad = computeRotorLoadFactor(rfPerTick, steamPerTick);
+        boolean statsChanged = lastRfPerTick != rfPerTick
+                || lastSteamPerTick != steamPerTick
+                || this.powered != powered
+                || this.redstoneGateOpen != redstoneGateOpen
+                || rotorLoadFactor != newLoad;
         this.lastRfPerTick = rfPerTick;
         this.lastSteamPerTick = steamPerTick;
         this.powered = powered;
         this.redstoneGateOpen = redstoneGateOpen;
+        this.rotorLoadFactor = newLoad;
+
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        BlockState state = getBlockState();
+        boolean turbineOn = state.is(ModBlocks.TURBINE_CONTROLLER.get())
+                && state.getValue(TurbineControllerBlock.VISUAL) == TurbineVisualState.ON;
+        if (!statsChanged && !turbineOn) {
+            return;
+        }
+        syncRuntimeOnly = turbineOn;
         setChanged();
+        if (turbineOn) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
+        syncRuntimeOnly = false;
+    }
+
+    private CompoundTag buildStructureSyncTag() {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean(TAG_STRUCTURE_ONLY, true);
+        tag.putInt(TAG_STRUCTURE_REVISION, structureRevision);
+        if (cachedResult.valid()) {
+            tag.putBoolean("val_valid", true);
+            tag.putInt("val_minX", cachedResult.minX());
+            tag.putInt("val_minY", cachedResult.minY());
+            tag.putInt("val_minZ", cachedResult.minZ());
+            tag.putInt("val_maxX", cachedResult.maxX());
+            tag.putInt("val_maxY", cachedResult.maxY());
+            tag.putInt("val_maxZ", cachedResult.maxZ());
+        } else {
+            tag.putBoolean("val_valid", false);
+        }
+        if (cachedRodPositions.length > 0) {
+            tag.putLongArray("RodPos", cachedRodPositions);
+            tag.putByteArray("RodFacing", cachedRodFacings);
+        }
+        return tag;
+    }
+
+    private void applyStructureSyncTag(CompoundTag tag) {
+        if (tag.contains(TAG_STRUCTURE_REVISION)) {
+            structureRevision = tag.getInt(TAG_STRUCTURE_REVISION).orElse(structureRevision);
+        }
+        if (tag.getBoolean("val_valid").orElse(false)) {
+            cachedResult = new TurbineValidation.Result(
+                    true,
+                    null,
+                    null,
+                    TurbineValidation.ValidationReport.empty(),
+                    tag.getInt("val_minX").orElse(0),
+                    tag.getInt("val_minY").orElse(0),
+                    tag.getInt("val_minZ").orElse(0),
+                    tag.getInt("val_maxX").orElse(0),
+                    tag.getInt("val_maxY").orElse(0),
+                    tag.getInt("val_maxZ").orElse(0),
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0);
+        } else if (tag.contains("val_valid")) {
+            cachedResult = TurbineValidation.Result.invalid();
+        }
+        if (tag.contains("RodPos")) {
+            cachedRodPositions = tag.getLongArray("RodPos").orElse(new long[0]);
+            cachedRodFacings = tag.contains("RodFacing")
+                    ? tag.getByteArray("RodFacing").orElse(new byte[0])
+                    : new byte[0];
+        } else {
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
+        }
+    }
+
+    private CompoundTag buildRuntimeSyncTag() {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean(TAG_RUNTIME_ONLY, true);
+        tag.putInt(TAG_STRUCTURE_REVISION, structureRevision);
+        tag.putBoolean("Powered", powered);
+        tag.putBoolean("RedstoneGateOpen", redstoneGateOpen);
+        tag.putFloat("RotorLoad", rotorLoadFactor);
+        tag.putLong("LastRf", lastRfPerTick);
+        tag.putDouble("LastSteam", lastSteamPerTick);
+        tag.putBoolean("OutputReturnBuf", cachedOutputReturnBuffer);
+        tag.putInt("OutRetMb", getTotalOutputReturnMb());
+        return tag;
+    }
+
+    private void applyRuntimeSyncTag(CompoundTag tag) {
+        if (tag.contains(TAG_STRUCTURE_REVISION)) {
+            structureRevision = tag.getInt(TAG_STRUCTURE_REVISION).orElse(structureRevision);
+        }
+        if (tag.contains("Powered")) {
+            powered = tag.getBoolean("Powered").orElse(powered);
+        }
+        if (tag.contains("RedstoneGateOpen")) {
+            redstoneGateOpen = tag.getBoolean("RedstoneGateOpen").orElse(redstoneGateOpen);
+        }
+        if (tag.contains("RotorLoad")) {
+            rotorLoadFactor = tag.getFloat("RotorLoad").orElse(rotorLoadFactor);
+        }
+        if (tag.contains("LastRf")) {
+            lastRfPerTick = tag.getLong("LastRf").orElse(lastRfPerTick);
+        }
+        if (tag.contains("LastSteam")) {
+            lastSteamPerTick = tag.getDouble("LastSteam").orElse(lastSteamPerTick);
+        }
+        if (tag.contains("OutputReturnBuf")) {
+            cachedOutputReturnBuffer = tag.getBoolean("OutputReturnBuf").orElse(cachedOutputReturnBuffer);
+        }
+    }
+
+    private float computeRotorLoadFactor(long rfPerTick, double steamPerTick) {
+        TurbineValidation.Result result = getCachedResult();
+        if (result == null || !result.valid()) {
+            return 0f;
+        }
+        double maxRf = result.estimatedRfPerTick();
+        if (maxRf > 0) {
+            return (float) Math.min(1.0, rfPerTick / maxRf);
+        }
+        return 0f;
+    }
+
+    /** True when the turbine pushed RF this tick (not merely consumed steam). */
+    public boolean isProducingEnergy() {
+        return lastRfPerTick > 0;
+    }
+
+    /** Recomputes gate + runtime and syncs clients (call when a turbine redstone port signal changes). */
+    public void refreshGateAndRuntime(ServerLevel level) {
+        if (!cachedResult.valid()) {
+            setRuntimeStats(0, 0, false, false);
+            return;
+        }
+        boolean gateOpen = TurbineControllerBlock.isRedstoneGateSatisfied(level, this, cachedResult);
+        if (!gateOpen) {
+            setRuntimeStats(0, 0, false, gateOpen);
+            return;
+        }
+        TurbineSimulation.tick(level, this);
     }
 
     public void rebuildPartCaches(ServerLevel level, TurbineValidation.Result result) {
+        rebuildPartCaches((Level) level, result);
+    }
+
+    public void rebuildPartCaches(Level level, TurbineValidation.Result result) {
         if (level == null || result == null || !result.valid()) {
             cachedPowerPortPositions = new long[0];
             cachedResourcePortPositions = new long[0];
@@ -300,7 +538,59 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
                         redstonePorts.add(p.asLong());
                     } else if (state.is(ModBlocks.TURBINE_ROD.get())) {
                         rods.add(p.asLong());
-                        rodFacings.add((byte) state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING).ordinal());
+                        rodFacings.add((byte) state.getValue(TurbineRodBlock.FACING).ordinal());
+                    }
+                }
+            }
+        }
+        cachedPowerPortPositions = powerPorts.toLongArray();
+        cachedResourcePortPositions = resourcePorts.toLongArray();
+        cachedRedstonePortPositions = redstonePorts.toLongArray();
+        cachedRodPositions = rods.toLongArray();
+        cachedRodFacings = rodFacings.toByteArray();
+        structureRevision++;
+        if (level != null && !level.isClientSide()) {
+            syncStructureOnly = true;
+        }
+    }
+
+    /** Rebuilds rod/port caches without incrementing {@link #structureRevision} (client-only validation). */
+    private void rebuildPartCachesQuiet(Level level, TurbineValidation.Result result) {
+        if (level == null || result == null || !result.valid()) {
+            cachedPowerPortPositions = new long[0];
+            cachedResourcePortPositions = new long[0];
+            cachedRedstonePortPositions = new long[0];
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
+            return;
+        }
+        int minX = result.minX();
+        int minY = result.minY();
+        int minZ = result.minZ();
+        int maxX = result.maxX();
+        int maxY = result.maxY();
+        int maxZ = result.maxZ();
+
+        LongArrayList powerPorts = new LongArrayList();
+        LongArrayList resourcePorts = new LongArrayList();
+        LongArrayList redstonePorts = new LongArrayList();
+        LongArrayList rods = new LongArrayList();
+        it.unimi.dsi.fastutil.bytes.ByteArrayList rodFacings = new it.unimi.dsi.fastutil.bytes.ByteArrayList();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    p.set(x, y, z);
+                    BlockState state = level.getBlockState(p);
+                    if (TurbineValidation.isTurbinePowerPort(state)) {
+                        powerPorts.add(p.asLong());
+                    } else if (state.is(ModBlocks.TURBINE_RESOURCE_PORT.get())) {
+                        resourcePorts.add(p.asLong());
+                    } else if (state.is(ModBlocks.TURBINE_REDSTONE_PORT.get())) {
+                        redstonePorts.add(p.asLong());
+                    } else if (state.is(ModBlocks.TURBINE_ROD.get())) {
+                        rods.add(p.asLong());
+                        rodFacings.add((byte) state.getValue(TurbineRodBlock.FACING).ordinal());
                     }
                 }
             }
@@ -342,6 +632,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         output.putBoolean("RedstoneGateOpen", redstoneGateOpen);
         output.putLong("LastRf", lastRfPerTick);
         output.putDouble("LastSteam", lastSteamPerTick);
+        output.putFloat("RotorLoad", rotorLoadFactor);
+        output.putInt(TAG_STRUCTURE_REVISION, structureRevision);
         output.putInt("LastCoilEffMilli", (int) (lastCoilEff * 1000));
         output.putInt("LastBladeEffMilli", (int) (lastBladeEff * 1000));
         if (cachedResult.valid()) {
@@ -387,6 +679,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         redstoneGateOpen = input.getBooleanOr("RedstoneGateOpen", false);
         lastRfPerTick = input.getLongOr("LastRf", 0L);
         lastSteamPerTick = input.getDoubleOr("LastSteam", 0.0);
+        rotorLoadFactor = input.getFloatOr("RotorLoad", 0f);
+        structureRevision = input.getIntOr(TAG_STRUCTURE_REVISION, 0);
         lastCoilEff = input.getIntOr("LastCoilEffMilli", 0) / 1000.0;
         lastBladeEff = input.getIntOr("LastBladeEffMilli", 0) / 1000.0;
         Optional<Integer> minX = input.getInt("val_minX");
@@ -442,7 +736,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             clampFluidBuffers();
         }
         if (level != null && level.isClientSide()) {
-            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onControllerSync(this);
+            TurbineRotorClientRegistry.onBlockEntityLoad(this);
         }
     }
 
@@ -450,7 +744,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     public void onLoad() {
         super.onLoad();
         if (level != null && level.isClientSide()) {
-            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onControllerSync(this);
+            TurbineRotorClientRegistry.onBlockEntityLoad(this);
             return;
         }
         if (level == null) {
@@ -474,16 +768,115 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     }
 
     @Override
-    public net.minecraft.nbt.CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        if (syncStructureOnly) {
+            CompoundTag tag = buildStructureSyncTag();
+            syncStructureOnly = false;
+            return tag;
+        }
+        if (syncRuntimeOnly) {
+            return buildRuntimeSyncTag();
+        }
         return saveWithoutMetadata(registries);
+    }
+
+    private void dispatchClientCacheReset(CompoundTag tag) {
+        if (tag.getBoolean(TAG_STRUCTURE_ONLY).orElse(false)) {
+            TurbineRotorSimulationSource.mirrorStructureFromServer(this);
+            TurbineRotorClientRegistry.onStructureSyncPacket(this);
+            return;
+        }
+        if (tag.getBoolean(TAG_RUNTIME_ONLY).orElse(false)) {
+            int previousRevision = TurbineRotorClientRegistry.getAppliedStructureRevision(getBlockPos());
+            TurbineRotorClientRegistry.resetRuntimeCache(this);
+            if (getStructureRevision() != previousRevision) {
+                TurbineRotorSimulationSource.mirrorStructureFromServer(this);
+                TurbineRotorClientRegistry.resetGeometryCache(this, false, true);
+            }
+            return;
+        }
+        TurbineRotorClientRegistry.onBlockEntityLoad(this);
     }
 
     @Override
     public void onDataPacket(Connection connection, ValueInput valueInput) {
+        if (valueInput.getBooleanOr(TAG_STRUCTURE_ONLY, false)) {
+            applyStructureSyncFromPacket(valueInput);
+            if (level != null && level.isClientSide()) {
+                dispatchClientCacheReset(buildStructureSyncTag());
+            }
+            return;
+        }
+        if (valueInput.getBooleanOr(TAG_RUNTIME_ONLY, false)) {
+            applyRuntimeSyncFromPacket(valueInput);
+            if (level != null && level.isClientSide()) {
+                dispatchClientCacheReset(buildRuntimeSyncTag());
+            }
+            return;
+        }
         loadWithComponents(valueInput);
         if (level != null && level.isClientSide()) {
-            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onControllerSync(this);
+            CompoundTag resetTag = new CompoundTag();
+            resetTag.putBoolean(TAG_STRUCTURE_ONLY, false);
+            resetTag.putBoolean(TAG_RUNTIME_ONLY, false);
+            dispatchClientCacheReset(resetTag);
         }
+    }
+
+    private void applyStructureSyncFromPacket(ValueInput input) {
+        structureRevision = input.getIntOr(TAG_STRUCTURE_REVISION, structureRevision);
+        Optional<Integer> minX = input.getInt("val_minX");
+        if (minX.isPresent()) {
+            cachedResult = new TurbineValidation.Result(
+                    true,
+                    null,
+                    null,
+                    TurbineValidation.ValidationReport.empty(),
+                    minX.get(),
+                    input.getIntOr("val_minY", 0),
+                    input.getIntOr("val_minZ", 0),
+                    input.getIntOr("val_maxX", 0),
+                    input.getIntOr("val_maxY", 0),
+                    input.getIntOr("val_maxZ", 0),
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0);
+        } else if (!input.getBooleanOr("val_valid", true)) {
+            cachedResult = TurbineValidation.Result.invalid();
+        }
+        LongArrayList rodsLoaded = new LongArrayList();
+        for (Long l : input.listOrEmpty("RodPos", Codec.LONG)) {
+            if (l != null) {
+                rodsLoaded.add(l);
+            }
+        }
+        if (!rodsLoaded.isEmpty()) {
+            cachedRodPositions = rodsLoaded.toLongArray();
+            it.unimi.dsi.fastutil.bytes.ByteArrayList facingsLoaded = new it.unimi.dsi.fastutil.bytes.ByteArrayList();
+            for (Integer f : input.listOrEmpty("RodFacing", Codec.INT)) {
+                if (f != null) {
+                    facingsLoaded.add(f.byteValue());
+                }
+            }
+            cachedRodFacings = facingsLoaded.toByteArray();
+        } else {
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
+        }
+    }
+
+    private void applyRuntimeSyncFromPacket(ValueInput input) {
+        structureRevision = input.getIntOr(TAG_STRUCTURE_REVISION, structureRevision);
+        powered = input.getBooleanOr("Powered", powered);
+        redstoneGateOpen = input.getBooleanOr("RedstoneGateOpen", redstoneGateOpen);
+        rotorLoadFactor = input.getFloatOr("RotorLoad", rotorLoadFactor);
+        lastRfPerTick = input.getLongOr("LastRf", lastRfPerTick);
+        lastSteamPerTick = input.getDoubleOr("LastSteam", lastSteamPerTick);
+        cachedOutputReturnBuffer = input.getBooleanOr("OutputReturnBuf", cachedOutputReturnBuffer);
     }
 
     @Nullable

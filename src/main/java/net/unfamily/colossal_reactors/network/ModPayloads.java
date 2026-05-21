@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
@@ -110,6 +111,11 @@ public class ModPayloads {
                 TurbineBuilderMarkInputPayload.TYPE,
                 TurbineBuilderMarkInputPayload.STREAM_CODEC,
                 TurbineBuilderMarkInputPayload::handle
+        );
+        registrar.playToClient(
+                ReactorPreviewMarkerPayload.TYPE,
+                ReactorPreviewMarkerPayload.STREAM_CODEC,
+                ClientPayloadHandlers::handlePreviewMarker
         );
         registrar.playToClient(
                 ClearPreviewPayload.TYPE,

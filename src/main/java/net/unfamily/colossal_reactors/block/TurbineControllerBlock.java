@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.block;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -26,6 +27,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.RedstonePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
+import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistry;
 import net.unfamily.colossal_reactors.turbine.TurbineSimulation;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
@@ -186,7 +188,16 @@ public class TurbineControllerBlock extends BaseEntityBlock {
 
     public static boolean isRedstoneGateSatisfied(ServerLevel level, TurbineControllerBlockEntity controllerBe,
             TurbineValidation.Result result) {
-        if (controllerBe == null || result == null || !result.valid()) {
+        return isRedstoneGateSatisfied((Level) level, controllerBe, result);
+    }
+
+    /**
+     * Redstone port modes: when any port is active, production and rotor may run.
+     * Works on client for immediate rotor response; server remains authoritative via {@code setRuntimeStats}.
+     */
+    public static boolean isRedstoneGateSatisfied(Level level, TurbineControllerBlockEntity controllerBe,
+            TurbineValidation.Result result) {
+        if (controllerBe == null || result == null || !result.valid() || level == null) {
             return false;
         }
         long[] ports = controllerBe.getCachedRedstonePortPositions();
@@ -200,6 +211,112 @@ public class TurbineControllerBlock extends BaseEntityBlock {
             }
         }
         return false;
+    }
+
+    /** True when {@code pos} lies inside a validated turbine interior AABB. */
+    public static boolean containsBlock(TurbineValidation.Result result, BlockPos pos) {
+        return result != null && result.valid()
+                && pos.getX() >= result.minX() && pos.getX() <= result.maxX()
+                && pos.getY() >= result.minY() && pos.getY() <= result.maxY()
+                && pos.getZ() >= result.minZ() && pos.getZ() <= result.maxZ();
+    }
+
+    /** Chunk radius for structure-change notifications (rod/blade edits). */
+    public static int structureNotifyChunkRadius() {
+        int maxBlocks = Math.max(Config.MAX_TURBINE_WIDTH.get(),
+                Math.max(Config.MAX_TURBINE_LENGTH.get(), Config.MAX_TURBINE_HEIGHT.get()));
+        return (maxBlocks + 15) / 16 + 1;
+    }
+
+    /**
+     * Refreshes rod/port caches when rods or blades are placed or broken.
+     */
+    public static void notifyTurbineStructureChanged(Level level, BlockPos structurePos) {
+        if (level.isClientSide()) {
+            TurbineRotorClientRegistry.invalidateStructure(level, structurePos);
+            return;
+        }
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ChunkPos center = ChunkPos.containing(structurePos);
+        int radius = structureNotifyChunkRadius();
+        for (int cx = center.x() - radius; cx <= center.x() + radius; cx++) {
+            for (int cz = center.z() - radius; cz <= center.z() + radius; cz++) {
+                if (!serverLevel.hasChunk(cx, cz)) {
+                    continue;
+                }
+                for (BlockEntity be : serverLevel.getChunk(cx, cz).getBlockEntities().values()) {
+                    if (!(be instanceof TurbineControllerBlockEntity controller)) {
+                        continue;
+                    }
+                    BlockState ctrl = serverLevel.getBlockState(controller.getBlockPos());
+                    if (!ctrl.is(ModBlocks.TURBINE_CONTROLLER.get())
+                            || ctrl.getValue(VISUAL) != TurbineVisualState.ON) {
+                        continue;
+                    }
+                    Direction into = ctrl.getValue(FACING).getOpposite();
+                    BlockPos start = controller.getBlockPos().relative(into);
+                    TurbineValidation.Result result = TurbineValidation.validateWithRodAlignment(
+                            serverLevel, start, into, -1);
+                    if (!containsBlock(result, structurePos)) {
+                        continue;
+                    }
+                    controller.setCachedResult(result);
+                    BlockState ctrlState = serverLevel.getBlockState(controller.getBlockPos());
+                    controller.setChanged();
+                    serverLevel.sendBlockUpdated(
+                            controller.getBlockPos(), ctrlState, ctrlState, Block.UPDATE_CLIENTS);
+                }
+            }
+        }
+    }
+
+    /** Called when a turbine redstone port neighbor signal changes. */
+    public static void notifyTurbineRedstoneChanged(Level level, BlockPos portPos) {
+        if (level.isClientSide()) {
+            TurbineRotorClientRegistry.onClientRedstoneChanged(level, portPos);
+            return;
+        }
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ChunkPos center = ChunkPos.containing(portPos);
+        for (int cx = center.x() - 1; cx <= center.x() + 1; cx++) {
+            for (int cz = center.z() - 1; cz <= center.z() + 1; cz++) {
+                if (!serverLevel.hasChunk(cx, cz)) {
+                    continue;
+                }
+                for (BlockEntity be : serverLevel.getChunk(cx, cz).getBlockEntities().values()) {
+                    if (!(be instanceof TurbineControllerBlockEntity controller)) {
+                        continue;
+                    }
+                    BlockState ctrl = serverLevel.getBlockState(controller.getBlockPos());
+                    if (!ctrl.is(ModBlocks.TURBINE_CONTROLLER.get())
+                            || ctrl.getValue(VISUAL) != TurbineVisualState.ON) {
+                        continue;
+                    }
+                    for (long portLong : controller.getCachedRedstonePortPositions()) {
+                        if (portPos.equals(BlockPos.of(portLong))) {
+                            controller.refreshGateAndRuntime(serverLevel);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        if (!state.is(ModBlocks.TURBINE_CONTROLLER.get())
+                || state.getValue(VISUAL) != TurbineVisualState.ON) {
+            return;
+        }
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof TurbineControllerBlockEntity controller) {
+            TurbineRotorClientRegistry.ensureAssemblyState(controller);
+        }
     }
 
     @Override
