@@ -518,6 +518,7 @@ public final class TurbineBuildLogic {
         return ItemStack.EMPTY;
     }
 
+    /** Preferred shell type for this face, falling back to the other when the preferred one is unavailable. */
     private static ItemStack resolveFrameStack(TurbineBuilderBlockEntity builder, boolean preferCasing) {
         ItemStack primary = preferCasing ? findCasingItem(builder) : findGlassItem(builder);
         if (!primary.isEmpty()) {
@@ -527,15 +528,15 @@ public final class TurbineBuildLogic {
     }
 
     /**
-     * Consumes casing or glass from buffer (alias), but places the block required for this face.
+     * Consumes casing or glass from buffer and places the block that was actually resolved (preferred or fallback).
      */
     private static boolean tryPlaceFrame(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, boolean preferCasing) {
         ItemStack stack = resolveFrameStack(builder, preferCasing);
         if (stack.isEmpty() || !consumeOne(builder, stack.getItem())) {
             return false;
         }
-        Block placed = preferCasing ? ModBlocks.TURBINE_CASING.get() : ModBlocks.TURBINE_GLASS.get();
-        return level.setBlock(pos, placed.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
+        Block block = net.minecraft.world.level.block.Block.byItem(stack.getItem());
+        return level.setBlock(pos, block.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
     }
 
     private static PlaceResult tryPlaceState(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, BlockState state) {

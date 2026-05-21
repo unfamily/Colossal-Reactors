@@ -9,12 +9,14 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
+import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.block.TurbineRodBlock;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 
-/** Hides static rod/blade quads while the controller BER draws the spinning rotor. */
+/** Hides static rod/blade quads while the BER spins; hides rod connectors without blades on that side. */
 public class TurbineRodBladeBakedModel extends BakedModelWrapper<BakedModel> {
 
     /** Set during {@link #getModelData} for the same-thread chunk mesh build. */
@@ -31,7 +33,7 @@ public class TurbineRodBladeBakedModel extends BakedModelWrapper<BakedModel> {
             BlockState state,
             ModelData renderData) {
         CURRENT_POS.set(pos);
-        return renderData.derive().with(TurbineRotorModelData.RENDER_POS, pos).build();
+        return TurbineRotorModelData.forRod(level, pos, state);
     }
 
     @Override
@@ -49,9 +51,26 @@ public class TurbineRodBladeBakedModel extends BakedModelWrapper<BakedModel> {
             if (pos != null && TurbineRotorAnimationManager.shouldHideStatic(pos)) {
                 return Collections.emptyList();
             }
-            return originalModel.getQuads(state, side, rand, extraData, renderType);
+            List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
+            if (state != null && state.is(ModBlocks.TURBINE_ROD.get()) && state.hasProperty(TurbineRodBlock.FACING)) {
+                int mask = resolveConnectorMask(extraData);
+                if (mask != -1) {
+                    return TurbineRodConnectorQuadFilter.filter(
+                            quads, state.getValue(TurbineRodBlock.FACING), mask);
+                }
+            }
+            return quads;
         } finally {
             CURRENT_POS.remove();
         }
+    }
+
+    private static int resolveConnectorMask(ModelData extraData) {
+        Integer fromData = extraData.get(TurbineRotorModelData.CONNECTOR_MASK);
+        if (fromData != null) {
+            return fromData;
+        }
+        Integer fromScope = TurbineRodRenderScope.connectorMaskOrNull();
+        return fromScope != null ? fromScope : -1;
     }
 }

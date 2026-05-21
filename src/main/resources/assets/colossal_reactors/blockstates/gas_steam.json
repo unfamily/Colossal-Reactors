@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "collectable=false": { "model": "colossal_reactors:block/gas" },
+    "collectable=true": { "model": "colossal_reactors:block/gas" }
+  }
+}

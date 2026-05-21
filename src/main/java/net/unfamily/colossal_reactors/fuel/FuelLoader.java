@@ -132,6 +132,18 @@ public class FuelLoader {
         return new HashMap<>(DEFINITIONS);
     }
 
+    /** Fuels with resolvable inputs and output (JEI + builder simulation). */
+    public static List<FuelDefinition> getVisibleDefinitions() {
+        return DEFINITIONS.values().stream()
+                .filter(def -> DatapackSelectorValidator.sanitizeFuel(def) != null)
+                .sorted(java.util.Comparator.comparing(d -> d.fuelId().toString()))
+                .toList();
+    }
+
+    public static List<ResourceLocation> getVisibleFuelIds() {
+        return getVisibleDefinitions().stream().map(FuelDefinition::fuelId).toList();
+    }
+
     /** No longer used (disable removed); kept for API compatibility. */
     public static boolean isInputExcluded(String inputSelector) {
         return false;

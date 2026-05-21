@@ -39,24 +39,33 @@ public final class TurbineGenerationLoader {
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "water");
 
     private static final Map<ResourceLocation, TurbineGenerationDefinition> DEFINITIONS = new HashMap<>();
+    /** Parsed datapack entries; sanitized when registries/tags are ready (see {@link #rebuildDefinitions()}). */
+    private static Map<ResourceLocation, TurbineGenerationDefinition> rawDatapackGeneration = Map.of();
 
     private TurbineGenerationLoader() {}
 
     public static void applyLoaded(Map<ResourceLocation, TurbineGenerationDefinition> loaded) {
+        synchronized (TurbineGenerationLoader.class) {
+            rawDatapackGeneration = loaded != null ? Map.copyOf(loaded) : Map.of();
+            rebuildDefinitions();
+        }
+    }
+
+    private static void rebuildDefinitions() {
         DEFINITIONS.clear();
         registerInternalDefaults();
-        if (loaded != null) {
-            for (TurbineGenerationDefinition def : loaded.values()) {
-                TurbineGenerationDefinition sanitized = DatapackSelectorValidator.sanitizeTurbineGeneration(def);
-                if (sanitized != null) {
-                    processEntry(sanitized);
-                }
+        for (TurbineGenerationDefinition def : rawDatapackGeneration.values()) {
+            TurbineGenerationDefinition sanitized = DatapackSelectorValidator.sanitizeTurbineGeneration(def);
+            if (sanitized != null) {
+                processEntry(sanitized);
             }
         }
     }
 
     private static void registerInternalDefaults() {
-        List<String> inputs = List.of("#c:steam");
+        List<String> inputs = List.of(
+                "colossal_reactors:gas_fluid_steam",
+                "#c:steam");
         String output = "minecraft:water";
         double rfPerBucket = Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get();
         DEFINITIONS.put(DEFAULT_GENERATION_ID, new TurbineGenerationDefinition(
@@ -72,15 +81,10 @@ public final class TurbineGenerationLoader {
         return String.format("%.3f", rfPerSteamMb(rfPerBucket));
     }
 
-    /** Entries with resolvable steam input (for JEI and builder simulation). */
+    /** Entries with resolvable steam input and output (for JEI and builder simulation). */
     public static List<TurbineGenerationDefinition> getVisibleDefinitions() {
         return DEFINITIONS.values().stream()
-                .filter(def -> {
-                    if (def.inputs().isEmpty()) return false;
-                    return def.inputs().stream().anyMatch(sel ->
-                            sel != null && !sel.isBlank()
-                                    && DatapackSelectorValidator.isResolvableFluidSelector(sel));
-                })
+                .filter(def -> DatapackSelectorValidator.sanitizeTurbineGeneration(def) != null)
                 .sorted(java.util.Comparator.comparing(d -> d.generationId().toString()))
                 .toList();
     }

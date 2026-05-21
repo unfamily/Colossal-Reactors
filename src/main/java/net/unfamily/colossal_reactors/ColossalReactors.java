@@ -25,6 +25,8 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
+import net.unfamily.colossal_reactors.gas.GasFluidInteractions;
+import net.unfamily.colossal_reactors.gas.ModGases;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import com.brandon3055.brandonscore.capability.CapabilityOP;
 import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
@@ -63,6 +65,7 @@ import net.unfamily.colossal_reactors.data.ModConditions;
 import net.unfamily.colossal_reactors.world.ModBiomeModifiers;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
@@ -76,6 +79,8 @@ public class ColossalReactors {
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+
+        ModGases.registerSteam();
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
@@ -152,6 +157,7 @@ public class ColossalReactors {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
                 (be, direction) -> ((RadiationScrubberBlockEntity) be).getEnergyStorage());
         registerRadiationScrubberChemicalCapability(event);
+        GasFluidInteractions.onRegisterCapabilities(event);
     }
 
     /** Registers Mekanism CHEMICAL block capability for Radiation Scrubber when Mekanism is loaded (reflection). */
@@ -184,6 +190,11 @@ public class ColossalReactors {
     }
 
     @SubscribeEvent
+    public void onGasRightClickBlock(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
+        GasFluidInteractions.onRightClickBlock(event);
+    }
+
+    @SubscribeEvent
     public void onAddReloadListener(AddReloadListenerEvent event) {
         event.addListener(new ReactorDataReloadListener());
         event.addListener(new LoadDataReloadListener());
@@ -191,6 +202,11 @@ public class ColossalReactors {
 
     @EventBusSubscriber(modid = ColossalReactors.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     static class ClientModEvents {
+        @SubscribeEvent
+        static void onRegisterBlockColors(RegisterColorHandlersEvent.Block event) {
+            event.register((state, level, pos, tintIndex) -> ModGases.STEAM_TINT, ModGases.steam().block());
+        }
+
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
             NeoForge.EVENT_BUS.addListener(
@@ -203,6 +219,7 @@ public class ColossalReactors {
                 TurbineRotorClientRegistration.registerRenderLayers();
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.GELID_BREEZIUM.block().get(), RenderType.translucent());
+                ItemBlockRenderTypes.setRenderLayer(ModGases.steam().block(), RenderType.translucent());
             });
         }
 
