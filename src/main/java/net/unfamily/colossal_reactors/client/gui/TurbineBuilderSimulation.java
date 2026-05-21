@@ -13,18 +13,20 @@ public final class TurbineBuilderSimulation {
     public static TurbineSimulation.SimulationResult run(
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
-            int rodPattern, int coilIndex, int coilLayerCount) {
+            int placementAxisIndex,
+            int rodPattern, int coilIndex, int storedCoilSetting) {
         return run(registryAccess, sizeLeft, sizeRight, sizeHeight, sizeDepth,
-                rodPattern, coilIndex, coilLayerCount, null);
+                placementAxisIndex, rodPattern, coilIndex, storedCoilSetting, null);
     }
 
     public static TurbineSimulation.SimulationResult run(
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
-            int rodPattern, int coilIndex, int coilLayerCount,
+            int placementAxisIndex,
+            int rodPattern, int coilIndex, int storedCoilSetting,
             @Nullable ResourceLocation generationId) {
         return TurbineSimulation.simulateFromBuilderParams(
                 registryAccess, sizeLeft, sizeRight, sizeHeight, sizeDepth,
-                rodPattern, coilIndex, coilLayerCount, generationId);
+                placementAxisIndex, rodPattern, coilIndex, storedCoilSetting, generationId);
     }
 }

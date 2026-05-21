@@ -685,7 +685,8 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         TurbineSimulation.SimulationResult result = getSimulationResult();
 
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine.stats.blades", result.bladeCount()),
+                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.blades_if_built",
+                        GuiNumberFormat.format(result.validBladeCount())),
                 textX, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
@@ -694,12 +695,12 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                 textX, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_controller.energy_production",
+                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.energy_cap",
                         GuiNumberFormat.format(result.rfPerTick())),
                 textX, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
         guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_controller.steam_production",
+                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.steam_cap",
                         GuiNumberFormat.format(result.steamMbPerTick())),
                 textX, y, SIM_TEXT_COLOR, false);
         y += SIM_LINE_HEIGHT;
@@ -763,7 +764,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                 minecraft != null && minecraft.level != null ? minecraft.level.registryAccess() : net.minecraft.core.RegistryAccess.EMPTY,
                 sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
                 menu.getPlacementAxisOrdinal(),
-                menu.getRodPattern(), menu.getSelectedCoilIndex(), effectiveCoilLayerCount(), menu.isOpenTop());
+                menu.getRodPattern(), menu.getSelectedCoilIndex(), menu.getCoilLayerCount(), menu.isOpenTop());
     }
 
     @Nullable
@@ -776,14 +777,15 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
 
     private TurbineSimulation.SimulationResult getSimulationResult() {
         if (minecraft == null || minecraft.level == null) {
-            return new TurbineSimulation.SimulationResult(0, 0, 0, 0, 1, 1);
+            return new TurbineSimulation.SimulationResult(0, 0, 0, 0, 0, 1, 1);
         }
         var ra = minecraft.level.registryAccess();
         int sizeLeft = menu.getSizeRight();
         int sizeRight = menu.getSizeLeft();
         return TurbineBuilderSimulation.run(ra,
                 sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
-                menu.getRodPattern(), menu.getSelectedCoilIndex(), effectiveCoilLayerCount(),
+                menu.getPlacementAxisOrdinal(),
+                menu.getRodPattern(), menu.getSelectedCoilIndex(), menu.getCoilLayerCount(),
                 getSelectedGenerationId());
     }
 

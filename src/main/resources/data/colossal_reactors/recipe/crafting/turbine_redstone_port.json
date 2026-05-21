@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "colossal_reactors:turbine_casing" },
+    { "tag": "c:dusts/redstone" }
+  ],
+  "result": { "id": "colossal_reactors:turbine_redstone_port", "count": 1 }
+}

@@ -36,24 +36,20 @@ public final class TurbineBuildMaterialCounter {
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
             int placementAxisIndex,
-            int rodPattern, int coilIndex, int coilLayerCount, boolean openTop) {
+            int rodPattern, int coilIndex, int storedCoilSetting, boolean openTop) {
 
         int w = sizeLeft + sizeRight + 1;
         int h = sizeHeight + 1;
         int d = sizeDepth + 1;
         TurbinePlacementAxis placement = TurbinePlacementAxis.fromIndex(placementAxisIndex);
-        int interiorAlong = switch (placement.facing().getAxis()) {
-            case Y -> TurbineRodSpaceLayout.interiorHeight(h);
-            case Z -> TurbineRodSpaceLayout.interiorDepth(d);
-            case X -> TurbineRodSpaceLayout.interiorWidth(w);
-            default -> TurbineRodSpaceLayout.interiorHeight(h);
-        };
-        int coils = TurbineRodSpaceLayout.appliedCoilLayerCount(interiorAlong, coilLayerCount);
+        TurbineBuilderMetrics.Estimate plan = TurbineBuilderMetrics.fromShellSizes(
+                sizeLeft, sizeRight, sizeHeight, sizeDepth,
+                placementAxisIndex, storedCoilSetting, rodPattern, coilIndex);
+
         int rw = TurbineRodPatternLogic.rodSpaceWidth(w);
-        int rh = TurbineRodPatternLogic.rodSpaceHeight(h, coils);
         int rd = TurbineRodPatternLogic.rodSpaceDepth(d);
 
-        int closureShell = placement.closureShellCoordLocal(w, h, d, coilLayerCount);
+        int closureShell = placement.closureShellCoordLocal(w, h, d, storedCoilSetting);
         int frameCasings = 0;
         int faceCasings = 0;
         int maxY = h - 1;
@@ -79,25 +75,10 @@ public final class TurbineBuildMaterialCounter {
         }
         int closureDeckCasings = Math.max(0, rw * rd - ((rw > 0 && rd > 0) ? 1 : 0));
         int rodControllers = (rw > 0 && rd > 0) ? 1 : 0;
-        int rods = 0;
-        int blades = 0;
-        for (int rx = 0; rx < rw; rx++) {
-            for (int rz = 0; rz < rd; rz++) {
-                if (!TurbineRodPatternLogic.isRodColumn(rx, rz, rw, rd, rodPattern)) {
-                    continue;
-                }
-                rods += rh;
-                for (int ry = 0; ry < rh; ry++) {
-                    blades += TurbineRodPatternLogic.targetBladeRingForLayer(ry, rh, rodPattern) * 4;
-                }
-            }
-        }
-        int coilBlocks = 0;
-        if (!ElecCoilLoader.shouldSkipSolidCoilAutoPlacement(coilIndex)) {
-            coilBlocks = rw * rd * coils;
-        }
 
-        return new BuildMaterialCounts(frameCasings, faceCasings, closureDeckCasings, rods, rodControllers, blades, coilBlocks);
+        return new BuildMaterialCounts(
+                frameCasings, faceCasings, closureDeckCasings,
+                plan.rodBlocks(), rodControllers, plan.bladeItems(), plan.coilBlocks());
     }
 
     private static boolean isEdgeOrCorner(int x, int y, int z, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
