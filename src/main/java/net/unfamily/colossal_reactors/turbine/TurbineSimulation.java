@@ -14,9 +14,6 @@ import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbinePowerPort;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Turbine RF/steam simulation for builder GUI and runtime estimates.
  */
@@ -24,6 +21,7 @@ public final class TurbineSimulation {
 
     public record SimulationResult(
             int bladeCount,
+            int validBladeCount,
             int coilBlockCount,
             double steamMbPerTick,
             double rfPerTick,
@@ -38,33 +36,20 @@ public final class TurbineSimulation {
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
             int rodPattern, int coilIndex, int coilLayerCount) {
         return simulateFromBuilderParams(registryAccess, sizeLeft, sizeRight, sizeHeight, sizeDepth,
-                rodPattern, coilIndex, coilLayerCount, null);
+                TurbinePlacementAxis.DEFAULT_INDEX, rodPattern, coilIndex, coilLayerCount, null);
     }
 
     public static SimulationResult simulateFromBuilderParams(
             RegistryAccess registryAccess,
             int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
-            int rodPattern, int coilIndex, int coilLayerCount,
+            int placementAxisIndex,
+            int rodPattern, int coilIndex, int storedCoilSetting,
             @Nullable Identifier generationId) {
 
-        int w = sizeLeft + sizeRight + 1;
-        int h = sizeHeight;
-        int d = sizeDepth;
-        int rw = TurbineRodPatternLogic.rodSpaceWidth(w);
-        int rh = TurbineRodPatternLogic.rodSpaceHeight(h, coilLayerCount);
-        int rd = TurbineRodPatternLogic.rodSpaceDepth(d);
-
-        int bladeCount = 0;
-        java.util.List<Integer> layerCounts = new java.util.ArrayList<>();
-        for (int ry = 0; ry < rh; ry++) {
-            int ring = TurbineRodPatternLogic.targetBladeRingForLayer(ry, rh, rodPattern);
-            int layerBlades = ring * 4;
-            bladeCount += layerBlades;
-            layerCounts.add(layerBlades);
-        }
-
-        int coilBlocks = Math.max(1, rw * rd * TurbineRodSpaceLayout.coilLayerCount(
-                TurbineRodSpaceLayout.interiorHeight(h), coilLayerCount));
+        TurbineBuilderMetrics.Estimate plan = TurbineBuilderMetrics.fromShellSizes(
+                sizeLeft, sizeRight, sizeHeight, sizeDepth,
+                placementAxisIndex, storedCoilSetting, rodPattern, coilIndex);
+        int validBlades = TurbineBuilderMetrics.balancedBladesForSteam(plan.bladeItems());
 
         ElecCoilDefinition coilDef = coilIndex >= 0 && coilIndex < ElecCoilLoader.getAllDefinitions().size()
                 ? ElecCoilLoader.getAllDefinitions().get(coilIndex)
@@ -76,12 +61,7 @@ public final class TurbineSimulation {
             coilEff = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
         }
 
-        double bladeEff = TurbineBladeEfficiency.computeMultiplier(layerCounts);
-
-        int validBlades = bladeCount;
-        if (Boolean.TRUE.equals(Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get())) {
-            validBlades = (bladeCount / 4) * 4;
-        }
+        double bladeEff = TurbineBladeEfficiency.computeMultiplier(plan.layerBladeCounts());
 
         double steam = validBlades * Config.TURBINE_STEAM_MB_PER_BLADE_PER_TICK.get()
                 * Config.TURBINE_CONSUMPTION_MULTIPLIER.get();
@@ -94,16 +74,12 @@ public final class TurbineSimulation {
 
         if (Boolean.TRUE.equals(Config.TURBINE_SIMULATION_DEBUG.get())) {
             net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
-                    "[TurbineSim] blades={} steam={} rf={} coilEff={} bladeEff={}",
-                    bladeCount, steam, rf, coilEff, bladeEff);
+                    "[TurbineSim] rodExtent={} blades={} validBlades={} steam={} rf={}",
+                    plan.rodExtent(), plan.bladeItems(), validBlades, steam, rf);
         }
 
-        return new SimulationResult(bladeCount, coilBlocks, steam, rf, coilEff, bladeEff);
-    }
-
-    @Nullable
-    private static TurbineGenerationDefinition generationForSimulation(RegistryAccess registryAccess) {
-        return generationForSimulation(registryAccess, null);
+        return new SimulationResult(plan.bladeItems(), validBlades, Math.max(1, plan.coilBlocks()),
+                steam, rf, coilEff, bladeEff);
     }
 
     @Nullable
@@ -198,12 +174,9 @@ public final class TurbineSimulation {
             } else {
                 Identifier id = Identifier.tryParse(input);
                 if (id != null) {
-                    var holder = BuiltInRegistries.FLUID.get(id);
-                    if (holder.isPresent()) {
-                        Fluid fluid = holder.get().value();
-                        if (fluid != Fluids.EMPTY) {
-                            return fluid;
-                        }
+                    Fluid fluid = BuiltInRegistries.FLUID.getValue(id);
+                    if (fluid != Fluids.EMPTY) {
+                        return fluid;
                     }
                 }
             }

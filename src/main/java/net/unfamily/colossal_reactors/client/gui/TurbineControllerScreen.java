@@ -83,18 +83,19 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
             y += LINE_HEIGHT;
 
             guiGraphics.text(font,
-                    Component.translatable("gui.colossal_reactors.turbine.stats.blades", menu.getBladeCount()),
+                    Component.translatable("gui.colossal_reactors.turbine_controller.blades_valid",
+                            GuiNumberFormat.format(menu.getBladeCount())),
                     PANEL_X, y, TEXT_COLOR, false);
             y += LINE_HEIGHT;
 
             guiGraphics.text(font,
-                    Component.translatable("gui.colossal_reactors.turbine_controller.energy_production",
+                    Component.translatable("gui.colossal_reactors.turbine_controller.energy_runtime",
                             GuiNumberFormat.format(menu.getRfPerTick())),
                     PANEL_X, y, TEXT_COLOR, false);
             y += LINE_HEIGHT;
 
             guiGraphics.text(font,
-                    Component.translatable("gui.colossal_reactors.turbine_controller.steam_production",
+                    Component.translatable("gui.colossal_reactors.turbine_controller.steam_runtime",
                             GuiNumberFormat.format(menu.getSteamPerTick())),
                     PANEL_X, y, TEXT_COLOR, false);
             y += LINE_HEIGHT;
