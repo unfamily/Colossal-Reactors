@@ -377,9 +377,9 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSelectedCoilIndex() { return selectedCoilIndex; }
     public int getCoilLayerCount() { return coilLayerCount; }
 
-    /** Effective coil layers after clamping to interior extent along placement axis. */
-    public int getEffectiveCoilLayerCount() {
-        return TurbineRodSpaceLayout.coilLayerCount(interiorExtentAlongPlacementAxis(), coilLayerCount);
+    /** Layers used by build/simulation (GUI setting + 1, clamped). */
+    public int getAppliedCoilLayerCount() {
+        return TurbineRodSpaceLayout.appliedCoilLayerCount(interiorExtentAlongPlacementAxis(), coilLayerCount);
     }
 
     private int interiorExtentAlongPlacementAxis() {
@@ -395,7 +395,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private int maxCoilLayersForCurrentHeight() {
-        return Math.min(COIL_LAYER_MAX, TurbineRodSpaceLayout.maxCoilLayersForInterior(interiorExtentAlongPlacementAxis()));
+        return Math.min(COIL_LAYER_MAX, TurbineRodSpaceLayout.maxCoilLayerSettingForInterior(interiorExtentAlongPlacementAxis()));
     }
 
     /** Lowers stored coil layers when the turbine is too short for the current setting. */
@@ -486,7 +486,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         var counts = net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter.estimate(
                 serverLevel.registryAccess(),
                 getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth(),
-                getRodPattern(), getSelectedCoilIndex(), getCoilLayerCount(), isOpenTop());
+                getPlacementAxisIndex(),
+                getRodPattern(), getSelectedCoilIndex(), getAppliedCoilLayerCount(), isOpenTop());
         long frameTotal = counts.frameShellTotal();
         long deckTotal = counts.closureDeckCasings();
         long rodCtrlTotal = counts.rodControllers();

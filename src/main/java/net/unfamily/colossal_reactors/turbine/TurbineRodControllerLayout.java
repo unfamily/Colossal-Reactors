@@ -81,9 +81,9 @@ public final class TurbineRodControllerLayout {
         return false;
     }
 
-    /** First interior Y index of the coil zone (same as {@link TurbineRodSpaceLayout#coilZoneStartY}). */
+    /** Interior index of the closure deck (below coil fill along growth). */
     public static int closureInteriorY(int interiorHeight, int coilLayers) {
-        return TurbineRodSpaceLayout.coilZoneStartY(interiorHeight, coilLayers);
+        return TurbineRodSpaceLayout.closureInteriorIndex(interiorHeight, coilLayers);
     }
 
     /** World Y of the rotor closure deck (ceiling of rod zone / floor of coil zone). */

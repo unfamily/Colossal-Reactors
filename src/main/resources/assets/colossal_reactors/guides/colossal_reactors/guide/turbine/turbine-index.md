@@ -8,9 +8,9 @@ navigation:
 
 # Turbine
 
-A **turbine** is a hollow multiblock that converts **steam** into **RF**. The shell uses **Turbine Casing** and **Turbine Glass**. Inside you build a **rod + blade** rotor, an **electrical coil** zone from storage blocks, and attach **ports** plus one **Turbine Controller** on the outer shell.
+A **turbine** is a large multiblock that turns **steam** into **RF**. Build a shell from **Turbine Casing** and **Turbine Glass**, put **rods and blades** inside for the rotor, fill the top with **coil blocks** (metal storage blocks), add **ports**, and place one **Turbine Controller** on a side wall.
 
-Steam typically comes from a Colossal Reactors fission reactor (or any compatible fluid source). Pairing a large reactor with a turbine sized for your steam output is the intended endgame loop.
+Most players pipe steam from a Colossal Reactors **fission reactor** into the turbine and take RF out the power ports—a strong pairing for late-game power.
 
 ## Topics
 

@@ -44,7 +44,7 @@ public final class TurbineBuildLogic {
                     BlockState st = level.getBlockState(p);
                     boolean border = x == b.minX || x == b.maxX || y == b.minY || y == b.maxY || z == b.minZ || z == b.maxZ;
                     if (border) {
-                        if (y == b.maxY && builder.isOpenTop() && st.isAir()) {
+                        if (layout.isOpenEndCapWorld(x, y, z) && builder.isOpenTop() && st.isAir()) {
                             continue;
                         }
                         if (!st.isAir() && !TurbineValidation.isShellBlock(st) && !st.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
@@ -121,7 +121,7 @@ public final class TurbineBuildLogic {
             for (int xx = xx0; xx <= b.maxX; xx++) {
                 int zz0 = (yy == y && xx == xx0) ? z : b.minZ;
                 for (int zz = zz0; zz <= b.maxZ; zz++) {
-                    if (yy == b.maxY && openTop) {
+                    if (b.layout.isOpenEndCapWorld(xx, yy, zz) && openTop) {
                         builder.setBuildFrameCursor(xx, yy, zz + 1);
                         continue;
                     }
@@ -137,8 +137,9 @@ public final class TurbineBuildLogic {
                         continue;
                     }
                     boolean edgeOrCorner = isEdgeOrCorner(xx, yy, zz, b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ);
-                    boolean topOrBottomFace = (yy == b.minY || yy == b.maxY);
-                    boolean preferCasing = edgeOrCorner || topOrBottomFace;
+                    boolean preferCasing = edgeOrCorner
+                            || b.layout.isPlacementAxisCapWorld(xx, yy, zz)
+                            || b.layout.isClosureShellRingWorld(xx, yy, zz);
                     if (resolveFrameStack(builder, preferCasing).isEmpty()) {
                         builder.setBuildFrameCursor(xx, yy, zz);
                         return true;
@@ -597,7 +598,7 @@ public final class TurbineBuildLogic {
         int h = maxY - minY + 1;
         int d = maxZ - minZ + 1;
         int interiorH = TurbineRodSpaceLayout.interiorHeight(h);
-        int coilLayers = builder.getCoilLayerCount();
+        int coilLayers = builder.getAppliedCoilLayerCount();
         Direction growthAxis = builder.getPlacementAxis();
         TurbineRotorLayout layout = TurbineRotorLayout.from(
                 minX, minY, minZ, maxX, maxY, maxZ, w, h, d, coilLayers, growthAxis);

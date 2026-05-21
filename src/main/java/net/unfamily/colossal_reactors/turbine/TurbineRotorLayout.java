@@ -51,8 +51,9 @@ public final class TurbineRotorLayout {
             int w, int h, int d, int requestedCoilLayers, Direction growthAxis) {
         int interiorAlong = interiorExtentAlong(growthAxis, w, h, d);
         int coils = TurbineRodSpaceLayout.coilLayerCount(interiorAlong, requestedCoilLayers);
-        int extent = Math.max(0, interiorAlong - coils);
-        int coilStart = Math.max(0, interiorAlong - coils);
+        int closureInterior = TurbineRodSpaceLayout.closureInteriorIndexForCoilCount(interiorAlong, coils);
+        int coilFillStart = TurbineRodSpaceLayout.coilFillStartInteriorForCoilCount(interiorAlong, coils);
+        int extent = closureInterior;
         int start;
         int stepDir;
         switch (growthAxis) {
@@ -107,7 +108,7 @@ public final class TurbineRotorLayout {
         }
         return new TurbineRotorLayout(
                 growthAxis, minX, minY, minZ, maxX, maxY, maxZ,
-                crossA, crossB, extent, coilStart, coils, start, stepDir);
+                crossA, crossB, extent, coilFillStart, coils, start, stepDir);
     }
 
     private static int interiorExtentAlong(Direction growthAxis, int w, int h, int d) {
@@ -148,7 +149,11 @@ public final class TurbineRotorLayout {
     }
 
     public int interiorExtentAlong() {
-        return coilStartInterior + rodExtent;
+        return rodExtent + 1 + effectiveCoilLayers;
+    }
+
+    public int closureInteriorIndex() {
+        return rodExtent;
     }
 
     public int layerIndexFromWorldCoord(int worldCoord) {
@@ -167,7 +172,7 @@ public final class TurbineRotorLayout {
     }
 
     public BlockPos controllerPos(Center center) {
-        return rodPos(rodExtent, center.rx(), center.rz());
+        return rodPos(closureInteriorIndex(), center.rx(), center.rz());
     }
 
     public BlockPos rodPos(int layerIndex, int crossA, int crossB) {
@@ -235,9 +240,37 @@ public final class TurbineRotorLayout {
         return layerIndexFromWorldCoord(worldAxisCoord(x, y, z));
     }
 
+    /** Coil fill layers above the closure deck (along growth); not the closure wall layer. */
     public boolean isCoilZoneWorld(int x, int y, int z) {
         int idx = interiorIndexFromWorld(x, y, z);
         return isInteriorLayerIndex(idx) && idx >= coilStartInterior;
+    }
+
+    /** @deprecated Use {@link #isCoilZoneWorld}; closure deck is not coil fill. */
+    public boolean isCoilFillWorld(int x, int y, int z) {
+        return isCoilZoneWorld(x, y, z);
+    }
+
+    public boolean isClosureDeckWorld(int x, int y, int z) {
+        return interiorIndexFromWorld(x, y, z) == closureInteriorIndex();
+    }
+
+    /** Exterior shell ring at the closure deck height (always casing, not glass). */
+    public boolean isClosureShellRingWorld(int x, int y, int z) {
+        if (!isClosureDeckWorld(x, y, z)) {
+            return false;
+        }
+        return x == minX || x == maxX || y == minY || y == maxY || z == minZ || z == maxZ;
+    }
+
+    public boolean isPlacementAxisCapWorld(int x, int y, int z) {
+        return TurbinePlacementAxis.fromFacing(growthAxis)
+                .isShellCapWorld(x, y, z, minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    public boolean isOpenEndCapWorld(int x, int y, int z) {
+        return TurbinePlacementAxis.fromFacing(growthAxis)
+                .isOpenEndCapWorld(x, y, z, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     public int worldAxisCoord(int x, int y, int z) {

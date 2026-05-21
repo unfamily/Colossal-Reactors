@@ -14,16 +14,16 @@ categories:
 
 <BlockImage id="turbine_resource_port" scale="4" />
 
-Attach a **Turbine Resource Port** to the turbine casing to move **steam** (and compatible fluids) between the outside world and the turbine interior buffers.
+Attach a **Turbine Resource Port** to the casing to move **steam** (and other fluids your pack allows) between pipes/tanks and the turbine.
 
 ## Features
 
-- **Mode** cycles insert, extract, or eject behaviour toward the turbine (exact names on the button).
+- **Mode** button changes whether the port pulls steam in, sends it out, or ejects to the world—read the label on screen.
 
-- **Filter** (when shown) limits accepted fluids—must match the active **turbine generation** entry (default: **`#c:steam`**).
+- **Filter** (when shown) limits which fluids are accepted—usually **steam**.
 
-- **Fluid column**: hover for amount and type. Use **D** under the tank to dump the port storage when needed.
+- **Fluid tank**: hover to see amount and type. Press **D** under the tank to empty the port quickly if needed.
 
-- Connect fluid pipes or tanks on the **outside** face; the **inside** must face the turbine interior.
+- Pipes and tanks connect on the **outside**; the **inside** face must point into the turbine.
 
-Pipe reactor steam output into this port to feed a running turbine. See [Steam, RF, and coils](turbine_generation_and_coils.md) for consumption limits.
+Pipe steam from your [fission reactor](../multiblock/multiblock-index.md) (or any steam source) into this port. How much the turbine can eat depends on your blades—see [Steam, RF, and coils](turbine_generation_and_coils.md).

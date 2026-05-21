@@ -2,7 +2,7 @@
 navigation:
   parent: turbine/turbine-index.md
   title: Steam, RF, and coils
-  icon: turbine_resource_port
+  icon: minecraft:copper_block
   position: 12
 categories:
   - multiblock
@@ -10,60 +10,42 @@ categories:
 
 # Steam, RF, and coils
 
-## Energy production
+## How much RF you get
 
-When the turbine is **valid** and **running**, each tick:
+When the turbine is **formed correctly** and **running**, it turns **steam** into **RF** each tick. In short:
 
-```text
-RF/tick = steamConsumedMb × rfPerSteamMb × coilEfficiency × bladeEfficiency
-```
+**RF per tick** ≈ steam used × **RF per mB of steam** × **coil strength** × **blade layout bonus**
 
-- **steamConsumedMb** — steam taken from the [Turbine Resource Port](turbine_resource_port.md), clamped by blade steam capacity and availability.
+- **Steam** comes in through a [Turbine Resource Port](turbine_resource_port.md). The turbine cannot use more steam per tick than your blades allow (see below).
 
-- **rfPerSteamMb** — from the active **turbine generation** datapack entry (default fallback **7** RF per mB steam for `#c:steam` → water).
+- **RF per mB of steam** is usually **7** for standard steam (water exhaust). Pack recipes or settings can change this.
 
-- **coilEfficiency** — from blocks in the **coil zone** (see below).
+- **Coil strength** depends on which **storage blocks** fill the coil zone (gold, copper, netherite, and so on—see below).
 
-- **bladeEfficiency** — from layer-wise blade layout (see [Rods and blades](turbine_rod_and_blades.md)).
+- **Blade layout bonus** depends on how rings stack by height—see [Rods and blades](turbine_rod_and_blades.md).
 
-Global **production** and **consumption** multipliers in config scale RF output and steam use.
+Pack settings can also multiply overall RF output or steam use up or down.
 
-### Why 7 RF/mB?
+### Why bother with a turbine?
 
-Fission reactors convert fuel into steam at a lower effective RF density. Turbines are meant to be a **net gain** when you pipe reactor steam into a full blade + coil setup—tune `steamMbPerBladePerTick` in config for your target multiblock size (design goal: very large turbines near **~20M mB/t** steam at full blade count).
+A fission reactor makes a lot of steam but relatively little direct RF from that steam. A full turbine with blades and coils is meant to **convert that steam into more RF** than you would get from the reactor alone—if you size the turbine and pipe enough steam in.
 
-## Steam capacity (blades)
+## How much steam you can use
 
-Maximum steam per tick scales with **valid blade count**:
-
-```text
-maxSteamMb/tick ≈ bladeCount × steamMbPerBladePerTick
-```
-
-`steamMbPerBladePerTick` is in config (balance section). More balanced rings on more rods raise the cap.
+The turbine’s **steam per tick** cap grows with how many **valid blades** you have installed. More rods with balanced rings means a higher cap. Very large turbines (up to **65×65×65** interior) are tuned so a fully built rotor can consume on the order of **tens of millions of mB/t** of steam when fed properly—exact numbers depend on your pack.
 
 ## Electrical coil zone
 
-The **top interior layers** (default **3**, adjustable in the builder) are the **coil zone**. Only blocks listed in the **elec coils** datapack count.
+The **upper interior layers** (default **3** layers, changeable in the [Turbine Builder](turbine_builder.md)) are the **coil zone**. Fill them with **metal storage blocks** that the mod recognizes (gold block, copper block, electrum, netherite, etc.).
 
-For every matching block in that zone:
+- Better blocks give a **higher coil multiplier** (each block type has a strength and a cap listed in **JEI** when turbine recipes are shown).
 
-```text
-coilEfficiency = min( average(eff_coe), average(eff_max) )
-```
+- **Empty space** or blocks the mod does not recognize count as weak coil (about **30%** strength by default).
 
-- **eff_coe** and **eff_max** come from each entry (e.g. gold, copper storage blocks, netherite).
+- Use normal **storage blocks** from other mods—not the reactor’s **heating coil** blocks.
 
-- **Air** or unknown blocks use the configured empty-coil efficiency (default **0.3**).
+Average strength across the whole coil zone is what matters; mixing several metals is fine.
 
-- Invalid or unresolved entries are skipped (same idea as heat sink sanitization).
+## Which steam counts
 
-Use **storage blocks** (tags like `#c:storage_blocks/copper_all`, gold, electrum, etc.)—not heating coil blocks from the reactor.
-
-**JEI** lists coil entries when the turbine JEI categories are installed.
-
-## Turbine generation (steam type)
-
-The **turbine generation** datapack defines which fluid counts as turbine steam and the **rf_production** per mB. The default entry accepts **`#c:steam`** and outputs water as exhaust.
-
-Changing generation entries or config defaults lets pack makers support other fluids or RF rates without editing code.
+By default the turbine accepts **steam** (often the `#c:steam` fluid tag) and may output **water** as exhaust. Your modpack can add other fluids or different RF rates in its data files—**JEI** is the place to check what your pack allows.

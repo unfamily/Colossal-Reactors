@@ -17,8 +17,7 @@ public final class TurbineRodPatternLogic {
 
     public static int rodSpaceHeight(int turbineHeight, int coilLayers) {
         int ih = TurbineRodSpaceLayout.interiorHeight(turbineHeight);
-        int coils = TurbineRodSpaceLayout.coilLayerCount(ih, coilLayers);
-        return Math.max(0, ih - coils);
+        return TurbineRodSpaceLayout.rodLayerCount(ih, coilLayers);
     }
 
     public static int rodSpaceDepth(int turbineDepth) {

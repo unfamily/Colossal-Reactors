@@ -35,21 +35,62 @@ public final class TurbineRodSpaceLayout {
         return interiorAlong - 1;
     }
 
-    /** Y layers in interior reserved for elec coils (top of interior). */
-    public static int coilLayerCount(int interiorHeight, int requestedCoilLayers) {
-        int def = defaultCoilLayerCount();
-        int layers = requestedCoilLayers > 0 ? requestedCoilLayers : def;
-        return Math.min(Math.max(1, layers), maxCoilLayersForInterior(interiorHeight));
+    /**
+     * Maximum value for the builder/GUI coil-layer setting (one less than {@link #maxCoilLayersForInterior}).
+     * GUI shows {@link #appliedCoilLayerCount}; stored setting is one less (+1 applied in build/simulation/validation).
+     */
+    public static int maxCoilLayerSettingForInterior(int interiorAlong) {
+        return Math.max(1, maxCoilLayersForInterior(interiorAlong) - 1);
     }
 
-    /** First interior Y index (0-based) for coil zone. */
-    public static int coilZoneStartY(int interiorHeight, int coilLayers) {
-        return Math.max(0, interiorHeight - coilLayerCount(interiorHeight, coilLayers));
+    /**
+     * Coil layers used in code (build, layout, simulation) from the stored GUI setting (+1), clamped to interior.
+     */
+    public static int appliedCoilLayerCount(int interiorAlong, int storedSetting) {
+        int maxSetting = maxCoilLayerSettingForInterior(interiorAlong);
+        int stored = storedSetting > 0 ? storedSetting : Math.min(defaultCoilLayerCount(), maxSetting);
+        stored = Math.min(Math.max(1, stored), maxSetting);
+        return Math.min(stored + 1, maxCoilLayersForInterior(interiorAlong));
     }
 
-    /** True if interior Y is in coil zone. */
+    /** Clamps an already-resolved layer count to the interior (used when the value is not a GUI setting). */
+    public static int coilLayerCount(int interiorAlong, int layerCount) {
+        return Math.min(Math.max(1, layerCount), maxCoilLayersForInterior(interiorAlong));
+    }
+
+    /** Interior index of the closure deck for a resolved coil layer count. */
+    public static int closureInteriorIndexForCoilCount(int interiorAlong, int resolvedCoilLayers) {
+        return Math.max(0, interiorAlong - resolvedCoilLayers - 1);
+    }
+
+    /** First interior index for coil fill for a resolved coil layer count. */
+    public static int coilFillStartInteriorForCoilCount(int interiorAlong, int resolvedCoilLayers) {
+        return closureInteriorIndexForCoilCount(interiorAlong, resolvedCoilLayers) + 1;
+    }
+
+    /** Interior index of the closure deck (between rod space and coil fill). */
+    public static int closureInteriorIndex(int interiorAlong, int appliedLayers) {
+        return closureInteriorIndexForCoilCount(interiorAlong, coilLayerCount(interiorAlong, appliedLayers));
+    }
+
+    /** First interior index for coil fill (air/coil blocks), directly above closure along growth. */
+    public static int coilFillStartInterior(int interiorAlong, int appliedLayers) {
+        return coilFillStartInteriorForCoilCount(interiorAlong, coilLayerCount(interiorAlong, appliedLayers));
+    }
+
+    /** Rod layer count (indices {@code 0 .. closureInteriorIndex - 1}). */
+    public static int rodLayerCount(int interiorAlong, int appliedLayers) {
+        return closureInteriorIndex(interiorAlong, appliedLayers);
+    }
+
+    /** @deprecated Use {@link #coilFillStartInterior}. */
+    public static int coilZoneStartY(int interiorHeight, int appliedLayers) {
+        return coilFillStartInterior(interiorHeight, appliedLayers);
+    }
+
+    /** True if interior index is in the coil fill zone (not the closure deck). */
     public static boolean isCoilLayerY(int interiorY, int interiorHeight, int coilLayers) {
-        return interiorY >= coilZoneStartY(interiorHeight, coilLayers);
+        return interiorY >= coilFillStartInterior(interiorHeight, coilLayers);
     }
 
     /**

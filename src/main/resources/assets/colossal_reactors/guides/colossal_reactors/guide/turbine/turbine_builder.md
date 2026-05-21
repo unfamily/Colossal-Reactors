@@ -14,25 +14,23 @@ categories:
 
 <BlockImage id="turbine_builder" scale="4" />
 
-The **Turbine Builder** places casing, glass, rod controllers, rods, blades, and coil blocks from supplied materials—similar to the [Reactor Builder](../multiblock/reactor_builder.md).
+The **Turbine Builder** builds the turbine for you from items in its inventory—similar to the [Reactor Builder](../multiblock/reactor_builder.md).
 
 ## Typical workflow
 
-1. **Place** the builder against your turbine footprint (orientation matters).
-2. **Open** the screen and set **width, height, depth** (within config limits).
-3. Load the buffer with **casing**, **glass**, **rod controller**, **rods**, **blades**, and **coil blocks** (storage blocks matching your chosen coil type).
-4. Choose **rod pattern**:
-   - **Efficient** — checkerboard rod columns; blade rings grow with layer height (better blade efficiency bonus).
-   - **Productive** — every rod column filled; max blade ring on each layer (maximum steam cap sooner).
-5. Set **coil type** (cycles datapack entries) and **coil layer count** (default **3**, ◀ ▶ in GUI).
-6. Use **preview** and **simulation** to check estimated RF/t, steam use, and material counts.
-7. **Mark input** assigns buffer slots to specific items for each build stage.
-8. **Build** when ready; supply fluids to the builder tank if marking steam input for validation.
+1. **Place** the builder on the face where you want the turbine shell to start.
+2. **Open** the screen and set **width, height, and depth** (within your pack’s size limit).
+3. Stock the builder with **casing**, **glass**, **rod controller**, **rods**, **blades**, and the **storage blocks** you want for coils.
+4. Pick a **layout**:
+   - **Efficient** — fewer rod columns (checkerboard); blades grow ring by ring up the shaft (**+3%** height bonus possible—see [Rods and blades](turbine_rod_and_blades.md)).
+   - **Productive** — rods on every allowed column; each layer gets full rings right away (maximum steam sooner).
+5. Choose **coil type** (cycles the metals the mod supports) and **how many coil layers** (default **3**, change with ◀ ▶ on screen).
+6. Use **preview** and the **simulation** panel to see estimated RF/t, steam use, and materials needed.
+7. **Mark input** tells the builder which inventory slots supply which blocks for each step.
+8. Press **Build** when ready. You can add fluid to the builder tank if your pack uses that for setup checks.
 
-Build order: **frame** → **rod controllers + rods** → **blades** → **coil blocks** in the top interior layers.
+Build order: **outer shell** → **rod controller and rods** → **blades** → **coil blocks** in the top interior layers.
 
 ## Simulation panel
 
-Shows status, RF/t, steam mB/t, coil and blade efficiency, and **required materials**—same layout philosophy as the reactor builder.
-
-Exact button labels depend on your game version; read tooltips on the builder screen while operating it.
+Shows whether the layout is valid, expected **RF/t** and **steam**, coil and blade bonuses, and a **material list**—same idea as the reactor builder. Button names can vary by version; read the tooltips on screen while you work.

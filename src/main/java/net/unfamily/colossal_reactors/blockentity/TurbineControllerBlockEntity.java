@@ -61,10 +61,11 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     /** Called from block tick when VALIDATING -> ON/OFF; shows message in action bar. */
     public void notifyValidationResult() {
         if (lastInteractingPlayer instanceof ServerPlayer sp) {
-            Component msg = getCachedResult().valid()
-                    ? Component.translatable("message.colossal_reactors.turbine_valid")
-                    : Component.translatable("message.colossal_reactors.turbine_invalid");
-            sp.displayClientMessage(msg, true);
+            TurbineValidation.Result result = getCachedResult();
+            sp.displayClientMessage(TurbineValidation.failureMessage(result), true);
+            if (level != null) {
+                TurbineValidation.sendFailureMarkers(sp, level, result);
+            }
         }
         lastInteractingPlayer = null;
     }
