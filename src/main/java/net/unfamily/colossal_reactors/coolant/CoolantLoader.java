@@ -146,6 +146,18 @@ public class CoolantLoader {
         return new HashMap<>(DEFINITIONS);
     }
 
+    /** Coolants with at least one resolvable input and resolvable output (JEI + builder simulation). */
+    public static List<CoolantDefinition> getVisibleDefinitions() {
+        return DEFINITIONS.values().stream()
+                .filter(def -> DatapackSelectorValidator.sanitizeCoolant(def) != null)
+                .sorted(java.util.Comparator.comparing(d -> d.coolantId().toString()))
+                .toList();
+    }
+
+    public static List<Identifier> getVisibleCoolantIds() {
+        return getVisibleDefinitions().stream().map(CoolantDefinition::coolantId).toList();
+    }
+
     /** No longer used (disable removed); kept for API compatibility. */
     public static boolean isInputExcluded(String inputSelector) {
         return false;

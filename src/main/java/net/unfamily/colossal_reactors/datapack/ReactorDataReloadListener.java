@@ -84,6 +84,10 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
     /** Path prefix: only constant is "recipe"; scans data/&lt;any_namespace&gt;/recipe/ and all subdirs. */
     private static final String REACTOR_DATA_PATH = "recipe";
 
+    /** Classpath paths (mod jar), same as under {@code src/main/resources/data/...}. */
+    private static final String BUILTIN_TURBINE_ELEC_COILS = "data/colossal_reactors/recipe/turbine/elec_coils.json";
+    private static final String BUILTIN_TURBINE_GENERATION = "data/colossal_reactors/recipe/turbine/turbine_generation.json";
+
     @Override
     public String getName() {
         return ColossalReactors.MODID + "_reactor_data";
@@ -144,6 +148,28 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
                 LOGGER.debug("Could not load builtin radiation_scrubber_catalysts.json: {}", e.getMessage());
             }
         }
+        Identifier builtinTurbineGeneration = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/turbine/turbine_generation.json");
+        if (turbineGeneration.isEmpty() || !stacks.containsKey(builtinTurbineGeneration)) {
+            try {
+                for (Resource resource : resourceManager.getResourceStack(builtinTurbineGeneration)) {
+                    processOneResource(builtinTurbineGeneration, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                            radiationScrubberCatalysts, turbineGeneration, elecCoils, rsMult, rsGasMult);
+                }
+            } catch (Exception e) {
+                LOGGER.debug("Could not load builtin turbine_generation.json: {}", e.getMessage());
+            }
+        }
+        Identifier builtinElecCoils = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "recipe/turbine/elec_coils.json");
+        if (elecCoils.isEmpty() || !stacks.containsKey(builtinElecCoils)) {
+            try {
+                for (Resource resource : resourceManager.getResourceStack(builtinElecCoils)) {
+                    processOneResource(builtinElecCoils, resource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                            radiationScrubberCatalysts, turbineGeneration, elecCoils, rsMult, rsGasMult);
+                }
+            } catch (Exception e) {
+                LOGGER.debug("Could not load builtin elec_coils.json: {}", e.getMessage());
+            }
+        }
         profiler.pop();
         return new ReactorReloadLoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats, radiationScrubberCatalysts,
                 turbineGeneration, elecCoils, rsMult[0], rsGasMult[0]);
@@ -178,11 +204,40 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
             profiler.pop();
         }
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink entries in datapack, {} applied after sanitize, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s), {} turbine generation, {} elec coil",
+            LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink entries in datapack, {} applied after sanitize, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s), {} turbine generation in datapack, {} applied, {} elec coil in datapack, {} JEI/builder options",
                     data.fuel().size(), data.coolant().size(), data.heatSinks().size(),
                     HeatSinkLoader.getAllDefinitions().size(),
                     data.melterRecipes().size(), data.melterHeats().size(), data.radiationScrubberCatalysts().size(),
-                    data.turbineGeneration().size(), data.elecCoils().size());
+                    data.turbineGeneration().size(), TurbineGenerationLoader.getAll().size(),
+                    data.elecCoils().size(), ElecCoilLoader.getJeIDefinitions().size());
+        }
+    }
+
+    /** Loads builtin JSON from the mod jar when {@link ResourceManager} reload did not surface turbine files (common on client). */
+    private static void loadBuiltinFromClasspath(
+            String classpathResource,
+            Map<Identifier, FuelDefinition> fuel,
+            Map<Identifier, CoolantDefinition> coolant,
+            List<HeatSinkDefinition> heatSinks,
+            List<MelterRecipe> melterRecipes,
+            List<MelterHeatEntry> melterHeats,
+            List<String> radiationScrubberCatalysts,
+            Map<Identifier, TurbineGenerationDefinition> turbineGeneration,
+            List<ElecCoilDefinition> elecCoils,
+            int[] radiationScrubberMult,
+            int[] radiationScrubberGasMult) {
+        try (var stream = ColossalReactors.class.getClassLoader().getResourceAsStream(classpathResource)) {
+            if (stream == null) {
+                LOGGER.warn("Builtin reactor data not found on classpath: {}", classpathResource);
+                return;
+            }
+            JsonObject root = GSON.fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), JsonObject.class);
+            if (root != null) {
+                processJsonRoot(root, "classpath:" + classpathResource, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                        radiationScrubberCatalysts, turbineGeneration, elecCoils, radiationScrubberMult, radiationScrubberGasMult);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load builtin {} from mod jar: {}", classpathResource, e.getMessage());
         }
     }
 
@@ -200,8 +255,30 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
         String source = location + " from " + resource.sourcePackId();
         try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
             JsonObject root = GSON.fromJson(reader, JsonObject.class);
-            if (root == null || !root.has(KEY_TYPE)) return;
-            String type = root.get(KEY_TYPE).getAsString();
+            if (root != null) {
+                processJsonRoot(root, source, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                        radiationScrubberCatalysts, turbineGeneration, elecCoils, radiationScrubberMult, radiationScrubberGasMult);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load {} from {}: {}", location, resource.sourcePackId(), e.getMessage());
+        }
+    }
+
+    private static void processJsonRoot(
+            JsonObject root,
+            String source,
+            Map<Identifier, FuelDefinition> fuel,
+            Map<Identifier, CoolantDefinition> coolant,
+            List<HeatSinkDefinition> heatSinks,
+            List<MelterRecipe> melterRecipes,
+            List<MelterHeatEntry> melterHeats,
+            List<String> radiationScrubberCatalysts,
+            Map<Identifier, TurbineGenerationDefinition> turbineGeneration,
+            List<ElecCoilDefinition> elecCoils,
+            int[] radiationScrubberMult,
+            int[] radiationScrubberGasMult) {
+        if (!root.has(KEY_TYPE)) return;
+        String type = root.get(KEY_TYPE).getAsString();
 
             if (TYPE_MELTER_RECIPES.equals(type)) {
                 if (!root.has(KEY_ENTRIES) || !root.get(KEY_ENTRIES).isJsonArray()) return;
@@ -266,8 +343,5 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
                     if (def != null) elecCoils.add(def);
                 }
             }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load {} from {}: {}", location, resource.sourcePackId(), e.getMessage());
-        }
     }
 }

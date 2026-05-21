@@ -114,6 +114,10 @@ public class TurbineBuilderMenu extends AbstractContainerMenu {
         this.hideAllSlotsForSimulationView = hide;
     }
 
+    public boolean isHideAllSlotsForSimulationView() {
+        return hideAllSlotsForSimulationView;
+    }
+
     public ItemStack getMarkInputFilter(int slot) {
         return blockEntity != null ? blockEntity.getMarkInputFilter(slot) : ItemStack.EMPTY;
     }

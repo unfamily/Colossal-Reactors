@@ -127,7 +127,8 @@ configurations {
 dependencies {
     // Only dependencies currently available for 26.1.2
     implementation "curse.maven:jei-238222:7920926"
-    implementation "curse.maven:iskanderts-library-1516512:7947419"
+    implementation files('libs/iska_lib-1.4.0.0.0.jar')
+    // implementation "curse.maven:iskanderts-library-1516512:7947419"
 
     // GuideME: optional at runtime; compile against API for Guide.builder registration
     if (project.hasProperty('runtime_itemlist_mod') && project.runtime_itemlist_mod == "guideme") {

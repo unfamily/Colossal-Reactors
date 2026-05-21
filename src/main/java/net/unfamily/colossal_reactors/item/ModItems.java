@@ -41,7 +41,8 @@ public class ModItems {
     public static final DeferredItem<BlockItem> TURBINE_REDSTONE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_REDSTONE_PORT);
     public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_RESOURCE_PORT);
     public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_BUILDER);
-    public static final DeferredItem<BlockItem> TURBINE_ROD = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD);
+    public static final DeferredItem<TurbineRodItem> TURBINE_ROD = ITEMS.registerItem("turbine_rod",
+            props -> new TurbineRodItem(ModBlocks.TURBINE_ROD.get(), props));
     public static final DeferredItem<TurbineBladeItem> TURBINE_BLADE = ITEMS.registerItem("turbine_blade",
             props -> new TurbineBladeItem(ModBlocks.TURBINE_BLADE.get(), props));
     public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD_CONTROLLER);

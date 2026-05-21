@@ -296,15 +296,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private static List<Identifier> getOrderedCoolantIds() {
-        List<Identifier> ids = new ArrayList<>(CoolantLoader.getAll().keySet());
-        ids.sort(Identifier::compareTo);
-        return ids;
+        return new ArrayList<>(CoolantLoader.getVisibleCoolantIds());
     }
 
     private static List<Identifier> getOrderedFuelIds() {
-        List<Identifier> ids = new ArrayList<>(FuelLoader.getAll().keySet());
-        ids.sort(Identifier::compareTo);
-        return ids;
+        return new ArrayList<>(FuelLoader.getVisibleFuelIds());
     }
 
     /** Index of uranium in ordered fuel list, or 0 if not found / empty. */
@@ -453,6 +449,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         menu.setHideAllSlotsForSimulationView(true);
         simulationScrollbar.ensureButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
+        menu.broadcastChanges();
     }
 
     private void switchToBuilderView() {
@@ -460,6 +457,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         simulationScrollbar.disposeButtons(this::removeWidget);
         menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
+        menu.broadcastChanges();
     }
 
     private void updateWidgetVisibility() {
@@ -939,6 +937,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     /** Ghost item + dark overlay in empty buffer slots with a mark-input filter (same as Pattern Crafter). */
     private void renderMarkInputGhosts(GuiGraphicsExtractor guiGraphics) {
         if (menu.getBlockEntity() == null) return;
+        guiGraphics.nextStratum();
         for (int i = 0; i < ReactorBuilderMenu.BUFFER_SLOTS; i++) {
             if (!menu.hasMarkInputFilter(i)) continue;
             Slot guiSlot = menu.getSlot(i);

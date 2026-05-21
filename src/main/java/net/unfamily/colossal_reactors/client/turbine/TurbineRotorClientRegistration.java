@@ -26,9 +26,12 @@ public final class TurbineRotorClientRegistration {
     public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
         var blockModels = event.getBakingResult().blockStateModels();
         for (BlockState state : blockModels.keySet().toArray(new BlockState[0])) {
+            BlockStateModel base = blockModels.get(state);
+            if (state.is(ModBlocks.TURBINE_ROD.get())) {
+                base = new TurbineRodConnectorBlockStateModel(base);
+            }
             if (state.is(ModBlocks.TURBINE_ROD.get()) || state.is(ModBlocks.TURBINE_BLADE.get())) {
-                BlockStateModel wrapped = new TurbineRodBladeHidingBlockStateModel(blockModels.get(state));
-                blockModels.put(state, wrapped);
+                blockModels.put(state, new TurbineRodBladeHidingBlockStateModel(base));
             }
         }
     }

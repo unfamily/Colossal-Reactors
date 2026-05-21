@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -203,6 +204,11 @@ public final class TurbineSimulation {
                     }
                 }
             }
+        }
+        Fluid internalSteam = BuiltInRegistries.FLUID.getValue(
+                Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "gas_fluid_steam"));
+        if (internalSteam != null && internalSteam != Fluids.EMPTY) {
+            return internalSteam;
         }
         return TurbineGenerationLoader.getFirstFluidFromTag("#c:steam", registryAccess);
     }

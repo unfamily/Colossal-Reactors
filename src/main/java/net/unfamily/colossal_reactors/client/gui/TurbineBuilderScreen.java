@@ -376,6 +376,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         menu.setHideAllSlotsForSimulationView(true);
         simulationScrollbar.ensureButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
+        menu.broadcastChanges();
     }
 
     private void switchToBuilderView() {
@@ -383,6 +384,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         simulationScrollbar.disposeButtons(this::removeWidget);
         menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
+        menu.broadcastChanges();
     }
 
     private void updateWidgetVisibility() {
@@ -877,6 +879,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
 
     private void renderMarkInputGhosts(GuiGraphicsExtractor guiGraphics) {
         if (menu.getBlockEntity() == null) return;
+        guiGraphics.nextStratum();
         for (int i = 0; i < TurbineBuilderMenu.BUFFER_SLOTS; i++) {
             if (!menu.hasMarkInputFilter(i)) continue;
             Slot guiSlot = menu.getSlot(i);

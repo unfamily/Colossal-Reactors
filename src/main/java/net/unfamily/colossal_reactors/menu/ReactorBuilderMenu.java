@@ -135,6 +135,10 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
         this.hideAllSlotsForSimulationView = hide;
     }
 
+    public boolean isHideAllSlotsForSimulationView() {
+        return hideAllSlotsForSimulationView;
+    }
+
     public int getFluidAmount() { return fluidData.get(0); }
     public int getFluidCapacity() { return fluidData.get(1); }
     /** Fluid registry id for GUI; -1 if empty. */

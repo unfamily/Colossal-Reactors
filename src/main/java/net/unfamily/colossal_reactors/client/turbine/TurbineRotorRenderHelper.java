@@ -66,7 +66,7 @@ public final class TurbineRotorRenderHelper {
         }
 
         poseStack.translate(-0.5, -0.5, -0.5);
-        blockRenderer.render(rodState, poseStack, rodPos);
+        TurbineRodRenderScope.run(level, rodPos, rodState, () -> blockRenderer.render(rodState, poseStack, rodPos));
         poseStack.popPose();
     }
 

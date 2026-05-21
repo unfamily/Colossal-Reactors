@@ -742,7 +742,11 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
-        bufferHandler.deserialize(input);
+        // Buffer inventory is synced through the open container menu; applying BE packets on the
+        // client here can overwrite slot state and make items vanish in the GUI.
+        if (level == null || !level.isClientSide()) {
+            bufferHandler.deserialize(input);
+        }
         fluidTank.setFluid(FluidStack.EMPTY);
         input.child(TAG_FLUID).ifPresent(fluidIn -> {
             String idStr = fluidIn.getStringOr(TAG_FLUID_ID, "");

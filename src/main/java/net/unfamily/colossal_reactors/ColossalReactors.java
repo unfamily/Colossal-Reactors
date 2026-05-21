@@ -24,6 +24,7 @@ import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.unfamily.iskalib.gas.IskaLibGases;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
@@ -64,6 +65,8 @@ public class ColossalReactors {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         NeoForge.EVENT_BUS.addListener(this::onAddServerReloadListeners);
+
+        IskaLibGases.registerGas(modEventBus, MODID, "steam", 0xFFE8F0F0);
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
