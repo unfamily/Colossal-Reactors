@@ -8,6 +8,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.unfamily.colossal_reactors.turbine.TurbineBladePlacement;
 
 /** Places turbine blades on rods with balanced ring growth (not standard block placement). */
@@ -29,6 +30,7 @@ public class TurbineBladeItem extends BlockItem {
             return InteractionResult.SUCCESS;
         }
         if (TurbineBladePlacement.placeNextBlade(level, pos, state)) {
+            TurbineControllerBlock.notifyTurbineStructureChanged(level, pos);
             if (context.getPlayer() != null && !context.getPlayer().getAbilities().instabuild) {
                 context.getItemInHand().shrink(1);
             }

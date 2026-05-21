@@ -41,13 +41,17 @@ public class TurbineRodBladeBakedModel extends BakedModelWrapper<BakedModel> {
             RandomSource rand,
             ModelData extraData,
             @Nullable RenderType renderType) {
-        BlockPos pos = extraData.get(TurbineRotorModelData.RENDER_POS);
-        if (pos == null) {
-            pos = CURRENT_POS.get();
+        try {
+            BlockPos pos = extraData.get(TurbineRotorModelData.RENDER_POS);
+            if (pos == null) {
+                pos = CURRENT_POS.get();
+            }
+            if (pos != null && TurbineRotorAnimationManager.shouldHideStatic(pos)) {
+                return Collections.emptyList();
+            }
+            return originalModel.getQuads(state, side, rand, extraData, renderType);
+        } finally {
+            CURRENT_POS.remove();
         }
-        if (pos != null && TurbineRotorAnimationManager.shouldHideStatic(pos)) {
-            return Collections.emptyList();
-        }
-        return originalModel.getQuads(state, side, rand, extraData, renderType);
     }
 }

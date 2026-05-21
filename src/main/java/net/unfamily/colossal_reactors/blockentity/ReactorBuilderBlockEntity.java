@@ -34,7 +34,9 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
+import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.reactor.ReactorBuildLogic;
+import net.unfamily.colossal_reactors.reactor.RodPatternLogic;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -415,7 +417,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Server tick: advance build one step. Called from block ticker. */
     public void serverTick() {
         if (!building || level == null || level.isClientSide()) return;
-        int steps = net.unfamily.colossal_reactors.Config.REACTOR_BUILDER_BUILD_STEPS_PER_TICK.get();
+        int steps = Config.REACTOR_BUILDER_BUILD_STEPS_PER_TICK.get();
         ReactorBuildLogic.tick(this, steps);
         if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
             buildProgressPercent = computeBuildProgressPercent(serverLevel);
@@ -436,8 +438,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int computeBuildProgressPercent(net.minecraft.server.level.ServerLevel serverLevel) {
         if (!buildProgressVisible) return 0;
         BlockState builderState = serverLevel.getBlockState(getBlockPos());
-        if (!(builderState.getBlock() instanceof net.unfamily.colossal_reactors.block.ReactorBuilderBlock)) return buildProgressPercent;
-        Direction facing = builderState.getValue(net.unfamily.colossal_reactors.block.ReactorBuilderBlock.FACING);
+        if (!(builderState.getBlock() instanceof ReactorBuilderBlock)) return buildProgressPercent;
+        Direction facing = builderState.getValue(ReactorBuilderBlock.FACING);
         AABB aabb = getReactorVolumeAABB(getBlockPos(), facing, getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth());
         int minX = (int) Math.floor(aabb.minX);
         int minY = (int) Math.floor(aabb.minY);
@@ -449,9 +451,9 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         int h = maxY - minY + 1;
         int d = maxZ - minZ + 1;
 
-        int rw = net.unfamily.colossal_reactors.reactor.RodPatternLogic.rodSpaceWidth(w, getPatternMode());
-        int rd = net.unfamily.colossal_reactors.reactor.RodPatternLogic.rodSpaceDepth(d, getPatternMode());
-        int insetXZ = net.unfamily.colossal_reactors.reactor.RodPatternLogic.rodSpaceInsetXZ(getPatternMode());
+        int rw = RodPatternLogic.rodSpaceWidth(w, getPatternMode());
+        int rd = RodPatternLogic.rodSpaceDepth(d, getPatternMode());
+        int insetXZ = RodPatternLogic.rodSpaceInsetXZ(getPatternMode());
 
         long frameTotal = (long) w * h * d;
         long rodCtrlTotal = (long) rw * rd;

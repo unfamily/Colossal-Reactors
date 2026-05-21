@@ -48,10 +48,19 @@ import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.client.gui.HeatingCoilScreen;
+import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
-
+import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.client.ClientPayloadHandlers;
 import net.unfamily.colossal_reactors.client.GuideMeRegistration;
+import net.unfamily.colossal_reactors.client.gui.MelterScreen;
+import net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen;
+import net.unfamily.colossal_reactors.client.gui.TurbineBuilderScreen;
+import net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen;
+import net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager;
+import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
+import net.unfamily.colossal_reactors.data.ModConditions;
+import net.unfamily.colossal_reactors.world.ModBiomeModifiers;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
@@ -75,8 +84,8 @@ public class ColossalReactors {
         ModBlockEntities.register(modEventBus);
         ModMenuTypes.register(modEventBus);
         ModPayloads.register(modEventBus);
-        net.unfamily.colossal_reactors.data.ModConditions.CONDITION_CODECS.register(modEventBus);
-        net.unfamily.colossal_reactors.world.ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
+        ModConditions.CONDITION_CODECS.register(modEventBus);
+        ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::gatherData);
         modEventBus.addListener(this::registerCapabilities);
@@ -95,9 +104,9 @@ public class ColossalReactors {
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.TURBINE_BUILDER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity) be).getItemHandlerForCapability());
+                (be, direction) -> ((TurbineBuilderBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.TURBINE_BUILDER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity) be).getFluidTank());
+                (be, direction) -> ((TurbineBuilderBlockEntity) be).getFluidTank());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.POWER_PORT_BE.get(),
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyStorageForCapability());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
@@ -135,13 +144,13 @@ public class ColossalReactors {
                         ? ((HeatingCoilBlockEntity) be).getEnergyStorage()
                         : null);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemHandler());
+                (be, direction) -> ((MelterBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.MELTER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getFluidHandlerForCapability());
+                (be, direction) -> ((MelterBlockEntity) be).getFluidHandlerForCapability());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getItemHandler());
+                (be, direction) -> ((RadiationScrubberBlockEntity) be).getItemHandler());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
-                (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getEnergyStorage());
+                (be, direction) -> ((RadiationScrubberBlockEntity) be).getEnergyStorage());
         registerRadiationScrubberChemicalCapability(event);
     }
 
@@ -186,12 +195,12 @@ public class ColossalReactors {
         static void onClientSetup(FMLClientSetupEvent event) {
             NeoForge.EVENT_BUS.addListener(
                     net.neoforged.neoforge.client.event.ClientTickEvent.Post.class,
-                    e -> net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.clientTick());
+                    e -> TurbineRotorAnimationManager.clientTick());
             event.enqueueWork(() -> {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.TURBINE_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
-                net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration.registerRenderLayers();
+                TurbineRotorClientRegistration.registerRenderLayers();
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.GELID_BREEZIUM.block().get(), RenderType.translucent());
             });
@@ -211,12 +220,12 @@ public class ColossalReactors {
 
         @SubscribeEvent
         static void onModifyBakingResult(net.neoforged.neoforge.client.event.ModelEvent.ModifyBakingResult event) {
-            net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration.onModifyBakingResult(event);
+            TurbineRotorClientRegistration.onModifyBakingResult(event);
         }
 
         @SubscribeEvent
         static void registerTurbineBer(EntityRenderersEvent.RegisterRenderers event) {
-            net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration.registerRenderers(event);
+            TurbineRotorClientRegistration.registerRenderers(event);
         }
 
         @SubscribeEvent
@@ -225,11 +234,11 @@ public class ColossalReactors {
             event.register(ModMenuTypes.REDSTONE_PORT_MENU.get(), RedstonePortScreen::new);
             event.register(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), ReactorControllerScreen::new);
             event.register(ModMenuTypes.REACTOR_BUILDER_MENU.get(), ReactorBuilderScreen::new);
-            event.register(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen::new);
-            event.register(ModMenuTypes.TURBINE_BUILDER_MENU.get(), net.unfamily.colossal_reactors.client.gui.TurbineBuilderScreen::new);
+            event.register(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), TurbineControllerScreen::new);
+            event.register(ModMenuTypes.TURBINE_BUILDER_MENU.get(), TurbineBuilderScreen::new);
             event.register(ModMenuTypes.HEATING_COIL_MENU.get(), HeatingCoilScreen::new);
-            event.register(ModMenuTypes.MELTER_MENU.get(), net.unfamily.colossal_reactors.client.gui.MelterScreen::new);
-            event.register(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), net.unfamily.colossal_reactors.client.gui.RadiationScrubberScreen::new);
+            event.register(ModMenuTypes.MELTER_MENU.get(), MelterScreen::new);
+            event.register(ModMenuTypes.RADIATION_SCRUBBER_MENU.get(), RadiationScrubberScreen::new);
         }
     }
 }

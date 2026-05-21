@@ -1,5 +1,7 @@
 package net.unfamily.colossal_reactors.turbine;
 
+import net.unfamily.colossal_reactors.Config;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,7 +60,7 @@ public final class TurbineBuilderMetrics {
     }
 
     public static int balancedBladesForSteam(int bladeItems) {
-        if (!Boolean.TRUE.equals(net.unfamily.colossal_reactors.Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get())) {
+        if (!Boolean.TRUE.equals(Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get())) {
             return bladeItems;
         }
         return (bladeItems / 4) * 4;
@@ -103,7 +105,7 @@ public final class TurbineBuilderMetrics {
             ElecCoilDefinition coilDef = ElecCoilLoader.getAllDefinitions().get(coilIndex);
             coilEff = Math.min(coilDef.effCoe(), coilDef.effMax());
         } else {
-            coilEff = net.unfamily.colossal_reactors.Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
+            coilEff = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
         }
 
         double bladeEff = TurbineBladeEfficiency.computeMultiplier(blades.layerMaxBladesPerRod());
@@ -127,7 +129,7 @@ public final class TurbineBuilderMetrics {
         int validBladeItems = 0;
         List<Integer> layerMaxBladesPerRod = new ArrayList<>();
         boolean requireBalanced = Boolean.TRUE.equals(
-                net.unfamily.colossal_reactors.Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get());
+                Config.TURBINE_REQUIRE_BALANCED_BLADE_RINGS.get());
         int rw = layout.crossSizeA();
         int rd = layout.crossSizeB();
         boolean hasRodColumn = rw > 0 && rd > 0;

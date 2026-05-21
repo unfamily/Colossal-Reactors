@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -54,7 +55,7 @@ public final class TurbineSimulation {
                 placementAxisIndex, rodPattern, coilIndex, storedCoilSetting, gen);
 
         if (Boolean.TRUE.equals(Config.TURBINE_SIMULATION_DEBUG.get())) {
-            net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
+            ColossalReactors.LOGGER.info(
                     "[TurbineSim] blades={} validBlades={} steam={} rf={}",
                     production.bladeCount(), production.validBladeCount(),
                     production.maxSteamMbPerTick(), production.estimatedRfPerTick());

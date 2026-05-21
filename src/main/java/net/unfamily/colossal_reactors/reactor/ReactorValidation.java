@@ -5,6 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
@@ -266,7 +267,7 @@ public final class ReactorValidation {
         if (!Boolean.TRUE.equals(Config.REACTOR_VALIDATION_DEBUG.get())) {
             return;
         }
-        net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
+        ColossalReactors.LOGGER.info(
                 "[ReactorValidation] valid={} failure={} bounds=[{} {} {}]..[{} {} {}] size={}x{}x{} extCtrl={} rodCols={}",
                 valid, failure,
                 report.minX(), report.minY(), report.minZ(), report.maxX(), report.maxY(), report.maxZ(),

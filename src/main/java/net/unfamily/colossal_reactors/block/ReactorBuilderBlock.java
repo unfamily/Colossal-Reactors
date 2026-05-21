@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 
 /**
@@ -68,7 +69,7 @@ public class ReactorBuilderBlock extends BaseEntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) return null;
-        return type == net.unfamily.colossal_reactors.blockentity.ModBlockEntities.REACTOR_BUILDER_BE.get()
+        return type == ModBlockEntities.REACTOR_BUILDER_BE.get()
                 ? (l, pos, st, be) -> ((ReactorBuilderBlockEntity) be).serverTick()
                 : null;
     }

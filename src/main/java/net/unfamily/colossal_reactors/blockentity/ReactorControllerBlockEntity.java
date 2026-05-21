@@ -21,7 +21,11 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.block.ReactorRodBlock;
+import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.menu.ReactorControllerMenu;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
@@ -240,21 +244,21 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     }
 
     /** Coolant definition from stored coolant fluids; prefers water when present. */
-    public net.unfamily.colossal_reactors.coolant.CoolantDefinition getCoolantDefinition(net.minecraft.core.RegistryAccess registryAccess) {
-        net.unfamily.colossal_reactors.coolant.CoolantDefinition waterDef =
-                net.unfamily.colossal_reactors.coolant.CoolantLoader.get(net.unfamily.colossal_reactors.coolant.CoolantLoader.WATER_COOLANT_ID);
+    public CoolantDefinition getCoolantDefinition(net.minecraft.core.RegistryAccess registryAccess) {
+        CoolantDefinition waterDef =
+                CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         for (CoolantEntry e : coolantEntries) {
             var fluid = BuiltInRegistries.FLUID.get(e.fluidId());
             if (fluid == null || fluid == Fluids.EMPTY) continue;
-            var def = net.unfamily.colossal_reactors.coolant.CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
-            if (def != null && net.unfamily.colossal_reactors.coolant.CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) {
+            var def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
+            if (def != null && CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) {
                 return waterDef != null ? waterDef : def;
             }
         }
         for (CoolantEntry e : coolantEntries) {
             var fluid = BuiltInRegistries.FLUID.get(e.fluidId());
             if (fluid == null || fluid == Fluids.EMPTY) continue;
-            var def = net.unfamily.colossal_reactors.coolant.CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
+            var def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
             if (def != null) return def;
         }
         return waterDef;
@@ -318,10 +322,10 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             BlockPos pos = BlockPos.of(lp);
             BlockState state = level.getBlockState(pos);
             if (!state.is(ModBlocks.REACTOR_ROD.get())) continue;
-            if (!state.hasProperty(net.unfamily.colossal_reactors.block.ReactorRodBlock.FILL)) continue;
-            int cur = state.getValue(net.unfamily.colossal_reactors.block.ReactorRodBlock.FILL);
+            if (!state.hasProperty(ReactorRodBlock.FILL)) continue;
+            int cur = state.getValue(ReactorRodBlock.FILL);
             if (cur != cachedRodFillLevel) {
-                level.setBlock(pos, state.setValue(net.unfamily.colossal_reactors.block.ReactorRodBlock.FILL, cachedRodFillLevel), Block.UPDATE_CLIENTS);
+                level.setBlock(pos, state.setValue(ReactorRodBlock.FILL, cachedRodFillLevel), Block.UPDATE_CLIENTS);
             }
         }
     }
@@ -456,7 +460,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         LongOpenHashSet rodSet = new LongOpenHashSet(Math.max(16, rodPositions.length * 2));
         for (long p : rodPositions) rodSet.add(p);
 
-        double penalty = net.unfamily.colossal_reactors.Config.ROD_ADJACENCY_PENALTY.get();
+        double penalty = Config.ROD_ADJACENCY_PENALTY.get();
         double effective = 0.0;
         for (long p : rodPositions) {
             BlockPos pos = BlockPos.of(p);

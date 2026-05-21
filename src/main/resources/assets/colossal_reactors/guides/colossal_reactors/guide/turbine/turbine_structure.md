@@ -30,7 +30,7 @@ categories:
 
 ## Rod controller
 
-<BlockImage id="turbine_rod_controller" scale="4" />
+<ItemImage id="turbine_rod_controller" scale="4" />
 
 You need **exactly one** **Turbine Rod Controller** on the **top layer of the rotor section**. It sets which way the shaft runs (you can orient it in **six directions**, like a heating coil).
 

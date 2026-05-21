@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.block;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -208,7 +209,7 @@ public class ModBlocks {
                     .requiresCorrectToolForDrops()));
 
     static {
-        for (ResourceLocation coilId : net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry.getBuiltinCoilIds()) {
+        for (ResourceLocation coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
             String path = coilId.getPath();
             BlockBehaviour.Properties props = BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)

@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 
 /** Opens Turbine Builder GUI; 9x3 buffer and fluid tank for steam marking. */
@@ -65,7 +66,7 @@ public class TurbineBuilderBlock extends BaseEntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) return null;
-        return type == net.unfamily.colossal_reactors.blockentity.ModBlockEntities.TURBINE_BUILDER_BE.get()
+        return type == ModBlockEntities.TURBINE_BUILDER_BE.get()
                 ? (l, pos, st, be) -> ((TurbineBuilderBlockEntity) be).serverTick()
                 : null;
     }

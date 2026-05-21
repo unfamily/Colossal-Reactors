@@ -56,9 +56,18 @@ public class TurbineRodBlock extends DirectionalBlock {
     }
 
     @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+        super.onPlace(state, level, pos, oldState, isMoving);
+        if (!level.isClientSide() && !oldState.is(state.getBlock())) {
+            TurbineControllerBlock.notifyTurbineStructureChanged(level, pos);
+        }
+    }
+
+    @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide()) {
             TurbineBladePlacement.dropBladesOnRod(level, pos, state);
+            TurbineControllerBlock.notifyTurbineStructureChanged(level, pos);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

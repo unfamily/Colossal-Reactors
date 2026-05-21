@@ -6,8 +6,11 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.block.TurbineRodBlock;
+import net.unfamily.colossal_reactors.block.TurbineRodControllerBlock;
 import net.unfamily.colossal_reactors.network.ModPayloads;
 import org.jetbrains.annotations.Nullable;
 
@@ -211,8 +214,8 @@ public final class TurbineValidation {
         if (!isRodController(primaryController)) {
             return fail(FailureCode.NO_ROD_CONTROLLER, primaryControllerPos, report.build());
         }
-        if (primaryController.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)) {
-            provisionalAxis = primaryController.getValue(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING);
+        if (primaryController.hasProperty(TurbineRodControllerBlock.FACING)) {
+            provisionalAxis = primaryController.getValue(TurbineRodControllerBlock.FACING);
         }
         int otherControllers = countRodControllersExcept(level, minX, minY, minZ, maxX, maxY, maxZ, primaryControllerPos);
         report.rodControllersFound(1 + otherControllers);
@@ -416,8 +419,8 @@ public final class TurbineValidation {
                     if (xOnBorder(scan.lastPos, minX, maxX, minY, maxY, minZ, maxZ)) {
                         scan.onBorder = true;
                     }
-                    if (s.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING)) {
-                        scan.axis = s.getValue(net.unfamily.colossal_reactors.block.TurbineRodControllerBlock.FACING);
+                    if (s.hasProperty(TurbineRodControllerBlock.FACING)) {
+                        scan.axis = s.getValue(TurbineRodControllerBlock.FACING);
                     }
                 }
             }
@@ -565,7 +568,7 @@ public final class TurbineValidation {
         if (!Boolean.TRUE.equals(Config.TURBINE_VALIDATION_DEBUG.get())) {
             return;
         }
-        net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
+        ColossalReactors.LOGGER.info(
                 "[TurbineValidation] valid={} failure={} bounds=[{} {} {}]..[{} {} {}] size={}x{}x{} "
                         + "growthAxis={} closureWorld={} closureIdx={} coilFillStart={} coilLayers={} rodCtrl={} extCtrl={}",
                 valid, failure,
@@ -613,10 +616,10 @@ public final class TurbineValidation {
                     BlockPos pos = layout.rodPos(layer, ca, cb);
                     BlockState state = level.getBlockState(pos);
                     if (!state.is(ModBlocks.TURBINE_ROD.get())
-                            || !state.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING)) {
+                            || !state.hasProperty(TurbineRodBlock.FACING)) {
                         continue;
                     }
-                    Direction rodAxis = state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING);
+                    Direction rodAxis = state.getValue(TurbineRodBlock.FACING);
                     if (rodAxis.getAxis() != growthAxis.getAxis()) {
                         continue;
                     }
@@ -645,8 +648,8 @@ public final class TurbineValidation {
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState state = level.getBlockState(p);
                     if (state.is(ModBlocks.TURBINE_ROD.get())
-                            && state.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING)) {
-                        Direction rodAxis = state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING);
+                            && state.hasProperty(TurbineRodBlock.FACING)) {
+                        Direction rodAxis = state.getValue(TurbineRodBlock.FACING);
                         if (rodAxis.getAxis() != growthAxis.getAxis()) {
                             continue;
                         }

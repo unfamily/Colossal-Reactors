@@ -37,6 +37,7 @@ import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
 import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
+import net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.turbine.TurbineRodPatternLogic;
@@ -447,18 +448,18 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         int w = menu.getSizeLeft() + menu.getSizeRight() + 1;
         int h = menu.getSizeH() + 1;
         int d = menu.getSizeD() + 1;
-        return switch (net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis
+        return switch (TurbinePlacementAxis
                 .fromIndex(menu.getPlacementAxisOrdinal()).facing().getAxis()) {
-            case Y -> net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.interiorHeight(h);
-            case Z -> net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.interiorDepth(d);
-            case X -> net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.interiorWidth(w);
-            default -> net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.interiorHeight(h);
+            case Y -> TurbineRodSpaceLayout.interiorHeight(h);
+            case Z -> TurbineRodSpaceLayout.interiorDepth(d);
+            case X -> TurbineRodSpaceLayout.interiorWidth(w);
+            default -> TurbineRodSpaceLayout.interiorHeight(h);
         };
     }
 
     /** Layer count shown in GUI (matches build/simulation; stored setting is +1 in code). */
     private int effectiveCoilLayerCount() {
-        return net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout.appliedCoilLayerCount(
+        return TurbineRodSpaceLayout.appliedCoilLayerCount(
                 interiorExtentAlongPlacementAxis(), menu.getCoilLayerCount());
     }
 

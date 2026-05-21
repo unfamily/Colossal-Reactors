@@ -35,6 +35,9 @@ import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
 import net.unfamily.colossal_reactors.menu.TurbineBuilderMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildLogic;
+import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
+import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
 import net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout;
 import org.jetbrains.annotations.Nullable;
 
@@ -168,11 +171,11 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int selectedCoilIndex = 0;
     /** When built: true = absolute top face open (no top casing); rod controller still placed. */
     private boolean openTop = false;
-    private int coilLayerCount = net.unfamily.colossal_reactors.Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
+    private int coilLayerCount = Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
     /** Blade growth pattern: 0=Efficient, 1=Productive. */
     private int rodPattern = 0;
-    /** Index into {@link net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis} (6 flow directions). */
-    private int placementAxisIndex = net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.DEFAULT_INDEX;
+    /** Index into {@link TurbinePlacementAxis} (6 flow directions). */
+    private int placementAxisIndex = TurbinePlacementAxis.DEFAULT_INDEX;
     /** Pattern mode: 0=OPTIMIZED (-2 inset), 1=PRODUCTION (no inset), 2=ECONOMY (like optimized, border fill differs). */
     /** True when build is in progress (button shows Stop). */
     private boolean building = false;
@@ -280,7 +283,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
                 case 15 -> {
-                    if (value >= 0 && value < net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.count()) {
+                    if (value >= 0 && value < TurbinePlacementAxis.count()) {
                         placementAxisIndex = value;
                     }
                 }
@@ -411,7 +414,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getPlacementAxisIndex() { return placementAxisIndex; }
 
     public Direction getPlacementAxis() {
-        return net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromIndex(placementAxisIndex).facing();
+        return TurbinePlacementAxis.fromIndex(placementAxisIndex).facing();
     }
     public boolean isBuilding() { return building; }
     public boolean isInvalidBlocksDetected() { return invalidBlocksDetected; }
@@ -463,7 +466,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Server tick: advance build one step. Called from block ticker. */
     public void serverTick() {
         if (!building || level == null || level.isClientSide()) return;
-        int steps = net.unfamily.colossal_reactors.Config.TURBINE_BUILDER_BUILD_STEPS_PER_TICK.get();
+        int steps = Config.TURBINE_BUILDER_BUILD_STEPS_PER_TICK.get();
         TurbineBuildLogic.tick(this, steps);
         if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
             buildProgressPercent = computeBuildProgressPercent(serverLevel);
@@ -484,7 +487,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int computeBuildProgressPercent(net.minecraft.server.level.ServerLevel serverLevel) {
         if (!buildProgressVisible) return 0;
         if (buildStage >= TurbineBuildLogic.STAGE_DONE) return 100;
-        var counts = net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter.estimate(
+        var counts = TurbineBuildMaterialCounter.estimate(
                 serverLevel.registryAccess(),
                 getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth(),
                 getPlacementAxisIndex(),
@@ -540,7 +543,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
 
     /** Cycle placement axis (6 flow directions: D-U, U-D, N-S, …). */
     public void cyclePlacementAxis(boolean next) {
-        int n = net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.count();
+        int n = TurbinePlacementAxis.count();
         if (next) {
             placementAxisIndex = (placementAxisIndex + 1) % n;
         } else {
@@ -628,7 +631,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         FluidStack inItem = itemHandler.getFluidInTank(0);
         if (!inItem.isEmpty()) {
             if (getLevel() == null) return false;
-            if (net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader.getDefinitionForFluid(
+            if (TurbineGenerationLoader.getDefinitionForFluid(
                     inItem.getFluid(), getLevel().registryAccess()) == null)
                 return false;
             if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
@@ -675,7 +678,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_COIL_IDX, selectedCoilIndex);
         tag.putInt("CoilLayerCount", coilLayerCount);
         tag.putInt(TAG_ROD_PATTERN, rodPattern);
-        tag.putString(TAG_PLACEMENT_AXIS, net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromIndex(placementAxisIndex).id());
+        tag.putString(TAG_PLACEMENT_AXIS, TurbinePlacementAxis.fromIndex(placementAxisIndex).id());
         tag.putInt("PlacementAxisIndex", placementAxisIndex);
         tag.putBoolean(TAG_OPEN_TOP, openTop);
         tag.putBoolean(TAG_BUILDING, building);
@@ -748,15 +751,15 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));
         if (tag.contains("PlacementAxisIndex")) {
             placementAxisIndex = Math.max(0,
-                    Math.min(net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.count() - 1,
+                    Math.min(TurbinePlacementAxis.count() - 1,
                             tag.getInt("PlacementAxisIndex")));
         } else if (tag.contains(TAG_PLACEMENT_AXIS)) {
             String raw = tag.getString(TAG_PLACEMENT_AXIS);
-            net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis axis =
-                    net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromId(raw);
-            if (axis == net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.UP_DOWN
+            TurbinePlacementAxis axis =
+                    TurbinePlacementAxis.fromId(raw);
+            if (axis == TurbinePlacementAxis.UP_DOWN
                     && !raw.contains("_")) {
-                axis = net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis.fromLegacyDirectionName(raw);
+                axis = TurbinePlacementAxis.fromLegacyDirectionName(raw);
             }
             placementAxisIndex = axis.ordinal();
         }
