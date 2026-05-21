@@ -11,7 +11,6 @@ import org.jetbrains.annotations.Nullable;
 public final class TurbineSimulation {
 
     public record SimulationResult(
-            int rodColumns,
             int bladeCount,
             int coilBlockCount,
             double steamMbPerTick,
@@ -43,21 +42,15 @@ public final class TurbineSimulation {
         int rh = TurbineRodPatternLogic.rodSpaceHeight(h, coilLayerCount);
         int rd = TurbineRodPatternLogic.rodSpaceDepth(d);
 
-        int rodColumns = 0;
         int bladeCount = 0;
-        for (int rx = 0; rx < rw; rx++) {
-            for (int rz = 0; rz < rd; rz++) {
-                if (TurbineRodPatternLogic.isRodColumn(rx, rz, rw, rd, rodPattern)) {
-                    rodColumns++;
-                    for (int ry = 0; ry < rh; ry++) {
-                        int ring = TurbineRodPatternLogic.targetBladeRingForLayer(ry, rh, rodPattern);
-                        bladeCount += ring * 4;
-                    }
-                }
-            }
+        java.util.List<Integer> layerCounts = new java.util.ArrayList<>();
+        for (int ry = 0; ry < rh; ry++) {
+            int ring = TurbineRodPatternLogic.targetBladeRingForLayer(ry, rh, rodPattern);
+            int layerBlades = ring * 4;
+            bladeCount += layerBlades;
+            layerCounts.add(layerBlades);
         }
 
-        int interiorBlocks = Math.max(1, rw * rh * rd);
         int coilBlocks = Math.max(1, rw * rd * TurbineRodSpaceLayout.coilLayerCount(
                 TurbineRodSpaceLayout.interiorHeight(h), coilLayerCount));
 
@@ -71,11 +64,6 @@ public final class TurbineSimulation {
             coilEff = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
         }
 
-        java.util.List<Integer> layerCounts = new java.util.ArrayList<>();
-        for (int ry = 0; ry < rh; ry++) {
-            int ring = TurbineRodPatternLogic.targetBladeRingForLayer(ry, rh, rodPattern);
-            layerCounts.add(ring * 4 * Math.max(1, rodColumns));
-        }
         double bladeEff = TurbineBladeEfficiency.computeMultiplier(layerCounts);
 
         int validBlades = bladeCount;
@@ -94,11 +82,11 @@ public final class TurbineSimulation {
 
         if (Boolean.TRUE.equals(Config.TURBINE_SIMULATION_DEBUG.get())) {
             net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
-                    "[TurbineSim] rods={} blades={} steam={} rf={} coilEff={} bladeEff={}",
-                    rodColumns, bladeCount, steam, rf, coilEff, bladeEff);
+                    "[TurbineSim] blades={} steam={} rf={} coilEff={} bladeEff={}",
+                    bladeCount, steam, rf, coilEff, bladeEff);
         }
 
-        return new SimulationResult(rodColumns, bladeCount, coilBlocks, steam, rf, coilEff, bladeEff);
+        return new SimulationResult(bladeCount, coilBlocks, steam, rf, coilEff, bladeEff);
     }
 
     @Nullable

@@ -14,47 +14,47 @@ categories:
 # Rods and blades
 
 <Row gap="16" fullWidth={true}>
-  <BlockImage id="turbine_rod" scale="4" />
-  <BlockImage id="turbine_blade" scale="4" />
+  <ItemImage id="turbine_rod" scale="4" />
+  <ItemImage id="turbine_blade" scale="4" />
 </Row>
 
-## Turbine Blade item
+## Placing blades
 
-The **Turbine Blade** does **not** place like a normal block from your hand. **Right-click a Turbine Rod** with the blade item to attach the next blade on that rod.
+The **Turbine Blade** is not placed like a normal block. **Right-click a Turbine Rod** while holding a blade to attach the next blade on that rod. Each click uses one blade from your inventory.
 
-Each click consumes one item and grows blades in **balanced rings** around the rod:
+Blades grow outward in **rings** around the rod, kept even on all four sides:
 
-1. **First ring** — 2 blades on opposite sides.
-2. **Second ring** — 4 blades (one per lateral side).
-3. **Further rings** — 8, 12, 16… up to the configured maximum radius (default **31** rings → up to **124 blades per rod**).
+1. **First step** — 2 blades on opposite sides.
+2. **Next** — 4 blades (one on each side).
+3. **Then** — 8, 12, 16… up to the pack limit (default **31** rings per rod, up to **124** blades on a single rod).
 
-The algorithm picks the side and distance so rings stay balanced (same depth on all four lateral axes before advancing).
+The game always picks the side that keeps the layout balanced before moving to the next ring.
 
-## Blade block behaviour
+## Blades in the world
 
-- Blades are **ethereal**: no collision, not mineable by hand, no direct loot.
+- Blades are **ethereal**: you cannot walk into them, mine them by hand, or pick them up directly.
 
-- When a **rod is broken**, every blade on that rod is removed and dropped as items **at the rod position** (no need to hunt blades inside the turbine).
+- If you **break the rod**, every blade on that rod is removed and dropped as items **on the rod block**—you do not need to search the turbine interior.
 
-## Blade efficiency (layers)
+## Blade bonus by height
 
-Along the rod controller **axis**, the game groups blades into **layers** (horizontal slices when the axis is vertical).
+Along the rod controller’s direction, blades are counted **per layer** (like a floor at each height on a vertical shaft).
 
-| Layer pattern | Effect on blade efficiency |
-|---------------|----------------------------|
-| More blades on layer N+1 than N | **Bonus** per step (default **+3%** each, configurable) |
-| Equal blade count | Neutral |
-| Fewer blades on N+1 than N | **Breaks** the bonus chain; each drop applies a **malus** (default **−3%** each) |
+| How layers compare | Effect |
+|--------------------|--------|
+| Upper layer has **more** blades than the one below | **+3%** output bonus per step (pack default) |
+| Same blade count | No change |
+| Upper layer has **fewer** blades | Bonus chain **lost**; each drop also applies about **−3%** |
 
-For maximum blade bonus, grow ring counts **from the bottom up** (Efficient builder pattern). Filling every layer at max radius immediately (Productive pattern) skips ascending bonuses but reaches peak steam capacity faster.
+For the best bonus, add rings **from the bottom upward** (the builder’s **Efficient** layout does this). Filling every layer to the maximum right away (**Productive**) skips that climbing bonus but reaches full steam throughput sooner.
 
-Balanced rings (4, 8, 12…) may be required for a blade to count toward steam capacity when `requireBalancedBladeRings` is enabled in config.
+On some packs, only **even rings** (4, 8, 12 blades on a layer, and so on) count fully toward steam capacity—check your mod config if numbers look low.
 
-## Builder patterns
+## Builder layouts
 
-The [Turbine Builder](turbine_builder.md) can place rods and blades automatically:
+The [Turbine Builder](turbine_builder.md) can place rods and blades for you:
 
-- **Efficient** — checkerboard rod columns; blade rings grow with height (ascending layout).
-- **Productive** — all rod columns filled; max blade ring on every layer.
+- **Efficient** — rods on a checkerboard; blade rings grow taller step by step (best for the height bonus).
+- **Productive** — rods everywhere allowed; each layer gets the maximum ring count immediately.
 
-Manual placement with the blade item follows the same ring rules as the builder.
+Hand-placing blades with the item follows the same ring order as the builder.

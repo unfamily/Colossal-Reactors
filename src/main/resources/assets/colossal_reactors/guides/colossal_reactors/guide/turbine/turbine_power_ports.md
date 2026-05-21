@@ -18,26 +18,22 @@ categories:
   <BlockImage id="turbine_high_cond_power_port" scale="4" />
 </Row>
 
-Turbine power ports forward generated **RF** from the turbine to cables, ducts, or machines on the **outside**. There is **no screen**—wire the outside face and read flow from your energy network.
+Power ports send the turbine’s **RF** to cables and machines on the **outside**. There is **no GUI**—connect the outer face and read power on your network.
 
 ## Turbine Power Port
 
-The standard **Turbine Power Port** uses `int` buffer and transfer limits (Forge FE), suitable for most modpacks.
+The normal **Turbine Power Port** is enough for most modpacks and typical RF rates.
 
 ## Turbine High Conduction Power Port
 
-The **Turbine High Conduction Power Port** is the upgraded variant for very large RF buffers and per-tick transfer beyond the standard port’s `int` limits.
+The **High Conduction** variant is for **very large** turbines that produce enormous RF per tick. It stores and moves much higher amounts of energy (tunable in mod settings) and works better with mods that support huge power transfer (for example Draconic Evolution or Flux Networks when installed).
 
-- Uses **long** energy storage and extraction (tunable in Colossal Reactors **ports → turbine** config).
+Craft it from a **Turbine Power Port** plus high-tier parts—check **JEI**.
 
-- On each tick, pushes stored energy to neighbors in order: **OP** (Brandon’s Core / Draconic Evolution) when exposed, then **Flux Networks** long transfer when installed, then standard **Forge FE**.
+## Both variants
 
-- Craft from a **Turbine Power Port** plus high-tier materials; check **JEI** for your pack.
+- Place on a **casing face** with the inside toward the turbine interior.
 
-## Features (both variants)
+- Attach energy cables or machines on the **outside**.
 
-- Place on an outer face of the casing; the **inside** must face the turbine interior.
-
-- Connect compatible energy handlers from other mods on the **outside** of the port.
-
-Generated RF comes from steam consumption × generation rate × coil × blade efficiency—see [Steam, RF, and coils](turbine_generation_and_coils.md).
+Output depends on steam, coils, and blades—see [Steam, RF, and coils](turbine_generation_and_coils.md).

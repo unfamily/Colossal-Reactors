@@ -2,9 +2,34 @@
   "type": "colossal_reactors:elec_coils",
   "entries": [
     {
-      "valid_blocks": ["#c:storage_blocks/netherite"],
-      "eff_coe": 1.15,
-      "eff_max": 1.5
+      "valid_blocks": ["#c:storage_blocks/graphite"],
+      "eff_coe": 0.5,
+      "eff_max": 0.66
+    },
+    {
+      "valid_blocks": ["#c:storage_blocks/iron"],
+      "eff_coe": 0.66,
+      "eff_max": 0.75
+    },
+    {
+      "valid_blocks": ["#c:storage_blocks/tin"],
+      "eff_coe": 0.75,
+      "eff_max": 0.80
+    },
+    {
+      "valid_blocks": ["#c:storage_blocks/aluminum"],
+      "eff_coe": 0.80,
+      "eff_max": 0.90
+    },
+    {
+      "valid_blocks": ["#c:storage_blocks/copper_all"],
+      "eff_coe": 0.80,
+      "eff_max": 1.0
+    },
+    {
+      "valid_blocks": ["#c:storage_blocks/silver"],
+      "eff_coe": 0.9,
+      "eff_max": 1.0
     },
     {
       "valid_blocks": ["#c:storage_blocks/gold"],
@@ -17,34 +42,9 @@
       "eff_max": 1.3
     },
     {
-      "valid_blocks": ["#c:storage_blocks/silver"],
-      "eff_coe": 0.9,
-      "eff_max": 1.0
-    },
-    {
-      "valid_blocks": ["#c:storage_blocks/copper_all"],
-      "eff_coe": 0.80,
-      "eff_max": 1.0
-    },
-    {
-      "valid_blocks": ["#c:storage_blocks/aluminum"],
-      "eff_coe": 0.80,
-      "eff_max": 0.90
-    },
-    {
-      "valid_blocks": ["#c:storage_blocks/tin"],
-      "eff_coe": 0.75,
-      "eff_max": 0.80
-    },
-    {
-      "valid_blocks": ["#c:storage_blocks/iron"],
-      "eff_coe": 0.66,
-      "eff_max": 0.75
-    },
-    {
-      "valid_blocks": ["#c:storage_blocks/graphite"],
-      "eff_coe": 0.5,
-      "eff_max": 0.66
+      "valid_blocks": ["#c:storage_blocks/netherite"],
+      "eff_coe": 1.15,
+      "eff_max": 1.5
     }
   ]
 }

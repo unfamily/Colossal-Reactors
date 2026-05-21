@@ -30,6 +30,10 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
                     case 3 -> (int) Math.min(Integer.MAX_VALUE, be.getLastSteamPerTick());
                     case 4 -> (int) (be.getLastCoilEff() * 1000);
                     case 5 -> (int) (be.getLastBladeEff() * 1000);
+                    case 6 -> {
+                        var failure = r.failure();
+                        yield failure == null ? -1 : failure.ordinal();
+                    }
                     default -> 0;
                 };
             }
@@ -39,7 +43,7 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
 
             @Override
             public int getCount() {
-                return 6;
+                return 7;
             }
         };
         addDataSlots(data);
@@ -48,7 +52,7 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
     public TurbineControllerMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(6);
+        this.data = new SimpleContainerData(7);
         addDataSlots(data);
     }
 
@@ -58,6 +62,9 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
     public int getSteamPerTick() { return data.get(3); }
     public double getCoilEff() { return data.get(4) / 1000.0; }
     public double getBladeEff() { return data.get(5) / 1000.0; }
+
+    /** {@link net.unfamily.colossal_reactors.turbine.TurbineValidation.FailureCode#ordinal()}, or -1 if valid. */
+    public int getFailureOrdinal() { return data.get(6); }
 
     @Override
     public boolean stillValid(Player player) {

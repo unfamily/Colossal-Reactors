@@ -112,8 +112,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
         TurbineVisualState current = state.getValue(VISUAL);
 
         if (current == TurbineVisualState.VALIDATING) {
-            int coilLayers = Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
-            TurbineValidation.Result result = TurbineValidation.validateWithRodAlignment(level, startPos, into, coilLayers);
+            TurbineValidation.Result result = TurbineValidation.validateWithRodAlignment(level, startPos, into, -1);
             controllerBe.setCachedResult(result);
             TurbineVisualState next = result.valid() ? TurbineVisualState.ON : TurbineVisualState.OFF;
             level.setBlock(pos, state.setValue(VISUAL, next), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
@@ -130,8 +129,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
             TurbineValidation.Result result = controllerBe.getCachedResult();
             boolean revalidate = (level.getGameTime() % Config.TURBINE_VALIDATION_INTERVAL_TICKS.get()) == 0;
             if (revalidate) {
-                int coilLayers = Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
-                result = TurbineValidation.validateWithRodAlignment(level, startPos, into, coilLayers);
+                result = TurbineValidation.validateWithRodAlignment(level, startPos, into, -1);
                 if (!result.valid()) {
                     controllerBe.setCachedResult(result);
                     level.setBlock(pos, state.setValue(VISUAL, TurbineVisualState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);

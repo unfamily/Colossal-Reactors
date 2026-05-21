@@ -14,12 +14,12 @@ categories:
 
 <BlockImage id="turbine_redstone_port" scale="4" />
 
-The **Turbine Redstone Port** connects turbine telemetry to redstone (comparator strength or reacting to dust/torch input, depending on version).
+The **Turbine Redstone Port** links turbine status to **redstone** (for example comparator output or reacting to a redstone signal—depends on the mode you pick).
 
 ## Features
 
-- **Right-click** to open the configuration screen and choose how turbine state maps to redstone. Hover tooltips on buttons explain each mode.
+- **Right-click** to choose how turbine state affects redstone. Tooltips on each button explain the mode.
 
-- Use it to **stop or hold off** the turbine from external redstone without breaking the multiblock—parallel to the [fission reactor Redstone Port](../multiblock/redstone_port.md).
+- Use it to **stop or pause** the turbine from outside without breaking the multiblock—same idea as the [fission reactor Redstone Port](../multiblock/redstone_port.md).
 
-- Face the port so automation on the **outside** of the turbine shell can read or drive it.
+- Place it so dust, comparators, or machines on the **outside** of the shell can reach it.

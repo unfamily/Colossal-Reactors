@@ -58,7 +58,7 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
             int h = maxY - minY + 1;
             int d = maxZ - minZ + 1;
             int interiorH = TurbineRodSpaceLayout.interiorHeight(h);
-            int coilLayers = builder.getCoilLayerCount();
+            int coilLayers = builder.getAppliedCoilLayerCount();
             Direction growthAxis = builder.getPlacementAxis();
             TurbineRotorLayout layout = TurbineRotorLayout.from(
                     minX, minY, minZ, maxX, maxY, maxZ, w, h, d, coilLayers, growthAxis);

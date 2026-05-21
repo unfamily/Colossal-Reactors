@@ -62,10 +62,11 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     /** Called from block tick when VALIDATING -> ON/OFF; shows message in action bar. */
     public void notifyValidationResult() {
         if (lastInteractingPlayer instanceof ServerPlayer sp) {
-            Component msg = getCachedResult().valid()
-                    ? Component.translatable("message.colossal_reactors.turbine_valid")
-                    : Component.translatable("message.colossal_reactors.turbine_invalid");
-            sp.sendSystemMessage(msg, true);
+            TurbineValidation.Result result = getCachedResult();
+            sp.sendSystemMessage(TurbineValidation.failureMessage(result), true);
+            if (level != null) {
+                TurbineValidation.sendFailureMarkers(sp, level, result);
+            }
         }
         lastInteractingPlayer = null;
     }
@@ -106,9 +107,9 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
-        powered = input.getBooleanOr("Powered", powered);
-        lastRfPerTick = input.getLongOr("LastRf", lastRfPerTick);
-        lastSteamPerTick = input.getDoubleOr("LastSteam", lastSteamPerTick);
+        powered = input.getBooleanOr("Powered", false);
+        lastRfPerTick = input.getLongOr("LastRf", 0L);
+        lastSteamPerTick = input.getDoubleOr("LastSteam", 0.0);
     }
 
     @Nullable

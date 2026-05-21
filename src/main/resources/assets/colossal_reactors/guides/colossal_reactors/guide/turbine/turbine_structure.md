@@ -22,43 +22,43 @@ categories:
   <BlockImage id="turbine_glass" scale="4" />
 </Row>
 
-- Use **Turbine Casing** for opaque walls and **Turbine Glass** for transparent faces.
+- Use **Turbine Casing** for solid walls and **Turbine Glass** where you want to see inside.
 
-- The interior must form a **closed box** (default maximum size **65×65×65**, same scale as reactors—tunable in config).
+- Build a **closed box**. Default maximum size is **65×65×65** (same idea as large reactors; your pack may allow less).
 
-- Leave room for the **rod zone**, **coil zone** at the top of the interior, **ports** on the casing, and exactly one **Turbine Controller** on an outer face.
+- Inside you need space for **rods and blades**, a **coil** section, **ports** on the walls, and one **Turbine Controller** on an outer **side wall** (north, south, east, or west—not the top or bottom of the box).
 
 ## Rod controller
 
 <BlockImage id="turbine_rod_controller" scale="4" />
 
-The **Turbine Rod Controller** sits on the **closure layer** (top interior Y of the rotor section). There is **exactly one** per turbine. It defines the **axis** of the multiblock (six facing directions, like heating coils).
+You need **exactly one** **Turbine Rod Controller** on the **top layer of the rotor section**. It sets which way the shaft runs (you can orient it in **six directions**, like a heating coil).
 
-- If the rod footprint is **odd×odd**, the controller goes on the single geometric center cell.
-- If one side is **even**, **two** center cells are valid (1×2 or 2×1); if **both** are even, **four** cells are valid (2×2). Manual builds may use any valid center; the **Turbine Builder** places the first valid center (minimum X, then Z) and preview shows that cell in white.
+- On an **odd × odd** rod footprint, it sits on the **center** cell.
+- If one side length is **even**, **two** center cells work; if **both** are even, **four** center cells work. Any of those is fine by hand; the **Turbine Builder** picks one center for you and highlights it in the preview.
 
-- Rod columns are placed by pattern below the coil zone—not necessarily under the controller.
+- Rod columns are laid out by your pattern in the volume **below** the coil section—they do not have to sit directly under this block.
 
-- Rods must align with the controller axis (or the opposite direction). Misaligned rods are corrected during validation when possible.
+- Rods must line up with the controller’s axis. Wrong-facing rods are fixed when the turbine checks the build, when possible.
 
-- This block is **not** the **Turbine Controller** on the shell—that block runs the turbine GUI and tick logic.
+- This is **not** the **Turbine Controller** on the outside wall—that one opens the main turbine screen.
 
 ## Turbine rods
 
-<BlockImage id="turbine_rod" scale="4" />
+<ItemImage id="turbine_rod" scale="4" />
 
-- **Turbine Rods** are vertical or horizontal columns depending on the rod controller facing.
+- **Turbine Rods** form the shaft. They follow the rod controller’s direction (up/down or along a wall).
 
-- Place with **six-way** orientation: click floor/ceiling for a vertical column, or a wall for a horizontal column along that wall.
+- **Right-click** floor or ceiling for a **vertical** shaft; **right-click** a wall for a **horizontal** shaft along that wall.
 
-- **Turbine Blades** attach to rods (see [Rods and blades](turbine_rod_and_blades.md)); breaking a rod drops all blades on that rod at the rod position.
+- Attach **blades** with the blade item—see [Rods and blades](turbine_rod_and_blades.md). Breaking a rod drops all its blades on that spot.
 
-## Interior zones (overview)
+## What goes where (overview)
 
-| Zone | Location | Contents |
-|------|----------|----------|
-| **Rod + blade** | Below the coil cap | Rod columns, blades on rods |
-| **Electrical coil** | Top layers of interior | Storage blocks from datapack (gold, copper, etc.) |
+| Area | Where | What you put there |
+|------|--------|-------------------|
+| **Rotor** | Main interior, below the coils | Rods, blades |
+| **Coils** | Top layers inside | Metal storage blocks (gold, copper, …) |
 | **Ports** | Casing faces | Steam in, RF out, redstone |
 
-Layer split and coil depth are configured in the [Turbine Builder](turbine_builder.md) (default **3** coil layers). See [Steam, RF, and coils](turbine_generation_and_coils.md) for production math.
+How many coil layers to use (default **3**) is set in the [Turbine Builder](turbine_builder.md). For RF and steam numbers see [Steam, RF, and coils](turbine_generation_and_coils.md).
