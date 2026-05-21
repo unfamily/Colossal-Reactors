@@ -31,6 +31,7 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
+import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
 import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -108,7 +109,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     /**
      * 6 buttons: 3 cols x 2 rows (Heat Sink, Pattern, PatternMode, OpenTop, Simulation, Build/Stop).
-     * Invalid-blocks warning at PREVIEW_BUTTON_Y; second right row aligns with Mark Input.
+     * Build % above Build row; invalid-blocks warning on arrow row. Second right row aligns with Mark Input.
      */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
@@ -119,14 +120,23 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
     // Align right block row 0 with the up arrow (ROW1_Y). Row 1 aligns with Mark Input.
     private static final int RIGHT_ROW0_Y = ROW1_Y;
-    /** Invalid-blocks warning: vertically centered on the Preview button row (left column). */
-    private static int warningYAlignedToPreview(int lineHeight) {
-        return PREVIEW_BUTTON_Y + (BUTTON_H - lineHeight) / 2;
-    }
     /** Second row of right buttons: aligned with Mark Input (left column). */
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
-    /** Warning text: X = right block left edge; Y computed so text bottom aligns with bottom of right arrow button (ROW2_Y + BUTTON_H). */
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
+    private static final int BUILD_BUTTON_COL_X = RIGHT_COL2_X;
+
+    private int buildPercentTextX(Component percentText) {
+        return BUILD_BUTTON_COL_X + (RIGHT_BUTTON_W - font.width(percentText)) / 2;
+    }
+
+    private static int buildPercentTextY(int lineHeight) {
+        return RIGHT_ROW1_Y - lineHeight - GAP;
+    }
+
+    /** Invalid-blocks warning on the arrow row (was centered on the Preview row). */
+    private static int buildInvalidBlocksTextY(int lineHeight) {
+        return ROW2_Y + BUTTON_H - lineHeight;
+    }
 
     /** Simulation view panel (same layout as reactor controller). */
     private static final int SIM_PANEL_X = 16;
@@ -175,6 +185,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
+    private boolean previewActive;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -222,10 +233,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(buttonRight);
 
         // Preview below the 4 arrows, centered with arrow group
-        buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.preview"), b -> {
-            if (menu.getBlockEntity() != null)
-                PacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
-        })
+        buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.preview"), b -> togglePreview())
                 .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
                 .build();
         buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
@@ -725,57 +733,28 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int rodCount = result.rodCount();
         String fuelStr = formatFuelPerTickSim(result.fuelPerTickHundredths());
 
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.rods", rodCount, result.rodColumns()),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks",
-                        GuiNumberFormat.format(result.coolantBlockCount())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production",
-                        GuiNumberFormat.format(result.rfPerTick())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume",
-                        GuiNumberFormat.format(result.coolantConsumedPerTick())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production",
-                        GuiNumberFormat.format(result.steamPerTick())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units", fuelStr),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_capacity",
-                        GuiNumberFormat.format((long) rodCount * (long) Config.ROD_MAX_FUEL_UNITS.get())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_capacity",
-                        GuiNumberFormat.format((long) rodCount
-                                * (long) net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity.getCoolantCapacityMb())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-
-        if (Config.REACTOR_UNSTABILITY.get() && rodCount > 0) {
-            Component stabilityLabel = Component.translatable("gui.colossal_reactors.reactor_controller.stability.label");
-            guiGraphics.drawString(font, stabilityLabel, textX, y, SIM_TEXT_COLOR, false);
-            boolean ok = result.stabilityCoolingSufficient();
-            Component state = Component.translatable(
-                    ok ? "gui.colossal_reactors.reactor_builder.simulation.stability_stable"
-                            : "gui.colossal_reactors.reactor_builder.simulation.stability_unstable");
-            int stateColor = ok ? 0xFF00CC00 : 0xFFCC3333;
-            guiGraphics.drawString(font, state, textX + font.width(stabilityLabel), y, stateColor, false);
-            y += SIM_LINE_HEIGHT;
-        }
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.rods.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.rods.value", rodCount, result.rodColumns()));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.coolant_blocks.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.coolant_blocks.value",
+                        GuiNumberFormat.format(result.coolantBlockCount())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.energy_production.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.energy_production.value",
+                        GuiNumberFormat.format(result.rfPerTick())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.water_consume.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.water_consume.value",
+                        GuiNumberFormat.format(result.coolantConsumedPerTick())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.steam_production.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.steam_production.value",
+                        GuiNumberFormat.format(result.steamPerTick())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.fuel_units.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units.value", fuelStr));
         return y;
     }
 
@@ -788,32 +767,33 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private int renderMaterialCounts(GuiGraphics guiGraphics, int y) {
+        int textX = leftPos + SIM_PANEL_X;
         ReactorBuildMaterialCounter.BuildMaterialCounts counts = getMaterialCounts();
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.frame_casings", counts.frameCasings()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.face_casings", counts.faceCasings()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.rods", counts.rods()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.rod_controllers", counts.rodControllers()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.heat_sinks", counts.heatSinkCells()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_builder.calculate.frame_casings.label",
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.frame_casings.value",
+                        GuiNumberFormat.format(counts.frameCasings())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_builder.calculate.face_casings.label",
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.face_casings.value",
+                        GuiNumberFormat.format(counts.faceCasings())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_builder.calculate.rods.label",
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.rods.value",
+                        GuiNumberFormat.format(counts.rods())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_builder.calculate.rod_controllers.label",
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.rod_controllers.value",
+                        GuiNumberFormat.format(counts.rodControllers())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_builder.calculate.heat_sinks.label",
+                Component.translatable("gui.colossal_reactors.reactor_builder.calculate.heat_sinks.value",
+                        GuiNumberFormat.format(counts.heatSinkCells())));
         if (HeatSinkLoader.requiresLiquidPlacement(menu.getHeatSinkIndex()) && counts.heatSinkCells() > 0) {
-            y += SIM_LINE_HEIGHT;
-            guiGraphics.drawString(font,
-                    Component.translatable("gui.colossal_reactors.reactor_builder.calculate.fluid_mb", counts.estimatedFluidMb()),
-                    leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-            y += SIM_LINE_HEIGHT;
+            y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                    "gui.colossal_reactors.reactor_builder.calculate.fluid_mb.label",
+                    Component.translatable("gui.colossal_reactors.reactor_builder.calculate.fluid_mb.value",
+                            GuiNumberFormat.format(counts.estimatedFluidMb())));
         }
         return y;
     }
@@ -892,20 +872,20 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Build progress (aligned with bottom of row-2 arrows). Warning on separate line at former row-1 Y.
-        int buildingTextY = ROW2_Y + BUTTON_H - font.lineHeight;
         if (menu.isBuildProgressVisible()) {
             int percent = menu.getBuildProgressPercent();
             float t = Math.max(0, Math.min(100, percent)) / 100f;
             int r = (int) (255 * (1f - t));
             int g = (int) (255 * t);
             int progressColor = 0xFF000000 | (r << 16) | (g << 8);
-            guiGraphics.drawString(font, Component.literal(percent + "%"), WARNING_RIGHT_X, buildingTextY, progressColor, false);
+            Component percentText = Component.literal(percent + "%");
+            guiGraphics.drawString(font, percentText, buildPercentTextX(percentText),
+                    buildPercentTextY(font.lineHeight), progressColor, false);
         }
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.drawString(font,
                     Component.translatable("gui.colossal_reactors.reactor_builder.warning.invalid_blocks"),
-                    WARNING_RIGHT_X, warningYAlignedToPreview(font.lineHeight), 0xFF0000, false);
+                    WARNING_RIGHT_X, buildInvalidBlocksTextY(font.lineHeight), 0xFF0000, false);
         }
     }
 
@@ -989,6 +969,26 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void togglePreview() {
+        if (previewActive) {
+            PreviewMarkRenderer.getInstance().clearMarkers();
+            previewActive = false;
+        } else if (menu.getBlockEntity() != null) {
+            PacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
+            previewActive = true;
+        }
+        updatePreviewButtonLabel();
+    }
+
+    private void updatePreviewButtonLabel() {
+        if (buttonPreview != null) {
+            buttonPreview.setMessage(Component.translatable(
+                    previewActive
+                            ? "gui.colossal_reactors.reactor_builder.preview.hide"
+                            : "gui.colossal_reactors.reactor_builder.preview"));
+        }
     }
 
     @Override

@@ -72,7 +72,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             int colorOccupied = 0xE0FF0000; // red tint for occupied blocks
             int colorRod = 0xE0FFFF00; // yellow tint for rod positions
             int colorRodController = 0xE0FFFFFF; // white tint for rod controllers (above rod columns, part of frame)
-            int durationTicks = 200;
+            int durationTicks = 6000;
 
             int pattern = builder.getRodPattern();
             int patternMode = builder.getPatternMode();

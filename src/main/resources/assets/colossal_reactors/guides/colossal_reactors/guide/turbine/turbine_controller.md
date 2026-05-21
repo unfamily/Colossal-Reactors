@@ -36,6 +36,6 @@ categories:
 
 ## Stopping without breaking blocks
 
-A [Turbine Redstone Port](turbine_redstone_port.md) can shut the turbine down from outside redstone while leaving the structure intact—same role as on the fission reactor.
+A [Turbine Redstone Port](turbine_redstone_port.md) can shut the turbine down from outside redstone while leaving the structure intact—same role as a [Reactor Redstone Port](../multiblock/redstone_port.md).
 
 What you see on the controller depends on your **blade layout** and **coil blocks**; adjust those inside the turbine, not only on this screen.

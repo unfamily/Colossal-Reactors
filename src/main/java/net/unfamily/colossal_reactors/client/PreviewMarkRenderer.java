@@ -27,6 +27,10 @@ public class PreviewMarkRenderer {
         return INSTANCE;
     }
 
+    public void clearMarkers() {
+        markers.clear();
+    }
+
     public void addMarker(BlockPos pos, int color, int durationTicks) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {

@@ -9,6 +9,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbinePowerPort;
@@ -46,40 +48,26 @@ public final class TurbineSimulation {
             int rodPattern, int coilIndex, int storedCoilSetting,
             @Nullable ResourceLocation generationId) {
 
-        TurbineBuilderMetrics.Estimate plan = TurbineBuilderMetrics.fromShellSizes(
-                sizeLeft, sizeRight, sizeHeight, sizeDepth,
-                placementAxisIndex, storedCoilSetting, rodPattern, coilIndex);
-        int validBlades = TurbineBuilderMetrics.balancedBladesForSteam(plan.bladeItems());
-
-        ElecCoilDefinition coilDef = coilIndex >= 0 && coilIndex < ElecCoilLoader.getAllDefinitions().size()
-                ? ElecCoilLoader.getAllDefinitions().get(coilIndex)
-                : null;
-        double coilEff;
-        if (coilDef != null) {
-            coilEff = Math.min(coilDef.effCoe(), coilDef.effMax());
-        } else {
-            coilEff = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
-        }
-
-        double bladeEff = TurbineBladeEfficiency.computeMultiplier(plan.layerBladeCounts());
-
-        double steam = validBlades * Config.TURBINE_STEAM_MB_PER_BLADE_PER_TICK.get()
-                * Config.TURBINE_CONSUMPTION_MULTIPLIER.get();
         TurbineGenerationDefinition gen = generationForSimulation(registryAccess, generationId);
-        double rfPerMb = gen != null
-                ? TurbineGenerationLoader.rfPerSteamMb(gen.rfProduction())
-                : TurbineGenerationLoader.rfPerSteamMb(Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get());
-        double rf = steam * rfPerMb * coilEff * bladeEff * Config.TURBINE_PRODUCTION_MULTIPLIER.get();
-        rf = Math.max(rf, Config.TURBINE_MIN_RF_PER_TICK.get());
+        TurbineProductionMath.ProductionEstimate production = TurbineProductionMath.fromBuilderParams(
+                sizeLeft, sizeRight, sizeHeight, sizeDepth,
+                placementAxisIndex, rodPattern, coilIndex, storedCoilSetting, gen);
 
         if (Boolean.TRUE.equals(Config.TURBINE_SIMULATION_DEBUG.get())) {
             net.unfamily.colossal_reactors.ColossalReactors.LOGGER.info(
-                    "[TurbineSim] rodExtent={} blades={} validBlades={} steam={} rf={}",
-                    plan.rodExtent(), plan.bladeItems(), validBlades, steam, rf);
+                    "[TurbineSim] blades={} validBlades={} steam={} rf={}",
+                    production.bladeCount(), production.validBladeCount(),
+                    production.maxSteamMbPerTick(), production.estimatedRfPerTick());
         }
 
-        return new SimulationResult(plan.bladeItems(), validBlades, Math.max(1, plan.coilBlocks()),
-                steam, rf, coilEff, bladeEff);
+        return new SimulationResult(
+                production.bladeCount(),
+                production.validBladeCount(),
+                production.coilBlockCount(),
+                production.maxSteamMbPerTick(),
+                production.estimatedRfPerTick(),
+                production.coilEfficiency(),
+                production.bladeEfficiency());
     }
 
     @Nullable
@@ -126,20 +114,20 @@ public final class TurbineSimulation {
             powerPortPositions = controller.getCachedPowerPortPositions();
         }
 
-        Fluid steamFluid = resolveSteamFluid(level.registryAccess());
+        Fluid steamFluid = resolveInputSteamFluid(level.registryAccess());
+        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
+        Fluid outputFluid = TurbineGenerationLoader.getOutputFluid(gen, level.registryAccess());
+
         double steamDemand = result.maxSteamMbPerTick();
         int steamConsumed = 0;
         if (steamFluid != null && steamFluid != Fluids.EMPTY && steamDemand > 0) {
-            int remaining = (int) Math.ceil(steamDemand);
-            for (long p : resourcePortPositions) {
-                if (remaining <= 0) break;
-                if (level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port) {
-                    int drained = port.takeFluidForReactor(steamFluid, remaining);
-                    steamConsumed += drained;
-                    remaining -= drained;
-                }
+            steamConsumed = controller.consumeSteamInput(steamFluid, (int) Math.ceil(steamDemand));
+            if (steamConsumed > 0 && outputFluid != null && outputFluid != Fluids.EMPTY) {
+                controller.addOutputReturn(outputFluid, steamConsumed);
             }
         }
+
+        pushOutputReturnToFluidPorts(level, controller, resourcePortPositions);
 
         double rfScale = steamDemand > 0 ? Math.min(1.0, steamConsumed / steamDemand) : 0.0;
         long rfTarget = (long) Math.min(Long.MAX_VALUE, result.estimatedRfPerTick() * rfScale);
@@ -159,8 +147,36 @@ public final class TurbineSimulation {
         controller.setRuntimeStats(rfPushed, steamConsumed, rfPushed > 0);
     }
 
+    /** Pushes {@code output} fluid from generation JSON (e.g. water) to EXTRACT or EJECT resource ports. */
+    private static void pushOutputReturnToFluidPorts(
+            ServerLevel level,
+            TurbineControllerBlockEntity controller,
+            long[] resourcePortPositions) {
+        for (var entry : controller.getOutputReturnEntries()) {
+            if (entry.mb() <= 0) continue;
+            Fluid fluid = BuiltInRegistries.FLUID.get(entry.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY) continue;
+            int remaining = entry.mb();
+            int consumed = controller.consumeOutputReturn(fluid, remaining);
+            if (consumed <= 0) continue;
+            remaining = consumed;
+            for (long p : resourcePortPositions) {
+                if (remaining <= 0) break;
+                if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) continue;
+                PortMode mode = port.getPortMode();
+                if (mode != PortMode.EXTRACT && mode != PortMode.EJECT) continue;
+                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
+                remaining -= filled;
+            }
+            if (remaining > 0) {
+                controller.addOutputReturn(fluid, remaining);
+            }
+        }
+    }
+
+    /** Steam input fluid from default generation datapack {@code inputs}. */
     @Nullable
-    private static Fluid resolveSteamFluid(RegistryAccess registryAccess) {
+    public static Fluid resolveInputSteamFluid(RegistryAccess registryAccess) {
         TurbineGenerationDefinition def = TurbineGenerationLoader.getDefault();
         if (def == null || def.inputs().isEmpty()) {
             return TurbineGenerationLoader.getFirstFluidFromTag("#c:steam", registryAccess);
@@ -182,5 +198,54 @@ public final class TurbineSimulation {
             }
         }
         return TurbineGenerationLoader.getFirstFluidFromTag("#c:steam", registryAccess);
+    }
+
+    /** When turbine turns OFF, push any buffered steam/output to EJECT ports. */
+    public static void flushFluidBuffersToEject(ServerLevel level, TurbineControllerBlockEntity controller) {
+        long[] resourcePortPositions = controller.getCachedResourcePortPositions();
+        if (resourcePortPositions.length == 0 && controller.getCachedResult().valid()) {
+            controller.rebuildPartCaches(level, controller.getCachedResult());
+            resourcePortPositions = controller.getCachedResourcePortPositions();
+        }
+        Fluid steamFluid = resolveInputSteamFluid(level.registryAccess());
+        if (steamFluid != null && steamFluid != Fluids.EMPTY) {
+            pushFluidBufferToEject(level, controller, resourcePortPositions, steamFluid, true);
+        }
+        for (var entry : controller.getOutputReturnEntries()) {
+            if (entry.mb() <= 0) continue;
+            Fluid fluid = BuiltInRegistries.FLUID.get(entry.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY) continue;
+            pushFluidBufferToEject(level, controller, resourcePortPositions, fluid, false);
+        }
+    }
+
+    private static void pushFluidBufferToEject(
+            ServerLevel level,
+            TurbineControllerBlockEntity controller,
+            long[] resourcePortPositions,
+            Fluid fluid,
+            boolean steamInput) {
+        int total = steamInput ? controller.getTotalSteamInputMb() : controller.getTotalOutputReturnMb();
+        if (total <= 0) return;
+        int remaining = steamInput
+                ? controller.consumeSteamInput(fluid, total)
+                : controller.consumeOutputReturn(fluid, total);
+        while (remaining > 0) {
+            int moved = 0;
+            for (long p : resourcePortPositions) {
+                if (remaining <= 0) break;
+                if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) continue;
+                PortMode mode = port.getPortMode();
+                if (mode != PortMode.EXTRACT && mode != PortMode.EJECT) continue;
+                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
+                remaining -= filled;
+                moved += filled;
+            }
+            if (moved <= 0) {
+                if (steamInput) controller.addSteamInput(fluid, remaining);
+                else controller.addOutputReturn(fluid, remaining);
+                break;
+            }
+        }
     }
 }

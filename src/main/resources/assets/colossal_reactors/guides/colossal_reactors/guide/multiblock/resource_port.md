@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: multiblock/multiblock-index.md
-  title: Resource Port
+  title: Reactor Resource Port
   icon: resource_port
   position: 35
 item_ids:
@@ -10,11 +10,11 @@ categories:
   - ports
 ---
 
-# Resource Port
+# Reactor Resource Port
 
 <BlockImage id="resource_port" scale="4" />
 
-Attach a **Resource Port** to the reactor casing to move items and/or fluids between the outside world and the reactor’s internal buffers.
+Attach a **Reactor Resource Port** to the reactor casing to move items and/or fluids between the outside world and the reactor’s internal buffers.
 
 ## Features
 

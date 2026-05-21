@@ -283,7 +283,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     @Override
     public Component getDisplayName() {
-        return Component.translatable("block.colossal_reactors.resource_port");
+        return Component.translatable("gui.colossal_reactors.resource_port.title");
     }
 
     @Nullable

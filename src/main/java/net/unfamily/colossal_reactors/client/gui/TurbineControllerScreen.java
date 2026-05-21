@@ -7,6 +7,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
+import net.unfamily.colossal_reactors.block.TurbineVisualState;
 import net.unfamily.colossal_reactors.menu.TurbineControllerMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
@@ -21,7 +22,6 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
     private static final int PANEL_X = 16;
     private static final int PANEL_Y = GuiPanelScrollbar.TEXT_TOP;
     private static final int LINE_HEIGHT = 12;
-    private static final int TEXT_COLOR = 0xFFFFFF;
     private static final int PANEL_TEXT_WIDTH = GuiPanelScrollbar.TEXT_RIGHT - PANEL_X;
 
     private static final int CLOSE_BUTTON_X = ReactorControllerGui.closeButtonX(GUI_WIDTH);
@@ -80,41 +80,7 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
         int y = PANEL_Y - scrollOffset;
         int contentStart = y;
 
-        if (menu.isValid()) {
-            ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y,
-                    Component.translatable("gui.colossal_reactors.turbine_controller.valid"), null);
-            y += LINE_HEIGHT;
-
-            guiGraphics.drawString(font,
-                    Component.translatable("gui.colossal_reactors.turbine_controller.blades_valid",
-                            GuiNumberFormat.format(menu.getBladeCount())),
-                    PANEL_X, y, TEXT_COLOR, false);
-            y += LINE_HEIGHT;
-
-            guiGraphics.drawString(font,
-                    Component.translatable("gui.colossal_reactors.turbine_controller.energy_runtime",
-                            GuiNumberFormat.format(menu.getRfPerTick())),
-                    PANEL_X, y, TEXT_COLOR, false);
-            y += LINE_HEIGHT;
-
-            guiGraphics.drawString(font,
-                    Component.translatable("gui.colossal_reactors.turbine_controller.steam_runtime",
-                            GuiNumberFormat.format(menu.getSteamPerTick())),
-                    PANEL_X, y, TEXT_COLOR, false);
-            y += LINE_HEIGHT;
-
-            guiGraphics.drawString(font,
-                    Component.translatable("jei.colossal_reactors.elec_coil.eff_coe",
-                            String.format("%.2f", menu.getCoilEff())),
-                    PANEL_X, y, TEXT_COLOR, false);
-            y += LINE_HEIGHT;
-
-            guiGraphics.drawString(font,
-                    Component.translatable("jei.colossal_reactors.elec_coil.eff_max",
-                            String.format("%.2f", menu.getBladeEff())),
-                    PANEL_X, y, TEXT_COLOR, false);
-            y += LINE_HEIGHT;
-        } else {
+        if (!menu.isValid()) {
             ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y,
                     Component.translatable("gui.colossal_reactors.turbine_controller.invalid"), null);
             y += LINE_HEIGHT;
@@ -124,7 +90,48 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
                 guiGraphics.drawString(font, line, PANEL_X, y, 0xFF5555, false);
                 y += LINE_HEIGHT;
             }
+            return y - contentStart;
         }
+
+        int visualId = menu.getVisualStateId();
+        boolean effectivelyOff = visualId == TurbineVisualState.ON.ordinal()
+                && menu.hasRedstonePort()
+                && !menu.isRedstoneGateSatisfied();
+        Component statusKey = switch (visualId) {
+            case 0 -> Component.translatable("gui.colossal_reactors.reactor_controller.status.off");
+            case 1 -> Component.translatable("gui.colossal_reactors.reactor_controller.status.validating");
+            default -> effectivelyOff
+                    ? Component.translatable("gui.colossal_reactors.reactor_controller.status.off")
+                    : Component.translatable("gui.colossal_reactors.reactor_controller.status.on");
+        };
+        Component trailing = !menu.hasRedstonePort()
+                ? Component.literal(" ").append(Component.translatable(
+                "gui.colossal_reactors.turbine_controller.status.requires_redstone_port"))
+                : null;
+        ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y, statusKey, trailing);
+        y += LINE_HEIGHT;
+
+        boolean turbineRunning = visualId == TurbineVisualState.ON.ordinal() && !effectivelyOff;
+        long rfPerTick = turbineRunning ? menu.getRfPerTick() : 0L;
+        int steamPerTick = turbineRunning ? menu.getSteamPerTick() : 0;
+        double bladeEff = turbineRunning ? menu.getBladeEff() : 0.0;
+
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.blades_valid.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.blades_valid.value",
+                        GuiNumberFormat.format(menu.getBladeCount())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.energy_runtime.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.energy_runtime.value",
+                        GuiNumberFormat.format(rfPerTick)));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.steam_runtime.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.steam_runtime.value",
+                        GuiNumberFormat.format(steamPerTick)));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.efficiency.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.efficiency.value",
+                        String.format("%.2f", bladeEff)));
 
         return y - contentStart;
     }

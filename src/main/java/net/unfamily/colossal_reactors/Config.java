@@ -371,8 +371,8 @@ public class Config {
             .comment("Minimum RF/t produced by any running turbine. Default: 0")
             .defineInRange("101b_minRfPerTick", 0.0, 0.0, Double.MAX_VALUE);
     public static final ModConfigSpec.DoubleValue TURBINE_DEFAULT_RF_PER_STEAM_BUCKET = BUILDER
-            .comment("Fallback RF per bucket (1000 mB) steam when datapack entry is missing. Default: 7000")
-            .defineInRange("000_defaultRfPerSteamBucket", 7000.0, 0.0, Double.MAX_VALUE);
+            .comment("Fallback RF per bucket (1000 mB) steam when datapack entry is missing. Default: 4000 (= 4 RF/mB)")
+            .defineInRange("000_defaultRfPerSteamBucket", 4000.0, 0.0, Double.MAX_VALUE);
     public static final ModConfigSpec.IntValue TURBINE_DEFAULT_COIL_LAYER_COUNT = BUILDER
             .comment("Default coil-layer setting in turbine builder (GUI shows this + 1). Default: 1 (= 2 layers in GUI)")
             .defineInRange("001_defaultCoilLayerCount", 1, 0, 32);
@@ -391,9 +391,6 @@ public class Config {
     public static final ModConfigSpec.DoubleValue TURBINE_CONSUMPTION_MULTIPLIER = BUILDER
             .comment("Consumption multiplier for turbine steam input. Default: 1")
             .defineInRange("001_consumptionMultiplier", 1.0, 0.0, 100.0);
-    public static final ModConfigSpec.DoubleValue TURBINE_STEAM_MB_PER_BLADE_PER_TICK = BUILDER
-            .comment("Max mB steam per tick per valid balanced blade. Default: 1000")
-            .defineInRange("010_steamMbPerBladePerTick", 1000.0, 1.0, Double.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -402,6 +399,10 @@ public class Config {
     static {
         BUILDER.comment("Balanced blade rings on turbine rods").push("blade");
     }
+
+    public static final ModConfigSpec.DoubleValue TURBINE_STEAM_MB_PER_BLADE_PER_TICK = BUILDER
+            .comment("Max mB steam per tick counted per valid balanced blade. Default: 250")
+            .defineInRange("004_steamMbPerBladePerTick", 250.0, 1.0, Double.MAX_VALUE);
 
     public static final ModConfigSpec.IntValue MAX_TURBINE_BLADE_RING = BUILDER
             .comment("Maximum blade distance from a turbine rod in blocks (ring index). Each complete ring adds four blades.",
@@ -414,7 +415,7 @@ public class Config {
             .comment("Blade efficiency malus per descending layer after bonus break. Default: 0.03")
             .defineInRange("002_efficiencyMalusPerDescendingLayer", 0.03, 0.0, 1.0);
     public static final ModConfigSpec.BooleanValue TURBINE_REQUIRE_BALANCED_BLADE_RINGS = BUILDER
-            .comment("Require complete blade rings (4, 8, 12...) for steam cap counting. Default: true")
+            .comment("Require balanced blade rings (4, 8, 12... per rod) for runtime validation and steam cap. Default: true")
             .define("003_requireBalancedBladeRings", true);
 
     static {

@@ -33,4 +33,30 @@ public final class ReactorPanelText {
         }
         return xAfter;
     }
+
+    /** Metric row: yellow {@code label}, white {@code value} (e.g. "Blades:" + " 12 valid"). */
+    public static int drawMetricLine(
+            GuiGraphics graphics,
+            Font font,
+            int x,
+            int y,
+            Component label,
+            Component value) {
+        graphics.drawString(font, label, x, y, GuiTextColors.PANEL_YELLOW_LIGHT, false);
+        int xAfter = x + font.width(label);
+        graphics.drawString(font, value, xAfter, y, GuiTextColors.PANEL_WHITE, false);
+        return xAfter + font.width(value);
+    }
+
+    public static int drawMetricRow(
+            GuiGraphics graphics,
+            Font font,
+            int x,
+            int y,
+            int lineHeight,
+            String labelKey,
+            Component value) {
+        drawMetricLine(graphics, font, x, y, Component.translatable(labelKey), value);
+        return y + lineHeight;
+    }
 }

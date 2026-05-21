@@ -32,6 +32,7 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderCoilPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
+import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
 import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
@@ -102,15 +103,14 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private static final int BUTTON_LEFT_X = GROUP_LEFT_X;
     private static final int BUTTON_DOWN_X = GROUP_LEFT_X + BUTTON_W + GAP;
     private static final int BUTTON_RIGHT_X = GROUP_LEFT_X + 2 * (BUTTON_W + GAP);
-    /** Preview button below the 4 arrows, centered with arrow group. */
+    /** Preview / Mark Input: full arrow-group width (unchanged). */
     private static final int PREVIEW_BUTTON_Y = ROW2_Y + BUTTON_H + GAP;
     private static final int PREVIEW_BUTTON_W = ARROW_GROUP_WIDTH;
     private static final int PREVIEW_BUTTON_X = GROUP_LEFT_X;
     private static final int MARK_INPUT_BUTTON_Y = PREVIEW_BUTTON_Y + BUTTON_H + GAP;
 
     /**
-     * 6 buttons: 3 cols x 2 rows (Coil, Pattern, Placement axis, OpenTop, Simulation, Build/Stop).
-     * Same Y alignment as {@link ReactorBuilderScreen}: row 0 with up arrow, row 1 with Mark Input.
+     * 6 buttons: 3 cols x 2 rows (Coil type, Pattern, Placement axis, OpenTop, Simulation, Build/Stop).
      */
     private static final int RIGHT_EDGE_INSET = 12;
     private static final int RIGHT_BUTTON_W = 42;
@@ -120,15 +120,26 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private static final int RIGHT_COL1_X = RIGHT_BLOCK_X + RIGHT_BUTTON_W + GAP;
     private static final int RIGHT_COL2_X = RIGHT_BLOCK_X + 2 * (RIGHT_BUTTON_W + GAP);
     private static final int RIGHT_ROW0_Y = ROW1_Y;
-    private static int warningYAlignedToPreview(int lineHeight) {
-        return PREVIEW_BUTTON_Y + (BUTTON_H - lineHeight) / 2;
-    }
     private static final int RIGHT_ROW1_Y = MARK_INPUT_BUTTON_Y;
+    /** Beside Preview (same row); width matches Closed + Simulation on the right block. */
+    private static final int COIL_LAYERS_BUTTON_X = PREVIEW_BUTTON_X + PREVIEW_BUTTON_W + GAP;
+    private static final int COIL_LAYERS_BUTTON_Y = PREVIEW_BUTTON_Y;
+    private static final int COIL_LAYERS_BUTTON_W = RIGHT_COL1_X + RIGHT_BUTTON_W - RIGHT_COL0_X;
     private static final int WARNING_RIGHT_X = RIGHT_BLOCK_X;
-    /** Coil layer count: below placement-axis; spans col 1–2 (build % is digits-only at {@link #WARNING_RIGHT_X}). */
-    private static final int COIL_LAYERS_BUTTON_X = RIGHT_COL1_X;
-    private static final int COIL_LAYERS_BUTTON_W = RIGHT_COL2_X + RIGHT_BUTTON_W - RIGHT_COL1_X;
-    private static final int COIL_LAYERS_BUTTON_Y = RIGHT_ROW0_Y + RIGHT_BUTTON_H + GAP;
+    private static final int BUILD_BUTTON_COL_X = RIGHT_COL2_X;
+
+    private int buildPercentTextX(Component percentText) {
+        return BUILD_BUTTON_COL_X + (RIGHT_BUTTON_W - font.width(percentText)) / 2;
+    }
+
+    private static int buildPercentTextY(int lineHeight) {
+        return RIGHT_ROW1_Y - lineHeight - GAP;
+    }
+
+    /** Former build % Y (bottom of arrow row), after vertical swap with invalid-blocks warning. */
+    private static int buildInvalidBlocksTextY(int lineHeight) {
+        return ROW2_Y + BUTTON_H - lineHeight;
+    }
 
     /** Simulation view panel (same layout as reactor controller). */
     private static final int SIM_PANEL_X = 16;
@@ -173,6 +184,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
+    private boolean previewActive;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block: 0=Coil, 1=Pattern, 2=Placement axis, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -221,10 +233,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         addRenderableWidget(buttonRight);
 
         // Preview below the 4 arrows, centered with arrow group
-        buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.turbine_builder.preview"), b -> {
-            if (menu.getBlockEntity() != null)
-                PacketDistributor.sendToServer(new TurbinePreviewPayload(menu.getBlockPos()));
-        })
+        buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.turbine_builder.preview"), b -> togglePreview())
                 .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
                 .build();
         buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip")));
@@ -684,36 +693,22 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
 
         TurbineSimulation.SimulationResult result = getSimulationResult();
 
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.blades_if_built",
-                        GuiNumberFormat.format(result.validBladeCount())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.coil_blocks",
-                        GuiNumberFormat.format(result.coilBlockCount())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.energy_cap",
-                        GuiNumberFormat.format(result.rfPerTick())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.steam_cap",
-                        GuiNumberFormat.format(result.steamMbPerTick())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("jei.colossal_reactors.elec_coil.eff_coe",
-                        String.format("%.2f", result.coilEfficiency())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("jei.colossal_reactors.elec_coil.eff_max",
-                        String.format("%.2f", result.bladeEfficiency())),
-                textX, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.blades_valid.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.blades_valid.value",
+                        GuiNumberFormat.format(result.validBladeCount())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.energy_runtime.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.energy_runtime.value",
+                        GuiNumberFormat.format(result.rfPerTick())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.steam_runtime.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.steam_runtime.value",
+                        GuiNumberFormat.format(result.steamMbPerTick())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.efficiency.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.efficiency.value",
+                        String.format("%.2f", result.bladeEfficiency())));
         return y;
     }
 
@@ -726,45 +721,45 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     }
 
     private int renderMaterialCounts(GuiGraphics guiGraphics, int y) {
+        int textX = leftPos + SIM_PANEL_X;
         TurbineBuildMaterialCounter.BuildMaterialCounts counts = getMaterialCounts();
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.frame_casings", counts.frameCasings()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.face_casings", counts.faceCasings()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.closure_deck", counts.closureDeckCasings()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.rods", counts.rods()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.rod_controllers", counts.rodControllers()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.blades", counts.blades()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
-        y += SIM_LINE_HEIGHT;
-        guiGraphics.drawString(font,
-                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.coils", counts.coilBlocks()),
-                leftPos + SIM_PANEL_X, y, SIM_TEXT_COLOR, false);
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.frame_casings.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.frame_casings.value",
+                        GuiNumberFormat.format(counts.frameCasings())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.face_casings.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.face_casings.value",
+                        GuiNumberFormat.format(counts.faceCasings())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.closure_deck.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.closure_deck.value",
+                        GuiNumberFormat.format(counts.closureDeckCasings())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.rods.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.rods.value",
+                        GuiNumberFormat.format(counts.rods())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.rod_controllers.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.rod_controllers.value",
+                        GuiNumberFormat.format(counts.rodControllers())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.blades.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.blades.value",
+                        GuiNumberFormat.format(counts.blades())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.calculate.coils.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.calculate.coils.value",
+                        GuiNumberFormat.format(counts.coilBlocks())));
         return y;
     }
 
     private TurbineBuildMaterialCounter.BuildMaterialCounts getMaterialCounts() {
-        int sizeLeft = menu.getSizeRight();
-        int sizeRight = menu.getSizeLeft();
+        var p = builderSimParams();
         return TurbineBuildMaterialCounter.estimate(
                 minecraft != null && minecraft.level != null ? minecraft.level.registryAccess() : net.minecraft.core.RegistryAccess.EMPTY,
-                sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
-                menu.getPlacementAxisOrdinal(),
-                menu.getRodPattern(), menu.getSelectedCoilIndex(), menu.getCoilLayerCount(), menu.isOpenTop());
+                p.sizeLeft(), p.sizeRight(), p.sizeHeight(), p.sizeDepth(),
+                p.placementAxisOrdinal(), p.rodPattern(), p.coilIndex(), p.coilLayerCount(), p.openTop());
     }
 
     @Nullable
@@ -779,15 +774,32 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         if (minecraft == null || minecraft.level == null) {
             return new TurbineSimulation.SimulationResult(0, 0, 0, 0, 0, 1, 1);
         }
-        var ra = minecraft.level.registryAccess();
-        int sizeLeft = menu.getSizeRight();
-        int sizeRight = menu.getSizeLeft();
-        return TurbineBuilderSimulation.run(ra,
-                sizeLeft, sizeRight, menu.getSizeH(), menu.getSizeD(),
-                menu.getPlacementAxisOrdinal(),
-                menu.getRodPattern(), menu.getSelectedCoilIndex(), menu.getCoilLayerCount(),
+        var p = builderSimParams();
+        return TurbineBuilderSimulation.run(minecraft.level.registryAccess(),
+                p.sizeLeft(), p.sizeRight(), p.sizeHeight(), p.sizeDepth(),
+                p.placementAxisOrdinal(), p.rodPattern(), p.coilIndex(), p.coilLayerCount(),
                 getSelectedGenerationId());
     }
+
+    /** Same size/coil/pattern fields as {@link net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity} build. */
+    private BuilderSimParams builderSimParams() {
+        var be = menu.getBlockEntity();
+        if (be != null) {
+            return new BuilderSimParams(
+                    be.getSizeLeft(), be.getSizeRight(), be.getSizeHeight(), be.getSizeDepth(),
+                    be.getPlacementAxisIndex(), be.getRodPattern(), be.getSelectedCoilIndex(),
+                    be.getCoilLayerCount(), be.isOpenTop());
+        }
+        // Menu L/R getters are swapped vs block entity field names; match BE layout when BE is unavailable.
+        return new BuilderSimParams(
+                menu.getSizeRight(), menu.getSizeLeft(), menu.getSizeH(), menu.getSizeD(),
+                menu.getPlacementAxisOrdinal(), menu.getRodPattern(), menu.getSelectedCoilIndex(),
+                menu.getCoilLayerCount(), menu.isOpenTop());
+    }
+
+    private record BuilderSimParams(
+            int sizeLeft, int sizeRight, int sizeHeight, int sizeDepth,
+            int placementAxisOrdinal, int rodPattern, int coilIndex, int coilLayerCount, boolean openTop) {}
 
     private static String formatFuelPerTickSim(int hundredths) {
         if (hundredths <= 0) return "0";
@@ -822,20 +834,20 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
         guiGraphics.drawString(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
 
-        // Build progress (aligned with bottom of row-2 arrows). Warning on separate line at former row-1 Y.
-        int buildingTextY = ROW2_Y + BUTTON_H - font.lineHeight;
         if (menu.isBuildProgressVisible()) {
             int percent = menu.getBuildProgressPercent();
             float t = Math.max(0, Math.min(100, percent)) / 100f;
             int r = (int) (255 * (1f - t));
             int g = (int) (255 * t);
             int progressColor = 0xFF000000 | (r << 16) | (g << 8);
-            guiGraphics.drawString(font, Component.literal(percent + "%"), WARNING_RIGHT_X, buildingTextY, progressColor, false);
+            Component percentText = Component.literal(percent + "%");
+            guiGraphics.drawString(font, percentText, buildPercentTextX(percentText),
+                    buildPercentTextY(font.lineHeight), progressColor, false);
         }
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.drawString(font,
                     Component.translatable("gui.colossal_reactors.turbine_builder.warning.invalid_blocks"),
-                    WARNING_RIGHT_X, warningYAlignedToPreview(font.lineHeight), 0xFF0000, false);
+                    WARNING_RIGHT_X, buildInvalidBlocksTextY(font.lineHeight), 0xFF0000, false);
         }
     }
 
@@ -919,6 +931,26 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void togglePreview() {
+        if (previewActive) {
+            PreviewMarkRenderer.getInstance().clearMarkers();
+            previewActive = false;
+        } else if (menu.getBlockEntity() != null) {
+            PacketDistributor.sendToServer(new TurbinePreviewPayload(menu.getBlockPos()));
+            previewActive = true;
+        }
+        updatePreviewButtonLabel();
+    }
+
+    private void updatePreviewButtonLabel() {
+        if (buttonPreview != null) {
+            buttonPreview.setMessage(Component.translatable(
+                    previewActive
+                            ? "gui.colossal_reactors.turbine_builder.preview.hide"
+                            : "gui.colossal_reactors.turbine_builder.preview"));
+        }
     }
 
     @Override

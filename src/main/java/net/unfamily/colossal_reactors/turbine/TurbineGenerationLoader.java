@@ -138,6 +138,24 @@ public final class TurbineGenerationLoader {
         return new HashMap<>(DEFINITIONS);
     }
 
+    /** Output fluid from {@code output} field: fluid id or {@code #tag}. */
+    @Nullable
+    public static Fluid getOutputFluid(@Nullable TurbineGenerationDefinition def, RegistryAccess registryAccess) {
+        if (def == null || def.output() == null || def.output().isBlank()) {
+            return null;
+        }
+        String output = def.output().trim();
+        if (output.startsWith("#")) {
+            return getFirstFluidFromTag(output, registryAccess);
+        }
+        ResourceLocation id = ResourceLocation.tryParse(output);
+        if (id == null) {
+            return null;
+        }
+        Fluid fluid = BuiltInRegistries.FLUID.get(id);
+        return fluid != null && fluid != Fluids.EMPTY ? fluid : null;
+    }
+
     @Nullable
     public static Fluid getFirstFluidFromTag(String selector, RegistryAccess registryAccess) {
         if (selector == null || !selector.startsWith("#")) return null;

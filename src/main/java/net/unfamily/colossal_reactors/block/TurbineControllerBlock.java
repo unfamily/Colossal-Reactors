@@ -136,6 +136,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
                 result = TurbineValidation.validateWithRodAlignment(level, startPos, into, -1);
                 if (!result.valid()) {
                     controllerBe.setCachedResult(result);
+                    TurbineSimulation.flushFluidBuffersToEject(level, controllerBe);
                     level.setBlock(pos, state.setValue(VISUAL, TurbineVisualState.OFF), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS);
                     controllerBe.setChanged();
                     return;

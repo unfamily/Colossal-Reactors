@@ -2,7 +2,13 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -17,19 +23,29 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.unfamily.colossal_reactors.block.TurbineVisualState;
 import net.unfamily.colossal_reactors.menu.TurbineControllerMenu;
+import net.unfamily.colossal_reactors.turbine.TurbineFiller;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.turbine.TurbineSimulation;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Turbine controller: caches validation and runtime stats for GUI.
  */
 public class TurbineControllerBlockEntity extends BlockEntity implements MenuProvider {
+
+    private static final String TAG_STEAM_BUFFER = "SteamBuffer";
+    private static final String TAG_OUTPUT_BUFFER = "OutputBuffer";
+    private static final String TAG_FLUID_ID = "FluidId";
+    private static final String TAG_MB = "Mb";
+
+    public record FluidBufferEntry(ResourceLocation fluidId, int mb) {}
 
     private TurbineValidation.Result cachedResult = TurbineValidation.Result.invalid();
     private long[] cachedPowerPortPositions = new long[0];
@@ -42,6 +58,13 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     private double lastBladeEff;
     @Nullable
     private Player lastInteractingPlayer;
+
+    /** Steam waiting to be consumed (one tick of demand). */
+    private final List<FluidBufferEntry> steamInputEntries = new ArrayList<>();
+    /** Condensate / output fluid from datapack {@code output} (one tick, returned via EJECT). */
+    private final List<FluidBufferEntry> outputReturnEntries = new ArrayList<>();
+    private int cachedSteamConsumeMbPerTick = 1;
+    private boolean cachedOutputReturnBuffer;
 
     public TurbineControllerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TURBINE_CONTROLLER_BE.get(), pos, state);
@@ -64,6 +87,160 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     public void setCachedResult(TurbineValidation.Result result) {
         this.cachedResult = result != null ? result : TurbineValidation.Result.invalid();
         setChanged();
+    }
+
+    public int getCachedSteamConsumeMbPerTick() {
+        return Math.max(1, cachedSteamConsumeMbPerTick);
+    }
+
+    public int getSteamInputCapacityMb() {
+        return getCachedSteamConsumeMbPerTick();
+    }
+
+    /** Second half of double buffer: recycled output fluid (e.g. water from steam). */
+    public int getOutputReturnCapacityMb() {
+        return cachedOutputReturnBuffer ? getCachedSteamConsumeMbPerTick() : 0;
+    }
+
+    public int getTotalFluidBufferCapacityMb() {
+        return getSteamInputCapacityMb() + getOutputReturnCapacityMb();
+    }
+
+    public int getTotalSteamInputMb() {
+        return totalMbInList(steamInputEntries);
+    }
+
+    public int getTotalOutputReturnMb() {
+        return totalMbInList(outputReturnEntries);
+    }
+
+    public int addSteamInput(Fluid fluid, int amountMb) {
+        return addFluidToList(steamInputEntries, getSteamInputCapacityMb(), fluid, amountMb);
+    }
+
+    public int consumeSteamInput(Fluid fluid, int amountMb) {
+        return consumeFluidFromList(steamInputEntries, fluid, amountMb);
+    }
+
+    public int addOutputReturn(Fluid fluid, int amountMb) {
+        if (!cachedOutputReturnBuffer) return 0;
+        return addFluidToList(outputReturnEntries, getOutputReturnCapacityMb(), fluid, amountMb);
+    }
+
+    public int consumeOutputReturn(Fluid fluid, int amountMb) {
+        return consumeFluidFromList(outputReturnEntries, fluid, amountMb);
+    }
+
+    public List<FluidBufferEntry> getOutputReturnEntries() {
+        return List.copyOf(outputReturnEntries);
+    }
+
+    /** Sizes steam/output buffers from validated steam cap and active generation {@code output}. */
+    public void updateFluidBufferCapacities(ServerLevel level, TurbineValidation.Result result) {
+        if (result == null || !result.valid()) {
+            cachedSteamConsumeMbPerTick = 1;
+            cachedOutputReturnBuffer = false;
+            return;
+        }
+        cachedSteamConsumeMbPerTick = Math.max(1, (int) Math.ceil(result.maxSteamMbPerTick()));
+        var gen = TurbineGenerationLoader.getDefault();
+        Fluid outputFluid = TurbineGenerationLoader.getOutputFluid(gen, level.registryAccess());
+        cachedOutputReturnBuffer = outputFluid != null && outputFluid != Fluids.EMPTY;
+        clampFluidBuffers();
+    }
+
+    private void clampFluidBuffers() {
+        clampFluidListToCapacity(steamInputEntries, getSteamInputCapacityMb());
+        clampFluidListToCapacity(outputReturnEntries, getOutputReturnCapacityMb());
+    }
+
+    private static int totalMbInList(List<FluidBufferEntry> list) {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, list.stream().mapToLong(FluidBufferEntry::mb).sum()));
+    }
+
+    private int addFluidToList(List<FluidBufferEntry> list, int maxTotalMb, Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY || maxTotalMb <= 0) return 0;
+        ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        int total = totalMbInList(list);
+        int add = Math.min(amountMb, Math.max(0, maxTotalMb - total));
+        if (add <= 0) return 0;
+        for (int i = 0; i < list.size(); i++) {
+            FluidBufferEntry e = list.get(i);
+            if (id.equals(e.fluidId())) {
+                list.set(i, new FluidBufferEntry(id, e.mb() + add));
+                setChanged();
+                return add;
+            }
+        }
+        list.add(new FluidBufferEntry(id, add));
+        setChanged();
+        return add;
+    }
+
+    private int consumeFluidFromList(List<FluidBufferEntry> list, Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        int remaining = amountMb;
+        int consumed = 0;
+        for (int i = 0; i < list.size() && remaining > 0; i++) {
+            FluidBufferEntry e = list.get(i);
+            if (!id.equals(e.fluidId())) continue;
+            int take = Math.min(remaining, Math.max(0, e.mb()));
+            if (take <= 0) continue;
+            int left = e.mb() - take;
+            consumed += take;
+            remaining -= take;
+            if (left <= 0) {
+                list.remove(i);
+                i--;
+            } else {
+                list.set(i, new FluidBufferEntry(id, left));
+            }
+        }
+        if (consumed > 0) setChanged();
+        return consumed;
+    }
+
+    private void clampFluidListToCapacity(List<FluidBufferEntry> list, int maxTotalMb) {
+        int excess = totalMbInList(list) - maxTotalMb;
+        if (excess <= 0) return;
+        for (int i = list.size() - 1; i >= 0 && excess > 0; i--) {
+            FluidBufferEntry e = list.get(i);
+            int take = Math.min(e.mb(), excess);
+            int left = e.mb() - take;
+            excess -= take;
+            if (left <= 0) list.remove(i);
+            else list.set(i, new FluidBufferEntry(e.fluidId(), left));
+        }
+        setChanged();
+    }
+
+    private static void saveFluidList(CompoundTag tag, String key, List<FluidBufferEntry> list) {
+        ListTag fluidList = new ListTag();
+        for (FluidBufferEntry e : list) {
+            if (e.mb() <= 0) continue;
+            CompoundTag c = new CompoundTag();
+            c.putString(TAG_FLUID_ID, e.fluidId().toString());
+            c.putInt(TAG_MB, e.mb());
+            fluidList.add(c);
+        }
+        if (!fluidList.isEmpty()) {
+            tag.put(key, fluidList);
+        }
+    }
+
+    private static void loadFluidList(CompoundTag tag, String key, List<FluidBufferEntry> list) {
+        list.clear();
+        if (!tag.contains(key, Tag.TAG_LIST)) return;
+        ListTag fluidList = tag.getList(key, Tag.TAG_COMPOUND);
+        for (int i = 0; i < fluidList.size(); i++) {
+            CompoundTag c = fluidList.getCompound(i);
+            ResourceLocation id = ResourceLocation.tryParse(c.getString(TAG_FLUID_ID));
+            int mb = c.getInt(TAG_MB);
+            if (id != null && mb > 0) list.add(new FluidBufferEntry(id, mb));
+        }
     }
 
     /** Called from block tick when VALIDATING -> ON/OFF; shows message in action bar. */
@@ -140,6 +317,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             setRuntimeStats(0, 0, false);
             return;
         }
+        updateFluidBufferCapacities(level, cachedResult);
+        TurbineFiller.tickFill(level, this);
         TurbineSimulation.tick(level, this);
         lastCoilEff = cachedResult.coilEfficiency();
         lastBladeEff = cachedResult.bladeEfficiency();
@@ -180,6 +359,10 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             tag.putDouble("val_steamCap", cachedResult.maxSteamMbPerTick());
             tag.putDouble("val_rfEst", cachedResult.estimatedRfPerTick());
         }
+        tag.putInt("SteamConsumeMb", cachedSteamConsumeMbPerTick);
+        tag.putBoolean("OutputReturnBuf", cachedOutputReturnBuffer);
+        saveFluidList(tag, TAG_STEAM_BUFFER, steamInputEntries);
+        saveFluidList(tag, TAG_OUTPUT_BUFFER, outputReturnEntries);
     }
 
     @Override
@@ -215,6 +398,18 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
                     tag.getDouble("val_rfEst"));
         } else {
             cachedResult = TurbineValidation.Result.invalid();
+        }
+        if (tag.contains("SteamConsumeMb")) {
+            cachedSteamConsumeMbPerTick = Math.max(1, tag.getInt("SteamConsumeMb"));
+        }
+        cachedOutputReturnBuffer = tag.getBoolean("OutputReturnBuf");
+        loadFluidList(tag, TAG_STEAM_BUFFER, steamInputEntries);
+        loadFluidList(tag, TAG_OUTPUT_BUFFER, outputReturnEntries);
+        if (level instanceof ServerLevel sl) {
+            clampFluidBuffers();
+            if (cachedResult.valid()) {
+                updateFluidBufferCapacities(sl, cachedResult);
+            }
         }
     }
 

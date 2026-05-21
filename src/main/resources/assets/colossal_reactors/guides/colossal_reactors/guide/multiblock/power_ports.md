@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: multiblock/multiblock-index.md
-  title: Power Ports
+  title: Reactor Power Ports
   icon: power_port
   position: 36
 item_ids:
@@ -11,28 +11,24 @@ categories:
   - ports
 ---
 
-# Power Ports
+# Reactor Power Ports
 
 <Row gap="16" fullWidth={true}>
   <BlockImage id="power_port" scale="4" />
   <BlockImage id="high_cond_power_port" scale="4" />
 </Row>
 
-Power ports are **face-only** attachments: they forward generated energy from the reactor to cables, ducts, or machines on the **outside**. There is **no screen**—you wire things up and read energy flow from your network or connected machines.
+**Reactor power ports** are **face-only** attachments: they send energy from the reactor to cables, ducts, or machines on the **outside**. There is **no screen**—wire the outside face and read flow from your energy network.
 
-## Power Port
+## Reactor Power Port
 
-The standard **Power Port** uses `int` buffer and transfer limits (Forge FE), suitable for most modpacks.
+The standard **Reactor Power Port** is enough for most modpacks and typical RF rates.
 
-## High Conduction Power Port
+## Reactor High Conduction Power Port
 
-The **High Conduction Power Port** is the upgraded variant for very large RF buffers and per-tick transfer beyond the standard port’s `int` limits.
+The **Reactor High Conduction Power Port** is for very large reactors that produce enormous RF per tick. It stores and moves much higher amounts of energy (tunable in mod settings) and works better with mods that support huge power transfer (for example Draconic Evolution or Flux Networks when installed).
 
-- Uses **long** energy storage and extraction rates (tunable in Colossal Reactors **common** config).
-
-- On each tick, pushes stored energy to neighbors in order: **OP** (Brandon’s Core / Draconic Evolution) when exposed, then **Flux Networks** long transfer when installed, then standard **Forge FE**.
-
-- Craft from a **Power Port** plus high-tier materials; exact recipes depend on your modpack (**JEI**).
+Craft it from a **Reactor Power Port** plus high-tier materials—check **JEI** for your pack.
 
 ## Features (both variants)
 

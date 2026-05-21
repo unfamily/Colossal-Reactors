@@ -12,6 +12,6 @@ public class TurbineRedstonePortBlockEntity extends RedstonePortBlockEntity {
 
     @Override
     public Component getDisplayName() {
-        return Component.translatable("block.colossal_reactors.turbine_redstone_port");
+        return Component.translatable("gui.colossal_reactors.redstone_port.title");
     }
 }

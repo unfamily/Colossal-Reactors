@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: multiblock/multiblock-index.md
-  title: Redstone Port
+  title: Reactor Redstone Port
   icon: redstone_port
   position: 37
 item_ids:
@@ -10,11 +10,11 @@ categories:
   - ports
 ---
 
-# Redstone Port
+# Reactor Redstone Port
 
 <BlockImage id="redstone_port" scale="4" />
 
-The **Redstone Port** connects reactor telemetry to redstone (for example comparator strength or reacting to dust/torch input, depending on version).
+The **Reactor Redstone Port** connects reactor status to **redstone** (for example comparator output or reacting to a redstone signal—depends on the mode you pick).
 
 ## Features
 
