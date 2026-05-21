@@ -97,18 +97,20 @@ public final class TurbineSimulation {
     public static void tick(ServerLevel level, TurbineControllerBlockEntity controller) {
         TurbineValidation.Result result = controller.getCachedResult();
         if (!result.valid()) {
-            controller.setRuntimeStats(0, 0, false);
+            controller.setRuntimeStats(0, 0, false, false);
             return;
         }
-        if (!TurbineControllerBlock.isRedstoneGateSatisfied(level, controller, result)) {
-            controller.setRuntimeStats(0, 0, false);
+        boolean gateOpen = TurbineControllerBlock.isRedstoneGateSatisfied(level, controller, result);
+        if (!gateOpen) {
+            controller.setRuntimeStats(0, 0, false, false);
             return;
         }
 
         long[] resourcePortPositions = controller.getCachedResourcePortPositions();
         long[] powerPortPositions = controller.getCachedPowerPortPositions();
-        if (resourcePortPositions.length == 0 && powerPortPositions.length == 0
-                && (result.maxSteamMbPerTick() > 0 || result.estimatedRfPerTick() > 0)) {
+        if (controller.getCachedRodPositions().length == 0
+                || (resourcePortPositions.length == 0 && powerPortPositions.length == 0
+                && (result.maxSteamMbPerTick() > 0 || result.estimatedRfPerTick() > 0))) {
             controller.rebuildPartCaches(level, result);
             resourcePortPositions = controller.getCachedResourcePortPositions();
             powerPortPositions = controller.getCachedPowerPortPositions();
@@ -120,10 +122,16 @@ public final class TurbineSimulation {
 
         double steamDemand = result.maxSteamMbPerTick();
         int steamConsumed = 0;
-        if (steamFluid != null && steamFluid != Fluids.EMPTY && steamDemand > 0) {
-            steamConsumed = controller.consumeSteamInput(steamFluid, (int) Math.ceil(steamDemand));
+        boolean outputBufferFull = controller.isOutputReturnBufferFull();
+        if (!outputBufferFull && steamFluid != null && steamFluid != Fluids.EMPTY && steamDemand > 0) {
+            int wanted = (int) Math.ceil(steamDemand);
+            steamConsumed = controller.consumeSteamInput(steamFluid, wanted);
             if (steamConsumed > 0 && outputFluid != null && outputFluid != Fluids.EMPTY) {
-                controller.addOutputReturn(outputFluid, steamConsumed);
+                int added = controller.addOutputReturn(outputFluid, steamConsumed);
+                if (added < steamConsumed) {
+                    steamConsumed = added;
+                    outputBufferFull = controller.isOutputReturnBufferFull();
+                }
             }
         }
 
@@ -144,7 +152,8 @@ public final class TurbineSimulation {
             }
         }
 
-        controller.setRuntimeStats(rfPushed, steamConsumed, rfPushed > 0);
+        boolean running = rfPushed > 0 && !outputBufferFull;
+        controller.setRuntimeStats(rfPushed, steamConsumed, running, gateOpen);
     }
 
     private static void pushOutputReturnToFluidPorts(

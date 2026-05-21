@@ -11,6 +11,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -57,7 +58,10 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     private long[] cachedPowerPortPositions = new long[0];
     private long[] cachedResourcePortPositions = new long[0];
     private long[] cachedRedstonePortPositions = new long[0];
+    private long[] cachedRodPositions = new long[0];
+    private byte[] cachedRodFacings = new byte[0];
     private boolean powered;
+    private boolean redstoneGateOpen;
     private long lastRfPerTick;
     private double lastSteamPerTick;
     private double lastCoilEff;
@@ -79,6 +83,10 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     }
 
     public boolean isPowered() { return powered; }
+    public boolean isRedstoneGateOpen() { return redstoneGateOpen; }
+
+    public long[] getCachedRodPositions() { return cachedRodPositions; }
+    public byte[] getCachedRodFacings() { return cachedRodFacings; }
     public long getLastRfPerTick() { return lastRfPerTick; }
     public double getLastSteamPerTick() { return lastSteamPerTick; }
     public double getLastCoilEff() { return lastCoilEff; }
@@ -90,6 +98,10 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
 
     public void setCachedResult(TurbineValidation.Result result) {
         this.cachedResult = result != null ? result : TurbineValidation.Result.invalid();
+        if (!this.cachedResult.valid()) {
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
+        }
         setChanged();
     }
 
@@ -111,6 +123,12 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
 
     public int getTotalOutputReturnMb() {
         return totalMbInList(outputReturnEntries);
+    }
+
+    /** True when the condensate buffer (e.g. water) cannot accept more fluid this tick. */
+    public boolean isOutputReturnBufferFull() {
+        int cap = getOutputReturnCapacityMb();
+        return cap > 0 && getTotalOutputReturnMb() >= cap;
     }
 
     public int addSteamInput(Fluid fluid, int amountMb) {
@@ -239,10 +257,11 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         return cachedRedstonePortPositions;
     }
 
-    public void setRuntimeStats(long rfPerTick, double steamPerTick, boolean powered) {
+    public void setRuntimeStats(long rfPerTick, double steamPerTick, boolean powered, boolean redstoneGateOpen) {
         this.lastRfPerTick = rfPerTick;
         this.lastSteamPerTick = steamPerTick;
         this.powered = powered;
+        this.redstoneGateOpen = redstoneGateOpen;
         setChanged();
     }
 
@@ -251,6 +270,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             cachedPowerPortPositions = new long[0];
             cachedResourcePortPositions = new long[0];
             cachedRedstonePortPositions = new long[0];
+            cachedRodPositions = new long[0];
+            cachedRodFacings = new byte[0];
             return;
         }
         int minX = result.minX();
@@ -263,6 +284,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         LongArrayList powerPorts = new LongArrayList();
         LongArrayList resourcePorts = new LongArrayList();
         LongArrayList redstonePorts = new LongArrayList();
+        LongArrayList rods = new LongArrayList();
+        it.unimi.dsi.fastutil.bytes.ByteArrayList rodFacings = new it.unimi.dsi.fastutil.bytes.ByteArrayList();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
@@ -275,6 +298,9 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
                         resourcePorts.add(p.asLong());
                     } else if (state.is(ModBlocks.TURBINE_REDSTONE_PORT.get())) {
                         redstonePorts.add(p.asLong());
+                    } else if (state.is(ModBlocks.TURBINE_ROD.get())) {
+                        rods.add(p.asLong());
+                        rodFacings.add((byte) state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING).ordinal());
                     }
                 }
             }
@@ -282,11 +308,13 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         cachedPowerPortPositions = powerPorts.toLongArray();
         cachedResourcePortPositions = resourcePorts.toLongArray();
         cachedRedstonePortPositions = redstonePorts.toLongArray();
+        cachedRodPositions = rods.toLongArray();
+        cachedRodFacings = rodFacings.toByteArray();
     }
 
     public void tickSimulation(ServerLevel level) {
         if (!cachedResult.valid()) {
-            setRuntimeStats(0, 0, false);
+            setRuntimeStats(0, 0, false, false);
             return;
         }
         updateFluidBufferCapacities(level, cachedResult);
@@ -311,6 +339,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.putBoolean("Powered", powered);
+        output.putBoolean("RedstoneGateOpen", redstoneGateOpen);
         output.putLong("LastRf", lastRfPerTick);
         output.putDouble("LastSteam", lastSteamPerTick);
         output.putInt("LastCoilEffMilli", (int) (lastCoilEff * 1000));
@@ -333,11 +362,21 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         }
         output.putInt("SteamConsumeMb", cachedSteamConsumeMbPerTick);
         output.putBoolean("OutputReturnBuf", cachedOutputReturnBuffer);
+        output.putInt("OutRetMb", getTotalOutputReturnMb());
+        output.putInt("OutRetCap", getOutputReturnCapacityMb());
         if (!steamInputEntries.isEmpty()) {
             output.store(TAG_STEAM_BUFFER, Codec.list(FLUID_BUFFER_CODEC), List.copyOf(steamInputEntries));
         }
         if (!outputReturnEntries.isEmpty()) {
             output.store(TAG_OUTPUT_BUFFER, Codec.list(FLUID_BUFFER_CODEC), List.copyOf(outputReturnEntries));
+        }
+        if (cachedRodPositions.length > 0) {
+            output.store("RodPos", Codec.list(Codec.LONG), java.util.Arrays.stream(cachedRodPositions).boxed().toList());
+            java.util.List<Integer> facingInts = new java.util.ArrayList<>(cachedRodFacings.length);
+            for (byte b : cachedRodFacings) {
+                facingInts.add(b & 0xFF);
+            }
+            output.store("RodFacing", Codec.list(Codec.INT), facingInts);
         }
     }
 
@@ -345,6 +384,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         powered = input.getBooleanOr("Powered", false);
+        redstoneGateOpen = input.getBooleanOr("RedstoneGateOpen", false);
         lastRfPerTick = input.getLongOr("LastRf", 0L);
         lastSteamPerTick = input.getDoubleOr("LastSteam", 0.0);
         lastCoilEff = input.getIntOr("LastCoilEffMilli", 0) / 1000.0;
@@ -382,17 +422,38 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         for (FluidBufferEntry e : input.listOrEmpty(TAG_OUTPUT_BUFFER, FLUID_BUFFER_CODEC)) {
             if (e != null && e.fluidId() != null && e.mb() > 0) outputReturnEntries.add(e);
         }
+        LongArrayList rodsLoaded = new LongArrayList();
+        for (Long l : input.listOrEmpty("RodPos", Codec.LONG)) {
+            if (l != null) {
+                rodsLoaded.add(l);
+            }
+        }
+        cachedRodPositions = rodsLoaded.toLongArray();
+        it.unimi.dsi.fastutil.bytes.ByteArrayList facingsLoaded = new it.unimi.dsi.fastutil.bytes.ByteArrayList();
+        for (Integer f : input.listOrEmpty("RodFacing", Codec.INT)) {
+            if (f != null) {
+                facingsLoaded.add(f.byteValue());
+            }
+        }
+        cachedRodFacings = facingsLoaded.toByteArray();
         if (level instanceof ServerLevel sl && cachedResult.valid()) {
             updateFluidBufferCapacities(sl, cachedResult);
         } else {
             clampFluidBuffers();
+        }
+        if (level != null && level.isClientSide()) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onControllerSync(this);
         }
     }
 
     @Override
     public void onLoad() {
         super.onLoad();
-        if (level == null || level.isClientSide()) {
+        if (level != null && level.isClientSide()) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onControllerSync(this);
+            return;
+        }
+        if (level == null) {
             return;
         }
         BlockState state = getBlockState();
@@ -410,6 +471,19 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         TurbineValidation.Result result = TurbineValidation.validateWithRodAlignment(level, start, intoTurbine, -1);
         setCachedResult(result);
         return result;
+    }
+
+    @Override
+    public net.minecraft.nbt.CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        return saveWithoutMetadata(registries);
+    }
+
+    @Override
+    public void onDataPacket(Connection connection, ValueInput valueInput) {
+        loadWithComponents(valueInput);
+        if (level != null && level.isClientSide()) {
+            net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager.onControllerSync(this);
+        }
     }
 
     @Nullable

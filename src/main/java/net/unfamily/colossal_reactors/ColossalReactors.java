@@ -14,6 +14,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterFluidModelsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -48,6 +49,7 @@ import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.network.ModPayloads;
 import net.unfamily.colossal_reactors.client.ColossalModelLoaders;
+import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
 
 @Mod(ColossalReactors.MODID)
 public class ColossalReactors {
@@ -60,6 +62,7 @@ public class ColossalReactors {
     public ColossalReactors(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         NeoForge.EVENT_BUS.addListener(this::onAddServerReloadListeners);
 
@@ -85,6 +88,8 @@ public class ColossalReactors {
             modEventBus.addListener(RegisterFluidModelsEvent.class, ColossalFluidModels::registerFluidModels);
             modEventBus.addListener(RegisterMenuScreensEvent.class, ColossalClientSetup::registerMenuScreens);
             modEventBus.addListener(ModelEvent.RegisterLoaders.class, ColossalModelLoaders::registerModelLoaders);
+            modEventBus.addListener(EntityRenderersEvent.RegisterRenderers.class, TurbineRotorClientRegistration::registerRenderers);
+            modEventBus.addListener(ModelEvent.ModifyBakingResult.class, TurbineRotorClientRegistration::onModifyBakingResult);
             modEventBus.addListener(RegisterPayloadHandlersEvent.class, ColossalClientSetup::registerPayloadHandlers);
         }
 

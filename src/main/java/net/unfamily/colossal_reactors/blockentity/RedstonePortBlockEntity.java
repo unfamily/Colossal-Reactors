@@ -23,7 +23,7 @@ public class RedstonePortBlockEntity extends BlockEntity implements MenuProvider
 
     private static final String TAG_REDSTONE_MODE = "RedstoneMode";
 
-    private int redstoneMode = RedstoneMode.NONE.getId();
+    private int redstoneMode = RedstoneMode.LOW.getId();
 
     public RedstonePortBlockEntity(BlockPos pos, BlockState state) {
         this(ModBlockEntities.REDSTONE_PORT_BE.get(), pos, state);
