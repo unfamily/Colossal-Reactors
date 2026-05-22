@@ -240,15 +240,19 @@ public class ReactorRodBlockEntity extends BlockEntity {
     }
 
     /**
-     * Records consumed fuel units and adds solid waste when accumulation reaches unitsPerWaste.
-     * E.g. unitsPerWaste=1000: every 1000 consumed units produce 1 waste item (remainder carried over).
+     * Accumulates waste buffer units and spits solid waste when a full {@code produce} grant is reached.
      */
-    public void recordConsumedAndAddWaste(ResourceLocation wasteId, float consumedUnits, int unitsPerWaste) {
-        if (consumedUnits <= 0 || unitsPerWaste <= 0) return;
-        float total = wasteAccumulator.getOrDefault(wasteId, 0f) + consumedUnits;
-        int wasteCount = (int) (total / unitsPerWaste);
-        wasteAccumulator.put(wasteId, total - wasteCount * unitsPerWaste);
-        if (wasteCount > 0) addSolidWaste(wasteId, wasteCount);
+    public void recordConsumedAndAddWaste(ResourceLocation wasteId, float wasteBufferUnits, int unitsPerWaste, int produce) {
+        if (wasteBufferUnits <= 0 || unitsPerWaste <= 0 || produce <= 0) {
+            return;
+        }
+        float total = wasteAccumulator.getOrDefault(wasteId, 0f) + wasteBufferUnits;
+        int wasteCount = (int) Math.floor(total * produce / (float) unitsPerWaste);
+        float unitsPerOutputGrant = (float) unitsPerWaste / (float) produce;
+        wasteAccumulator.put(wasteId, total - wasteCount * unitsPerOutputGrant);
+        if (wasteCount > 0) {
+            addSolidWaste(wasteId, wasteCount);
+        }
     }
 
     /** Takes up to count of the given waste item from this rod. Returns amount actually taken. */

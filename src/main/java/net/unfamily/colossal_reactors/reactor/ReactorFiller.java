@@ -64,8 +64,11 @@ public final class ReactorFiller {
                 coolantMoveBudgetMb = pullChemicals(port, controller, registryAccess, coolantMoveBudgetMb);
             }
 
-            if (coolantMoveBudgetMb > 0 && port.isAllowLiquid()) {
-                coolantMoveBudgetMb = pullLiquidCoolant(port, controller, registryAccess, coolantMoveBudgetMb);
+            if (port.isAllowLiquid()) {
+                pullLiquidFuel(port, controller, registryAccess);
+                if (coolantMoveBudgetMb > 0) {
+                    coolantMoveBudgetMb = pullLiquidCoolant(port, controller, registryAccess, coolantMoveBudgetMb);
+                }
             }
         }
     }
@@ -82,22 +85,30 @@ public final class ReactorFiller {
         if (def == null) {
             return;
         }
-        float unitsPerItem = def.fuelUnitsPerItemStack();
-        if (unitsPerItem <= 0f) unitsPerItem = 1f;
-        int max = controller.getMaxFuelUnitsTotal();
-        float total = controller.getTotalFuelUnits();
-        float space = Math.max(0f, max - total);
-        int maxItems = (int) (space / unitsPerItem);
-        if (maxItems <= 0) {
+        float unitsPerItem = def.fuelUnitsPerInputUnit();
+        if (unitsPerItem <= 0f) {
+            unitsPerItem = 1f;
+        }
+        float space = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelUnits());
+        int wantItems = def.inputAmountBatched(def.inputAmountForSpaceUnits(space));
+        if (wantItems <= 0) {
             return;
         }
-        int cap = Math.min(maxItems, 64);
+        int cap = Math.min(wantItems, 64);
         for (int i = 0; i < cap; i++) {
             ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
-            if (extracted.isEmpty()) break;
-            float added = controller.addFuel(def.fuelId(), unitsPerItem);
+            if (extracted.isEmpty()) {
+                break;
+            }
+            float grant = def.fuelUnitsFromInputAmount(1f);
+            float added = controller.addFuel(def.fuelId(), grant);
             if (added <= 0.0001f) {
                 port.getItemHandler().insertItem(0, extracted, false);
+                break;
+            }
+            if (added + 0.001f < grant) {
+                port.getItemHandler().insertItem(0, extracted, false);
+                controller.consumeFuel(def.fuelId(), added);
                 break;
             }
         }
@@ -240,6 +251,40 @@ public final class ReactorFiller {
             }
         }
         return def.coolantId();
+    }
+
+    private static void pullLiquidFuel(
+            ResourcePortBlockEntity port,
+            ReactorControllerBlockEntity controller,
+            RegistryAccess registryAccess) {
+        FluidStack stored = port.getStoredFluid();
+        if (stored.isEmpty() || stored.getFluid() == Fluids.EMPTY) {
+            return;
+        }
+        FuelDefinition fuelDef = FuelLoader.getDefinitionForFluid(stored.getFluid(), registryAccess);
+        if (fuelDef == null) {
+            return;
+        }
+        float spaceUnits = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelAndWasteUnits());
+        int maxMbInTank = stored.getAmount();
+        int maxMbBySpace = fuelDef.inputAmountForSpaceUnits(spaceUnits);
+        int wantMb = fuelDef.pullAmountMb(Math.min(maxMbBySpace, maxMbInTank));
+        if (wantMb <= 0) {
+            return;
+        }
+        int drained = port.takeFluidForReactor(stored.getFluid(), wantMb);
+        if (drained <= 0) {
+            return;
+        }
+        float wouldAdd = fuelDef.fuelUnitsFromInputAmount(drained);
+        float added = controller.addFuel(fuelDef.fuelId(), wouldAdd);
+        if (added + 0.001f < wouldAdd) {
+            int usedMb = fuelDef.inputAmountForGrantedUnits(added);
+            int leftover = drained - usedMb;
+            if (leftover > 0) {
+                port.getFluidHandler().fill(new FluidStack(stored.getFluid(), leftover), IFluidHandler.FluidAction.EXECUTE);
+            }
+        }
     }
 
     private static int pullLiquidCoolant(

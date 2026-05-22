@@ -26,6 +26,7 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.integration.ReactorMeltdownIntegrations;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
+import net.unfamily.colossal_reactors.fuel.FuelIo;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.util.Mth;
@@ -416,34 +417,7 @@ public final class ReactorSimulation {
                 .toList();
         if (ejectPorts.isEmpty()) return;
 
-        // Eject fuel: convert units back to items using definition's unitsPerFuel
-        for (var entry : controller.getFuelEntries()) {
-            if (entry.units() < 1e-6f) continue;
-            FuelDefinition def = FuelLoader.get(entry.id());
-            if (def == null) continue;
-            float unitsPerItem = Math.max(1f, def.fuelUnitsPerItemStack());
-            int items = (int) (entry.units() / unitsPerItem);
-            if (items <= 0) continue;
-            float toConsume = items * unitsPerItem;
-            float consumed = controller.consumeFuel(entry.id(), toConsume);
-            if (consumed < 1e-6f) continue;
-            int actualItems = (int) (consumed / unitsPerItem);
-            if (actualItems <= 0) continue;
-            ItemStack template = FuelLoader.getFirstInputStack(entry.id(), registryAccess);
-            if (template.isEmpty()) continue;
-            ItemStack stack = new ItemStack(template.getItem(), actualItems);
-            for (ResourcePortBlockEntity port : ejectPorts) {
-                if (!port.isAllowSolid()) continue;
-                if (!port.canAcceptItemFromReactor() || stack.isEmpty()) continue;
-                ItemStack remaining = port.receiveItemFromReactor(stack);
-                stack = remaining;
-                if (stack.isEmpty()) break;
-            }
-            if (!stack.isEmpty() && stack.getCount() > 0) {
-                float putBack = stack.getCount() * unitsPerItem;
-                controller.addFuel(entry.id(), putBack);
-            }
-        }
+        FuelIo.ejectFuelToPorts(controller, ejectPorts, registryAccess);
         // Eject coolant: move stored coolant back into EJECT ports.
         for (var entry : controller.getCoolantEntries()) {
             if (entry.mb() <= 0) continue;
@@ -476,57 +450,7 @@ public final class ReactorSimulation {
                 .toList();
         if (extractPorts.isEmpty()) return;
 
-        for (var entry : controller.getWasteEntries()) {
-            if (entry.units() <= 1e-6f) continue;
-            FuelDefinition def = FuelLoader.getDefinitionForWasteBuffer(entry.id());
-            if (def == null) continue;
-
-            if (def.isChemicalWaste() && MekChemicalHelper.isLoaded()) {
-                String wasteSelector = def.output();
-                if (wasteSelector == null || !MaterialSelector.isChemicalPrefix(wasteSelector)) continue;
-                ResourceLocation chemId = ResourceLocation.tryParse(wasteSelector.substring(1));
-                if (chemId == null) continue;
-                int wasteMb = def.wasteOutputAmountFromWasteUnits(entry.units());
-                if (wasteMb <= 0) continue;
-                float wasteUnitsCost = wasteMb * (float) def.unitsPerWaste() / (float) def.produce();
-                float consumedUnits = controller.consumeWasteUnits(entry.id(), wasteUnitsCost);
-                int actualMb = def.wasteOutputAmountFromWasteUnits(consumedUnits);
-                if (actualMb <= 0) continue;
-                Object stack = MekChemicalHelper.createStack(chemId, actualMb);
-                if (stack == null) {
-                    controller.addWasteUnits(entry.id(), wasteUnitsCost);
-                    continue;
-                }
-                int left = ResourcePortOutputRouter.pushGas(extractPorts, stack);
-                if (left > 0) {
-                    float putBackUnits = left * (float) def.unitsPerWaste() / (float) def.produce();
-                    controller.addWasteUnits(entry.id(), putBackUnits);
-                }
-                continue;
-            }
-
-            int items = def.wasteOutputAmountFromWasteUnits(entry.units());
-            if (items <= 0) continue;
-            int unitsPerWaste = Math.max(1, def.unitsPerWaste());
-            ItemStack template = FuelLoader.getFirstOutputStack(def.fuelId(), registryAccess);
-            if (template.isEmpty()) continue;
-            int toMove = Math.min(64, items);
-            float toConsumeUnits = toMove * (float) unitsPerWaste / (float) def.produce();
-            float consumedUnits = controller.consumeWasteUnits(entry.id(), toConsumeUnits);
-            int actualItems = def.wasteOutputAmountFromWasteUnits(consumedUnits);
-            if (actualItems <= 0) continue;
-            ItemStack stack = new ItemStack(template.getItem(), actualItems);
-            for (ResourcePortBlockEntity port : extractPorts) {
-                if (!port.isAllowSolid()) continue;
-                if (stack.isEmpty() || !port.canAcceptItemFromReactor()) continue;
-                ItemStack remaining = port.receiveItemFromReactor(stack);
-                stack = remaining;
-                if (stack.isEmpty()) break;
-            }
-            if (!stack.isEmpty() && stack.getCount() > 0) {
-                controller.addWasteUnits(entry.id(), stack.getCount() * (float) unitsPerWaste / (float) def.produce());
-            }
-        }
+        FuelIo.pushWasteToExtractPorts(controller, extractPorts, registryAccess);
         // Liquid waste (steam) is pushed directly to EXTRACT/EJECT ports in water mode; no rod liquid waste.
     }
 
@@ -765,7 +689,7 @@ public final class ReactorSimulation {
             remaining -= consumed;
             if (consumed > 0) {
                 float wasteUnits = def.wasteUnitsFromFuelConsumed(consumed);
-                rod.recordConsumedAndAddWaste(def.wasteId(), wasteUnits, Math.max(1, def.unitsPerWaste()));
+                rod.recordConsumedAndAddWaste(def.wasteId(), wasteUnits, def.unitsPerWaste(), def.produce());
             }
             rodIndex++;
         }
@@ -779,6 +703,10 @@ public final class ReactorSimulation {
             if (entries.isEmpty()) break;
             ReactorControllerBlockEntity.FuelEntry first = entries.get(0);
             FuelDefinition def = FuelLoader.get(first.id());
+            if (def == null) {
+                remaining -= Math.min(remaining, first.units());
+                continue;
+            }
             float take = (float) Math.min(remaining, first.units());
             float consumed = controller.consumeFuel(first.id(), take);
             remaining -= consumed;

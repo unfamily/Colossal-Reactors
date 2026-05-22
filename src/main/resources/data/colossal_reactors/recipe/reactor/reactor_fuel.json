@@ -30,8 +30,8 @@
       "consume": 500,
       "output": "%mekanism:spent_nuclear_waste",
       "produce": 500,
-      "units_per_fuel": 50000,
-      "units_per_waste": 50000,
+      "units_per_fuel": 500,
+      "units_per_waste": 500,
       "base_rf_per_tick": 1500.0,
       "base_fuel_units_per_tick": 1.0
     }

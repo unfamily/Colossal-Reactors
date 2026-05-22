@@ -10,6 +10,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
@@ -132,7 +134,12 @@ public class FuelLoader {
                 : json.has(KEY_BASE_MB_PER_TICK_LEGACY) ? json.get(KEY_BASE_MB_PER_TICK_LEGACY).getAsDouble()
                 : 0.03;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        String subType = json.has(KEY_SUB_TYPE) ? json.get(KEY_SUB_TYPE).getAsString() : FuelDefinition.SUBTYPE_ITEM_ITEM;
+        String rawSubType = json.has(KEY_SUB_TYPE) ? json.get(KEY_SUB_TYPE).getAsString() : FuelDefinition.SUBTYPE_ITEM_ITEM;
+        String subType = FuelSubType.normalize(rawSubType);
+        if (subType == null) {
+            LOGGER.warn("Fuel entry in {}: invalid sub_type '{}'", sourcePath, rawSubType);
+            subType = FuelDefinition.SUBTYPE_ITEM_ITEM;
+        }
         ResourceLocation wasteId = fuelId;
         if (json.has(KEY_WASTE_ID)) {
             ResourceLocation parsed = ResourceLocation.tryParse(json.get(KEY_WASTE_ID).getAsString());
@@ -213,6 +220,9 @@ public class FuelLoader {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
         FuelDefinition tagMatch = null;
         for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.acceptsInputMedium(FuelMedium.ITEM)) {
+                continue;
+            }
             for (String input : def.inputs()) {
                 if (isInputExcluded(input)) continue;
                 if (input.startsWith("#")) {
@@ -242,11 +252,59 @@ public class FuelLoader {
             return null;
         }
         for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.acceptsInputMedium(FuelMedium.CHEMICAL)) {
+                continue;
+            }
             for (String input : def.inputs()) {
                 if (!MaterialSelector.isChemicalPrefix(input)) {
                     continue;
                 }
                 if (MaterialSelector.matchesChemical(chemicalStack, input)) {
+                    return def;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Finds fuel that accepts this fluid (fluid-fluid / fluid tags). */
+    @Nullable
+    public static FuelDefinition getDefinitionForFluid(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return null;
+        }
+        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        if (fluidId == null) {
+            return null;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.acceptsInputMedium(FuelMedium.FLUID)) {
+                continue;
+            }
+            for (String input : def.inputs()) {
+                if (isInputExcluded(input)) {
+                    continue;
+                }
+                if (input.startsWith("#")) {
+                    ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+                    if (tagId == null) {
+                        continue;
+                    }
+                    TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+                    var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID)
+                            .getHolder(ResourceKey.create(Registries.FLUID, fluidId))
+                            .orElse(null);
+                    if (fluidHolder == null) {
+                        continue;
+                    }
+                    boolean inTag = registryAccess.lookup(Registries.FLUID)
+                            .flatMap(l -> l.get(tagKey))
+                            .map(holders -> holders.contains(fluidHolder))
+                            .orElse(false);
+                    if (inTag) {
+                        return def;
+                    }
+                } else if (MaterialSelector.matchesFluid(fluid, input)) {
                     return def;
                 }
             }
@@ -269,9 +327,15 @@ public class FuelLoader {
         return null;
     }
 
-    /** True when this fuel uses at least one Mek chemical/gas input. */
+    /** True when this fuel ingests Mek gas ({@code sub_type} input medium chemical). */
     public static boolean hasChemicalInput(ResourceLocation fuelId) {
-        return getFirstChemicalInputSelector(fuelId) != null;
+        FuelDefinition def = DEFINITIONS.get(fuelId);
+        return def != null && def.acceptsInputMedium(FuelMedium.CHEMICAL) && getFirstChemicalInputSelector(fuelId) != null;
+    }
+
+    public static boolean hasFluidInput(ResourceLocation fuelId) {
+        FuelDefinition def = DEFINITIONS.get(fuelId);
+        return def != null && def.acceptsInputMedium(FuelMedium.FLUID);
     }
 
     /**
