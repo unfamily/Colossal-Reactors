@@ -2,13 +2,16 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.block.TurbineVisualState;
 import net.unfamily.colossal_reactors.menu.TurbineControllerMenu;
+import net.unfamily.colossal_reactors.network.TurbineControllerRefreshPayload;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
 /**
@@ -26,7 +29,13 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
 
     private static final int CLOSE_BUTTON_X = ReactorControllerGui.closeButtonX(GUI_WIDTH);
 
+    private static final int REFRESH_BUTTON_WIDTH = 50;
+    private static final int REFRESH_BUTTON_HEIGHT = 20;
+    private static final int REFRESH_BUTTON_RIGHT_INSET = 12;
+    private static final int REFRESH_BUTTON_BOTTOM_INSET = 13;
+
     private Button closeButton;
+    private Button refreshButton;
     private final GuiPanelScrollbar panelScrollbar = new GuiPanelScrollbar();
 
     public TurbineControllerScreen(TurbineControllerMenu menu, Inventory playerInventory, Component title) {
@@ -50,7 +59,18 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
                         ReactorControllerGui.HEADER_BUTTON_SIZE, ReactorControllerGui.HEADER_BUTTON_SIZE)
                 .build();
         addRenderableWidget(closeButton);
+        int refreshX = leftPos + imageWidth - REFRESH_BUTTON_WIDTH - REFRESH_BUTTON_RIGHT_INSET;
+        int refreshY = topPos + imageHeight - REFRESH_BUTTON_HEIGHT - REFRESH_BUTTON_BOTTOM_INSET;
+        refreshButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_controller.reboot"), b -> sendRefresh())
+                .bounds(refreshX, refreshY, REFRESH_BUTTON_WIDTH, REFRESH_BUTTON_HEIGHT)
+                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_controller.reboot.tooltip")))
+                .build();
+        addRenderableWidget(refreshButton);
         panelScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
+    }
+
+    private void sendRefresh() {
+        PacketDistributor.sendToServer(new TurbineControllerRefreshPayload(menu.getControllerBlockPos()));
     }
 
     @Override

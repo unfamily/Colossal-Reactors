@@ -1,12 +1,19 @@
 package net.unfamily.colossal_reactors.reactor;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
+import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
@@ -45,96 +52,238 @@ public final class ReactorFiller {
             }
         }
 
-        var registryAccess = level.registryAccess();
+        RegistryAccess registryAccess = level.registryAccess();
         int coolantMoveBudgetMb = 4000;
 
         for (ResourcePortBlockEntity port : insertPorts) {
-            // Fuel: controller-wide buffer; pull as many items as total space allows
-            ItemStack stack = port.getItemHandler().getStackInSlot(0);
-            if (!stack.isEmpty()) {
-                FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
-                if (def != null) {
-                    int units = def.unitsPerFuel();
-                    if (units <= 0) units = 1;
-                    int max = controller.getMaxFuelUnitsTotal();
-                    float total = controller.getTotalFuelUnits();
-                    float space = Math.max(0f, max - total);
-                    int maxItems = (int) (space / units);
-                    if (maxItems <= 0) continue;
-                    int cap = Math.min(maxItems, 64);
-                    for (int i = 0; i < cap; i++) {
-                        ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
-                        if (extracted.isEmpty()) break;
-                        float added = controller.addFuel(def.fuelId(), units);
-                        if (added <= 0.0001f) {
-                            port.getItemHandler().insertItem(0, extracted, false);
-                            break;
-                        }
-                    }
-                }
+            if (port.isAllowSolid()) {
+                pullSolidFuel(port, controller, registryAccess);
             }
 
             if (MekChemicalHelper.isLoaded()) {
-                Object handler = port.getChemicalHandler();
-                if (handler != null) {
-                    try {
-                        Object inTank = handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, 0);
-                        FuelDefinition chemFuel = FuelLoader.getDefinitionForChemical(inTank);
-                        if (chemFuel != null && !MekChemicalHelper.isEmpty(inTank)) {
-                            int units = chemFuel.unitsPerFuel();
-                            float space = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelUnits());
-                            int wantMb = (int) Math.min(space, MekChemicalHelper.getAmount(inTank));
-                            if (wantMb > 0) {
-                                int drained = port.takeGasForReactor(inTank, wantMb);
-                                if (drained > 0) {
-                                    controller.addFuel(chemFuel.fuelId(), drained);
-                                }
-                            }
-                        } else if (coolantMoveBudgetMb > 0) {
-                            var coolantDef = CoolantLoader.getDefinitionForChemical(inTank, registryAccess);
-                            if (coolantDef != null) {
-                                int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());
-                                int want = Math.min(space, Math.min(coolantMoveBudgetMb, (int) MekChemicalHelper.getAmount(inTank)));
-                                if (want > 0) {
-                                    int drained = port.takeGasForReactor(inTank, want);
-                                    if (drained > 0) {
-                                        var fluid = CoolantLoader.getFirstFluidFromDefinition(coolantDef, registryAccess);
-                                        if (fluid != null && fluid != Fluids.EMPTY) {
-                                            int added = controller.addCoolant(fluid, drained);
-                                            coolantMoveBudgetMb -= added;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                }
+                coolantMoveBudgetMb = pullChemicals(port, controller, registryAccess, coolantMoveBudgetMb);
             }
 
-            // Coolant: move valid coolant fluids from INSERT ports into controller aggregated coolant buffer.
-            if (coolantMoveBudgetMb > 0) {
-                var stored = port.getStoredFluid();
-                if (!stored.isEmpty() && stored.getFluid() != Fluids.EMPTY) {
-                    var coolantDef = CoolantLoader.getDefinitionForFluid(stored.getFluid(), registryAccess);
-                    if (coolantDef != null) {
-                        int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());
-                        int toMove = Math.min(space, Math.min(stored.getAmount(), coolantMoveBudgetMb));
-                        if (toMove > 0) {
-                            int drained = port.takeFluidForReactor(stored.getFluid(), toMove);
-                            if (drained > 0) {
-                                int added = controller.addCoolant(stored.getFluid(), drained);
-                                int leftover = drained - added;
-                                if (leftover > 0) {
-                                    port.getFluidHandler().fill(new net.neoforged.neoforge.fluids.FluidStack(stored.getFluid(), leftover),
-                                            net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
-                                }
-                                coolantMoveBudgetMb -= drained;
-                            }
-                        }
-                    }
+            if (coolantMoveBudgetMb > 0 && port.isAllowLiquid()) {
+                coolantMoveBudgetMb = pullLiquidCoolant(port, controller, registryAccess, coolantMoveBudgetMb);
+            }
+        }
+    }
+
+    private static void pullSolidFuel(
+            ResourcePortBlockEntity port,
+            ReactorControllerBlockEntity controller,
+            RegistryAccess registryAccess) {
+        ItemStack stack = port.getItemHandler().getStackInSlot(0);
+        if (stack.isEmpty()) {
+            return;
+        }
+        FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
+        if (def == null) {
+            return;
+        }
+        float unitsPerItem = def.fuelUnitsPerItemStack();
+        if (unitsPerItem <= 0f) unitsPerItem = 1f;
+        int max = controller.getMaxFuelUnitsTotal();
+        float total = controller.getTotalFuelUnits();
+        float space = Math.max(0f, max - total);
+        int maxItems = (int) (space / unitsPerItem);
+        if (maxItems <= 0) {
+            return;
+        }
+        int cap = Math.min(maxItems, 64);
+        for (int i = 0; i < cap; i++) {
+            ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
+            if (extracted.isEmpty()) break;
+            float added = controller.addFuel(def.fuelId(), unitsPerItem);
+            if (added <= 0.0001f) {
+                port.getItemHandler().insertItem(0, extracted, false);
+                break;
+            }
+        }
+    }
+
+    private static int pullChemicals(
+            ResourcePortBlockEntity port,
+            ReactorControllerBlockEntity controller,
+            RegistryAccess registryAccess,
+            int coolantMoveBudgetMb) {
+        Object handler = port.getChemicalHandler();
+        if (handler == null) {
+            return coolantMoveBudgetMb;
+        }
+        try {
+            Object inTank = handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, 0);
+            if (MekChemicalHelper.isEmpty(inTank)) {
+                return coolantMoveBudgetMb;
+            }
+
+            int budget = coolantMoveBudgetMb;
+            budget = pullChemicalFuel(port, controller, inTank, budget);
+            if (budget > 0) {
+                budget = pullChemicalCoolant(port, controller, inTank, registryAccess, budget);
+            }
+            return budget;
+        } catch (Throwable ignored) {
+            return coolantMoveBudgetMb;
+        }
+    }
+
+    private static int pullChemicalFuel(
+            ResourcePortBlockEntity port,
+            ReactorControllerBlockEntity controller,
+            Object inTank,
+            int budget) {
+        FuelDefinition chemFuel = FuelLoader.getDefinitionForChemical(inTank);
+        if (chemFuel == null) {
+            return budget;
+        }
+        float spaceUnits = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelAndWasteUnits());
+        int maxMbInTank = (int) Math.min(MekChemicalHelper.getAmount(inTank), Integer.MAX_VALUE);
+        int maxMbBySpace = chemFuel.inputAmountForSpaceUnits(spaceUnits);
+        int wantMb = chemFuel.pullAmountMb(Math.min(maxMbBySpace, maxMbInTank));
+        if (wantMb <= 0) {
+            return budget;
+        }
+        Object template = null;
+        for (String input : chemFuel.inputs()) {
+            if (!MaterialSelector.isChemicalPrefix(input)) {
+                continue;
+            }
+            ResourceLocation chemId = ResourceLocation.tryParse(input.substring(1));
+            if (chemId == null) {
+                continue;
+            }
+            template = MekChemicalHelper.createStack(chemId, 1);
+            if (template != null) {
+                break;
+            }
+        }
+        if (template == null) {
+            template = inTank;
+        }
+        int drained = port.takeGasForReactor(template, wantMb);
+        if (drained > 0) {
+            float wouldAdd = chemFuel.fuelUnitsFromInputAmount(drained);
+            float added = controller.addFuel(chemFuel.fuelId(), wouldAdd);
+            if (added + 0.001f < wouldAdd) {
+                int usedMb = chemFuel.inputAmountForGrantedUnits(added);
+                int leftoverMb = drained - usedMb;
+                if (leftoverMb > 0) {
+                    returnChemicalToPort(port, template, leftoverMb);
                 }
             }
+        }
+        return budget;
+    }
+
+    private static int pullChemicalCoolant(
+            ResourcePortBlockEntity port,
+            ReactorControllerBlockEntity controller,
+            Object inTank,
+            RegistryAccess registryAccess,
+            int budget) {
+        CoolantDefinition coolantDef = CoolantLoader.getDefinitionForChemical(inTank, registryAccess);
+        if (coolantDef == null) {
+            return budget;
+        }
+        int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());
+        int want = Math.min(space, Math.min(budget, (int) MekChemicalHelper.getAmount(inTank)));
+        if (want <= 0) {
+            return budget;
+        }
+        Object template = null;
+        for (String input : coolantDef.inputs()) {
+            if (!MaterialSelector.isChemicalPrefix(input)) {
+                continue;
+            }
+            ResourceLocation chemId = ResourceLocation.tryParse(input.substring(1));
+            if (chemId == null) {
+                continue;
+            }
+            template = MekChemicalHelper.createStack(chemId, 1);
+            if (template != null) {
+                break;
+            }
+        }
+        if (template == null) {
+            template = inTank;
+        }
+        int drained = port.takeGasForReactor(template, want);
+        if (drained <= 0) {
+            return budget;
+        }
+        ResourceLocation bufferKey = resolveCoolantBufferKey(coolantDef, inTank, registryAccess);
+        if (bufferKey == null) {
+            return budget;
+        }
+        int added = controller.addCoolantByKey(bufferKey, drained);
+        return budget - added;
+    }
+
+    private static ResourceLocation resolveCoolantBufferKey(
+            CoolantDefinition def,
+            Object chemicalStack,
+            RegistryAccess registryAccess) {
+        Fluid fluid = MaterialSelector.resolvePreferredBufferFluid(def.inputs(), registryAccess);
+        if (fluid != null && fluid != Fluids.EMPTY) {
+            return BuiltInRegistries.FLUID.getKey(fluid);
+        }
+        String chemName = MekChemicalHelper.getTypeRegistryName(chemicalStack);
+        if (chemName != null) {
+            ResourceLocation chemId = ResourceLocation.tryParse(chemName);
+            if (chemId != null) {
+                Fluid chemFluid = BuiltInRegistries.FLUID.get(chemId);
+                if (chemFluid != null && chemFluid != Fluids.EMPTY) {
+                    return chemId;
+                }
+            }
+        }
+        return def.coolantId();
+    }
+
+    private static int pullLiquidCoolant(
+            ResourcePortBlockEntity port,
+            ReactorControllerBlockEntity controller,
+            RegistryAccess registryAccess,
+            int budget) {
+        FluidStack stored = port.getStoredFluid();
+        if (stored.isEmpty() || stored.getFluid() == Fluids.EMPTY) {
+            return budget;
+        }
+        CoolantDefinition coolantDef = CoolantLoader.getDefinitionForFluid(stored.getFluid(), registryAccess);
+        if (coolantDef == null) {
+            return budget;
+        }
+        int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());
+        int toMove = Math.min(space, Math.min(stored.getAmount(), budget));
+        if (toMove <= 0) {
+            return budget;
+        }
+        int drained = port.takeFluidForReactor(stored.getFluid(), toMove);
+        if (drained <= 0) {
+            return budget;
+        }
+        int added = controller.addCoolant(stored.getFluid(), drained);
+        int leftover = drained - added;
+        if (leftover > 0) {
+            port.getFluidHandler().fill(new FluidStack(stored.getFluid(), leftover), IFluidHandler.FluidAction.EXECUTE);
+        }
+        return budget - drained;
+    }
+
+    private static void returnChemicalToPort(ResourcePortBlockEntity port, Object typeTemplate, int amountMb) {
+        if (amountMb <= 0 || !MekChemicalHelper.isLoaded()) {
+            return;
+        }
+        Object handler = port.getChemicalHandler();
+        if (handler == null) {
+            return;
+        }
+        Object stack = MekChemicalHelper.copyStack(typeTemplate, amountMb);
+        if (stack != null) {
+            MekChemicalHelper.fill(handler, stack, false);
+            port.setChanged();
         }
     }
 }

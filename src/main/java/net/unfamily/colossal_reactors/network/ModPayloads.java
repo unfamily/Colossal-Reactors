@@ -52,6 +52,11 @@ public class ModPayloads {
                 ReactorControllerRefreshPayload::handle
         );
         registrar.playToServer(
+                TurbineControllerRefreshPayload.TYPE,
+                TurbineControllerRefreshPayload.STREAM_CODEC,
+                TurbineControllerRefreshPayload::handle
+        );
+        registrar.playToServer(
                 ReactorBuilderSizePayload.TYPE,
                 ReactorBuilderSizePayload.STREAM_CODEC,
                 ReactorBuilderSizePayload::handle

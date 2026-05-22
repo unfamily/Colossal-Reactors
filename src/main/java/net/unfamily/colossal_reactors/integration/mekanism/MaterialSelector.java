@@ -1,6 +1,8 @@
 package net.unfamily.colossal_reactors.integration.mekanism;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -9,9 +11,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.material.FlowingFluid;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 /**
  * Parses datapack selectors: {@code #tag/id} (item or fluid), {@code %chemical} (Mek), or plain registry id.
@@ -87,15 +92,107 @@ public final class MaterialSelector {
         if (fluid == null || fluid == Fluids.EMPTY) return false;
         Parsed p = parse(selector);
         if (p == null) return false;
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
         return switch (p.kind()) {
-            case FLUID_ID -> p.id().equals(fluidId);
+            case FLUID_ID -> fluidIdMatches(fluid, p.id());
             case FLUID_TAG -> {
                 TagKey<Fluid> tag = TagKey.create(Registries.FLUID, p.id());
                 yield fluid.is(tag);
             }
             default -> false;
         };
+    }
+
+    /**
+     * Preferred liquid for internal buffers when storing chemical pulls (explicit fluid ids before tags).
+     */
+    @Nullable
+    public static Fluid resolvePreferredBufferFluid(List<String> inputs, RegistryAccess registryAccess) {
+        if (inputs == null || registryAccess == null) {
+            return null;
+        }
+        for (String input : inputs) {
+            if (input == null || input.isBlank() || isChemicalPrefix(input)) {
+                continue;
+            }
+            Parsed p = parse(input);
+            if (p != null && p.kind() == Kind.FLUID_ID) {
+                Fluid f = BuiltInRegistries.FLUID.get(p.id());
+                if (f != null && f != Fluids.EMPTY) {
+                    return f;
+                }
+            }
+        }
+        for (String input : inputs) {
+            if (input == null || input.isBlank() || isChemicalPrefix(input)) {
+                continue;
+            }
+            if (!input.startsWith("#")) {
+                continue;
+            }
+            ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
+            if (tagId == null) {
+                continue;
+            }
+            TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+            var holders = registryAccess.lookup(Registries.FLUID).flatMap(l -> l.get(tagKey)).orElse(null);
+            if (holders == null) {
+                continue;
+            }
+            for (Holder<Fluid> holder : holders) {
+                Fluid f = holder.value();
+                if (f != null && f != Fluids.EMPTY) {
+                    return f;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** True when coolant definition inputs overlap simulation selectors (same list or shared entry). */
+    public static boolean coolantInputsMatchSelectors(List<String> defInputs, List<String> selectors) {
+        if (defInputs == null || selectors == null) {
+            return false;
+        }
+        if (defInputs.equals(selectors)) {
+            return true;
+        }
+        for (String input : defInputs) {
+            if (input != null && selectors.contains(input)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when {@code fluid} matches any liquid selector in {@code inputs} (skips chemical {@code %} entries). */
+    public static boolean matchesAnyFluidInput(Fluid fluid, List<String> inputs) {
+        if (fluid == null || fluid == Fluids.EMPTY || inputs == null) {
+            return false;
+        }
+        for (String input : inputs) {
+            if (input == null || input.isBlank() || isChemicalPrefix(input)) {
+                continue;
+            }
+            if (matchesFluid(fluid, input)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Registry id match; flowing fluids also match their source id (e.g. steam / steam_flowing). */
+    private static boolean fluidIdMatches(Fluid fluid, ResourceLocation expectedId) {
+        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        if (expectedId.equals(fluidId)) {
+            return true;
+        }
+        if (fluid instanceof FlowingFluid flowing) {
+            Fluid source = flowing.getSource();
+            if (source != null && source != Fluids.EMPTY) {
+                return expectedId.equals(BuiltInRegistries.FLUID.getKey(source));
+            }
+        }
+        return false;
     }
 
     public static boolean matchesFluidStack(FluidStack stack, String selector) {

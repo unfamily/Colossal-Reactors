@@ -1,5 +1,6 @@
 package net.unfamily.colossal_reactors.menu;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -29,9 +30,11 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData data;
+    private final BlockPos controllerPos;
 
     public TurbineControllerMenu(int containerId, Inventory playerInventory, TurbineControllerBlockEntity be) {
         super(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), containerId);
+        this.controllerPos = be.getBlockPos();
         this.levelAccess = ContainerLevelAccess.create(be.getLevel(), be.getBlockPos());
         this.data = new ContainerData() {
             @Override
@@ -73,9 +76,15 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
 
     public TurbineControllerMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.TURBINE_CONTROLLER_MENU.get(), containerId);
+        this.controllerPos = BlockPos.ZERO;
         this.levelAccess = ContainerLevelAccess.NULL;
         this.data = new SimpleContainerData(DATA_COUNT);
         addDataSlots(data);
+    }
+
+    /** Synced block pos for reboot button (client). */
+    public BlockPos getControllerBlockPos() {
+        return controllerPos;
     }
 
     public boolean isValid() { return data.get(INDEX_VALID) != 0; }

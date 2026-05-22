@@ -192,6 +192,61 @@ public final class MekChemicalHelper {
         }
     }
 
+    /**
+     * Drains up to {@code amount} mB from a chemical handler tank, optionally filtered by chemical type.
+     * Tries Mek 10.7+ {@code extractChemical(ChemicalStack, Action)} first, then legacy signatures.
+     */
+    public static int extractFromTank(Object handler, int tank, long amount, @Nullable Object typeFilter) {
+        if (handler == null || amount <= 0) {
+            return 0;
+        }
+        try {
+            Object inTank = handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, tank);
+            if (isEmpty(inTank)) {
+                return 0;
+            }
+            if (typeFilter != null && !isEmpty(typeFilter)) {
+                String filterName = getTypeRegistryName(typeFilter);
+                if (filterName != null && !matchesSelector(inTank, "%" + filterName)) {
+                    String inName = getTypeRegistryName(inTank);
+                    if (inName == null || !inName.equals(filterName)) {
+                        return 0;
+                    }
+                }
+            }
+            long drain = Math.min(amount, getAmount(inTank));
+            if (drain <= 0) {
+                return 0;
+            }
+            Class<?> actionClass = Class.forName("mekanism.api.Action");
+            Object exec = actionClass.getField("EXECUTE").get(null);
+            Object toExtract = copyStack(inTank, drain);
+            Object drained = null;
+            if (toExtract != null) {
+                Class<?> stackClass = toExtract.getClass();
+                try {
+                    drained = handler.getClass().getMethod("extractChemical", stackClass, actionClass)
+                            .invoke(handler, toExtract, exec);
+                } catch (NoSuchMethodException e) {
+                    try {
+                        drained = handler.getClass().getMethod("extractChemical", int.class, stackClass, actionClass)
+                                .invoke(handler, tank, toExtract, exec);
+                    } catch (NoSuchMethodException e2) {
+                        drained = handler.getClass().getMethod("extractChemical", int.class, long.class, actionClass)
+                                .invoke(handler, tank, drain, exec);
+                    }
+                }
+            } else {
+                drained = handler.getClass().getMethod("extractChemical", int.class, long.class, actionClass)
+                        .invoke(handler, tank, drain, exec);
+            }
+            return (int) Math.min(getAmount(drained), Integer.MAX_VALUE);
+        } catch (Throwable t) {
+            LOGGER.debug("extractFromTank failed: {}", t.getMessage());
+            return 0;
+        }
+    }
+
     public static int fill(Object handler, Object stack, boolean simulate) {
         try {
             Class<?> actionClass = Class.forName("mekanism.api.Action");

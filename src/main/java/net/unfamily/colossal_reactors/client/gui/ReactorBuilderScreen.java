@@ -37,7 +37,9 @@ import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.reactor.ReactorBuildMaterialCounter;
 import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 
@@ -405,9 +407,25 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         Component produce = Component.literal("—");
         if (ra != null) {
             ItemStack in = FuelLoader.getFirstInputStack(fuelId, ra);
-            if (!in.isEmpty()) consume = in.getHoverName();
+            if (!in.isEmpty()) {
+                consume = in.getHoverName();
+            } else {
+                String chemIn = FuelLoader.getFirstChemicalInputSelector(fuelId);
+                if (chemIn != null) {
+                    Component chem = FuelLoader.getChemicalDisplayName(chemIn);
+                    if (chem != null) consume = chem;
+                }
+            }
             ItemStack out = FuelLoader.getFirstOutputStack(fuelId, ra);
-            if (!out.isEmpty()) produce = out.getHoverName();
+            if (!out.isEmpty()) {
+                produce = out.getHoverName();
+            } else {
+                FuelDefinition def = FuelLoader.get(fuelId);
+                if (def != null && MaterialSelector.isChemicalPrefix(def.output())) {
+                    Component chem = FuelLoader.getChemicalDisplayName(def.output());
+                    if (chem != null) produce = chem;
+                }
+            }
         }
         return Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_tooltip", consume, produce);
     }
@@ -417,6 +435,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         if (ra != null) {
             ItemStack stack = FuelLoader.getFirstInputStack(fuelId, ra);
             if (!stack.isEmpty()) return stack.getHoverName();
+            String chemIn = FuelLoader.getFirstChemicalInputSelector(fuelId);
+            if (chemIn != null) {
+                Component chem = FuelLoader.getChemicalDisplayName(chemIn);
+                if (chem != null) return chem;
+            }
         }
         if (ReactorRodBlockEntity.URANIUM_FUEL_ID.equals(fuelId))
             return Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_uranium");

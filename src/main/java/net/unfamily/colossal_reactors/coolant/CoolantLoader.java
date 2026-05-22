@@ -238,8 +238,8 @@ public class CoolantLoader {
                             .map(holders -> holders.contains(fluidHolder))
                             .orElse(false);
                     if (inTag) return def;
-                } else {
-                    if (ResourceLocation.tryParse(input).equals(fluidId)) return def;
+                } else if (MaterialSelector.matchesFluid(fluid, input)) {
+                    return def;
                 }
             }
         }

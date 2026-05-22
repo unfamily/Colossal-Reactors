@@ -17,8 +17,12 @@ import java.util.List;
  */
 public final class TurbineRotorRenderHelper {
 
-    /** Extra toward-rod nudge (model hub is already at z=14); 2/16 attaches to connector without sinking inside. */
-    private static final float BLADE_HUB_TOWARD_CONNECTOR = 2f / 16f;
+    /**
+     * Lateral connector arms on {@code turbine_rod.json} extend into the adjacent block by this much
+     * (see {@code north_con} / {@code east_con} {@code to} coords 4.15). Ring-1 blades render in the
+     * next block; shift them outward so the blade mesh does not overlap the connector volume.
+     */
+    private static final float ROD_CONNECTOR_DEPTH_INTO_NEIGHBOR = 4.15f / 16f;
 
     @FunctionalInterface
     public interface BlockRenderCallback {
@@ -59,7 +63,7 @@ public final class TurbineRotorRenderHelper {
                     bladePos.getX() - rodPos.getX(),
                     bladePos.getY() - rodPos.getY(),
                     bladePos.getZ() - rodPos.getZ());
-            applyBladeHubOffset(poseStack, bladeState);
+            applyBladeClearRodConnectorOffset(poseStack, bladeState, bladePos, rodPos);
             poseStack.translate(-0.5, -0.5, -0.5);
             blockRenderer.render(bladeState, poseStack, bladePos);
             poseStack.popPose();
@@ -70,14 +74,30 @@ public final class TurbineRotorRenderHelper {
         poseStack.popPose();
     }
 
-    private static void applyBladeHubOffset(PoseStack poseStack, BlockState bladeState) {
+    /**
+     * Ring-1 blades sit in the block next to the rod; push the model away from the rod so it stays
+     * in that block and clears the connector geometry protruding from the full 16³ rod cube.
+     */
+    private static void applyBladeClearRodConnectorOffset(
+            PoseStack poseStack, BlockState bladeState, BlockPos bladePos, BlockPos rodPos) {
         if (!bladeState.hasProperty(TurbineBladeBlock.FACING)) {
             return;
         }
-        Direction towardRod = bladeState.getValue(TurbineBladeBlock.FACING).getOpposite();
+        if (ringDistanceFromRod(bladePos, rodPos) != 1) {
+            return;
+        }
+        Direction awayFromRod = bladeState.getValue(TurbineBladeBlock.FACING);
+        float d = ROD_CONNECTOR_DEPTH_INTO_NEIGHBOR;
         poseStack.translate(
-                towardRod.getStepX() * BLADE_HUB_TOWARD_CONNECTOR,
-                towardRod.getStepY() * BLADE_HUB_TOWARD_CONNECTOR,
-                towardRod.getStepZ() * BLADE_HUB_TOWARD_CONNECTOR);
+                awayFromRod.getStepX() * d,
+                awayFromRod.getStepY() * d,
+                awayFromRod.getStepZ() * d);
+    }
+
+    private static int ringDistanceFromRod(BlockPos bladePos, BlockPos rodPos) {
+        int dx = Math.abs(bladePos.getX() - rodPos.getX());
+        int dy = Math.abs(bladePos.getY() - rodPos.getY());
+        int dz = Math.abs(bladePos.getZ() - rodPos.getZ());
+        return Math.max(dx, Math.max(dy, dz));
     }
 }

@@ -33,9 +33,12 @@ public class FuelLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(FuelLoader.class);
 
     private static final String KEY_FUEL_ID = "fuel_id";
+    private static final String KEY_WASTE_ID = "waste_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_UNITS_PER_ITEM = "units_per_item";
     private static final String KEY_UNITS_PER_FUEL = "units_per_fuel";
+    private static final String KEY_CONSUME = "consume";
+    private static final String KEY_PRODUCE = "produce";
     private static final String KEY_UNITS_PER_WASTE = "units_per_waste";
     private static final String KEY_BASE_RF_PER_TICK = "base_rf_per_tick";
     private static final String KEY_BASE_FUEL_UNITS_PER_TICK = "base_fuel_units_per_tick";
@@ -70,15 +73,20 @@ public class FuelLoader {
         double baseFuelUnitsPerTick = 0.03;
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
-        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, FuelDefinition.SUBTYPE_ITEM_ITEM, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
+        ResourceLocation nuclearWasteId = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "nuclear_waste");
+        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, nuclearWasteId, FuelDefinition.SUBTYPE_ITEM_ITEM,
+                inputs, 1, output, 1, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
 
-        // Azurite: 500 base RF, 500 fuel units per ingot, 1500 consumed units per 1 waste (nuclear_waste)
+        // Azurite: 500 base RF, 500 fuel units per ingot, 1500 waste units per 1 waste item
         ResourceLocation azuriteId = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
         DEFINITIONS.put(azuriteId, new FuelDefinition(
                 azuriteId,
+                nuclearWasteId,
                 FuelDefinition.SUBTYPE_ITEM_ITEM,
                 List.of("#c:ingots/azurite"),
+                1,
                 ColossalReactors.MODID + ":nuclear_waste",
+                1,
                 500,
                 1500,
                 500.0,
@@ -104,7 +112,15 @@ public class FuelLoader {
                 if (i.isJsonPrimitive()) inputs.add(i.getAsString());
             }
         }
+        int consume = 1;
+        if (json.has(KEY_CONSUME)) {
+            consume = json.get(KEY_CONSUME).getAsInt();
+        }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
+        int produce = 1;
+        if (json.has(KEY_PRODUCE)) {
+            produce = json.get(KEY_PRODUCE).getAsInt();
+        }
         int unitsPerFuel = 1000;
         int unitsPerWaste = 1000;
         if (json.has(KEY_UNITS_PER_FUEL)) unitsPerFuel = json.get(KEY_UNITS_PER_FUEL).getAsInt();
@@ -117,7 +133,16 @@ public class FuelLoader {
                 : 0.03;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
         String subType = json.has(KEY_SUB_TYPE) ? json.get(KEY_SUB_TYPE).getAsString() : FuelDefinition.SUBTYPE_ITEM_ITEM;
-        return new FuelDefinition(fuelId, subType, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
+        ResourceLocation wasteId = fuelId;
+        if (json.has(KEY_WASTE_ID)) {
+            ResourceLocation parsed = ResourceLocation.tryParse(json.get(KEY_WASTE_ID).getAsString());
+            if (parsed != null) {
+                wasteId = parsed;
+            }
+        }
+        return new FuelDefinition(fuelId, wasteId, subType,
+                inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs),
+                consume, output, produce, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
     }
 
     private static void processEntry(FuelDefinition def) {
@@ -131,6 +156,29 @@ public class FuelLoader {
 
     public static FuelDefinition get(ResourceLocation fuelId) {
         return DEFINITIONS.get(fuelId);
+    }
+
+    /**
+     * Resolves a fuel definition for waste stored in the controller buffer under {@code wasteBufferId}.
+     * Matches {@link FuelDefinition#wasteId()}. When {@code waste_id} was omitted in JSON, that equals
+     * {@link FuelDefinition#fuelId()}. Does not remap stale buffer keys (e.g. old fuel_id waste after
+     * {@code waste_id} was changed in datapack).
+     */
+    @Nullable
+    public static FuelDefinition getDefinitionForWasteBuffer(ResourceLocation wasteBufferId) {
+        if (wasteBufferId == null) {
+            return null;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (wasteBufferId.equals(def.wasteId())) {
+                return def;
+            }
+        }
+        FuelDefinition legacy = DEFINITIONS.get(wasteBufferId);
+        if (legacy != null && wasteBufferId.equals(legacy.wasteId())) {
+            return legacy;
+        }
+        return null;
     }
 
     public static Map<ResourceLocation, FuelDefinition> getAll() {
@@ -178,8 +226,10 @@ public class FuelLoader {
                             .map(holders -> holders.contains(itemHolder))
                             .orElse(false);
                     if (inTag) tagMatch = def;
-                } else {
-                    if (ResourceLocation.tryParse(input).equals(itemId)) return def;
+                } else if (MaterialSelector.isChemicalPrefix(input)) {
+                    continue;
+                } else if (MaterialSelector.matchesItem(stack, input)) {
+                    return def;
                 }
             }
         }
@@ -192,14 +242,36 @@ public class FuelLoader {
             return null;
         }
         for (FuelDefinition def : DEFINITIONS.values()) {
-            if (!def.isChemicalFuel()) continue;
             for (String input : def.inputs()) {
-                if (MaterialSelector.matchesChemical(chemicalStack, input.startsWith("%") ? input : "%" + input)) {
+                if (!MaterialSelector.isChemicalPrefix(input)) {
+                    continue;
+                }
+                if (MaterialSelector.matchesChemical(chemicalStack, input)) {
                     return def;
                 }
             }
         }
         return null;
+    }
+
+    /** First chemical input selector for this fuel (for drain templates / JEI). */
+    @Nullable
+    public static String getFirstChemicalInputSelector(ResourceLocation fuelId) {
+        FuelDefinition def = DEFINITIONS.get(fuelId);
+        if (def == null) {
+            return null;
+        }
+        for (String input : def.inputs()) {
+            if (MaterialSelector.isChemicalPrefix(input)) {
+                return input;
+            }
+        }
+        return null;
+    }
+
+    /** True when this fuel uses at least one Mek chemical/gas input. */
+    public static boolean hasChemicalInput(ResourceLocation fuelId) {
+        return getFirstChemicalInputSelector(fuelId) != null;
     }
 
     /**
@@ -222,7 +294,7 @@ public class FuelLoader {
                         .findFirst()
                         .map(h -> h.value());
                 if (optItem.isPresent()) return new ItemStack(optItem.get(), 1);
-            } else {
+            } else if (!MaterialSelector.isChemicalPrefix(input)) {
                 ResourceLocation id = ResourceLocation.tryParse(input);
                 if (id != null) {
                     Item item = BuiltInRegistries.ITEM.get(id);
@@ -253,6 +325,8 @@ public class FuelLoader {
                     .findFirst()
                     .map(h -> h.value());
             if (optItem.isPresent()) return new ItemStack(optItem.get(), 1);
+        } else if (MaterialSelector.isChemicalPrefix(output)) {
+            return ItemStack.EMPTY;
         } else {
             ResourceLocation id = ResourceLocation.tryParse(output);
             if (id != null) {
@@ -261,5 +335,29 @@ public class FuelLoader {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    /** Display name for chemical fuel/waste (Mek), or null if not chemical. */
+    @Nullable
+    public static net.minecraft.network.chat.Component getChemicalDisplayName(String selector) {
+        if (!MekChemicalHelper.isLoaded() || !MaterialSelector.isChemicalPrefix(selector)) {
+            return null;
+        }
+        ResourceLocation id = ResourceLocation.tryParse(selector.substring(1));
+        if (id == null) {
+            return null;
+        }
+        Object stack = MekChemicalHelper.createStack(id, MekChemicalHelper.JEI_DISPLAY_AMOUNT_MB);
+        if (stack == null) {
+            return net.minecraft.network.chat.Component.literal(id.toString());
+        }
+        try {
+            Object text = stack.getClass().getMethod("getTextComponent").invoke(stack);
+            if (text instanceof net.minecraft.network.chat.Component c) {
+                return c;
+            }
+        } catch (Throwable ignored) {
+        }
+        return net.minecraft.network.chat.Component.literal(id.toString());
     }
 }

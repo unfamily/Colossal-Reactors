@@ -197,7 +197,8 @@ public final class DatapackSelectorValidator {
             LOGGER.debug("Skipped fuel {}: unresolved output '{}'", def.fuelId(), output);
             return null;
         }
-        return new FuelDefinition(def.fuelId(), def.subType(), inputs, output, def.unitsPerFuel(), def.unitsPerWaste(),
+        return new FuelDefinition(def.fuelId(), def.wasteId(), def.subType(), inputs,
+                def.consume(), output, def.produce(), def.unitsPerFuel(), def.unitsPerWaste(),
                 def.baseRfPerTick(), def.baseFuelUnitsPerTick(), def.overwritable());
     }
 

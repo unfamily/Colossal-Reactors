@@ -239,8 +239,8 @@ public final class TurbineGenerationLoader {
                             .map(holders -> holders.contains(holder))
                             .orElse(false);
                     if (inTag) return def;
-                } else {
-                    if (ResourceLocation.tryParse(input).equals(fluidId)) return def;
+                } else if (MaterialSelector.matchesFluid(fluid, input)) {
+                    return def;
                 }
             }
         }

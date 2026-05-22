@@ -4,6 +4,7 @@
   "entries": [
     {
       "fuel_id": "colossal_reactors:uranium",
+      "waste_id": "colossal_reactors:nuclear_waste",
       "inputs": ["#c:ingots/uranium"],
       "output": "colossal_reactors:nuclear_waste",
       "units_per_fuel": 1000,
@@ -13,6 +14,7 @@
     },
     {
       "fuel_id": "colossal_reactors:azurite",
+      "waste_id": "colossal_reactors:nuclear_waste",
       "inputs": ["#c:ingots/azurite"],
       "output": "colossal_reactors:nuclear_waste",
       "units_per_fuel": 500,
@@ -22,13 +24,16 @@
     },
     {
       "fuel_id": "colossal_reactors:mek_fissile",
+      "waste_id": "colossal_reactors:spent_nuclear_waste",
       "sub_type": "chemical-chemical",
       "inputs": ["%mekanism:fissile_fuel"],
+      "consume": 500,
       "output": "%mekanism:spent_nuclear_waste",
-      "units_per_fuel": 1000,
-      "units_per_waste": 1000,
-      "base_rf_per_tick": 800.0,
-      "base_fuel_units_per_tick": 0.03
+      "produce": 500,
+      "units_per_fuel": 50000,
+      "units_per_waste": 50000,
+      "base_rf_per_tick": 1500.0,
+      "base_fuel_units_per_tick": 1.0
     }
   ]
 }

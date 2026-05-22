@@ -163,36 +163,40 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, total));
     }
 
-    public int addCoolant(Fluid fluid, int amountMb) {
-        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
-        ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
-        if (id == null) return 0;
+    /** Adds coolant stored under a registry key (fluid id or {@link CoolantDefinition#coolantId()} for gas-only coolants). */
+    public int addCoolantByKey(ResourceLocation key, int amountMb) {
+        if (amountMb <= 0 || key == null) return 0;
         int total = getTotalCoolantMb();
         int max = getCoolantCapacityMbTotal();
         int add = Math.min(amountMb, Math.max(0, max - total));
         if (add <= 0) return 0;
         for (int i = 0; i < coolantEntries.size(); i++) {
             CoolantEntry e = coolantEntries.get(i);
-            if (id.equals(e.fluidId())) {
-                coolantEntries.set(i, new CoolantEntry(id, e.mb() + add));
+            if (key.equals(e.fluidId())) {
+                coolantEntries.set(i, new CoolantEntry(key, e.mb() + add));
                 setChanged();
                 return add;
             }
         }
-        coolantEntries.add(new CoolantEntry(id, add));
+        coolantEntries.add(new CoolantEntry(key, add));
         setChanged();
         return add;
     }
 
-    public int consumeCoolant(Fluid fluid, int amountMb) {
+    public int addCoolant(Fluid fluid, int amountMb) {
         if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
         ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
         if (id == null) return 0;
+        return addCoolantByKey(id, amountMb);
+    }
+
+    private int consumeCoolantByKey(ResourceLocation key, int amountMb) {
+        if (amountMb <= 0 || key == null) return 0;
         int remaining = amountMb;
         int consumed = 0;
         for (int i = 0; i < coolantEntries.size() && remaining > 0; i++) {
             CoolantEntry e = coolantEntries.get(i);
-            if (!id.equals(e.fluidId())) continue;
+            if (!key.equals(e.fluidId())) continue;
             int take = Math.min(remaining, Math.max(0, e.mb()));
             if (take <= 0) continue;
             int left = e.mb() - take;
@@ -202,14 +206,61 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
                 coolantEntries.remove(i);
                 i--;
             } else {
-                coolantEntries.set(i, new CoolantEntry(id, left));
+                coolantEntries.set(i, new CoolantEntry(key, left));
             }
         }
         if (consumed > 0) setChanged();
         return consumed;
     }
 
-    public float addWasteUnits(ResourceLocation fuelId, float units) {
+    public int consumeCoolant(Fluid fluid, int amountMb) {
+        if (amountMb <= 0 || fluid == null || fluid == Fluids.EMPTY) return 0;
+        ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id == null) return 0;
+        return consumeCoolantByKey(id, amountMb);
+    }
+
+    /**
+     * Consumes coolant from the aggregated buffer for any fluid matching {@code inputSelectors}
+     * (fluid ids and tags from coolant JSON).
+     */
+    public int consumeCoolantMatching(List<String> inputSelectors, int amountMb) {
+        if (amountMb <= 0 || inputSelectors == null || inputSelectors.isEmpty()) {
+            return 0;
+        }
+        int remaining = amountMb;
+        int consumed = 0;
+        int i = 0;
+        while (remaining > 0 && i < coolantEntries.size()) {
+            CoolantEntry e = coolantEntries.get(i);
+            boolean matches = false;
+            Fluid fluid = BuiltInRegistries.FLUID.get(e.fluidId());
+            if (fluid != null && fluid != Fluids.EMPTY
+                    && net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector.matchesAnyFluidInput(
+                    fluid, inputSelectors)) {
+                matches = true;
+            } else if (net.unfamily.colossal_reactors.coolant.CoolantLoader.get(e.fluidId()) != null
+                    && net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector.coolantInputsMatchSelectors(
+                    net.unfamily.colossal_reactors.coolant.CoolantLoader.get(e.fluidId()).inputs(), inputSelectors)) {
+                matches = true;
+            }
+            if (!matches) {
+                i++;
+                continue;
+            }
+            int got = consumeCoolantByKey(e.fluidId(), remaining);
+            if (got <= 0) {
+                i++;
+                continue;
+            }
+            consumed += got;
+            remaining -= got;
+        }
+        return consumed;
+    }
+
+    /** Adds waste units under {@code wasteId} (see {@link net.unfamily.colossal_reactors.fuel.FuelDefinition#wasteId()}). */
+    public float addWasteUnits(ResourceLocation wasteId, float units) {
         if (units <= 0) return 0;
         float total = getTotalFuelAndWasteUnits();
         int max = getMaxFuelUnitsTotal();
@@ -217,26 +268,26 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         if (add <= 0) return 0;
         for (int i = 0; i < wasteEntries.size(); i++) {
             WasteEntry e = wasteEntries.get(i);
-            if (e.id().equals(fuelId)) {
-                wasteEntries.set(i, new WasteEntry(fuelId, e.units() + add));
+            if (e.id().equals(wasteId)) {
+                wasteEntries.set(i, new WasteEntry(wasteId, e.units() + add));
                 setChanged();
                 return add;
             }
         }
-        wasteEntries.add(new WasteEntry(fuelId, add));
+        wasteEntries.add(new WasteEntry(wasteId, add));
         setChanged();
         return add;
     }
 
-    public float consumeWasteUnits(ResourceLocation fuelId, float units) {
+    public float consumeWasteUnits(ResourceLocation wasteId, float units) {
         if (units <= 0) return 0;
         for (int i = 0; i < wasteEntries.size(); i++) {
             WasteEntry e = wasteEntries.get(i);
-            if (!e.id().equals(fuelId)) continue;
+            if (!e.id().equals(wasteId)) continue;
             float take = Math.min(units, e.units());
             float remain = e.units() - take;
             if (remain <= 0.0001f) wasteEntries.remove(i);
-            else wasteEntries.set(i, new WasteEntry(fuelId, remain));
+            else wasteEntries.set(i, new WasteEntry(wasteId, remain));
             if (take > 0) setChanged();
             return take;
         }
@@ -248,17 +299,23 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         CoolantDefinition waterDef =
                 CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         for (CoolantEntry e : coolantEntries) {
+            var def = CoolantLoader.get(e.fluidId());
+            if (def != null && CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) {
+                return waterDef != null ? waterDef : def;
+            }
             var fluid = BuiltInRegistries.FLUID.get(e.fluidId());
             if (fluid == null || fluid == Fluids.EMPTY) continue;
-            var def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
+            def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
             if (def != null && CoolantLoader.WATER_COOLANT_ID.equals(def.coolantId())) {
                 return waterDef != null ? waterDef : def;
             }
         }
         for (CoolantEntry e : coolantEntries) {
+            var def = CoolantLoader.get(e.fluidId());
+            if (def != null) return def;
             var fluid = BuiltInRegistries.FLUID.get(e.fluidId());
             if (fluid == null || fluid == Fluids.EMPTY) continue;
-            var def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
+            def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
             if (def != null) return def;
         }
         return waterDef;

@@ -247,29 +247,15 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     /** Drain gas from port tank for reactor/turbine (INSERT mode). */
     public int takeGasForReactor(Object templateStack, int amountMb) {
         if (!MekChemicalHelper.isLoaded() || amountMb <= 0 || MekChemicalHelper.isEmpty(templateStack)) return 0;
+        // Internal reactor/turbine pull; medium toggles gate pipe insert, not multiblock consumption.
         if (portMode != PortMode.INSERT) return 0;
         Object handler = getChemicalHandler();
         if (handler == null) return 0;
-        try {
-            Object inTank = handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, 0);
-            if (MekChemicalHelper.isEmpty(inTank)) return 0;
-            if (!MekChemicalHelper.matchesSelector(inTank, MekChemicalHelper.getTypeRegistryName(templateStack) != null
-                    ? "%" + MekChemicalHelper.getTypeRegistryName(templateStack) : "")) {
-                String name = MekChemicalHelper.getTypeRegistryName(inTank);
-                String want = MekChemicalHelper.getTypeRegistryName(templateStack);
-                if (name == null || want == null || !name.equals(want)) return 0;
-            }
-            long drain = Math.min(amountMb, MekChemicalHelper.getAmount(inTank));
-            if (drain <= 0) return 0;
-            Class<?> actionClass = Class.forName("mekanism.api.Action");
-            Object exec = actionClass.getField("EXECUTE").get(null);
-            Object drained = handler.getClass().getMethod("extractChemical", int.class, long.class, actionClass)
-                    .invoke(handler, 0, drain, exec);
+        int drained = MekChemicalHelper.extractFromTank(handler, 0, amountMb, templateStack);
+        if (drained > 0) {
             setChanged();
-            return (int) MekChemicalHelper.getAmount(drained);
-        } catch (Throwable ignored) {
-            return 0;
         }
+        return drained;
     }
 
     /**
@@ -645,7 +631,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean allowChemicalFill() {
-        return portMode == PortMode.INSERT;
+        return portMode == PortMode.INSERT && mediumFlags.isAllowGas();
     }
 
     private boolean allowChemicalDrain() {
