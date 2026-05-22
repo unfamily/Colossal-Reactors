@@ -17,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.turbine.ElecCoilDefinition;
-import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -51,11 +50,6 @@ public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinitio
 
     @Override
     public IDrawable getBackground() { return background; }
-
-    @Override
-    public boolean isHandled(ElecCoilDefinition recipe) {
-        return ElecCoilLoader.isVisibleInJei(recipe);
-    }
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, ElecCoilDefinition recipe, IFocusGroup focuses) {

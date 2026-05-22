@@ -55,11 +55,6 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
     public IDrawable getBackground() { return background; }
 
     @Override
-    public boolean isHandled(TurbineGenerationDefinition recipe) {
-        return TurbineGenerationLoader.isVisibleInJei(recipe);
-    }
-
-    @Override
     public void setRecipe(IRecipeLayoutBuilder builder, TurbineGenerationDefinition recipe, IFocusGroup focuses) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;
