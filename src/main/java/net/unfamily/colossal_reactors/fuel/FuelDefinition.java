@@ -5,11 +5,12 @@ import net.minecraft.resources.Identifier;
 import java.util.List;
 
 /**
- * One fuel type: id, item/tag inputs, waste output (item tag or id), and per-fuel parameters.
+ * One fuel type: {@code sub_type} is {@code input-output} (e.g. {@code item-item}, {@code fluid-fluid}).
  */
 public record FuelDefinition(
         Identifier fuelId,
         Identifier wasteId,
+        String subType,
         List<String> inputs,
         int consume,
         String output,
@@ -20,10 +21,17 @@ public record FuelDefinition(
         double baseFuelUnitsPerTick,
         boolean overwritable
 ) {
+    public static final String SUBTYPE_ITEM_ITEM = "item-item";
+    public static final String SUBTYPE_FLUID_FLUID = "fluid-fluid";
+
     public FuelDefinition {
         if (wasteId == null) {
             wasteId = fuelId;
         }
+        if (subType == null || subType.isBlank()) {
+            subType = SUBTYPE_ITEM_ITEM;
+        }
+        inputs = inputs != null ? List.copyOf(inputs) : List.of();
         if (consume <= 0) {
             consume = 1;
         }
@@ -32,19 +40,75 @@ public record FuelDefinition(
         }
     }
 
+    public FuelMedium inputMedium() {
+        return FuelSubType.parseInput(subType);
+    }
+
+    public FuelMedium outputMedium() {
+        return FuelSubType.parseOutput(subType);
+    }
+
+    public boolean acceptsInputMedium(FuelMedium medium) {
+        return inputMedium() == medium;
+    }
+
+    public boolean producesOutputMedium(FuelMedium medium) {
+        return outputMedium() == medium;
+    }
+
     public float fuelUnitsFromInputAmount(float inputAmount) {
         return inputAmount * unitsPerFuel / (float) consume;
+    }
+
+    public float fuelUnitsPerInputUnit() {
+        return fuelUnitsFromInputAmount(1f);
+    }
+
+    public int inputAmountForSpaceUnits(float spaceUnits) {
+        float per = fuelUnitsPerInputUnit();
+        if (per <= 0f) {
+            return 0;
+        }
+        return (int) Math.floor(spaceUnits / per);
+    }
+
+    public int pullAmountMb(int maxMbAvailable) {
+        if (maxMbAvailable <= 0) {
+            return 0;
+        }
+        int batch = consume;
+        if (maxMbAvailable >= batch) {
+            return (maxMbAvailable / batch) * batch;
+        }
+        return maxMbAvailable;
+    }
+
+    public int inputAmountForGrantedUnits(float grantedUnits) {
+        float per = fuelUnitsPerInputUnit();
+        if (per <= 0f) {
+            return 0;
+        }
+        return (int) Math.ceil(grantedUnits / per - 1e-6f);
     }
 
     public float fuelUnitsPerItemStack() {
         return fuelUnitsFromInputAmount(1f);
     }
 
+    public float fuelUnitsPerConsumeBatch() {
+        return fuelUnitsFromInputAmount(consume);
+    }
+
+    public int inputAmountBatched(int maxInputAmount) {
+        return pullAmountMb(maxInputAmount);
+    }
+
     public float wasteUnitsFromFuelConsumed(float fuelUnitsConsumed) {
-        if (unitsPerFuel <= 0) {
+        if (unitsPerFuel <= 0 || produce <= 0) {
             return fuelUnitsConsumed;
         }
-        return fuelUnitsConsumed * (float) unitsPerWaste / (float) unitsPerFuel;
+        float inputAmount = fuelUnitsConsumed * (float) consume / (float) unitsPerFuel;
+        return inputAmount * (float) unitsPerWaste / (float) produce;
     }
 
     public int wasteOutputAmountFromWasteUnits(float wasteUnits) {
@@ -52,5 +116,20 @@ public record FuelDefinition(
             return 0;
         }
         return (int) Math.floor(wasteUnits * produce / (float) unitsPerWaste);
+    }
+
+    public int wasteEjectAmountFromWasteUnits(float wasteUnits) {
+        int raw = wasteOutputAmountFromWasteUnits(wasteUnits);
+        if (raw < produce) {
+            return 0;
+        }
+        return (raw / produce) * produce;
+    }
+
+    public float wasteUnitsCostForOutputAmount(int outputAmount) {
+        if (outputAmount <= 0 || produce <= 0) {
+            return 0f;
+        }
+        return outputAmount * (float) unitsPerWaste / (float) produce;
     }
 }

@@ -10,7 +10,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.util.FluidInputMatcher;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import org.jetbrains.annotations.Nullable;
@@ -42,6 +45,7 @@ public class FuelLoader {
     private static final String KEY_BASE_FUEL_UNITS_PER_TICK = "base_fuel_units_per_tick";
     private static final String KEY_BASE_MB_PER_TICK_LEGACY = "base_mb_per_tick";
     private static final String KEY_OUTPUT = "output";
+    private static final String KEY_SUB_TYPE = "sub_type";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
     private static final Map<Identifier, FuelDefinition> DEFINITIONS = new HashMap<>();
@@ -72,13 +76,14 @@ public class FuelLoader {
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
         Identifier nuclearWasteId = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "nuclear_waste");
-        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, nuclearWasteId, inputs, 1, output, 1,
-                unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
+        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, nuclearWasteId, FuelDefinition.SUBTYPE_ITEM_ITEM,
+                inputs, 1, output, 1, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
 
         Identifier azuriteId = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
         DEFINITIONS.put(azuriteId, new FuelDefinition(
                 azuriteId,
                 nuclearWasteId,
+                FuelDefinition.SUBTYPE_ITEM_ITEM,
                 List.of("#c:ingots/azurite"),
                 1,
                 ColossalReactors.MODID + ":nuclear_waste",
@@ -128,6 +133,12 @@ public class FuelLoader {
                 : json.has(KEY_BASE_MB_PER_TICK_LEGACY) ? json.get(KEY_BASE_MB_PER_TICK_LEGACY).getAsDouble()
                 : 0.03;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
+        String rawSubType = json.has(KEY_SUB_TYPE) ? json.get(KEY_SUB_TYPE).getAsString() : FuelDefinition.SUBTYPE_ITEM_ITEM;
+        String subType = FuelSubType.normalize(rawSubType);
+        if (subType == null) {
+            LOGGER.warn("Fuel entry in {}: invalid sub_type '{}'", sourcePath, rawSubType);
+            subType = FuelDefinition.SUBTYPE_ITEM_ITEM;
+        }
         Identifier wasteId = fuelId;
         if (json.has(KEY_WASTE_ID)) {
             Identifier parsed = Identifier.tryParse(json.get(KEY_WASTE_ID).getAsString());
@@ -135,7 +146,7 @@ public class FuelLoader {
                 wasteId = parsed;
             }
         }
-        return new FuelDefinition(fuelId, wasteId,
+        return new FuelDefinition(fuelId, wasteId, subType,
                 inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs),
                 consume, output, produce, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
     }
@@ -206,8 +217,14 @@ public class FuelLoader {
         Identifier itemId = BuiltInRegistries.ITEM.getKey(item);
         FuelDefinition tagMatch = null;
         for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.acceptsInputMedium(FuelMedium.ITEM)) {
+                continue;
+            }
             for (String input : def.inputs()) {
                 if (isInputExcluded(input)) continue;
+                if (FluidInputMatcher.isChemicalPrefix(input)) {
+                    continue;
+                }
                 if (input.startsWith("#")) {
                     Identifier tagId = Identifier.tryParse(input.substring(1));
                     if (tagId == null) continue;
@@ -221,6 +238,22 @@ public class FuelLoader {
         return tagMatch;
     }
 
+    @Nullable
+    public static FuelDefinition getDefinitionForFluid(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return null;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.acceptsInputMedium(FuelMedium.FLUID)) {
+                continue;
+            }
+            if (FluidInputMatcher.matchesAnyFluidInput(fluid, def.inputs())) {
+                return def;
+            }
+        }
+        return null;
+    }
+
     /**
      * Returns a single item stack for the first valid input of this fuel type (for eject: convert fuel units back to items).
      * Caller must use definition's unitsPerFuel when converting fuel units back to item count.
@@ -230,6 +263,9 @@ public class FuelLoader {
         if (def == null || def.inputs().isEmpty()) return ItemStack.EMPTY;
         for (String input : def.inputs()) {
             if (isInputExcluded(input)) continue;
+            if (FluidInputMatcher.isChemicalPrefix(input)) {
+                continue;
+            }
             if (input.startsWith("#")) {
                 Identifier tagId = Identifier.tryParse(input.substring(1));
                 if (tagId == null) continue;
@@ -261,6 +297,9 @@ public class FuelLoader {
         if (def == null) return ItemStack.EMPTY;
         String output = def.output();
         if (output == null || output.isEmpty()) return ItemStack.EMPTY;
+        if (FluidInputMatcher.isChemicalPrefix(output)) {
+            return ItemStack.EMPTY;
+        }
         if (output.startsWith("#")) {
             Identifier tagId = Identifier.tryParse(output.substring(1));
             if (tagId == null) return ItemStack.EMPTY;

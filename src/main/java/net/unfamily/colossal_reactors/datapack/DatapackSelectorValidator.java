@@ -17,6 +17,8 @@ import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
+import net.unfamily.colossal_reactors.fuel.FuelMedium;
+import net.unfamily.colossal_reactors.fuel.FuelSubType;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
@@ -237,22 +239,49 @@ public final class DatapackSelectorValidator {
     @Nullable
     public static FuelDefinition sanitizeFuel(FuelDefinition def) {
         if (!validationEnabled()) return def;
-        List<String> inputs = filterItemSelectors(def.inputs());
+        String normalizedSub = FuelSubType.normalize(def.subType());
+        if (normalizedSub == null) {
+            LOGGER.debug("Skipped fuel {}: invalid sub_type '{}'", def.fuelId(), def.subType());
+            return null;
+        }
+        FuelMedium inputMedium = FuelSubType.parseInput(normalizedSub);
+        FuelMedium outputMedium = FuelSubType.parseOutput(normalizedSub);
+        if (inputMedium == FuelMedium.CHEMICAL || outputMedium == FuelMedium.CHEMICAL) {
+            LOGGER.debug("Skipped fuel {}: chemical sub_type requires Mekanism (not integrated on 26.x yet)", def.fuelId());
+            return null;
+        }
+        List<String> inputs = inputMedium == FuelMedium.FLUID
+                ? filterFluidSelectors(def.inputs())
+                : filterItemSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.fuelId().toString();
-            if (isResolvableItemSelector(fallback)) {
+            boolean ok = inputMedium == FuelMedium.FLUID
+                    ? isResolvableFluidSelector(fallback)
+                    : isResolvableItemSelector(fallback);
+            if (ok) {
                 inputs = List.of(fallback);
             } else {
                 LOGGER.debug("Skipped fuel {}: no resolvable inputs", def.fuelId());
                 return null;
             }
         }
+        if (!FuelSubType.inputsMatchSubType(normalizedSub, inputs)) {
+            LOGGER.debug("Skipped fuel {}: inputs do not match sub_type {}", def.fuelId(), normalizedSub);
+            return null;
+        }
         String output = def.output();
-        if (output == null || output.isBlank() || !isResolvableItemSelector(output)) {
+        if (!FuelSubType.outputMatchesSubType(normalizedSub, output)) {
+            LOGGER.debug("Skipped fuel {}: output '{}' does not match sub_type {}", def.fuelId(), output, normalizedSub);
+            return null;
+        }
+        boolean outOk = outputMedium == FuelMedium.FLUID
+                ? isResolvableFluidSelector(output)
+                : isResolvableItemSelector(output);
+        if (!outOk) {
             LOGGER.debug("Skipped fuel {}: unresolved output '{}'", def.fuelId(), output);
             return null;
         }
-        return new FuelDefinition(def.fuelId(), def.wasteId(), inputs,
+        return new FuelDefinition(def.fuelId(), def.wasteId(), normalizedSub, inputs,
                 def.consume(), output, def.produce(), def.unitsPerFuel(), def.unitsPerWaste(),
                 def.baseRfPerTick(), def.baseFuelUnitsPerTick(), def.overwritable());
     }
