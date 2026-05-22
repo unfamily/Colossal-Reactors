@@ -496,13 +496,18 @@ public final class ReactorBuildLogic {
         return onBoundary >= 2;
     }
 
-    /** Preferred shell type for this face, falling back to the other when the preferred one is unavailable. */
+    /**
+     * Casing faces: casing only (wait if none in buffer). Glass faces: glass first, then casing fallback.
+     */
     private static ItemStack resolveFrameStack(ReactorBuilderBlockEntity builder, boolean preferCasing) {
-        ItemStack primary = preferCasing ? findCasingBlock(builder) : findGlassBlock(builder);
-        if (!primary.isEmpty()) {
-            return primary;
+        if (preferCasing) {
+            return findCasingBlock(builder);
         }
-        return preferCasing ? findGlassBlock(builder) : findCasingBlock(builder);
+        ItemStack glass = findGlassBlock(builder);
+        if (!glass.isEmpty()) {
+            return glass;
+        }
+        return findCasingBlock(builder);
     }
 
     private static ItemStack findCasingBlock(ReactorBuilderBlockEntity builder) {

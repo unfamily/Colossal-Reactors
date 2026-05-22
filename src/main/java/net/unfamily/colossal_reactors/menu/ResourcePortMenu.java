@@ -11,26 +11,54 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.client.gui.ResourcePortGuiLayout;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Container for Resource Port GUI. One slot at (37, 39), player inventory at (8, 94) + hotbar at (8, 152).
+ * Container for Resource Port GUI. Client menu syncs {@link ContainerData} from server (builder pattern).
  */
 public class ResourcePortMenu extends AbstractContainerMenu {
 
+    private static final int DATA_ALLOW_SOLID = 7;
+    private static final int DATA_ALLOW_LIQUID = 8;
+    private static final int DATA_ALLOW_GAS = 9;
+    /** Must match {@link ResourcePortBlockEntity} fluid data slot count. */
+    public static final int DATA_COUNT = 10;
+
     private final ContainerLevelAccess levelAccess;
     private final ContainerData fluidData;
+    @Nullable
+    private final ResourcePortBlockEntity blockEntity;
 
-    public ResourcePortMenu(int containerId, Inventory playerInventory, ResourcePortBlockEntity blockEntity, ContainerData fluidData) {
+    public ResourcePortMenu(int containerId, Inventory playerInventory, ResourcePortBlockEntity blockEntity,
+                            ContainerData fluidData) {
         super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
+        this.blockEntity = blockEntity;
         this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
         this.fluidData = fluidData;
         addDataSlots(fluidData);
+        addPortSlots(blockEntity, playerInventory);
+    }
 
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 39));
+    public ResourcePortMenu(int containerId, Inventory playerInventory) {
+        super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
+        this.blockEntity = null;
+        this.levelAccess = ContainerLevelAccess.NULL;
+        this.fluidData = new SimpleContainerData(DATA_COUNT);
+        addDataSlots(fluidData);
+        addPortSlots(null, playerInventory);
+    }
 
+    private void addPortSlots(@Nullable ResourcePortBlockEntity port, Inventory playerInventory) {
+        if (port != null) {
+            addSlot(new SlotItemHandler(port.getItemStackHandler(), 0, ResourcePortGuiLayout.ITEM_SLOT_X,
+                    ResourcePortGuiLayout.ITEM_SLOT_Y));
+        } else {
+            addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0,
+                    ResourcePortGuiLayout.ITEM_SLOT_X, ResourcePortGuiLayout.ITEM_SLOT_Y));
+        }
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 94 + row * 18));
@@ -41,22 +69,20 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         }
     }
 
-    public ResourcePortMenu(int containerId, Inventory playerInventory) {
-        super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
-        this.levelAccess = ContainerLevelAccess.NULL;
-        this.fluidData = new SimpleContainerData(8);
-        addDataSlots(fluidData);
+    @Nullable
+    public ResourcePortBlockEntity getBlockEntity() {
+        return blockEntity;
+    }
 
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 37, 39));
+    public BlockPos getBlockPos() {
+        if (blockEntity != null) {
+            return blockEntity.getBlockPos();
+        }
+        return getSyncedBlockPos();
+    }
 
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 94 + row * 18));
-            }
-        }
-        for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, 8 + col * 18, 152));
-        }
+    public BlockPos getSyncedBlockPos() {
+        return new BlockPos(fluidData.get(4), fluidData.get(5), fluidData.get(6));
     }
 
     @Override
@@ -101,7 +127,6 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         return fluidData.get(1);
     }
 
-    /** Fluid registry id for GUI tooltip (client); -1 if empty. */
     public int getFluidId() {
         return fluidData.get(2);
     }
@@ -110,12 +135,23 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         return PortMode.fromId(fluidData.get(3));
     }
 
-    public PortFilter getPortFilter() {
-        return PortFilter.fromId(fluidData.get(7));
+    public boolean isAllowSolid() {
+        return fluidData.get(DATA_ALLOW_SOLID) != 0;
     }
 
-    /** Block pos synced for client (e.g. packet). */
-    public BlockPos getSyncedBlockPos() {
-        return new BlockPos(fluidData.get(4), fluidData.get(5), fluidData.get(6));
+    public boolean isAllowLiquid() {
+        return fluidData.get(DATA_ALLOW_LIQUID) != 0;
+    }
+
+    public boolean isAllowGas() {
+        return fluidData.get(DATA_ALLOW_GAS) != 0;
+    }
+
+    public int getGasAmount() {
+        return 0;
+    }
+
+    public int getGasCapacity() {
+        return 0;
     }
 }

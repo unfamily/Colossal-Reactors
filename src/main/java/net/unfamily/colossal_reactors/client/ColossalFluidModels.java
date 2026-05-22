@@ -32,6 +32,11 @@ public final class ColossalFluidModels {
                 ModFluids.MOLTEN_TOUGH_ALLOY::getFlowing);
 
         event.register(
+                new FluidModel.Unbaked(MOLTEN_STILL, MOLTEN_FLOW, null, FluidTintSources.constant(FluidColors.MOLTEN_STAINLESS_STEEL)),
+                ModFluids.MOLTEN_STAINLESS_STEEL::getSource,
+                ModFluids.MOLTEN_STAINLESS_STEEL::getFlowing);
+
+        event.register(
                 new FluidModel.Unbaked(WATER_STILL, WATER_FLOW, null, FluidTintSources.constant(FluidColors.GELID_BREEZIUM)),
                 ModFluids.GELID_BREEZIUM::getSource,
                 ModFluids.GELID_BREEZIUM::getFlowing);

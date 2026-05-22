@@ -15,6 +15,7 @@ import net.unfamily.colossal_reactors.block.TurbineRodControllerBlock;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.tags.ModBlockTags;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Server-side turbine build: frame, closure deck, rod controller, rods, blades, optional coil blocks.
@@ -386,6 +387,67 @@ public final class TurbineBuildLogic {
         return true;
     }
 
+    private static int countCoilZoneCells(BuildBounds b) {
+        int count = 0;
+        TurbineRotorLayout layout = b.layout;
+        for (int xx = b.minX + 1; xx < b.maxX; xx++) {
+            for (int yy = b.minY + 1; yy < b.maxY; yy++) {
+                for (int zz = b.minZ + 1; zz < b.maxZ; zz++) {
+                    if (layout.isCoilZoneWorld(xx, yy, zz)) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    @Nullable
+    private static BlockPos coilZoneCellAt(BuildBounds b, int cellIndex) {
+        int i = 0;
+        TurbineRotorLayout layout = b.layout;
+        for (int xx = b.minX + 1; xx < b.maxX; xx++) {
+            for (int yy = b.minY + 1; yy < b.maxY; yy++) {
+                for (int zz = b.minZ + 1; zz < b.maxZ; zz++) {
+                    if (!layout.isCoilZoneWorld(xx, yy, zz)) {
+                        continue;
+                    }
+                    if (i == cellIndex) {
+                        return new BlockPos(xx, yy, zz);
+                    }
+                    i++;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static boolean hasUnfilledCoilCells(ServerLevel level, BuildBounds b, int coilIndex) {
+        if (ElecCoilLoader.shouldSkipSolidCoilAutoPlacement(coilIndex)) {
+            return false;
+        }
+        TurbineRotorLayout layout = b.layout;
+        for (int xx = b.minX + 1; xx < b.maxX; xx++) {
+            for (int yy = b.minY + 1; yy < b.maxY; yy++) {
+                for (int zz = b.minZ + 1; zz < b.maxZ; zz++) {
+                    if (!layout.isCoilZoneWorld(xx, yy, zz)) {
+                        continue;
+                    }
+                    BlockPos pos = new BlockPos(xx, yy, zz);
+                    BlockState existing = level.getBlockState(pos);
+                    if (ElecCoilLoader.isBlockMatchingSelectedCoil(existing, coilIndex, level.registryAccess())) {
+                        continue;
+                    }
+                    if (!canReplaceForSolidBlock(level, pos)) {
+                        continue;
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean placeBladesToRing(ServerLevel level, TurbineBuilderBlockEntity builder,
                                              BlockPos rodPos, BlockState rodState, Direction axis, int targetRing) {
         while (TurbineBladePlacement.currentRing(level, rodPos, axis) <= targetRing
@@ -399,68 +461,50 @@ public final class TurbineBuildLogic {
 
     /** Coils: last build stage — fill entire coil zone from buffer (supports tag selectors). */
     private static boolean tickCoils(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
-        TurbineRotorLayout layout = b.layout;
         int idx = builder.getSelectedCoilIndex();
         if (ElecCoilLoader.shouldSkipSolidCoilAutoPlacement(idx)) {
             builder.setBuildStage(STAGE_DONE);
             return false;
         }
-        BlockState coilState = ElecCoilLoader.placementStateForOption(idx, level.registryAccess());
-        if (coilState == null) {
+        if (!hasUnfilledCoilCells(level, b, idx)) {
             builder.setBuildStage(STAGE_DONE);
             return false;
         }
-        int axisStart = layout.coilLoopStart();
-        int axisEnd = layout.coilLoopEndExclusive();
-        int axisStep = layout.coilLoopStep();
-        int axisLayer0 = builder.getBuildRodLy();
-        int x0 = builder.getBuildRodLx();
-        int y0 = builder.getBuildRodLz();
-        int z0 = builder.getBuildFrameZ();
-        if (axisLayer0 == Integer.MIN_VALUE) {
-            axisLayer0 = axisStart;
-            x0 = b.minX + 1;
-            y0 = b.minY + 1;
-            z0 = b.minZ + 1;
+        BlockState coilState = ElecCoilLoader.placementStateForOption(idx, level.registryAccess());
+        if (coilState == null) {
+            return true;
         }
-        for (int axisLayer = axisLayer0; axisStep > 0 ? axisLayer < axisEnd : axisLayer > axisEnd; axisLayer += axisStep) {
-            int xx0 = (axisLayer == axisLayer0) ? x0 : b.minX + 1;
-            for (int xx = xx0; xx < b.maxX; xx++) {
-                int yy0 = (axisLayer == axisLayer0 && xx == xx0) ? y0 : b.minY + 1;
-                for (int yy = yy0; yy < b.maxY; yy++) {
-                    int zz0 = (axisLayer == axisLayer0 && xx == xx0 && yy == yy0) ? z0 : b.minZ + 1;
-                    for (int zz = zz0; zz < b.maxZ; zz++) {
-                        builder.setBuildRodCursor(xx, axisLayer, zz + 1);
-                        builder.setBuildFrameCursor(xx, yy, zz);
-                        if (layout.worldAxisCoord(xx, yy, zz) != axisLayer) {
-                            continue;
-                        }
-                        if (!layout.isCoilZoneWorld(xx, yy, zz)) {
-                            continue;
-                        }
-                        BlockPos pos = new BlockPos(xx, yy, zz);
-                        BlockState existing = level.getBlockState(pos);
-                        if (ElecCoilLoader.isBlockMatchingSelectedCoil(existing, idx, level.registryAccess())) {
-                            continue;
-                        }
-                        if (!canReplaceForSolidBlock(level, pos)) {
-                            continue;
-                        }
-                        if (!consumeCoilFromBuffer(builder, idx, level)) {
-                            builder.setBuildRodCursor(xx, axisLayer, zz);
-                            builder.setBuildFrameCursor(xx, yy, zz);
-                            return true;
-                        }
-                        level.setBlock(pos, coilState, net.minecraft.world.level.block.Block.UPDATE_ALL);
-                        return true;
-                    }
-                    builder.setBuildRodCursor(xx, axisLayer, b.minZ + 1);
-                    builder.setBuildFrameCursor(xx, yy, b.minZ + 1);
-                }
-                builder.setBuildRodCursor(b.minX + 1, axisLayer, b.minZ + 1);
+
+        int totalCells = countCoilZoneCells(b);
+        int cellIndex = builder.getBuildRodLx();
+        if (cellIndex == Integer.MIN_VALUE || cellIndex < 0) {
+            cellIndex = 0;
+        }
+
+        for (; cellIndex < totalCells; cellIndex++) {
+            BlockPos pos = coilZoneCellAt(b, cellIndex);
+            if (pos == null) {
+                break;
             }
-            builder.setBuildRodCursor(b.minX + 1, axisLayer + axisStep, b.minZ + 1);
-            builder.setBuildFrameCursor(b.minX + 1, b.minY + 1, b.minZ + 1);
+            BlockState existing = level.getBlockState(pos);
+            if (ElecCoilLoader.isBlockMatchingSelectedCoil(existing, idx, level.registryAccess())) {
+                continue;
+            }
+            if (!canReplaceForSolidBlock(level, pos)) {
+                continue;
+            }
+            if (!consumeCoilFromBuffer(builder, idx, level)) {
+                builder.setBuildRodCursor(cellIndex, 0, 0);
+                return true;
+            }
+            level.setBlock(pos, coilState, net.minecraft.world.level.block.Block.UPDATE_ALL);
+            builder.setBuildRodCursor(cellIndex + 1, 0, 0);
+            return true;
+        }
+
+        if (hasUnfilledCoilCells(level, b, idx)) {
+            builder.setBuildRodCursor(0, 0, 0);
+            return true;
         }
         builder.setBuildStage(STAGE_DONE);
         return false;
@@ -523,18 +567,21 @@ public final class TurbineBuildLogic {
         return ItemStack.EMPTY;
     }
 
-    /** Preferred shell type for this face, falling back to the other when the preferred one is unavailable. */
+    /**
+     * Casing faces: casing only (wait if none in buffer). Glass faces: glass first, then casing fallback.
+     */
     private static ItemStack resolveFrameStack(TurbineBuilderBlockEntity builder, boolean preferCasing) {
-        ItemStack primary = preferCasing ? findCasingItem(builder) : findGlassItem(builder);
-        if (!primary.isEmpty()) {
-            return primary;
+        if (preferCasing) {
+            return findCasingItem(builder);
         }
-        return preferCasing ? findGlassItem(builder) : findCasingItem(builder);
+        ItemStack glass = findGlassItem(builder);
+        if (!glass.isEmpty()) {
+            return glass;
+        }
+        return findCasingItem(builder);
     }
 
-    /**
-     * Consumes casing or glass from buffer and places the block that was actually resolved (preferred or fallback).
-     */
+    /** Consumes shell item from buffer and places the resolved block state. */
     private static boolean tryPlaceFrame(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos, boolean preferCasing) {
         ItemStack stack = resolveFrameStack(builder, preferCasing);
         if (stack.isEmpty() || !consumeOne(builder, stack.getItem())) {

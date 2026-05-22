@@ -14,7 +14,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.ReactorPowerPort;
-import net.unfamily.colossal_reactors.blockentity.PortFilter;
+import net.unfamily.colossal_reactors.reactor.ResourcePortOutputRouter;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
@@ -258,15 +258,14 @@ public final class ReactorSimulation {
         int steamProducedThisTick = 0;
         int waterConsumedThisTick = 0;
 
+        List<ResourcePortBlockEntity> extractPorts = resourcePorts.stream()
+                .filter(p -> p.getPortMode() == PortMode.EXTRACT)
+                .toList();
+
         if (waterMode) {
             // Water mode: consume coolant from INSERT ports for steam; push steam to EXTRACT ports only (EJECT = input back out, not reactor output). If all EXTRACT fluid ports are full, do not consume water (saturated).
             Fluid coolantFluid = CoolantLoader.getFirstFluidFromDefinition(coolantDef, level.registryAccess());
-            int steamOutputSpace = 0;
-            for (ResourcePortBlockEntity port : resourcePorts) {
-                if (port.getPortMode() != PortMode.EXTRACT) continue;
-                if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
-                steamOutputSpace += port.getFluidCapacityMb() - port.getFluidAmountMb();
-            }
+            int steamOutputSpace = ResourcePortOutputRouter.availableFluidSpace(extractPorts);
             int coolantToConsumeMb = (steamOutputSpace <= 0) ? 0 : (int) (rfProduced * coolantDef.rfToCoolantFactor());
             if (coolantToConsumeMb > 0 && coolantFluid != null && coolantFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
                 int totalDrained = controller.consumeCoolant(coolantFluid, coolantToConsumeMb);
@@ -275,17 +274,10 @@ public final class ReactorSimulation {
                 int steamPerTick = (int) steamMb;
                 steamProducedThisTick = steamPerTick;
                 if (steamPerTick > 0) {
-                    String outputTag = coolantDef.output();
+                    String outputTag = coolantDef.liquidOutputSelector();
                     Fluid steamFluid = CoolantLoader.getFirstFluidFromTag(outputTag, level.registryAccess());
                     if (steamFluid != null && steamFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
-                        int remaining = steamPerTick;
-                        for (ResourcePortBlockEntity port : resourcePorts) {
-                            if (remaining <= 0) break;
-                            if (port.getPortMode() != PortMode.EXTRACT) continue;
-                            if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
-                            int filled = port.receiveFluidFromReactor(new FluidStack(steamFluid, remaining));
-                            remaining -= filled;
-                        }
+                        ResourcePortOutputRouter.pushFluid(extractPorts, new FluidStack(steamFluid, steamPerTick));
                     }
                 }
                 // Produce energy only when water was insufficient (unconverted part goes to RF)
@@ -432,7 +424,7 @@ public final class ReactorSimulation {
             if (template.isEmpty()) continue;
             ItemStack stack = new ItemStack(template.getItem(), actualItems);
             for (ResourcePortBlockEntity port : ejectPorts) {
-                if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
+                if (!port.isAllowSolid()) continue;
                 if (!port.canAcceptItemFromReactor() || stack.isEmpty()) continue;
                 ItemStack remaining = port.receiveItemFromReactor(stack);
                 stack = remaining;
@@ -454,7 +446,7 @@ public final class ReactorSimulation {
             int remaining = consumed;
             for (ResourcePortBlockEntity port : ejectPorts) {
                 if (remaining <= 0) break;
-                if (port.getPortFilter() == PortFilter.ONLY_SOLID_FUEL) continue;
+                if (!port.isAllowLiquid() || port.isAllowGas()) continue;
                 int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
                 remaining -= filled;
             }
@@ -492,13 +484,7 @@ public final class ReactorSimulation {
             int actualItems = (int) Math.floor(consumedUnits / (float) unitsPerWaste);
             if (actualItems <= 0) continue;
             ItemStack stack = new ItemStack(template.getItem(), actualItems);
-            for (ResourcePortBlockEntity port : extractPorts) {
-                if (port.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID) continue;
-                if (stack.isEmpty() || !port.canAcceptItemFromReactor()) continue;
-                ItemStack remaining = port.receiveItemFromReactor(stack);
-                stack = remaining;
-                if (stack.isEmpty()) break;
-            }
+            stack = ResourcePortOutputRouter.pushItem(extractPorts, stack);
             if (!stack.isEmpty() && stack.getCount() > 0) {
                 controller.addWasteUnits(entry.id(), stack.getCount() * (float) unitsPerWaste);
             }

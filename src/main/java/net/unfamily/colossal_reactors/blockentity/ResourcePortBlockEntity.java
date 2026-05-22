@@ -58,8 +58,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final int DATA_POS_X = 4;
     private static final int DATA_POS_Y = 5;
     private static final int DATA_POS_Z = 6;
-    private static final int DATA_FILTER = 7;
-    private static final int DATA_COUNT = 8;
+    private static final int DATA_ALLOW_SOLID = 7;
+    private static final int DATA_ALLOW_LIQUID = 8;
+    private static final int DATA_ALLOW_GAS = 9;
+    private static final int DATA_COUNT = 10;
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(SLOT_SIZE) {
         @Override
@@ -76,7 +78,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     };
 
     private PortMode portMode = PortMode.INSERT;
-    private PortFilter portFilter = PortFilter.BOTH;
+    private final PortMediumFlags mediumFlags = new PortMediumFlags();
 
     @Nullable
     private ResourceHandler<ItemResource> cachedItemCapability;
@@ -100,7 +102,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 case DATA_POS_X -> worldPosition.getX();
                 case DATA_POS_Y -> worldPosition.getY();
                 case DATA_POS_Z -> worldPosition.getZ();
-                case DATA_FILTER -> portFilter.getId();
+                case DATA_ALLOW_SOLID -> mediumFlags.isAllowSolid() ? 1 : 0;
+                case DATA_ALLOW_LIQUID -> mediumFlags.isAllowLiquid() ? 1 : 0;
+                case DATA_ALLOW_GAS -> mediumFlags.isAllowGas() ? 1 : 0;
                 default -> 0;
             };
         }
@@ -189,6 +193,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     @NotNull
     public ItemStack receiveItemFromReactor(ItemStack stack) {
         if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return stack;
+        if (!mediumFlags.isAllowSolid()) return stack;
         return itemHandler.insertItem(0, stack, false);
     }
 
@@ -198,6 +203,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
      */
     public int receiveFluidFromReactor(FluidStack stack) {
         if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return 0;
+        if (!mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()) return 0;
         FluidResource fr = FluidResource.of(stack);
         try (var tx = Transaction.openRoot()) {
             int inserted = fluidStorage.insert(0, fr, stack.getAmount(), tx);
@@ -209,6 +215,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     /** True if this port is in EXTRACT or EJECT and can accept items from the reactor (slot not full). */
     public boolean canAcceptItemFromReactor() {
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
+        if (!mediumFlags.isAllowSolid()) return false;
         ItemStack inSlot = itemHandler.getStackInSlot(0);
         return inSlot.isEmpty() || (inSlot.getCount() < inSlot.getMaxStackSize());
     }
@@ -216,6 +223,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     /** True if this port is in EXTRACT or EJECT and has fluid tank space. */
     public boolean canAcceptFluidFromReactor() {
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
+        if (!mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()) return false;
         return fluidStorage.getAmountAsLong(0) < fluidStorage.getCapacityAsLong(0, FluidResource.EMPTY);
     }
 
@@ -317,12 +325,47 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public PortFilter getPortFilter() {
-        return portFilter;
+        return mediumFlags.toLegacyFilter();
     }
 
     public void setPortFilter(PortFilter filter) {
-        this.portFilter = filter;
+        PortMediumFlags migrated = PortMediumFlags.fromLegacyFilter(filter);
+        mediumFlags.setAllowSolid(migrated.isAllowSolid());
+        mediumFlags.setAllowLiquid(migrated.isAllowLiquid());
+        mediumFlags.setAllowGas(migrated.isAllowGas());
         setChanged();
+    }
+
+    public boolean isAllowSolid() {
+        return mediumFlags.isAllowSolid();
+    }
+
+    public boolean isAllowLiquid() {
+        return mediumFlags.isAllowLiquid();
+    }
+
+    public boolean isAllowGas() {
+        return mediumFlags.isAllowGas();
+    }
+
+    public void setAllowSolid(boolean allow) {
+        mediumFlags.setAllowSolid(allow);
+        setChanged();
+    }
+
+    public void setAllowLiquid(boolean allow) {
+        mediumFlags.setAllowLiquid(allow);
+        setChanged();
+    }
+
+    public void setAllowGas(boolean allow) {
+        mediumFlags.setAllowGas(allow);
+        setChanged();
+    }
+
+    /** No-op until Mek gas tank is implemented on 1.26. */
+    public boolean dumpGasTankContents() {
+        return false;
     }
 
     @Override
@@ -330,8 +373,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return Component.translatable("gui.colossal_reactors.resource_port.title");
     }
 
-    @Nullable
-    @Override
+    public ContainerData getContainerData() {
+        return fluidData;
+    }
+
     public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
         return new ResourcePortMenu(containerId, playerInventory, this, fluidData);
     }
@@ -342,7 +387,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         itemHandler.serialize(output);
         fluidStorage.serialize(output);
         output.putInt(TAG_PORT_MODE, portMode.getId());
-        output.putInt(TAG_PORT_FILTER, portFilter.getId());
+        mediumFlags.write(output);
     }
 
     @Override
@@ -351,7 +396,15 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         itemHandler.deserialize(input);
         fluidStorage.deserialize(input);
         portMode = PortMode.fromId(input.getIntOr(TAG_PORT_MODE, portMode.getId()));
-        portFilter = PortFilter.fromId(input.getIntOr(TAG_PORT_FILTER, portFilter.getId()));
+        int legacyFilterId = input.getIntOr(TAG_PORT_FILTER, -1);
+        if (legacyFilterId >= 0) {
+            PortMediumFlags migrated = PortMediumFlags.fromLegacyFilter(PortFilter.fromId(legacyFilterId));
+            mediumFlags.setAllowSolid(migrated.isAllowSolid());
+            mediumFlags.setAllowLiquid(migrated.isAllowLiquid());
+            mediumFlags.setAllowGas(migrated.isAllowGas());
+        } else {
+            mediumFlags.read(input);
+        }
     }
 
     /**

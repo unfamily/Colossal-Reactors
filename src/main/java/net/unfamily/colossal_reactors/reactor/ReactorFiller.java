@@ -8,7 +8,6 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
-import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
@@ -77,7 +76,7 @@ public final class ReactorFiller {
             }
 
             // Coolant: move valid coolant fluids from INSERT ports into controller aggregated coolant buffer.
-            if (coolantMoveBudgetMb > 0 && port.getPortFilter() != PortFilter.ONLY_SOLID_FUEL) {
+            if (coolantMoveBudgetMb > 0 && port.isAllowLiquid() && !port.isAllowGas()) {
                 var stored = port.getStoredFluid();
                 if (!stored.isEmpty() && stored.getFluid() != Fluids.EMPTY) {
                     // Only accept fluids that are defined as coolant.

@@ -274,7 +274,12 @@ public final class DatapackSelectorValidator {
             LOGGER.debug("Skipped coolant {}: unresolved output '{}'", def.coolantId(), output);
             return null;
         }
-        return new CoolantDefinition(def.coolantId(), inputs, output, def.rfIncrementPercent(), def.mbDecrementPercent(),
+        String liquidOut = def.liquidOutputSelector();
+        if (liquidOut == null || liquidOut.isBlank() || !isResolvableFluidSelector(liquidOut)) {
+            LOGGER.debug("Skipped coolant {}: unresolved liquid output '{}'", def.coolantId(), liquidOut);
+            return null;
+        }
+        return new CoolantDefinition(def.coolantId(), inputs, output, def.outputs(), def.rfIncrementPercent(), def.mbDecrementPercent(),
                 def.reduceRfProduction(), def.rfToCoolantFactor(), def.steamPerCoolant(), def.overheatingMultiplier(),
                 def.fluidColor(), def.outputColor(), def.overwritable());
     }
