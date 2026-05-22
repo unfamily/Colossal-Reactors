@@ -42,7 +42,10 @@ public final class JeiDatapackRecipeSync {
         addIfFewerThanExpected(recipeManager, MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
         addIfFewerThanExpected(recipeManager, MelterHeatSourceRecipeCategory.RECIPE_TYPE, MelterHeatsLoader.getAll());
         addIfFewerThanExpected(recipeManager, ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getVisibleDefinitions());
-        addIfFewerThanExpected(recipeManager, TurbineGenerationRecipeCategory.RECIPE_TYPE, TurbineGenerationLoader.getVisibleDefinitions());
+        addIfFewerThanExpected(recipeManager, TurbineGenerationRecipeCategory.RECIPE_TYPE,
+                TurbineGenerationLoader.getVisibleDefinitions().stream()
+                        .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
+                        .toList());
     }
 
     private static <T> void addIfFewerThanExpected(IRecipeManager recipeManager, IRecipeType<T> recipeType, List<T> recipes) {

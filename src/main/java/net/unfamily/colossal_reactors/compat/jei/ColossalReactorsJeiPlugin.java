@@ -42,7 +42,10 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         // Reactor data is loaded from datapacks via ReactorDataReloadListener (server and client).
-        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, CoolantLoader.getVisibleDefinitions());
+        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE,
+                CoolantLoader.getVisibleDefinitions().stream()
+                        .flatMap(def -> CoolantJeiRecipe.expand(def).stream())
+                        .toList());
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getVisibleDefinitions());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
         // Melter / turbine: filled after world load (JeiDatapackRecipeSync).

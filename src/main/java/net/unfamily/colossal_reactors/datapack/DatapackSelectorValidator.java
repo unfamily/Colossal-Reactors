@@ -340,7 +340,7 @@ public final class DatapackSelectorValidator {
             LOGGER.debug("Skipped turbine generation {}: unresolved output '{}'", def.generationId(), output);
             return null;
         }
-        return new TurbineGenerationDefinition(def.generationId(), inputs, output, def.rfProduction(), def.overwritable());
+        return new TurbineGenerationDefinition(def.generationId(), inputs, output, def.outputs(), def.rfProduction(), def.overwritable());
     }
 
     @Nullable

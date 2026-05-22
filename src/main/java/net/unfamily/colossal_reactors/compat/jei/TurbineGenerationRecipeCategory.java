@@ -22,12 +22,13 @@ import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineGenerationDefinition> {
+public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJeiRecipe> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "turbine_generation");
-    public static final IRecipeType<TurbineGenerationDefinition> RECIPE_TYPE = IRecipeType.create(UID, TurbineGenerationDefinition.class);
+    public static final IRecipeType<TurbineJeiRecipe> RECIPE_TYPE = IRecipeType.create(UID, TurbineJeiRecipe.class);
 
     private static final int WIDTH = 180;
     private static final int HEIGHT = 54;
@@ -41,7 +42,7 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
     }
 
     @Override
-    public IRecipeType<TurbineGenerationDefinition> getRecipeType() { return RECIPE_TYPE; }
+    public IRecipeType<TurbineJeiRecipe> getRecipeType() { return RECIPE_TYPE; }
 
     @Override
     public int getWidth() { return WIDTH; }
@@ -58,37 +59,61 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
     public @Nullable IDrawable getIcon() { return icon; }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, TurbineGenerationDefinition recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, TurbineJeiRecipe recipe, IFocusGroup focuses) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
+        TurbineGenerationDefinition def = recipe.definition();
 
-        List<FluidStack> inputFluids = JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputs(), registryAccess);
-        List<FluidStack> outputFluids = JeiIngredientsHelper.getOutputFluidStacks(recipe.output(), registryAccess);
-
-        if (!inputFluids.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.INPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
-        }
-        if (!outputFluids.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.OUTPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+        if (recipe.medium() == JeiMedium.LIQUID) {
+            List<FluidStack> inputFluids = JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputSelectors(), registryAccess);
+            if (!inputFluids.isEmpty()) {
+                builder.addSlot(RecipeIngredientRole.INPUT,
+                        JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                        JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                        .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
+            }
+            List<FluidStack> outputFluids = new ArrayList<>();
+            for (String sel : recipe.outputSelectors()) {
+                outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
+            }
+            if (!outputFluids.isEmpty()) {
+                builder.addSlot(RecipeIngredientRole.OUTPUT,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                        .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+            }
+        } else {
+            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
+                    JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputSelectors());
+            if (!recipe.outputSelectors().isEmpty()) {
+                JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, recipe.outputSelectors());
+            } else {
+                String liquidOut = def.liquidOutputSelector();
+                if (liquidOut != null && !liquidOut.isBlank()) {
+                    List<FluidStack> outputFluids = JeiIngredientsHelper.getOutputFluidStacks(liquidOut, registryAccess);
+                    if (!outputFluids.isEmpty()) {
+                        builder.addSlot(RecipeIngredientRole.OUTPUT,
+                                JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                                JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                                .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+                    }
+                }
+            }
         }
     }
 
     @Override
-    public void draw(TurbineGenerationDefinition recipe, IRecipeSlotsView view, GuiGraphicsExtractor g, double mouseX, double mouseY) {
+    public void draw(TurbineJeiRecipe recipe, IRecipeSlotsView view, GuiGraphicsExtractor g, double mouseX, double mouseY) {
         background.draw(g);
+        TurbineGenerationDefinition def = recipe.definition();
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
         g.text(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket",
-                        TurbineGenerationLoader.formatRfPerSteamBucket(recipe.rfProduction())),
+                        TurbineGenerationLoader.formatRfPerSteamBucket(def.rfProduction())),
                 margin, textY, color, false);
     }
 }

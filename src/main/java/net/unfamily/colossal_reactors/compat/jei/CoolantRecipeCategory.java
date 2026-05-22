@@ -21,15 +21,16 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition> {
+public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_coolant");
     private static final int WIDTH = 180;
     private static final int HEIGHT = 62;
 
-    public static final IRecipeType<CoolantDefinition> RECIPE_TYPE = IRecipeType.create(UID, CoolantDefinition.class);
+    public static final IRecipeType<CoolantJeiRecipe> RECIPE_TYPE = IRecipeType.create(UID, CoolantJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable icon;
@@ -40,7 +41,7 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition>
     }
 
     @Override
-    public IRecipeType<CoolantDefinition> getRecipeType() {
+    public IRecipeType<CoolantJeiRecipe> getRecipeType() {
         return RECIPE_TYPE;
     }
 
@@ -65,46 +66,57 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantDefinition>
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, CoolantDefinition recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, CoolantJeiRecipe recipe, IFocusGroup focuses) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        List<FluidStack> inputFluids = JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputs(), registryAccess);
-        List<FluidStack> outputFluids = JeiIngredientsHelper.getOutputFluidStacks(recipe.output(), registryAccess);
-        if (!inputFluids.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.INPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
-        }
-        if (!outputFluids.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.OUTPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+        if (recipe.medium() == JeiMedium.LIQUID) {
+            List<FluidStack> inputFluids = JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputSelectors(), registryAccess);
+            if (!inputFluids.isEmpty()) {
+                builder.addSlot(RecipeIngredientRole.INPUT,
+                        JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                        JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                        .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
+            }
+            List<FluidStack> outputFluids = new ArrayList<>();
+            for (String sel : recipe.outputSelectors()) {
+                outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
+            }
+            if (!outputFluids.isEmpty()) {
+                builder.addSlot(RecipeIngredientRole.OUTPUT,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                        .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+            }
+        } else {
+            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
+                    JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputSelectors());
+            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
+                    JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, recipe.outputSelectors());
         }
     }
 
     @Override
-    public void draw(CoolantDefinition recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+    public void draw(CoolantJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
         background.draw(guiGraphics);
+        CoolantDefinition def = recipe.definition();
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int line2 = textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
 
-        String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(recipe.mbMultiplier(), recipe.steamPerCoolant());
+        String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(def.mbMultiplier(), def.steamPerCoolant());
         Component consumeCoolant = Component.translatable("jei.colossal_reactors.consume_coolant", ratio[1]);
         Component produceExhaust = Component.translatable("jei.colossal_reactors.produce_exhaust_coolant", ratio[0]);
         int line3 = line2 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
         int line4 = line3 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
         Component heatReduction = Component.translatable("jei.colossal_reactors.coolant.heat_reduction",
-                formatMultiplier(recipe.overheatingMultiplier()));
-        Component rfBehavior = recipe.reduceRfProduction()
+                formatMultiplier(def.overheatingMultiplier()));
+        Component rfBehavior = def.reduceRfProduction()
                 ? Component.translatable("jei.colossal_reactors.coolant.suppress_rf_steam")
-                : Component.translatable("jei.colossal_reactors.coolant.suppress_rf_none", formatMultiplier(recipe.rfMultiplier()));
+                : Component.translatable("jei.colossal_reactors.coolant.suppress_rf_none", formatMultiplier(def.rfMultiplier()));
         guiGraphics.text(font, consumeCoolant, margin, textY, color, false);
         guiGraphics.text(font, produceExhaust, margin, line2, color, false);
         guiGraphics.text(font, heatReduction, margin, line3, color, false);

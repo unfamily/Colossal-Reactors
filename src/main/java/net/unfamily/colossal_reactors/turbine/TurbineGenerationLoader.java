@@ -33,6 +33,7 @@ public final class TurbineGenerationLoader {
     private static final String KEY_GENERATION_ID = "coolant_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_OUTPUT = "output";
+    private static final String KEY_OUTPUTS = "outputs";
     private static final String KEY_RF_PRODUCTION = "rf_production";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
@@ -78,7 +79,7 @@ public final class TurbineGenerationLoader {
         String output = "minecraft:water";
         double rfPerMb = Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
         DEFINITIONS.put(DEFAULT_GENERATION_ID, new TurbineGenerationDefinition(
-                DEFAULT_GENERATION_ID, inputs, output, rfPerMb, true));
+                DEFAULT_GENERATION_ID, inputs, output, List.of(output), rfPerMb, true));
     }
 
     public static final int STEAM_BUCKET_MB = 1000;
@@ -150,6 +151,12 @@ public final class TurbineGenerationLoader {
             }
         }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
+        List<String> outputs = new ArrayList<>();
+        if (json.has(KEY_OUTPUTS) && json.get(KEY_OUTPUTS).isJsonArray()) {
+            for (JsonElement el : json.getAsJsonArray(KEY_OUTPUTS)) {
+                if (el.isJsonPrimitive()) outputs.add(el.getAsString());
+            }
+        }
         double rf = json.has(KEY_RF_PRODUCTION)
                 ? json.get(KEY_RF_PRODUCTION).getAsDouble()
                 : Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
@@ -159,7 +166,7 @@ public final class TurbineGenerationLoader {
         if (inputs.isEmpty()) {
             inputs.add("#c:steam");
         }
-        return new TurbineGenerationDefinition(id, List.copyOf(inputs), output, rf, overwritable);
+        return new TurbineGenerationDefinition(id, List.copyOf(inputs), output, outputs, rf, overwritable);
     }
 
     @Nullable
