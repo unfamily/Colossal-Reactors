@@ -34,15 +34,27 @@ public class Config {
             .comment("Does not enable radiation in Colossal Reactors reactors. Enable radiation management features (Radiation Scrubber, Radiation Cure). When true and Mekanism is installed, items and recipes appear in creative tab and are craftable. Default: false")
             .define("003_enable_radiation_management", false);
 
+    static {
+        BUILDER.pop();
+    }
+
+    // ========== worldgen ==========
+    static {
+        BUILDER.comment("Ore generation toggles").push("worldgen");
+    }
+
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_URANIUM_OREGEN = BUILDER
             .comment("When true, disables uranium ore generation in the world. Default: false")
-            .define("100_disable_uranium_oregen", false);
+            .define("000_disable_uranium_oregen", false);
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_LEAD_OREGEN = BUILDER
             .comment("When true, disables lead ore generation in the world. Default: false")
-            .define("101_disable_lead_oregen", false);
+            .define("001_disable_lead_oregen", false);
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_BORON_OREGEN = BUILDER
             .comment("When true, disables boron ore generation in the world. Few mods add boron; useful to keep only boron. Default: false")
-            .define("102_disable_boron_oregen", false);
+            .define("002_disable_boron_oregen", false);
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_CHROMIUM_OREGEN = BUILDER
+            .comment("When true, disables chromium ore generation in the world. Default: false")
+            .define("003_disable_chromium_oregen", false);
 
     static {
         BUILDER.pop();

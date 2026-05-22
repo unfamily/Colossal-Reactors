@@ -85,6 +85,10 @@ public class ColossalReactors {
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        if (net.neoforged.fml.ModList.get().isLoaded("mekanism")) {
+            net.unfamily.colossal_reactors.item.ModMekItems.MEK_ITEMS.register(modEventBus);
+            net.unfamily.colossal_reactors.integration.mekanism.ModMekanismChemicals.CHEMICALS.register(modEventBus);
+        }
         ModFluids.FLUID_TYPES.register(modEventBus);
         ModFluids.FLUIDS.register(modEventBus);
         ModBlockEntities.register(modEventBus);

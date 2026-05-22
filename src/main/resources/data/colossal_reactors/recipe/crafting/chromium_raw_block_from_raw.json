@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "RRR",
+    "RRR",
+    "RRR"
+  ],
+  "key": {
+    "R": {
+      "tag": "c:raw_materials/chromium"
+    }
+  },
+  "result": {
+    "id": "colossal_reactors:chromium_raw_block",
+    "count": 1
+  }
+}

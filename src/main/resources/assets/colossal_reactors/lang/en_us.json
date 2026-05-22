@@ -405,5 +405,21 @@
   "message.colossal_reactors.turbine_invalid.rod_not_to_floor": "Invalid: rod does not reach the rotor floor",
   "message.colossal_reactors.turbine_invalid.unbalanced_blades": "Invalid: blades are not balanced (must be multiples of 4 per rod)",
   "message.colossal_reactors.turbine_invalid.exterior_controller_count": "Invalid: need exactly 1 turbine controller outside (found %s)",
-  "message.colossal_reactors.turbine_invalid.interior_unknown": "Invalid: unexpected block inside turbine"
+  "message.colossal_reactors.turbine_invalid.interior_unknown": "Invalid: unexpected block inside turbine",
+  "block.colossal_reactors.chromium_ore": "Chromium Ore",
+  "block.colossal_reactors.deep_chromium_ore": "Deepslate Chromium Ore",
+  "block.colossal_reactors.chromium_block": "Block of Chromium",
+  "block.colossal_reactors.chromium_raw_block": "Block of Raw Chromium",
+  "block.colossal_reactors.stainless_steel_block": "Block of Stainless Steel",
+  "item.colossal_reactors.chromium_raw": "Raw Chromium",
+  "item.colossal_reactors.chromium_ingot": "Chromium Ingot",
+  "item.colossal_reactors.chromium_dust": "Chromium Dust",
+  "item.colossal_reactors.chromium_dust_dirty": "Dirty Chromium Dust",
+  "item.colossal_reactors.unrefined_stainless_steel": "Unrefined Stainless Steel",
+  "item.colossal_reactors.stainless_steel_ingot": "Stainless Steel Ingot",
+  "item.colossal_reactors.boron_shard": "Boron Shard",
+  "item.colossal_reactors.chromium_shard": "Chromium Shard",
+  "item.colossal_reactors.chromium_crystal": "Chromium Crystal",
+  "item.colossal_reactors.boron_dirty_dust": "Dirty Boron Dust",
+  "item.colossal_reactors.uranium_dust_dirty": "Dirty Uranium Dust"
 }

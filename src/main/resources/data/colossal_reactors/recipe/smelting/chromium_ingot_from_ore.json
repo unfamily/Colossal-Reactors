@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "cookingtime": 200,
+  "experience": 1.0,
+  "ingredient": {
+    "tag": "c:ores/chromium"
+  },
+  "result": {
+    "id": "colossal_reactors:chromium_ingot",
+    "count": 1
+  }
+}

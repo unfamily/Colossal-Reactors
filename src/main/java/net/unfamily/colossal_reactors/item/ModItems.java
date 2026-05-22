@@ -89,6 +89,10 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.BORON_ORE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> DEEPSLATE_BORON_ORE = ITEMS.register("deep_boron_ore",
             () -> new BlockItem(ModBlocks.DEEPSLATE_BORON_ORE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> CHROMIUM_ORE = ITEMS.register("chromium_ore",
+            () -> new BlockItem(ModBlocks.CHROMIUM_ORE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> DEEPSLATE_CHROMIUM_ORE = ITEMS.register("deep_chromium_ore",
+            () -> new BlockItem(ModBlocks.DEEPSLATE_CHROMIUM_ORE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> URANIUM_BLOCK = ITEMS.register("uranium_block",
             () -> new BlockItem(ModBlocks.URANIUM_BLOCK.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> URANIUM_RAW_BLOCK = ITEMS.register("uranium_raw_block",
@@ -107,6 +111,12 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.AZURITE_BLOCK.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TOUGH_ALLOY_BLOCK = ITEMS.register("tough_alloy_block",
             () -> new BlockItem(ModBlocks.TOUGH_ALLOY_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> CHROMIUM_BLOCK = ITEMS.register("chromium_block",
+            () -> new BlockItem(ModBlocks.CHROMIUM_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> CHROMIUM_RAW_BLOCK = ITEMS.register("chromium_raw_block",
+            () -> new BlockItem(ModBlocks.CHROMIUM_RAW_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> STAINLESS_STEEL_BLOCK = ITEMS.register("stainless_steel_block",
+            () -> new BlockItem(ModBlocks.STAINLESS_STEEL_BLOCK.get(), new Item.Properties()));
 
     // Raw materials and ingots
     public static final DeferredItem<Item> RAW_URANIUM = ITEMS.register("raw_uranium",
@@ -134,6 +144,18 @@ public class ModItems {
     public static final DeferredItem<Item> LEAD_DUST = ITEMS.register("lead_dust",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> BORON_DUST = ITEMS.register("boron_dust",
+            () -> new Item(new Item.Properties()));
+
+    public static final DeferredItem<Item> CHROMIUM_RAW = ITEMS.register("chromium_raw",
+            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> CHROMIUM_INGOT = ITEMS.register("chromium_ingot",
+            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> CHROMIUM_DUST = ITEMS.register("chromium_dust",
+            () -> new Item(new Item.Properties()));
+
+    public static final DeferredItem<Item> UNREFINED_STAINLESS_STEEL = ITEMS.register("unrefined_stainless_steel",
+            () -> new Item(new Item.Properties()));
+    public static final DeferredItem<Item> STAINLESS_STEEL_INGOT = ITEMS.register("stainless_steel_ingot",
             () -> new Item(new Item.Properties()));
 
     static {

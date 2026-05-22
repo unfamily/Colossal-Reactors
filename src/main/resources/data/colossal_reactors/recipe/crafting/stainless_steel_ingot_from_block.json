@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "colossal_reactors:stainless_steel_block"
+    }
+  ],
+  "result": {
+    "id": "colossal_reactors:stainless_steel_ingot",
+    "count": 9
+  }
+}

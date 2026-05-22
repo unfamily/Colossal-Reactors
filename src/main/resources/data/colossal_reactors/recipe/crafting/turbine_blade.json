@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AA",
+    "AA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:ingots/stainless_steel"
+    }
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_blade",
+    "count": 16
+  }
+}

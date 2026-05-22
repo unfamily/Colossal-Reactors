@@ -13,6 +13,7 @@ public class TurbineGlassBlock extends TransparentBlock {
                 .instrument(NoteBlockInstrument.HAT)
                 .strength(0.3f)
                 .noOcclusion()
+                .requiresCorrectToolForDrops()
                 .isValidSpawn((s, l, p, e) -> false)
                 .isRedstoneConductor((s, l, p) -> false)
                 .isSuffocating((s, l, p) -> false)

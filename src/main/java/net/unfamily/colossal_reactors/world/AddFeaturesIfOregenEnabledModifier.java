@@ -14,7 +14,7 @@ import net.neoforged.neoforge.common.world.ModifiableBiomeInfo;
 
 /**
  * Biome modifier that adds placed features to biomes only when ore generation for the given ore type is not disabled by config.
- * JSON: biomes, features, step, ore ("uranium" | "lead" | "boron").
+ * JSON: biomes, features, step, ore ("uranium" | "lead" | "boron" | "chromium").
  */
 public record AddFeaturesIfOregenEnabledModifier(
         HolderSet<Biome> biomes,
@@ -36,6 +36,7 @@ public record AddFeaturesIfOregenEnabledModifier(
             case "uranium" -> Config.DISABLE_URANIUM_OREGEN.get();
             case "lead" -> Config.DISABLE_LEAD_OREGEN.get();
             case "boron" -> Config.DISABLE_BORON_OREGEN.get();
+            case "chromium" -> Config.DISABLE_CHROMIUM_OREGEN.get();
             default -> false;
         };
     }
