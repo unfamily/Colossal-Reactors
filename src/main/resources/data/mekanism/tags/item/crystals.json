@@ -1,0 +1,8 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "mekanism" }],
+  "replace": false,
+  "values": [
+    "#c:crystals/boron",
+    "#c:crystals/chromium"
+  ]
+}

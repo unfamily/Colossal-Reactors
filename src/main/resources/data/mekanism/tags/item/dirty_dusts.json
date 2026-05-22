@@ -1,0 +1,8 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "mekanism" }],
+  "replace": false,
+  "values": [
+    "#c:dirty_dusts/boron",
+    "#c:dirty_dusts/chromium"
+  ]
+}

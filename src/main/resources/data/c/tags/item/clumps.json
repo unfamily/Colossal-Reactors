@@ -1,0 +1,10 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "mekanism" }],
+  "replace": false,
+  "values": [
+    "#mekanism:clumps",
+    "#c:clumps/boron",
+    "#c:clumps/chromium",
+    "#c:clumps/uranium"
+  ]
+}
