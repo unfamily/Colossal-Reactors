@@ -73,9 +73,15 @@ public final class TurbineGenerationLoader {
                 DEFAULT_GENERATION_ID, inputs, output, rfPerMb, true));
     }
 
-    /** {@link TurbineGenerationDefinition#rfProduction()} is already RF per mB. */
+    public static final int STEAM_BUCKET_MB = 1000;
+
+    /** {@link TurbineGenerationDefinition#rfProduction()} is RF per mB. */
     public static double rfPerSteamMb(double rfPerMb) {
         return rfPerMb;
+    }
+
+    public static double rfPerSteamBucket(double rfPerMb) {
+        return rfPerMb * STEAM_BUCKET_MB;
     }
 
     public static String formatRfPerSteamMb(double rfPerMb) {
@@ -85,11 +91,27 @@ public final class TurbineGenerationLoader {
         return String.format("%.3f", rfPerMb);
     }
 
-    /** Entries with resolvable steam input and output (for JEI and builder simulation). */
-    public static List<TurbineGenerationDefinition> getVisibleDefinitions() {
+    /** JEI / previews: RF per bucket (datapack {@code rf_production} is per mB). */
+    public static String formatRfPerSteamBucket(double rfPerMb) {
+        return formatRfPerSteamMb(rfPerSteamBucket(rfPerMb));
+    }
+
+    /** All loaded entries registered in JEI; per-recipe visibility uses {@link #isVisibleInJei}. */
+    public static List<TurbineGenerationDefinition> getJeIDefinitions() {
         return DEFINITIONS.values().stream()
-                .filter(def -> DatapackSelectorValidator.sanitizeTurbineGeneration(def) != null)
                 .sorted(java.util.Comparator.comparing(d -> d.generationId().toString()))
+                .toList();
+    }
+
+    /** True when this entry has resolvable inputs/output for the current registries (JEI + builder). */
+    public static boolean isVisibleInJei(TurbineGenerationDefinition def) {
+        return def != null && DatapackSelectorValidator.sanitizeTurbineGeneration(def) != null;
+    }
+
+    /** Entries with resolvable steam input and output (builder simulation, previews). */
+    public static List<TurbineGenerationDefinition> getVisibleDefinitions() {
+        return getJeIDefinitions().stream()
+                .filter(TurbineGenerationLoader::isVisibleInJei)
                 .toList();
     }
 

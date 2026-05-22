@@ -58,6 +58,11 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
     public @Nullable IDrawable getIcon() { return icon; }
 
     @Override
+    public boolean isHandled(TurbineGenerationDefinition recipe) {
+        return TurbineGenerationLoader.isVisibleInJei(recipe);
+    }
+
+    @Override
     public void setRecipe(IRecipeLayoutBuilder builder, TurbineGenerationDefinition recipe, IFocusGroup focuses) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;
@@ -87,8 +92,8 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
-        g.text(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_mb",
-                        TurbineGenerationLoader.formatRfPerSteamMb(recipe.rfProduction())),
+        g.text(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket",
+                        TurbineGenerationLoader.formatRfPerSteamBucket(recipe.rfProduction())),
                 margin, textY, color, false);
     }
 }

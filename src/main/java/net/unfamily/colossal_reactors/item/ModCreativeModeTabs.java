@@ -82,7 +82,8 @@ public class ModCreativeModeTabs {
                                 output.accept(ModFluids.MOLTEN_TOUGH_ALLOY.bucket().get());
                                 output.accept(ModFluids.ENDER_GOO.bucket().get());
                                 output.accept(ModFluids.GELID_BREEZIUM.bucket().get());
-                                if (net.unfamily.colossal_reactors.ColossalReactors.STEAM_GAS != null) {
+                                if (net.unfamily.colossal_reactors.ColossalReactors.STEAM_GAS != null
+                                        && net.unfamily.colossal_reactors.ColossalReactors.STEAM_GAS.isBucketReady()) {
                                     output.accept(net.unfamily.colossal_reactors.ColossalReactors.STEAM_GAS.bucketItem());
                                 }
                             })

@@ -64,17 +64,21 @@ public final class ElecCoilLoader {
         }
     }
 
-    /** Entries shown in JEI (excludes air-only; requires resolvable block selectors). */
+    /** All loaded entries registered in JEI; per-recipe visibility uses {@link #isVisibleInJei}. */
     public static List<ElecCoilDefinition> getJeIDefinitions() {
-        return DEFINITIONS.stream()
-                .filter(def -> !isAirOnlyDefinition(def))
-                .filter(def -> DatapackSelectorValidator.sanitizeElecCoil(def) != null)
-                .toList();
+        return List.copyOf(DEFINITIONS);
     }
 
-    /** Builder coil options excluding air (index 0); same visibility rules as JEI. */
+    /** True when this coil has resolvable blocks for the current registries (JEI + builder). */
+    public static boolean isVisibleInJei(ElecCoilDefinition def) {
+        return def != null && !isAirOnlyDefinition(def) && DatapackSelectorValidator.sanitizeElecCoil(def) != null;
+    }
+
+    /** Builder coil options with same visibility rules as JEI (excludes air-only and unresolved selectors). */
     public static List<ElecCoilDefinition> getVisibleDefinitions() {
-        return getJeIDefinitions();
+        return getJeIDefinitions().stream()
+                .filter(ElecCoilLoader::isVisibleInJei)
+                .toList();
     }
 
     public static boolean isAirOnlyDefinition(ElecCoilDefinition def) {

@@ -62,7 +62,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
                 .toList();
         registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
         registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getJeIDefinitions());
-        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, TurbineGenerationLoader.getVisibleDefinitions());
+        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, TurbineGenerationLoader.getJeIDefinitions());
     }
 
     @Override
