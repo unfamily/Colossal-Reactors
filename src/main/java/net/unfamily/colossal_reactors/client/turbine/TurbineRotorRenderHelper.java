@@ -17,8 +17,11 @@ import java.util.List;
  */
 public final class TurbineRotorRenderHelper {
 
-    /** Extra toward-rod nudge (model hub is already at z=14); 2/16 attaches to connector without sinking inside. */
-    private static final float BLADE_HUB_TOWARD_CONNECTOR = 2f / 16f;
+    /**
+     * Nudge blade hub toward the rod so it meets the lateral connector arm on {@code turbine_rod.json}
+     * (connector inner face ~4.15/16 from block center; blade hub band at y 6.85–9.15 in {@code turbine_blade.json}).
+     */
+    private static final float BLADE_HUB_TOWARD_ROD = 2f / 16f;
 
     @FunctionalInterface
     public interface BlockRenderCallback {
@@ -76,8 +79,8 @@ public final class TurbineRotorRenderHelper {
         }
         Direction towardRod = bladeState.getValue(TurbineBladeBlock.FACING).getOpposite();
         poseStack.translate(
-                towardRod.getStepX() * BLADE_HUB_TOWARD_CONNECTOR,
-                towardRod.getStepY() * BLADE_HUB_TOWARD_CONNECTOR,
-                towardRod.getStepZ() * BLADE_HUB_TOWARD_CONNECTOR);
+                towardRod.getStepX() * BLADE_HUB_TOWARD_ROD,
+                towardRod.getStepY() * BLADE_HUB_TOWARD_ROD,
+                towardRod.getStepZ() * BLADE_HUB_TOWARD_ROD);
     }
 }

@@ -436,6 +436,9 @@ public final class TurbineRotorClientRegistry {
         if (entry.visibility != VisibilityState.ACTIVE) {
             return false;
         }
+        if (!entry.shouldAnimate()) {
+            return false;
+        }
         return TurbineRotorVisibility.shouldRenderAssembly(entry.geometry);
     }
 

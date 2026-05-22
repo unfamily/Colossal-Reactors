@@ -38,6 +38,8 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     private static final int TANK_BOTTOM = 73;
     private static final int TANK_WIDTH = TANK_RIGHT - TANK_LEFT + 1;
     private static final int TANK_HEIGHT = TANK_BOTTOM - TANK_TOP + 1;
+    /** Gas fill: +1 px wide vs texture frame (same left edge as tank). */
+    private static final int GAS_FILL_WIDTH = TANK_WIDTH + 1;
 
     /** Energy bar: same position as HeatingCoilScreen (8x32, right side, vertically centered with tank area) */
     private static final int ENERGY_BAR_WIDTH = 8;
@@ -66,16 +68,16 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
 
         int tankAmount = menu.getChemicalTankAmount();
         int tankCapacity = menu.getChemicalTankCapacity();
-        int barLeft = x + TANK_LEFT;
+        int gasLeft = x + TANK_LEFT;
         int barTop = y + TANK_TOP;
         if (tankCapacity > 0 && tankAmount > 0) {
             int fillHeight = (tankAmount * TANK_HEIGHT) / tankCapacity;
             GasRenderInfo gasInfo = GasTankRenderHelper.getGasRenderInfoFromRegistryName(menu.getChemicalTypeRegistryName());
             int fillTop = barTop + TANK_HEIGHT - fillHeight;
             if (gasInfo != null && !gasInfo.isEmpty()) {
-                GasTankRenderHelper.drawGasInTank(guiGraphics, gasInfo, barLeft, fillTop, TANK_WIDTH, fillHeight);
+                GasTankRenderHelper.drawGasInTank(guiGraphics, gasInfo, gasLeft, fillTop, GAS_FILL_WIDTH, fillHeight);
             } else {
-                guiGraphics.fill(barLeft, fillTop, barLeft + TANK_WIDTH, barTop + TANK_HEIGHT, 0xFF_80_FF_80);
+                guiGraphics.fill(gasLeft, fillTop, gasLeft + GAS_FILL_WIDTH, barTop + TANK_HEIGHT, 0xFF_80_FF_80);
             }
         }
         int energyBarX = x + ENERGY_BAR_X;

@@ -6,26 +6,51 @@ import java.util.List;
 
 /**
  * One fuel type: id, item/tag inputs, waste output (item tag or id), and per-fuel parameters.
- * Used by FuelLoader; entries can be overridden by JSON in the fuel directory.
- * Input: 1 item = unitsPerFuel fuel units. Output: every unitsPerWaste consumed units = 1 waste item.
  */
 public record FuelDefinition(
         Identifier fuelId,
+        Identifier wasteId,
         List<String> inputs,
+        int consume,
         String output,
+        int produce,
         int unitsPerFuel,
         int unitsPerWaste,
         double baseRfPerTick,
         double baseFuelUnitsPerTick,
         boolean overwritable
 ) {
-    /** Inputs are either "#namespace:tag" (item tag) or "namespace:item_id" (item). */
-    public List<String> inputs() {
-        return inputs;
+    public FuelDefinition {
+        if (wasteId == null) {
+            wasteId = fuelId;
+        }
+        if (consume <= 0) {
+            consume = 1;
+        }
+        if (produce <= 0) {
+            produce = 1;
+        }
     }
 
-    /** Output (waste): "#tag" or "namespace:item_id". Resolved at runtime: if tag, use first valid item; if none, no output. */
-    public String output() {
-        return output;
+    public float fuelUnitsFromInputAmount(float inputAmount) {
+        return inputAmount * unitsPerFuel / (float) consume;
+    }
+
+    public float fuelUnitsPerItemStack() {
+        return fuelUnitsFromInputAmount(1f);
+    }
+
+    public float wasteUnitsFromFuelConsumed(float fuelUnitsConsumed) {
+        if (unitsPerFuel <= 0) {
+            return fuelUnitsConsumed;
+        }
+        return fuelUnitsConsumed * (float) unitsPerWaste / (float) unitsPerFuel;
+    }
+
+    public int wasteOutputAmountFromWasteUnits(float wasteUnits) {
+        if (unitsPerWaste <= 0) {
+            return 0;
+        }
+        return (int) Math.floor(wasteUnits * produce / (float) unitsPerWaste);
     }
 }

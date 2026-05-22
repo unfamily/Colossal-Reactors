@@ -54,19 +54,19 @@ public final class ReactorFiller {
             if (!stack.isEmpty()) {
                 FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
                 if (def != null) {
-                    int units = def.unitsPerFuel();
-                    if (units <= 0) units = 1;
+                    float unitsPerItem = def.fuelUnitsPerItemStack();
+                    if (unitsPerItem <= 0f) unitsPerItem = 1f;
                     int max = controller.getMaxFuelUnitsTotal();
                     float total = controller.getTotalFuelUnits();
                     float space = Math.max(0f, max - total);
-                    int maxItems = (int) (space / units);
+                    int maxItems = (int) (space / unitsPerItem);
                     if (maxItems <= 0) continue;
                     // Hard cap per tick to avoid draining huge stacks in one tick.
                     int cap = Math.min(maxItems, 64);
                     for (int i = 0; i < cap; i++) {
                         ItemStack extracted = port.getItemHandler().extractItem(0, 1, false);
                         if (extracted.isEmpty()) break;
-                        float added = controller.addFuel(def.fuelId(), units);
+                        float added = controller.addFuel(def.fuelId(), unitsPerItem);
                         if (added <= 0.0001f) {
                             port.getItemHandler().insertItem(0, extracted, false);
                             break;
@@ -76,7 +76,7 @@ public final class ReactorFiller {
             }
 
             // Coolant: move valid coolant fluids from INSERT ports into controller aggregated coolant buffer.
-            if (coolantMoveBudgetMb > 0 && port.isAllowLiquid() && !port.isAllowGas()) {
+            if (coolantMoveBudgetMb > 0 && port.isAllowLiquid()) {
                 var stored = port.getStoredFluid();
                 if (!stored.isEmpty() && stored.getFluid() != Fluids.EMPTY) {
                     // Only accept fluids that are defined as coolant.

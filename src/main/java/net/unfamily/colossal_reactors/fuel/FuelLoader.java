@@ -31,9 +31,12 @@ public class FuelLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(FuelLoader.class);
 
     private static final String KEY_FUEL_ID = "fuel_id";
+    private static final String KEY_WASTE_ID = "waste_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_UNITS_PER_ITEM = "units_per_item";
     private static final String KEY_UNITS_PER_FUEL = "units_per_fuel";
+    private static final String KEY_CONSUME = "consume";
+    private static final String KEY_PRODUCE = "produce";
     private static final String KEY_UNITS_PER_WASTE = "units_per_waste";
     private static final String KEY_BASE_RF_PER_TICK = "base_rf_per_tick";
     private static final String KEY_BASE_FUEL_UNITS_PER_TICK = "base_fuel_units_per_tick";
@@ -68,13 +71,18 @@ public class FuelLoader {
         double baseFuelUnitsPerTick = 0.03;
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
-        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
+        Identifier nuclearWasteId = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "nuclear_waste");
+        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, nuclearWasteId, inputs, 1, output, 1,
+                unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
 
         Identifier azuriteId = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
         DEFINITIONS.put(azuriteId, new FuelDefinition(
                 azuriteId,
+                nuclearWasteId,
                 List.of("#c:ingots/azurite"),
+                1,
                 ColossalReactors.MODID + ":nuclear_waste",
+                1,
                 500,
                 1500,
                 1000.0,
@@ -100,7 +108,15 @@ public class FuelLoader {
                 if (i.isJsonPrimitive()) inputs.add(i.getAsString());
             }
         }
+        int consume = 1;
+        if (json.has(KEY_CONSUME)) {
+            consume = json.get(KEY_CONSUME).getAsInt();
+        }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
+        int produce = 1;
+        if (json.has(KEY_PRODUCE)) {
+            produce = json.get(KEY_PRODUCE).getAsInt();
+        }
         int unitsPerFuel = 1000;
         int unitsPerWaste = 1000;
         if (json.has(KEY_UNITS_PER_FUEL)) unitsPerFuel = json.get(KEY_UNITS_PER_FUEL).getAsInt();
@@ -112,7 +128,16 @@ public class FuelLoader {
                 : json.has(KEY_BASE_MB_PER_TICK_LEGACY) ? json.get(KEY_BASE_MB_PER_TICK_LEGACY).getAsDouble()
                 : 0.03;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new FuelDefinition(fuelId, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
+        Identifier wasteId = fuelId;
+        if (json.has(KEY_WASTE_ID)) {
+            Identifier parsed = Identifier.tryParse(json.get(KEY_WASTE_ID).getAsString());
+            if (parsed != null) {
+                wasteId = parsed;
+            }
+        }
+        return new FuelDefinition(fuelId, wasteId,
+                inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs),
+                consume, output, produce, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
     }
 
     private static void processEntry(FuelDefinition def) {
@@ -126,6 +151,27 @@ public class FuelLoader {
 
     public static FuelDefinition get(Identifier fuelId) {
         return DEFINITIONS.get(fuelId);
+    }
+
+    /**
+     * Resolves fuel definition for waste in the controller buffer. Does not remap stale buffer keys
+     * after {@code waste_id} changes in datapack.
+     */
+    @Nullable
+    public static FuelDefinition getDefinitionForWasteBuffer(Identifier wasteBufferId) {
+        if (wasteBufferId == null) {
+            return null;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (wasteBufferId.equals(def.wasteId())) {
+                return def;
+            }
+        }
+        FuelDefinition legacy = DEFINITIONS.get(wasteBufferId);
+        if (legacy != null && wasteBufferId.equals(legacy.wasteId())) {
+            return legacy;
+        }
+        return null;
     }
 
     public static Map<Identifier, FuelDefinition> getAll() {

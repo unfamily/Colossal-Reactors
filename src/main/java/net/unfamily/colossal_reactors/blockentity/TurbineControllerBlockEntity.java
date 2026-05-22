@@ -223,6 +223,41 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         return consumeFluidFromList(steamInputEntries, fluid, amountMb);
     }
 
+    /**
+     * Consumes steam from the input buffer for any fluid matching {@code inputSelectors}
+     * (fluid ids and tags from turbine generation JSON).
+     */
+    public int consumeSteamInputMatching(java.util.List<String> inputSelectors, int amountMb) {
+        if (amountMb <= 0 || inputSelectors == null || inputSelectors.isEmpty()) {
+            return 0;
+        }
+        int remaining = amountMb;
+        int consumed = 0;
+        int i = 0;
+        while (remaining > 0 && i < steamInputEntries.size()) {
+            FluidBufferEntry e = steamInputEntries.get(i);
+            Fluid fluid = BuiltInRegistries.FLUID.getValue(e.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY
+                    || !net.unfamily.colossal_reactors.util.FluidInputMatcher.matchesAnyFluidInput(
+                    fluid, inputSelectors)) {
+                i++;
+                continue;
+            }
+            int got = consumeFluidFromList(steamInputEntries, fluid, remaining);
+            if (got <= 0) {
+                i++;
+                continue;
+            }
+            consumed += got;
+            remaining -= got;
+        }
+        return consumed;
+    }
+
+    public java.util.List<FluidBufferEntry> getSteamInputEntriesCopy() {
+        return java.util.List.copyOf(steamInputEntries);
+    }
+
     public int addOutputReturn(Fluid fluid, int amountMb) {
         if (!cachedOutputReturnBuffer) return 0;
         return addFluidToList(outputReturnEntries, getOutputReturnCapacityMb(), fluid, amountMb);

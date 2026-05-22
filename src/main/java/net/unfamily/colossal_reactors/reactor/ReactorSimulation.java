@@ -264,11 +264,11 @@ public final class ReactorSimulation {
 
         if (waterMode) {
             // Water mode: consume coolant from INSERT ports for steam; push steam to EXTRACT ports only (EJECT = input back out, not reactor output). If all EXTRACT fluid ports are full, do not consume water (saturated).
-            Fluid coolantFluid = CoolantLoader.getFirstFluidFromDefinition(coolantDef, level.registryAccess());
+            List<String> coolantInputs = coolantDef.inputs();
             int steamOutputSpace = ResourcePortOutputRouter.availableFluidSpace(extractPorts);
             int coolantToConsumeMb = (steamOutputSpace <= 0) ? 0 : (int) (rfProduced * coolantDef.rfToCoolantFactor());
-            if (coolantToConsumeMb > 0 && coolantFluid != null && coolantFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
-                int totalDrained = controller.consumeCoolant(coolantFluid, coolantToConsumeMb);
+            if (coolantToConsumeMb > 0 && !coolantInputs.isEmpty()) {
+                int totalDrained = controller.consumeCoolantMatching(coolantInputs, coolantToConsumeMb);
                 waterConsumedThisTick = totalDrained;
                 double steamMb = totalDrained * coolantDef.steamPerCoolant();
                 int steamPerTick = (int) steamMb;
@@ -412,13 +412,13 @@ public final class ReactorSimulation {
             if (entry.units() < 1e-6f) continue;
             FuelDefinition def = FuelLoader.get(entry.id());
             if (def == null) continue;
-            int unitsPerFuel = Math.max(1, def.unitsPerFuel());
-            int items = (int) (entry.units() / unitsPerFuel);
+            float unitsPerItem = Math.max(1f, def.fuelUnitsPerItemStack());
+            int items = (int) (entry.units() / unitsPerItem);
             if (items <= 0) continue;
-            float toConsume = items * (float) unitsPerFuel;
+            float toConsume = items * unitsPerItem;
             float consumed = controller.consumeFuel(entry.id(), toConsume);
             if (consumed < 1e-6f) continue;
-            int actualItems = (int) (consumed / unitsPerFuel);
+            int actualItems = (int) (consumed / unitsPerItem);
             if (actualItems <= 0) continue;
             ItemStack template = FuelLoader.getFirstInputStack(entry.id(), registryAccess);
             if (template.isEmpty()) continue;
@@ -431,7 +431,7 @@ public final class ReactorSimulation {
                 if (stack.isEmpty()) break;
             }
             if (!stack.isEmpty() && stack.getCount() > 0) {
-                float putBack = stack.getCount() * (float) unitsPerFuel;
+                float putBack = stack.getCount() * unitsPerItem;
                 controller.addFuel(entry.id(), putBack);
             }
         }
@@ -470,23 +470,22 @@ public final class ReactorSimulation {
         // Waste is stored in units by fuel type; convert to items based on unitsPerWaste and output id/tag.
         for (var entry : controller.getWasteEntries()) {
             if (entry.units() <= 1e-6f) continue;
-            FuelDefinition def = FuelLoader.get(entry.id());
+            FuelDefinition def = FuelLoader.getDefinitionForWasteBuffer(entry.id());
             if (def == null) continue;
-            int unitsPerWaste = Math.max(1, def.unitsPerWaste());
-            int items = (int) Math.floor(entry.units() / (float) unitsPerWaste);
+            int items = def.wasteOutputAmountFromWasteUnits(entry.units());
             if (items <= 0) continue;
-            ItemStack template = FuelLoader.getFirstOutputStack(entry.id(), registryAccess);
-            // If loader cannot resolve output, skip.
+            ItemStack template = FuelLoader.getFirstOutputStack(def.fuelId(), registryAccess);
             if (template.isEmpty()) continue;
             int toMove = Math.min(64, items);
-            float toConsumeUnits = toMove * (float) unitsPerWaste;
+            int unitsPerWaste = Math.max(1, def.unitsPerWaste());
+            float toConsumeUnits = toMove * (float) unitsPerWaste / (float) def.produce();
             float consumedUnits = controller.consumeWasteUnits(entry.id(), toConsumeUnits);
-            int actualItems = (int) Math.floor(consumedUnits / (float) unitsPerWaste);
+            int actualItems = def.wasteOutputAmountFromWasteUnits(consumedUnits);
             if (actualItems <= 0) continue;
             ItemStack stack = new ItemStack(template.getItem(), actualItems);
             stack = ResourcePortOutputRouter.pushItem(extractPorts, stack);
             if (!stack.isEmpty() && stack.getCount() > 0) {
-                controller.addWasteUnits(entry.id(), stack.getCount() * (float) unitsPerWaste);
+                controller.addWasteUnits(entry.id(), stack.getCount() * (float) unitsPerWaste / (float) def.produce());
             }
         }
         // Liquid waste (steam) is pushed directly to EXTRACT/EJECT ports in water mode; no rod liquid waste.
@@ -754,7 +753,7 @@ public final class ReactorSimulation {
             remaining -= consumed;
             // Waste is stored as "waste units" (same unit as fuel), by fuel type id.
             if (consumed > 0) {
-                controller.addWasteUnits(first.id(), consumed);
+                controller.addWasteUnits(def.wasteId(), def.wasteUnitsFromFuelConsumed(consumed));
             }
         }
     }

@@ -221,8 +221,8 @@ public final class TurbineGenerationLoader {
                     if (fluidRef.isEmpty()) continue;
                     boolean inTag = fluids.get(tagKey).map(tag -> tag.contains(fluidRef.get())).orElse(false);
                     if (inTag) return def;
-                } else {
-                    if (Identifier.tryParse(input).equals(fluidId)) return def;
+                } else if (net.unfamily.colossal_reactors.util.FluidInputMatcher.matchesFluid(fluid, input)) {
+                    return def;
                 }
             }
         }

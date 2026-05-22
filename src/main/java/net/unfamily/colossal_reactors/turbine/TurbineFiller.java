@@ -9,6 +9,9 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
+import net.unfamily.colossal_reactors.util.FluidInputMatcher;
+
+import java.util.List;
 
 /**
  * Pulls steam from INSERT resource ports into the controller steam input buffer (one tick of consumption).
@@ -21,8 +24,11 @@ public final class TurbineFiller {
         var result = controller.getCachedResult();
         if (!result.valid()) return;
 
-        Fluid steamFluid = TurbineSimulation.resolveInputSteamFluid(level.registryAccess());
-        if (steamFluid == null || steamFluid == Fluids.EMPTY) return;
+        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
+        if (gen == null) return;
+
+        List<String> inputs = gen.inputs();
+        if (inputs.isEmpty()) return;
 
         int space = Math.max(0, controller.getSteamInputCapacityMb() - controller.getTotalSteamInputMb());
         if (space <= 0) return;
@@ -39,14 +45,21 @@ public final class TurbineFiller {
             if (!(level.getBlockEntity(BlockPos.of(lp)) instanceof ResourcePortBlockEntity port)) continue;
             if (port.getPortMode() != PortMode.INSERT) continue;
 
-            int drained = port.takeFluidForReactor(steamFluid, budget);
+            FluidStack stored = port.getStoredFluid();
+            if (stored.isEmpty() || stored.getFluid() == Fluids.EMPTY) {
+                continue;
+            }
+            if (!FluidInputMatcher.matchesAnyFluidInput(stored.getFluid(), inputs)) {
+                continue;
+            }
+            int drained = port.takeFluidForReactor(stored.getFluid(), budget);
             if (drained <= 0) continue;
-            int added = controller.addSteamInput(steamFluid, drained);
+            int added = controller.addSteamInput(stored.getFluid(), drained);
             int leftover = drained - added;
             if (leftover > 0) {
-                port.getFluidHandler().fill(new FluidStack(steamFluid, leftover), IFluidHandler.FluidAction.EXECUTE);
+                port.getFluidHandler().fill(new FluidStack(stored.getFluid(), leftover), IFluidHandler.FluidAction.EXECUTE);
             }
-            budget -= drained;
+            budget -= added;
         }
     }
 }

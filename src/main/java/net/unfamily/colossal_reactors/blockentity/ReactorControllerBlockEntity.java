@@ -248,6 +248,37 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         return consumed;
     }
 
+    /**
+     * Consumes coolant from the aggregated buffer for any fluid matching {@code inputSelectors}
+     * (fluid ids and tags from coolant JSON).
+     */
+    public int consumeCoolantMatching(List<String> inputSelectors, int amountMb) {
+        if (amountMb <= 0 || inputSelectors == null || inputSelectors.isEmpty()) {
+            return 0;
+        }
+        int remaining = amountMb;
+        int consumed = 0;
+        int i = 0;
+        while (remaining > 0 && i < coolantEntries.size()) {
+            CoolantEntry e = coolantEntries.get(i);
+            Fluid fluid = BuiltInRegistries.FLUID.getValue(e.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY
+                    || !net.unfamily.colossal_reactors.util.FluidInputMatcher.matchesAnyFluidInput(
+                    fluid, inputSelectors)) {
+                i++;
+                continue;
+            }
+            int got = consumeCoolant(fluid, remaining);
+            if (got <= 0) {
+                i++;
+                continue;
+            }
+            consumed += got;
+            remaining -= got;
+        }
+        return consumed;
+    }
+
     public List<WasteEntry> getWasteEntries() { return List.copyOf(wasteEntries); }
     public float getTotalWasteUnits() { return (float) wasteEntries.stream().mapToDouble(WasteEntry::units).sum(); }
     public float getTotalFuelAndWasteUnits() { return getTotalFuelUnits() + getTotalWasteUnits(); }

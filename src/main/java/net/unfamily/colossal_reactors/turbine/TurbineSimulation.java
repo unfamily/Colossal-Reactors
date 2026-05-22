@@ -117,16 +117,16 @@ public final class TurbineSimulation {
             powerPortPositions = controller.getCachedPowerPortPositions();
         }
 
-        Fluid steamFluid = resolveInputSteamFluid(level.registryAccess());
         TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
         Fluid outputFluid = TurbineGenerationLoader.getOutputFluid(gen, level.registryAccess());
+        java.util.List<String> steamInputs = gen != null ? gen.inputs() : java.util.List.of("#c:steam");
 
         double steamDemand = result.maxSteamMbPerTick();
         int steamConsumed = 0;
         boolean outputBufferFull = controller.isOutputReturnBufferFull();
-        if (!outputBufferFull && steamFluid != null && steamFluid != Fluids.EMPTY && steamDemand > 0) {
+        if (!outputBufferFull && steamDemand > 0 && !steamInputs.isEmpty()) {
             int wanted = (int) Math.ceil(steamDemand);
-            steamConsumed = controller.consumeSteamInput(steamFluid, wanted);
+            steamConsumed = controller.consumeSteamInputMatching(steamInputs, wanted);
             if (steamConsumed > 0 && outputFluid != null && outputFluid != Fluids.EMPTY) {
                 int added = controller.addOutputReturn(outputFluid, steamConsumed);
                 if (added < steamConsumed) {
@@ -219,9 +219,16 @@ public final class TurbineSimulation {
             controller.rebuildPartCaches(level, controller.getCachedResult());
             resourcePortPositions = controller.getCachedResourcePortPositions();
         }
-        Fluid steamFluid = resolveInputSteamFluid(level.registryAccess());
-        if (steamFluid != null && steamFluid != Fluids.EMPTY) {
-            pushFluidBufferToEject(level, controller, resourcePortPositions, steamFluid, true);
+        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
+        java.util.List<String> steamInputs = gen != null ? gen.inputs() : java.util.List.of("#c:steam");
+        for (TurbineControllerBlockEntity.FluidBufferEntry entry : controller.getSteamInputEntriesCopy()) {
+            Fluid fluid = BuiltInRegistries.FLUID.getValue(entry.fluidId());
+            if (fluid == null || fluid == Fluids.EMPTY) {
+                continue;
+            }
+            if (net.unfamily.colossal_reactors.util.FluidInputMatcher.matchesAnyFluidInput(fluid, steamInputs)) {
+                pushFluidBufferToEject(level, controller, resourcePortPositions, fluid, true);
+            }
         }
         for (var entry : controller.getOutputReturnEntries()) {
             if (entry.mb() <= 0) continue;
