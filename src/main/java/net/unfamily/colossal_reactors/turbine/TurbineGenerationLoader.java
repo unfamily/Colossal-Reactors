@@ -24,7 +24,7 @@ import java.util.Map;
 
 /**
  * Loads turbine generation definitions from datapack JSON (steam in, optional fluid out).
- * {@link TurbineGenerationDefinition#rfProduction()} is RF per bucket (1000 mB steam).
+ * {@link TurbineGenerationDefinition#rfProduction()} is RF per mB steam ({@code rf_production} in datapack JSON).
  */
 public final class TurbineGenerationLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(TurbineGenerationLoader.class);
@@ -67,25 +67,49 @@ public final class TurbineGenerationLoader {
                 "colossal_reactors:gas_fluid_steam",
                 "#c:steam");
         String output = "minecraft:water";
-        double rfPerBucket = Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get();
+        double rfPerMb = Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
         DEFINITIONS.put(DEFAULT_GENERATION_ID, new TurbineGenerationDefinition(
-                DEFAULT_GENERATION_ID, inputs, output, rfPerBucket, true));
+                DEFAULT_GENERATION_ID, inputs, output, rfPerMb, true));
     }
 
-    /** RF per mB steam from datapack value stored per bucket. */
-    public static double rfPerSteamMb(double rfPerBucket) {
-        return rfPerBucket / 1000.0;
+    public static final int STEAM_BUCKET_MB = 1000;
+
+    /** {@link TurbineGenerationDefinition#rfProduction()} is RF per mB. */
+    public static double rfPerSteamMb(double rfPerMb) {
+        return rfPerMb;
     }
 
-    public static String formatRfPerSteamMb(double rfPerBucket) {
-        return String.format("%.3f", rfPerSteamMb(rfPerBucket));
+    public static double rfPerSteamBucket(double rfPerMb) {
+        return rfPerMb * STEAM_BUCKET_MB;
     }
 
-    /** Entries with resolvable steam input and output (for JEI and builder simulation). */
-    public static List<TurbineGenerationDefinition> getVisibleDefinitions() {
+    public static String formatRfPerSteamMb(double rfPerMb) {
+        if (rfPerMb == Math.rint(rfPerMb)) {
+            return String.format("%.0f", rfPerMb);
+        }
+        return String.format("%.3f", rfPerMb);
+    }
+
+    /** JEI / previews: RF per bucket (datapack {@code rf_production} is per mB). */
+    public static String formatRfPerSteamBucket(double rfPerMb) {
+        return formatRfPerSteamMb(rfPerSteamBucket(rfPerMb));
+    }
+
+    /** All loaded entries registered in JEI; per-recipe visibility uses {@link #isVisibleInJei}. */
+    public static List<TurbineGenerationDefinition> getJeIDefinitions() {
         return DEFINITIONS.values().stream()
-                .filter(def -> DatapackSelectorValidator.sanitizeTurbineGeneration(def) != null)
                 .sorted(java.util.Comparator.comparing(d -> d.generationId().toString()))
+                .toList();
+    }
+
+    public static boolean isVisibleInJei(TurbineGenerationDefinition def) {
+        return def != null && DatapackSelectorValidator.sanitizeTurbineGeneration(def) != null;
+    }
+
+    /** Entries with resolvable steam input and output (builder simulation, previews). */
+    public static List<TurbineGenerationDefinition> getVisibleDefinitions() {
+        return getJeIDefinitions().stream()
+                .filter(TurbineGenerationLoader::isVisibleInJei)
                 .toList();
     }
 
@@ -118,7 +142,7 @@ public final class TurbineGenerationLoader {
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
         double rf = json.has(KEY_RF_PRODUCTION)
                 ? json.get(KEY_RF_PRODUCTION).getAsDouble()
-                : Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get();
+                : Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
         boolean overwritable = json.has(KEY_OVERWRITABLE)
                 ? json.get(KEY_OVERWRITABLE).getAsBoolean()
                 : defaultOverwritable;

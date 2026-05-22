@@ -309,10 +309,10 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         TurbineGenerationDefinition def = gens.get(simulationGenerationIndex);
         var ra = minecraft != null && minecraft.level != null ? minecraft.level.registryAccess() : null;
         Component label = getGenerationDisplayName(def, ra);
-        long rfBucket = Math.round(def.rfProduction());
         MutableComponent tooltip = title.copy()
                 .append(Component.literal("\n"))
-                .append(Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket", rfBucket))
+                .append(Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_mb",
+                        net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader.formatRfPerSteamMb(def.rfProduction())))
                 .append(Component.literal("\n"))
                 .append(clickHint);
         steamGenerationButton.setMessage(label);

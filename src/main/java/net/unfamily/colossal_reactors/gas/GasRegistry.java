@@ -22,6 +22,7 @@ public final class GasRegistry {
 
     static void register(RegisteredGas gas) {
         BY_BLOCK_ID.put(gas.blockId(), gas);
+        BY_BLOCK_ID.put(gas.sourceFluidId(), gas);
         BY_FLUID_ID.put(gas.sourceFluidId(), gas);
         ALL.add(gas);
     }

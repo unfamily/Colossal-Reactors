@@ -31,7 +31,7 @@ public final class TurbineProductionMath {
                 * Config.TURBINE_CONSUMPTION_MULTIPLIER.get();
         double rfPerMb = generation != null
                 ? TurbineGenerationLoader.rfPerSteamMb(generation.rfProduction())
-                : TurbineGenerationLoader.rfPerSteamMb(Config.TURBINE_DEFAULT_RF_PER_STEAM_BUCKET.get());
+                : Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
         double rf = steam * rfPerMb * coilEfficiency * bladeEfficiency * Config.TURBINE_PRODUCTION_MULTIPLIER.get();
         rf = Math.max(rf, Config.TURBINE_MIN_RF_PER_TICK.get());
         return new ProductionEstimate(

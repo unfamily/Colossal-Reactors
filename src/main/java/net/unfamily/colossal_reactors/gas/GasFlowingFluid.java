@@ -1,8 +1,11 @@
 package net.unfamily.colossal_reactors.gas;
 
+import net.minecraft.world.level.LevelReader;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 
-/** Logical gas fluid for stacks and ports; no {@link net.minecraft.world.level.block.LiquidBlock} in world. */
+/**
+ * Gas fluids for stacks/ports/world block. Does not flood — {@link GasLiquidBlock} handles upward movement.
+ */
 public final class GasFlowingFluid {
 
     private GasFlowingFluid() {}
@@ -11,11 +14,31 @@ public final class GasFlowingFluid {
         public Source(Properties properties) {
             super(properties);
         }
+
+        @Override
+        protected int getSlopeFindDistance(LevelReader level) {
+            return 0;
+        }
+
+        @Override
+        protected int getDropOff(LevelReader level) {
+            return Integer.MAX_VALUE / 2;
+        }
     }
 
     public static final class Flowing extends BaseFlowingFluid.Flowing {
         public Flowing(Properties properties) {
             super(properties);
+        }
+
+        @Override
+        protected int getSlopeFindDistance(LevelReader level) {
+            return 0;
+        }
+
+        @Override
+        protected int getDropOff(LevelReader level) {
+            return Integer.MAX_VALUE / 2;
         }
     }
 }
