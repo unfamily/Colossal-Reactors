@@ -46,7 +46,10 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         // Reactor data is loaded from datapacks via ReactorDataReloadListener (server and client).
-        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, CoolantLoader.getVisibleDefinitions());
+        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE,
+                CoolantLoader.getVisibleDefinitions().stream()
+                        .flatMap(def -> CoolantJeiRecipe.expand(def).stream())
+                        .toList());
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getVisibleDefinitions());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
         registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
@@ -62,7 +65,10 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
                 .toList();
         registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
         registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getJeIDefinitions());
-        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, TurbineGenerationLoader.getJeIDefinitions());
+        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE,
+                TurbineGenerationLoader.getJeIDefinitions().stream()
+                        .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
+                        .toList());
     }
 
     @Override

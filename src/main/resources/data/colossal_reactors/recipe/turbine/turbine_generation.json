@@ -9,7 +9,7 @@
         "%mekanism:steam"
       ],
       "output": "minecraft:water",
-      "outputs": ["minecraft:water", "%mekanism:water_vapor"],
+      "outputs": ["minecraft:water"],
       "rf_production": 4
     }
   ]

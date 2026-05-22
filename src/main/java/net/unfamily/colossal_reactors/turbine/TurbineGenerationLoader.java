@@ -71,9 +71,8 @@ public final class TurbineGenerationLoader {
                 "#c:steam");
         String output = "minecraft:water";
         double rfPerMb = Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
-        List<String> defaultOutputs = List.of(output, "%mekanism:water_vapor");
         DEFINITIONS.put(DEFAULT_GENERATION_ID, new TurbineGenerationDefinition(
-                DEFAULT_GENERATION_ID, inputs, output, defaultOutputs, rfPerMb, true));
+                DEFAULT_GENERATION_ID, inputs, output, List.of(output), rfPerMb, true));
     }
 
     public static final int STEAM_BUCKET_MB = 1000;
