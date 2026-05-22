@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [{ "item": "colossal_reactors:chromium_block" }],
+  "result": { "id": "colossal_reactors:chromium_ingot", "count": 9 }
+}

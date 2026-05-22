@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "#c:dusts/boron",
+    "#c:dusts/lead",
+    "#c:dusts/uranium",
+    "#c:dusts/chromium"
+  ]
+}
