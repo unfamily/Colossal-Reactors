@@ -1,0 +1,32 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/invar"
+      }
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:ingots/invar"
+    },
+    "B": {
+      "tag": "c:gems/amethyst"
+    },
+    "C": {
+      "tag": "c:gems/diamond"
+    }
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_builder",
+    "count": 1
+  }
+}

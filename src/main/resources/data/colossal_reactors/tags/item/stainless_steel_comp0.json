@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "#c:ingots/aluminum",
-    "#c:ingots/zinc"
+    "#c:ingots/zinc",
+    "#c:ingots/nickel"
   ]
 }

@@ -8,7 +8,10 @@
       "tag": "c:ingots/iron"
     },
     {
-      "tag": "colossal_reactors:stainless_steel_comp0"
+      "tag": "c:ingots/tin"
+    },
+    {
+      "tag": "c:ingots/tin"
     },
     {
       "tag": "c:ingots/chromium"
@@ -23,7 +26,7 @@
       "type": "neoforge:not",
       "value": {
         "type": "neoforge:tag_empty",
-        "tag": "colossal_reactors:stainless_steel_comp0"
+        "tag": "c:ingots/tin"
       }
     }
   ]

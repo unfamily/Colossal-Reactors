@@ -1,0 +1,29 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/invar"
+      }
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "B B",
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:ingots/invar"
+    },
+    "B": {
+      "tag": "c:glass_blocks"
+    }
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_glass",
+    "count": 4
+  }
+}

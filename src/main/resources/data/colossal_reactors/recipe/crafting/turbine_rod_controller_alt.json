@@ -1,0 +1,32 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/invar"
+      }
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "BAB",
+    "ACA",
+    "BAB"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:ingots/tough_alloy"
+    },
+    "B": {
+      "tag": "c:ingots/invar"
+    },
+    "C": {
+      "item": "colossal_reactors:turbine_rod"
+    }
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_rod_controller",
+    "count": 1
+  }
+}

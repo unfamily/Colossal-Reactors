@@ -8,22 +8,22 @@
       "tag": "c:ingots/iron"
     },
     {
-      "tag": "colossal_reactors:stainless_steel_comp0"
+      "tag": "c:ingots/tin"
     },
     {
-      "tag": "c:ingots/chromium"
+      "tag": "c:ingots/tin"
     }
   ],
   "result": {
     "id": "colossal_reactors:unrefined_stainless_steel",
-    "count": 6
+    "count": 3
   },
   "neoforge:conditions": [
     {
       "type": "neoforge:not",
       "value": {
         "type": "neoforge:tag_empty",
-        "tag": "colossal_reactors:stainless_steel_comp0"
+        "tag": "c:ingots/tin"
       }
     }
   ]

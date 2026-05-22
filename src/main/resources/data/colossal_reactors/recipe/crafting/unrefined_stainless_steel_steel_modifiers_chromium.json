@@ -8,7 +8,7 @@
       "tag": "c:ingots/steel"
     },
     {
-      "tag": "colossal_reactors:alloy_modifiers"
+      "tag": "colossal_reactors:stainless_steel_comp0"
     },
     {
       "tag": "c:ingots/chromium"
@@ -17,5 +17,14 @@
   "result": {
     "id": "colossal_reactors:unrefined_stainless_steel",
     "count": 7
-  }
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "colossal_reactors:stainless_steel_comp0"
+      }
+    }
+  ]
 }

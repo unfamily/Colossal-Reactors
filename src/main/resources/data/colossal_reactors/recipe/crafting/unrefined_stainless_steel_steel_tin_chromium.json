@@ -2,13 +2,16 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     {
-      "tag": "c:ingots/iron"
+      "tag": "c:ingots/steel"
     },
     {
-      "tag": "c:ingots/iron"
+      "tag": "c:ingots/steel"
     },
     {
-      "tag": "colossal_reactors:stainless_steel_comp0"
+      "tag": "c:ingots/tin"
+    },
+    {
+      "tag": "c:ingots/tin"
     },
     {
       "tag": "c:ingots/chromium"
@@ -16,14 +19,14 @@
   ],
   "result": {
     "id": "colossal_reactors:unrefined_stainless_steel",
-    "count": 6
+    "count": 7
   },
   "neoforge:conditions": [
     {
       "type": "neoforge:not",
       "value": {
         "type": "neoforge:tag_empty",
-        "tag": "colossal_reactors:stainless_steel_comp0"
+        "tag": "c:ingots/tin"
       }
     }
   ]
