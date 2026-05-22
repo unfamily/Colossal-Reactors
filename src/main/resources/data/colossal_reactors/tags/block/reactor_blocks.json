@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#colossal_reactors:reactor_blocks/shell",
+    "colossal_reactors:reactor_controller",
+    "colossal_reactors:reactor_builder"
+  ]
+}

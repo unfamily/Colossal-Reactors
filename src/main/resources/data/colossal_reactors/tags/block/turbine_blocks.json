@@ -1,15 +1,8 @@
 {
   "replace": false,
   "values": [
-    "colossal_reactors:turbine_casing",
-    "colossal_reactors:turbine_glass",
+    "#colossal_reactors:turbine_blocks/shell",
     "colossal_reactors:turbine_controller",
-    "colossal_reactors:turbine_rod",
-    "colossal_reactors:turbine_rod_controller",
-    "colossal_reactors:turbine_power_port",
-    "colossal_reactors:turbine_high_cond_power_port",
-    "colossal_reactors:turbine_redstone_port",
-    "colossal_reactors:turbine_resource_port",
     "colossal_reactors:turbine_builder"
   ]
 }

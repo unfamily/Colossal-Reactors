@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -676,12 +677,9 @@ public final class TurbineValidation {
         return findRodControllerAxis(level, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
+    /** Shell border: any casing, glass, or port in {@link ModBlockTags#TURBINE_SHELL}. */
     public static boolean isShellBlock(BlockState state) {
-        return state.is(ModBlocks.TURBINE_CASING.get())
-                || state.is(ModBlocks.TURBINE_GLASS.get())
-                || isTurbinePowerPort(state)
-                || state.is(ModBlocks.TURBINE_REDSTONE_PORT.get())
-                || state.is(ModBlocks.TURBINE_RESOURCE_PORT.get());
+        return state.is(ModBlockTags.TURBINE_SHELL);
     }
 
     public static boolean isTurbinePowerPort(BlockState state) {

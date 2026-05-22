@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#colossal_reactors:turbine_blocks/shell/casings",
+    "#colossal_reactors:turbine_blocks/shell/glasses",
+    "#colossal_reactors:turbine_blocks/shell/ports"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "colossal_reactors:power_port",
+    "colossal_reactors:high_cond_power_port",
+    "colossal_reactors:redstone_port",
+    "colossal_reactors:resource_port"
+  ]
+}
