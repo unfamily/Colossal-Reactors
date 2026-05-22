@@ -14,6 +14,7 @@ import net.unfamily.colossal_reactors.block.TurbineRodBlock;
 import net.unfamily.colossal_reactors.block.TurbineRodControllerBlock;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.item.ModItems;
+import net.unfamily.colossal_reactors.tags.ModBlockTags;
 
 /**
  * Server-side turbine build: frame, closure deck, rod controller, rods, blades, optional coil blocks.
@@ -58,14 +59,14 @@ public final class TurbineBuildLogic {
                         }
                         if (layout.isCoilZoneWorld(x, y, z)) {
                             if (!st.isAir() && !ElecCoilLoader.isCoilBlock(st, level.registryAccess())
-                                    && !st.is(ModBlocks.TURBINE_CASING.get())
-                                    && !st.is(ModBlocks.TURBINE_GLASS.get())) {
+                                    && !st.is(ModBlockTags.TURBINE_SHELL_CASINGS)
+                                    && !st.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
                                 return true;
                             }
                         } else if (!st.isAir() && !st.is(ModBlocks.TURBINE_ROD.get())
                                 && !st.is(ModBlocks.TURBINE_BLADE.get())
-                                && !st.is(ModBlocks.TURBINE_CASING.get())
-                                && !st.is(ModBlocks.TURBINE_GLASS.get())) {
+                                && !st.is(ModBlockTags.TURBINE_SHELL_CASINGS)
+                                && !st.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
                             return true;
                         }
                     }
@@ -250,7 +251,7 @@ public final class TurbineBuildLogic {
 
     private static boolean tryPlaceClosureCasing(ServerLevel level, TurbineBuilderBlockEntity builder, BlockPos pos) {
         BlockState st = level.getBlockState(pos);
-        if (st.is(ModBlocks.TURBINE_CASING.get()) || !canReplaceForSolidBlock(level, pos)) {
+        if (st.is(ModBlockTags.TURBINE_SHELL_CASINGS) || !canReplaceForSolidBlock(level, pos)) {
             return false;
         }
         if (resolveFrameStack(builder, true).isEmpty()) {
@@ -497,22 +498,26 @@ public final class TurbineBuildLogic {
     }
 
     private static ItemStack findCasingItem(TurbineBuilderBlockEntity builder) {
-        Block casing = ModBlocks.TURBINE_CASING.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (!stack.isEmpty() && stack.is(casing.asItem())) {
-                return stack;
+            if (!stack.isEmpty()) {
+                Block block = Block.byItem(stack.getItem());
+                if (block != null && block.defaultBlockState().is(ModBlockTags.TURBINE_SHELL_CASINGS)) {
+                    return stack;
+                }
             }
         }
         return ItemStack.EMPTY;
     }
 
     private static ItemStack findGlassItem(TurbineBuilderBlockEntity builder) {
-        Block glass = ModBlocks.TURBINE_GLASS.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (!stack.isEmpty() && stack.is(glass.asItem())) {
-                return stack;
+            if (!stack.isEmpty()) {
+                Block block = Block.byItem(stack.getItem());
+                if (block != null && block.defaultBlockState().is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
+                    return stack;
+                }
             }
         }
         return ItemStack.EMPTY;

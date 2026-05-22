@@ -18,6 +18,7 @@ import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
 import net.unfamily.colossal_reactors.turbine.TurbineRodControllerLayout;
 import net.unfamily.colossal_reactors.turbine.TurbineRodPatternLogic;
 import net.unfamily.colossal_reactors.turbine.TurbineRotorLayout;
+import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
 /** C2S: turbine footprint preview markers (aligned with {@link ReactorPreviewPayload}). */
@@ -132,16 +133,16 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
                                         ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
                                     }
                                 } else if (hasBlock && !blockState.is(ModBlocks.TURBINE_BLADE.get())
-                                        && !blockState.is(ModBlocks.TURBINE_CASING.get())
-                                        && !blockState.is(ModBlocks.TURBINE_GLASS.get())) {
+                                        && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
+                                        && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
                                     ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
                                 }
                             } else if (layout.isClosureDeckWorld(x, y, z)) {
                                 if (layout.isRodControllerAt(x, y, z, rodCtrlCenter)) {
                                     continue;
                                 }
-                                if (hasBlock && !blockState.is(ModBlocks.TURBINE_CASING.get())
-                                        && !blockState.is(ModBlocks.TURBINE_GLASS.get())
+                                if (hasBlock && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
+                                        && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)
                                         && !blockState.isAir()) {
                                     ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
                                 } else {
@@ -149,12 +150,12 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
                                 }
                             } else if (layout.isCoilZoneWorld(x, y, z)) {
                                 if (hasBlock && !ElecCoilLoader.isCoilBlock(blockState, registryAccess)
-                                        && !blockState.is(ModBlocks.TURBINE_CASING.get())
-                                        && !blockState.is(ModBlocks.TURBINE_GLASS.get())) {
+                                        && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
+                                        && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
                                     ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
                                 }
-                            } else if (hasBlock && !blockState.is(ModBlocks.TURBINE_CASING.get())
-                                    && !blockState.is(ModBlocks.TURBINE_GLASS.get())) {
+                            } else if (hasBlock && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
+                                    && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
                                 ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
                             }
                         }

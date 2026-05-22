@@ -9,6 +9,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import net.unfamily.colossal_reactors.network.ModPayloads;
 import org.jetbrains.annotations.Nullable;
 
@@ -275,12 +276,9 @@ public final class ReactorValidation {
                 report.exteriorControllers(), report.rodColumnsExpected());
     }
 
+    /** Shell border: any casing, glass, or port in {@link ModBlockTags#REACTOR_SHELL}. */
     public static boolean isShellBlock(BlockState state) {
-        return state.is(ModBlocks.REACTOR_CASING.get())
-                || state.is(ModBlocks.REACTOR_GLASS.get())
-                || ModBlocks.isPowerPort(state)
-                || state.is(ModBlocks.REDSTONE_PORT.get())
-                || state.is(ModBlocks.RESOURCE_PORT.get());
+        return state.is(ModBlockTags.REACTOR_SHELL);
     }
 
     private static boolean isShellOrRodController(BlockState state) {

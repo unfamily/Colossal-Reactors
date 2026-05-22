@@ -34,6 +34,10 @@
     "colossal_reactors:chromium_raw_block",
     "colossal_reactors:stainless_steel_block",
     "#colossal_reactors:heating_coils",
-    "#colossal_reactors:turbine_blocks"
+    "#colossal_reactors:turbine_blocks",
+    "#colossal_reactors:reactor_blocks",
+    "colossal_reactors:turbine_rod",
+    "colossal_reactors:turbine_blade",
+    "colossal_reactors:turbine_rod_controller"
   ]
 }

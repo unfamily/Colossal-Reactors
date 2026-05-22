@@ -10,6 +10,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
@@ -505,22 +506,26 @@ public final class ReactorBuildLogic {
     }
 
     private static ItemStack findCasingBlock(ReactorBuilderBlockEntity builder) {
-        Block casing = ModBlocks.REACTOR_CASING.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == casing) {
-                return stack;
+            if (!stack.isEmpty()) {
+                Block block = Block.byItem(stack.getItem());
+                if (block != null && block.defaultBlockState().is(ModBlockTags.REACTOR_SHELL_CASINGS)) {
+                    return stack;
+                }
             }
         }
         return ItemStack.EMPTY;
     }
 
     private static ItemStack findGlassBlock(ReactorBuilderBlockEntity builder) {
-        Block glass = ModBlocks.REACTOR_GLASS.get();
         for (int i = 0; i < builder.getBufferHandler().getSlots(); i++) {
             ItemStack stack = builder.getBufferHandler().getStackInSlot(i);
-            if (!stack.isEmpty() && Block.byItem(stack.getItem()) == glass) {
-                return stack;
+            if (!stack.isEmpty()) {
+                Block block = Block.byItem(stack.getItem());
+                if (block != null && block.defaultBlockState().is(ModBlockTags.REACTOR_SHELL_GLASSES)) {
+                    return stack;
+                }
             }
         }
         return ItemStack.EMPTY;
