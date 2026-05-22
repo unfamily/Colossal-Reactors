@@ -18,8 +18,10 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
@@ -64,17 +66,30 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        List<ItemStack> inputs = JeiIngredientsHelper.getFuelInputStacks(recipe.inputs(), registryAccess);
-        List<ItemStack> outputs = JeiIngredientsHelper.getWasteOutputStacks(recipe.output(), registryAccess);
+        List<String> itemSelectors = new ArrayList<>();
+        List<String> chemicalSelectors = new ArrayList<>();
+        JeiIngredientsHelper.partitionSelectors(recipe.inputs(), itemSelectors, chemicalSelectors);
+
+        List<ItemStack> inputs = JeiIngredientsHelper.getFuelInputStacks(itemSelectors, registryAccess);
         if (!inputs.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
                     JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y).addItemStacks(inputs);
         }
-        if (!outputs.isEmpty()) {
-            builder.addSlot(RecipeIngredientRole.OUTPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y).addItemStacks(outputs);
+        JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT, JeiRecipeBackgroundDrawable.SLOT_IN_X,
+                JeiRecipeBackgroundDrawable.SLOT_IN_Y, chemicalSelectors);
+
+        String output = recipe.output();
+        if (output != null && MaterialSelector.isChemicalPrefix(output)) {
+            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT, JeiRecipeBackgroundDrawable.SLOT_OUT_X,
+                    JeiRecipeBackgroundDrawable.SLOT_OUT_Y, List.of(output));
+        } else {
+            List<ItemStack> outputs = JeiIngredientsHelper.getWasteOutputStacks(output, registryAccess);
+            if (!outputs.isEmpty()) {
+                builder.addSlot(RecipeIngredientRole.OUTPUT,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                        JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y).addItemStacks(outputs);
+            }
         }
     }
 

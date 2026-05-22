@@ -2,14 +2,16 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.client.gui.GasTankRenderHelper.GasRenderInfo;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
+import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 
 import java.util.List;
 
@@ -29,23 +31,25 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    /** Tank at same position as melter: (117, 19), 12x54. Inner area +2 px right and +2 px bottom for gas rendering. */
-    private static final int TANK_X = 117;
-    private static final int TANK_Y = 19;
-    private static final int TANK_WIDTH = 12;
-    private static final int TANK_HEIGHT = 54;
-    private static final int TANK_INSET = 1;
-    /** Gas draw area: inner width + 2, inner height + 2 (like Mekanism gauge). */
-    private static final int TANK_DRAW_WIDTH = (TANK_WIDTH - 2 * TANK_INSET) + 2;
-    private static final int TANK_DRAW_HEIGHT = (TANK_HEIGHT - 2 * TANK_INSET) + 2;
-    /** Vertical offset for gas rendering (pixels down). */
-    private static final int TANK_DRAW_Y_OFFSET = 2;
+    /** Gas tank on radiation_scrubber.png (inclusive 118,20 – 128,73); full rect, no code inset for frame. */
+    private static final int TANK_LEFT = 118;
+    private static final int TANK_TOP = 20;
+    private static final int TANK_RIGHT = 128;
+    private static final int TANK_BOTTOM = 73;
+    private static final int TANK_WIDTH = TANK_RIGHT - TANK_LEFT + 1;
+    private static final int TANK_HEIGHT = TANK_BOTTOM - TANK_TOP + 1;
 
     /** Energy bar: same position as HeatingCoilScreen (8x32, right side, vertically centered with tank area) */
     private static final int ENERGY_BAR_WIDTH = 8;
     private static final int ENERGY_BAR_HEIGHT = 32;
     private static final int ENERGY_BAR_X = GUI_WIDTH - ENERGY_BAR_WIDTH - 8;
-    private static final int ENERGY_BAR_Y = TANK_Y + (TANK_HEIGHT + 2 - ENERGY_BAR_HEIGHT) / 2;
+    private static final int ENERGY_BAR_Y = TANK_TOP + (TANK_HEIGHT + 2 - ENERGY_BAR_HEIGHT) / 2;
+
+    private static final int DUMP_BUTTON_W = 14;
+    private static final int DUMP_BUTTON_H = 12;
+    private static final int DUMP_BUTTON_GAP_BELOW = 3;
+    private static final int DUMP_X = TANK_LEFT + (TANK_WIDTH - DUMP_BUTTON_W) / 2;
+    private static final int DUMP_Y = TANK_BOTTOM + DUMP_BUTTON_GAP_BELOW;
 
     public RadiationScrubberScreen(RadiationScrubberMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -61,6 +65,13 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         }).bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE).build());
+
+        Button dumpButton = Button.builder(Component.literal("D"), b ->
+                        PacketDistributor.sendToServer(new FluidTankDumpPayload(menu.getBlockPos(), FluidTankDumpPayload.TANK_GAS)))
+                .bounds(leftPos + DUMP_X, topPos + DUMP_Y, DUMP_BUTTON_W, DUMP_BUTTON_H)
+                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")))
+                .build();
+        addRenderableWidget(dumpButton);
     }
 
     @Override
@@ -71,16 +82,15 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
 
         int tankAmount = menu.getChemicalTankAmount();
         int tankCapacity = menu.getChemicalTankCapacity();
-        int barLeft = x + TANK_X + TANK_INSET;
+        int barLeft = x + TANK_LEFT;
+        int barTop = y + TANK_TOP;
         if (tankCapacity > 0 && tankAmount > 0) {
-            int fillHeight = (tankAmount * TANK_DRAW_HEIGHT) / tankCapacity;
-            int fillTop = y + TANK_Y + TANK_HEIGHT - TANK_INSET - fillHeight;
-            GasRenderInfo gasInfo = GasTankRenderHelper.getGasRenderInfoFromRegistryName(menu.getChemicalTypeRegistryName());
-            int drawY = fillTop + TANK_DRAW_Y_OFFSET;
-            if (gasInfo != null && !gasInfo.isEmpty()) {
-                GasTankRenderHelper.drawGasInTank(guiGraphics, gasInfo, barLeft, drawY, TANK_DRAW_WIDTH, fillHeight);
-            } else {
-                guiGraphics.fill(barLeft, drawY, barLeft + TANK_DRAW_WIDTH, drawY + fillHeight, 0xFF_80_FF_80);
+            int fillHeight = (tankAmount * TANK_HEIGHT) / tankCapacity;
+            String chemName = menu.getChemicalTypeRegistryName();
+            if (!GasTankRenderHelper.drawGasInTank(guiGraphics, chemName, tankAmount, barLeft, barTop,
+                    TANK_WIDTH, TANK_HEIGHT, fillHeight)) {
+                int fillTop = barTop + TANK_HEIGHT - fillHeight;
+                guiGraphics.fill(barLeft, fillTop, barLeft + TANK_WIDTH, barTop + TANK_HEIGHT, 0xFF_80_FF_80);
             }
         }
         int energyBarX = x + ENERGY_BAR_X;
@@ -119,8 +129,8 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
             Component line = Component.translatable("gui.colossal_reactors.radiation_scrubber.energy_tooltip", menu.getEnergy(), menu.getEnergyCapacity());
             guiGraphics.renderTooltip(font, List.of(line.getVisualOrderText()), mouseX, mouseY);
         }
-        int tx = leftPos + TANK_X;
-        int ty = topPos + TANK_Y;
+        int tx = leftPos + TANK_LEFT;
+        int ty = topPos + TANK_TOP;
         if (mouseX >= tx && mouseX < tx + TANK_WIDTH && mouseY >= ty && mouseY < ty + TANK_HEIGHT) {
             int amount = menu.getChemicalTankAmount();
             int capacity = menu.getChemicalTankCapacity();

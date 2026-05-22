@@ -12,11 +12,12 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
+import net.unfamily.colossal_reactors.client.gui.ResourcePortGuiLayout;
 
 import javax.annotation.Nullable;
 
 /**
- * Menu for heating coil GUI (port-style). Slot (37, 39), player rows at y=94/112/130, hotbar y=152 (aligned with Resource Port).
+ * Menu for heating coil GUI (port-style layout, no mode toggles).
  */
 public class HeatingCoilMenu extends AbstractContainerMenu {
 
@@ -32,17 +33,19 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
         this.data = data;
         this.menuBlockPos = blockEntity.getBlockPos();
         addDataSlots(data);
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 39));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0,
+                ResourcePortGuiLayout.ITEM_SLOT_X, ResourcePortGuiLayout.ITEM_SLOT_Y));
         addPlayerSlots(playerInventory);
     }
 
     public HeatingCoilMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.HEATING_COIL_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(15);
+        this.data = new SimpleContainerData(16);
         this.menuBlockPos = null;
         addDataSlots(data);
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 37, 39));
+        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0,
+                ResourcePortGuiLayout.ITEM_SLOT_X, ResourcePortGuiLayout.ITEM_SLOT_Y));
         addPlayerSlots(playerInventory);
     }
 
@@ -102,6 +105,9 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     public boolean showFluidInGui() { return data.get(11) != 0; }
     public boolean showEnergyInGui() { return data.get(12) != 0; }
     public boolean showItemInGui() { return data.get(13) != 0; }
+
+    /** True when coil datapack declares a chemical consume option (client also requires Mek for the gas bar). */
+    public boolean showChemicalInGui() { return data.get(15) != 0; }
 
     public int getRedstoneMode() { return data.get(14); }
 }

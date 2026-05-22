@@ -109,6 +109,7 @@ public class ColossalReactors {
                 (be, direction) -> ((ResourcePortBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((ResourcePortBlockEntity) be).getFluidHandlerForCapability());
+        registerResourcePortChemicalCapabilities(event);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getItemHandlerForCapability());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
@@ -163,6 +164,23 @@ public class ColossalReactors {
                 (be, direction) -> ((RadiationScrubberBlockEntity) be).getEnergyStorage());
         registerRadiationScrubberChemicalCapability(event);
         GasFluidInteractions.onRegisterCapabilities(event);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void registerResourcePortChemicalCapabilities(RegisterCapabilitiesEvent event) {
+        try {
+            if (!ModList.get().isLoaded("mekanism")) return;
+            Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
+            Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
+            Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
+            var cap = (net.neoforged.neoforge.capabilities.BlockCapability<Object, net.minecraft.core.Direction>) blockCap;
+            event.registerBlockEntity(cap, ModBlockEntities.RESOURCE_PORT_BE.get(),
+                    (ResourcePortBlockEntity be, net.minecraft.core.Direction direction) -> be.getChemicalHandlerForCapability());
+            event.registerBlockEntity(cap, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
+                    (ResourcePortBlockEntity be, net.minecraft.core.Direction direction) -> be.getChemicalHandlerForCapability());
+        } catch (Throwable t) {
+            LOGGER.debug("Could not register Resource Port chemical capability: {}", t.getMessage());
+        }
     }
 
     /** Registers Mekanism CHEMICAL block capability for Radiation Scrubber when Mekanism is loaded (reflection). */
@@ -223,6 +241,7 @@ public class ColossalReactors {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
                 TurbineRotorClientRegistration.registerRenderLayers();
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_TOUGH_ALLOY.block().get(), RenderType.translucent());
+                ItemBlockRenderTypes.setRenderLayer(ModFluids.MOLTEN_STAINLESS_STEEL.block().get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModFluids.GELID_BREEZIUM.block().get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModGases.steam().block(), RenderType.translucent());
             });

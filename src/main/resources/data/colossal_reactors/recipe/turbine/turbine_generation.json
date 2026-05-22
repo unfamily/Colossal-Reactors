@@ -4,9 +4,12 @@
     {
       "coolant_id": "colossal_reactors:water",
       "inputs": [
-        "#c:steam"
+        "#c:steam",
+        "colossal_reactors:gas_fluid_steam",
+        "%mekanism:steam"
       ],
       "output": "minecraft:water",
+      "outputs": ["minecraft:water", "%mekanism:water_vapor"],
       "rf_production": 4
     }
   ]

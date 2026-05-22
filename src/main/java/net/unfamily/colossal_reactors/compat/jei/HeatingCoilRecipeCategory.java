@@ -25,6 +25,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -102,6 +103,20 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
             }
         }
 
+        if (opt.chemical() != null) {
+            ConsumeOption.ChemicalRequirement chemReq = opt.chemical();
+            List<Object> chemStacks = MekChemicalHelper.stacksForSelector(chemReq.selector());
+            if (!chemStacks.isEmpty()) {
+                var chemType = JeiIngredientsHelper.getMekChemicalIngredientType();
+                if (chemType != null) {
+                    int x = getInputSlotX(slotIdx++);
+                    builder.addSlot(RecipeIngredientRole.INPUT, x + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
+                            JeiHeatingCoilBackgroundDrawable.IN_Y + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_Y)
+                            .addIngredients(chemType, chemStacks);
+                }
+            }
+        }
+
         if (opt.item() != null) {
             ConsumeOption.ItemRequirement itemReq = opt.item();
             List<ItemStack> items = resolveItemSelector(itemReq, registryAccess);
@@ -156,6 +171,15 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
             guiGraphics.drawString(font,
                     Component.translatable("jei.colossal_reactors.coil.substain", fluidReq.substain() + " mB"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+        }
+        if (opt.chemical() != null) {
+            ConsumeOption.ChemicalRequirement chemReq = opt.chemical();
+            guiGraphics.drawString(font,
+                    Component.translatable("jei.colossal_reactors.coil.activate", chemReq.activation() + " mB"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+            guiGraphics.drawString(font,
+                    Component.translatable("jei.colossal_reactors.coil.substain", chemReq.substain() + " mB"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.item() != null) {

@@ -23,12 +23,12 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
 import net.unfamily.colossal_reactors.radiation_scrubber.RadiationScrubberCatalystsLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 
@@ -114,71 +114,26 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         this.energyStorage = new RadiationScrubberEnergyStorage(capacity);
     }
 
-    /** Returns the Mekanism chemical handler: tank that accepts only radioactive gas (isolated storage). Caller may cast to IChemicalHandler. */
+    /** Mek chemical handler: radioactive-only tank (Mek waste barrel validator) + insert guard. */
     public Object getChemicalHandler() {
         if (chemicalTank == null) {
-            Object tank = createChemicalTankReflection();
+            Object tank = MekChemicalHelper.createRadioactiveOnlyTank(CHEMICAL_TANK_CAPACITY);
             if (tank != null) {
-                chemicalTank = wrapRadioactiveGasOnlyHandler(tank);
+                chemicalTank = wrapRadioactiveOnlyHandler(tank);
             }
         }
         return chemicalTank;
     }
 
-    /** Creates a tank that accepts only radioactive chemicals (same approach as Mekanism Radioactive Waste Barrel: ChemicalAttributeValidator). Then wrapper restricts to gas only. */
-    private static Object createChemicalTankReflection() {
-        try {
-            Class<?> tankClass = Class.forName("mekanism.api.chemical.BasicChemicalTank");
-            Class<?> listenerClass = Class.forName("mekanism.api.IContentsListener");
-            Class<?> validatorInterface = Class.forName("mekanism.api.chemical.attribute.ChemicalAttributeValidator");
-            String radioactivityClassName = "mekanism.api.datamaps.chemical.attribute.ChemicalRadioactivity";
-            InvocationHandler validatorHandler = (proxy, method, args) -> {
-                String name = method.getName();
-                if ("validate".equals(name) && args != null && args.length > 0) {
-                    Object attr = args[0];
-                    return attr != null && radioactivityClassName.equals(attr.getClass().getName());
-                }
-                if ("process".equals(name) && args != null && args.length > 0) {
-                    Object arg = args[0];
-                    if (arg == null) return false;
-                    try {
-                        Object chemical = arg;
-                        try {
-                            Method getChemical = arg.getClass().getMethod("getChemical");
-                            chemical = getChemical.invoke(arg);
-                        } catch (NoSuchMethodException ignored) {
-                            try {
-                                Method value = arg.getClass().getMethod("value");
-                                chemical = value.invoke(arg);
-                            } catch (NoSuchMethodException ignored2) {
-                                // arg is Chemical itself
-                            }
-                        }
-                        if (chemical == null) return false;
-                        return Boolean.TRUE.equals(chemical.getClass().getMethod("isRadioactive").invoke(chemical));
-                    } catch (Throwable e) {
-                        return false;
-                    }
-                }
-                return null;
-            };
-            Object attributeValidator = Proxy.newProxyInstance(validatorInterface.getClassLoader(), new Class<?>[]{validatorInterface}, validatorHandler);
-            Method create = tankClass.getMethod("createWithValidator", long.class, validatorInterface, listenerClass);
-            return create.invoke(null, CHEMICAL_TANK_CAPACITY, attributeValidator, null);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    /** Wraps the tank so only radioactive gas is accepted (reject non-gas or non-radioactive). Storage is isolated (no irradiation). */
-    private static Object wrapRadioactiveGasOnlyHandler(Object innerTank) {
+    /** Rejects non-radioactive inserts (belt-and-suspenders when inner tank is createAllValid fallback). */
+    private static Object wrapRadioactiveOnlyHandler(Object innerTank) {
         try {
             Class<?> handlerClass = Class.forName("mekanism.api.chemical.IChemicalHandler");
             InvocationHandler h = (proxy, method, args) -> {
-                if ("insertChemical".equals(method.getName()) && args != null && args.length >= 1) {
-                    Object stack = args.length >= 2 ? args[1] : args[0];
-                    if (stack != null && !chemicalStackEmpty(stack) && !isRadioactiveGas(stack)) {
-                        return stack; // reject: only radioactive gas allowed
+                if ("insertChemical".equals(method.getName()) && args != null) {
+                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                    if (stack != null && !chemicalStackEmpty(stack) && !MekChemicalHelper.isRadioactiveStack(stack)) {
+                        return stack;
                     }
                 }
                 return method.invoke(innerTank, args);
@@ -195,19 +150,6 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
             return amount <= 0;
         } catch (Throwable e) {
             return true;
-        }
-    }
-
-    private static boolean isRadioactiveGas(Object stack) {
-        try {
-            Boolean radioactive = (Boolean) stack.getClass().getMethod("isRadioactive").invoke(stack);
-            if (!Boolean.TRUE.equals(radioactive)) return false;
-            Object chemical = stack.getClass().getMethod("getChemical").invoke(stack);
-            if (chemical == null) return false;
-            Boolean gaseous = (Boolean) chemical.getClass().getMethod("isGaseous").invoke(chemical);
-            return Boolean.TRUE.equals(gaseous);
-        } catch (Throwable e) {
-            return false;
         }
     }
 
@@ -270,6 +212,21 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         } catch (Throwable ignored) {
             // Mekanism API or handler not IChemicalHandler
         }
+    }
+
+    /** GUI dump: vent radioactive gas into the world (Mek radiation) and clear the tank. */
+    public boolean dumpChemicalTankContents() {
+        if (level == null || level.isClientSide()) return false;
+        if (getChemicalTankAmount() <= 0) return false;
+        dumpRadiationOnBreak(level, getBlockPos(), this);
+        if (getChemicalTankAmount() > 0) {
+            Object handler = getChemicalHandler();
+            if (handler != null) {
+                MekChemicalHelper.dumpTank(handler);
+            }
+        }
+        setChanged();
+        return true;
     }
 
     /** Destroys gas from tank: BASE_ENERGY_PER_GAS_TICK * multiplier RF per tick, destroys up to (config base * gasMult) mB. Isolated storage: no radiation released. */

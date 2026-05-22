@@ -16,7 +16,13 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.core.RegistryAccess;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
+import mezz.jei.api.ingredients.IIngredientType;
+import mezz.jei.api.recipe.RecipeIngredientRole;
+import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
@@ -34,6 +40,61 @@ public final class JeiIngredientsHelper {
     private static final int DISPLAY_AMOUNT_ITEMS = 1;
 
     private JeiIngredientsHelper() {}
+
+    public static boolean jeiChemicalsAvailable() {
+        return ModList.get().isLoaded("mekanism") && ModList.get().isLoaded("jei");
+    }
+
+    /** Mek {@link mekanism.api.chemical.ChemicalStack} ingredient type ({@code MekanismJEI#TYPE_CHEMICAL}). */
+    @SuppressWarnings("unchecked")
+    public static <T> IIngredientType<T> getMekChemicalIngredientType() {
+        if (!jeiChemicalsAvailable()) return null;
+        try {
+            Class<?> cls = Class.forName("mekanism.client.recipe_viewer.jei.MekanismJEI");
+            return (IIngredientType<T>) cls.getField("TYPE_CHEMICAL").get(null);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    public static List<Object> getChemicalStacks(List<String> selectors) {
+        List<Object> list = new ArrayList<>();
+        if (!MekChemicalHelper.isLoaded()) return list;
+        for (String selector : selectors) {
+            if (!MaterialSelector.isChemicalPrefix(selector)) continue;
+            list.addAll(MekChemicalHelper.stacksForSelector(selector));
+        }
+        return list;
+    }
+
+    public static void partitionSelectors(List<String> selectors, List<String> fluidOrItem, List<String> chemical) {
+        for (String selector : selectors) {
+            if (selector == null || selector.isBlank()) continue;
+            if (MaterialSelector.isChemicalPrefix(selector)) {
+                chemical.add(selector);
+            } else {
+                fluidOrItem.add(selector);
+            }
+        }
+    }
+
+    /**
+     * Adds a Mek gas slot when selectors resolve (same renderer as Mek JEI chemical tank).
+     */
+    public static void addChemicalSlot(
+            IRecipeLayoutBuilder builder,
+            RecipeIngredientRole role,
+            int slotX,
+            int slotY,
+            List<String> chemicalSelectors) {
+        if (chemicalSelectors.isEmpty()) return;
+        IIngredientType<Object> type = getMekChemicalIngredientType();
+        List<Object> stacks = getChemicalStacks(chemicalSelectors);
+        if (type == null || stacks.isEmpty()) return;
+        builder.addSlot(role, slotX + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                        slotY + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                .addIngredients(type, stacks);
+    }
 
     /**
      * Simplifies the consume/produce ratio by dividing both by the max until one is 1 or less.

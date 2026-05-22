@@ -13,6 +13,8 @@ import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public final class TurbineGenerationLoader {
     private static final String KEY_GENERATION_ID = "coolant_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_OUTPUT = "output";
+    private static final String KEY_OUTPUTS = "outputs";
     private static final String KEY_RF_PRODUCTION = "rf_production";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
@@ -68,8 +71,9 @@ public final class TurbineGenerationLoader {
                 "#c:steam");
         String output = "minecraft:water";
         double rfPerMb = Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
+        List<String> defaultOutputs = List.of(output, "%mekanism:water_vapor");
         DEFINITIONS.put(DEFAULT_GENERATION_ID, new TurbineGenerationDefinition(
-                DEFAULT_GENERATION_ID, inputs, output, rfPerMb, true));
+                DEFAULT_GENERATION_ID, inputs, output, defaultOutputs, rfPerMb, true));
     }
 
     public static final int STEAM_BUCKET_MB = 1000;
@@ -140,6 +144,12 @@ public final class TurbineGenerationLoader {
             }
         }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
+        List<String> outputs = new ArrayList<>();
+        if (json.has(KEY_OUTPUTS) && json.get(KEY_OUTPUTS).isJsonArray()) {
+            for (JsonElement el : json.getAsJsonArray(KEY_OUTPUTS)) {
+                if (el.isJsonPrimitive()) outputs.add(el.getAsString());
+            }
+        }
         double rf = json.has(KEY_RF_PRODUCTION)
                 ? json.get(KEY_RF_PRODUCTION).getAsDouble()
                 : Config.TURBINE_DEFAULT_RF_PER_STEAM_MB.get();
@@ -149,7 +159,7 @@ public final class TurbineGenerationLoader {
         if (inputs.isEmpty()) {
             inputs.add("#c:steam");
         }
-        return new TurbineGenerationDefinition(id, List.copyOf(inputs), output, rf, overwritable);
+        return new TurbineGenerationDefinition(id, List.copyOf(inputs), output, outputs, rf, overwritable);
     }
 
     @Nullable
@@ -166,22 +176,36 @@ public final class TurbineGenerationLoader {
         return new HashMap<>(DEFINITIONS);
     }
 
-    /** Output fluid from {@code output} field: fluid id or {@code #tag}. */
+    /** Output fluid from first liquid output selector. */
     @Nullable
     public static Fluid getOutputFluid(@Nullable TurbineGenerationDefinition def, RegistryAccess registryAccess) {
-        if (def == null || def.output() == null || def.output().isBlank()) {
-            return null;
-        }
-        String output = def.output().trim();
+        if (def == null) return null;
+        String output = def.liquidOutputSelector();
+        if (output == null || output.isBlank()) return null;
+        output = output.trim();
         if (output.startsWith("#")) {
             return getFirstFluidFromTag(output, registryAccess);
         }
         ResourceLocation id = ResourceLocation.tryParse(output);
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         Fluid fluid = BuiltInRegistries.FLUID.get(id);
         return fluid != null && fluid != Fluids.EMPTY ? fluid : null;
+    }
+
+    @Nullable
+    public static TurbineGenerationDefinition getDefinitionForChemical(Object chemicalStack, RegistryAccess registryAccess) {
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) return null;
+        for (TurbineGenerationDefinition def : DEFINITIONS.values()) {
+            for (String input : def.inputs()) {
+                if (!MaterialSelector.isChemicalPrefix(input) && !input.startsWith("%")) {
+                    String sel = "%" + input;
+                    if (MaterialSelector.matchesChemical(chemicalStack, sel)) return def;
+                } else if (MaterialSelector.matchesChemical(chemicalStack, input)) {
+                    return def;
+                }
+            }
+        }
+        return null;
     }
 
     @Nullable

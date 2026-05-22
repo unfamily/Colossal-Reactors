@@ -115,6 +115,16 @@ public final class ScriptsDocsGenerator {
 
             Fluid in Resource Port and Reactor Builder tanks is rendered using the fluid's **still texture and tint** (same system as Mekanism). No separate color config is needed.
 
+            ### Mek gas (optional)
+
+            When Mekanism is loaded, resource ports have a **gas** tank and toggles. Selectors:
+
+            - `#tag` or `namespace:fluid` — liquid (fluid tank)
+            - `%namespace:chemical` — Mek gas (gas tank); use direct ids (e.g. `%mekanism:steam`), not `c:` tags
+            - `outputs` array (max 2): one liquid + one gas output; legacy `output` still works for liquid only
+
+            Resource port GUI: row 1 Insert/Extract/Eject; row 2 Solid/Liquid/Gas (enabled only in Extract/Eject). Legacy filter BOTH → Solid+Liquid on, Gas off.
+
             ---
 
             ## Fuel
@@ -133,8 +143,9 @@ public final class ScriptsDocsGenerator {
             | Key | Type | Default | Description |
             |-----|------|---------|-------------|
             | `fuel_id` | string | required | Unique id, e.g. `colossal_reactors:uranium` |
-            | `inputs` | array of string | required | Item ids or tags, e.g. `"#c:ingots/uranium"` |
-            | `output` | string | optional | Item id for solid waste produced when this fuel is consumed. |
+            | `inputs` | array of string | required | Item/tag (`#...`) or Mek gas (`%mekanism:...`) |
+            | `sub_type` | string | `item-item` | e.g. `chemical-chemical` for gas fuel and gas waste |
+            | `output` | string | optional | Item id or `%mekanism:spent_nuclear_waste` for waste |
             | `units_per_fuel` | number | 1000 | Fuel units one input item gives (e.g. 1 ingot = 1000 units). |
             | `units_per_waste` | number | 1000 | Consumed fuel units per one waste item produced (e.g. 1000 units → 1 waste). |
             | `base_rf_per_tick` | number | from config | Reference RF (used in formulas). |

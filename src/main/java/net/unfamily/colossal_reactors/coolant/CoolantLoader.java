@@ -12,6 +12,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class CoolantLoader {
     private static final String KEY_COOLANT_ID = "coolant_id";
     private static final String KEY_INPUTS = "inputs";
     private static final String KEY_OUTPUT = "output";
+    private static final String KEY_OUTPUTS = "outputs";
     private static final String KEY_RF_INCREMENT_PERCENT = "rf_increment_percent";
     private static final String KEY_MB_DECREMENT_PERCENT = "mb_decrement_percent";
     private static final String KEY_REDUCE_RF_PRODUCTION = "reduce_rf_production";
@@ -73,7 +76,7 @@ public class CoolantLoader {
         // #c:water tag so vanilla and modded waters are accepted
         List<String> inputs = List.of("#c:water");
         String output = "#c:steam";
-        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, 0, 100, true, 0.45, 1.0, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
+        DEFINITIONS.put(WATER_COOLANT_ID, new CoolantDefinition(WATER_COOLANT_ID, inputs, output, List.of(output), 0, 100, true, 0.45, 1.0, 1.0, DEFAULT_WATER_COLOR, DEFAULT_STEAM_COLOR, true));
     }
 
     /** Parses a single coolant definition from JSON (one file = one entry). Used by datapack reload listener. */
@@ -94,6 +97,12 @@ public class CoolantLoader {
             }
         }
         String output = json.has(KEY_OUTPUT) ? json.get(KEY_OUTPUT).getAsString() : "";
+        List<String> outputs = new ArrayList<>();
+        if (json.has(KEY_OUTPUTS) && json.get(KEY_OUTPUTS).isJsonArray()) {
+            for (JsonElement o : json.getAsJsonArray(KEY_OUTPUTS)) {
+                if (o.isJsonPrimitive()) outputs.add(o.getAsString());
+            }
+        }
         int rfIncrement = json.has(KEY_RF_INCREMENT_PERCENT) ? json.get(KEY_RF_INCREMENT_PERCENT).getAsInt() : 0;
         int mbDecrement = json.has(KEY_MB_DECREMENT_PERCENT) ? json.get(KEY_MB_DECREMENT_PERCENT).getAsInt() : 100;
         boolean reduceRf = json.has(KEY_REDUCE_RF_PRODUCTION) ? json.get(KEY_REDUCE_RF_PRODUCTION).getAsBoolean()
@@ -104,7 +113,7 @@ public class CoolantLoader {
         int fluidColor = parseColor(json, KEY_FLUID_COLOR, DEFAULT_WATER_COLOR);
         int outputColor = parseColor(json, KEY_OUTPUT_COLOR, DEFAULT_STEAM_COLOR);
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, rfIncrement, mbDecrement, reduceRf, rfToCoolant, steamPerCoolant, overheating, fluidColor, outputColor, overwritable);
+        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, outputs, rfIncrement, mbDecrement, reduceRf, rfToCoolant, steamPerCoolant, overheating, fluidColor, outputColor, overwritable);
     }
 
     /** Parses optional color from JSON: "fluid_color": "#3498db" or number. Returns ARGB (0 = use default). */
@@ -175,14 +184,37 @@ public class CoolantLoader {
                 .orElse(null);
     }
 
-    /** Returns the fluid to drain for this coolant (first input: fluid id or first fluid from tag). Null if definition has no valid input. */
+    /** Returns the fluid to drain for this coolant (first fluid selector in inputs). Null if none. */
     @Nullable
     public static Fluid getFirstFluidFromDefinition(CoolantDefinition def, RegistryAccess registryAccess) {
         if (def == null || def.inputs().isEmpty()) return null;
-        String first = def.inputs().get(0);
-        if (first.startsWith("#")) return getFirstFluidFromTag(first, registryAccess);
-        ResourceLocation id = ResourceLocation.tryParse(first);
-        return id != null ? BuiltInRegistries.FLUID.get(id) : null;
+        for (String input : def.inputs()) {
+            if (MaterialSelector.isChemicalPrefix(input)) continue;
+            if (input.startsWith("#")) {
+                Fluid f = getFirstFluidFromTag(input, registryAccess);
+                if (f != null && f != Fluids.EMPTY) return f;
+            } else {
+                ResourceLocation id = ResourceLocation.tryParse(input);
+                if (id != null) {
+                    Fluid f = BuiltInRegistries.FLUID.get(id);
+                    if (f != null && f != Fluids.EMPTY) return f;
+                }
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    public static CoolantDefinition getDefinitionForChemical(Object chemicalStack, RegistryAccess registryAccess) {
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) return null;
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String input : def.inputs()) {
+                if (MaterialSelector.matchesChemical(chemicalStack, input.startsWith("%") ? input : "%" + input)) {
+                    return def;
+                }
+            }
+        }
+        return null;
     }
 
     /**

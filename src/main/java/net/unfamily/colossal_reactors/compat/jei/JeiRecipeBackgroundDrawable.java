@@ -26,6 +26,8 @@ public class JeiRecipeBackgroundDrawable implements IDrawable {
     public static final int ARROW_H = 15;
     public static final int SLOT_OUT_X = 46;
     public static final int SLOT_OUT_Y = 0;
+    /** Extra slot when both fluid and Mek gas appear in one recipe row. */
+    public static final int AUX_SLOT_X = 22;
 
     /** Offset for item inside slot: +1 right, +1 down (so item is drawn inset from slot border) */
     public static final int ITEM_OFFSET_X = 1;

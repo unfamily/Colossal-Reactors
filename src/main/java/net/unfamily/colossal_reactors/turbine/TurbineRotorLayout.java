@@ -140,6 +140,10 @@ public final class TurbineRotorLayout {
         return coilStartInterior;
     }
 
+    public int effectiveCoilLayers() {
+        return effectiveCoilLayers;
+    }
+
     public int closureCoord() {
         return startCoord + rodExtent * step;
     }

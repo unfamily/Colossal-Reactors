@@ -22,7 +22,6 @@ public final class FluidRenderHelper {
 
     /**
      * Draws fluid in the given rectangle using the fluid's tint (getTintColor() from client extensions).
-     * Does nothing if stack is empty or fluid has no client extensions.
      */
     public static void drawFluidInTank(GuiGraphics guiGraphics, FluidStack fluidStack, int x, int y, int width, int height) {
         if (fluidStack.isEmpty() || fluidStack.getFluid() == Fluids.EMPTY) {
@@ -44,7 +43,7 @@ public final class FluidRenderHelper {
         float b = (tint & 0xFF) / 255f;
         guiGraphics.setColor(r, g, b, 1f);
         drawTiledSpriteBottomUp(guiGraphics, sprite, x, y, width, height);
-        guiGraphics.setColor(1, 1, 1, 1);
+        guiGraphics.setColor(1f, 1f, 1f, 1f);
     }
 
     private static void drawTiledSpriteBottomUp(GuiGraphics guiGraphics, TextureAtlasSprite sprite, int x, int y, int width, int height) {

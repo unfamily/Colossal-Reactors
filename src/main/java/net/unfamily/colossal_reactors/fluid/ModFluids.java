@@ -34,7 +34,7 @@ import java.util.function.Consumer;
 
 /**
  * Registers fluid types and fluids. Molten metals use custom block/fluid textures with tint.
- * Lead/uranium molten fluids are provided by Synergy; we only add molten_tough_alloy and gelid_breezium.
+ * Custom molten alloys (tough, stainless) plus gelid breezium and ender goo.
  */
 public final class ModFluids {
 
@@ -51,6 +51,9 @@ public final class ModFluids {
     /** Molten tough alloy (Synergy does not provide this). Uses custom molten textures. */
     public static final TintedFluid MOLTEN_TOUGH_ALLOY = registerMolten("molten_tough_alloy", 0xFF5A6A7A,
             "fluid.colossal_reactors.molten_tough_alloy");
+
+    public static final TintedFluid MOLTEN_STAINLESS_STEEL = registerMolten("molten_stainless_steel", 0xFFFF2F23,
+            "fluid.colossal_reactors.molten_stainless_steel");
 
     /** Ender goo: teleports entities on contact. Uses custom EnderGooBlock. */
     public static final TintedFluid ENDER_GOO = registerEnderGoo();

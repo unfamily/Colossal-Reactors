@@ -19,9 +19,11 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineGenerationDefinition> {
@@ -60,14 +62,33 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        List<FluidStack> inputFluids = JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputs(), registryAccess);
-        List<FluidStack> outputFluids = JeiIngredientsHelper.getOutputFluidStacks(recipe.output(), registryAccess);
+        List<String> inputFluidSelectors = new ArrayList<>();
+        List<String> inputChemicalSelectors = new ArrayList<>();
+        JeiIngredientsHelper.partitionSelectors(recipe.inputs(), inputFluidSelectors, inputChemicalSelectors);
 
+        List<FluidStack> inputFluids = JeiIngredientsHelper.getTurbineGenerationInputFluids(inputFluidSelectors, registryAccess);
         if (!inputFluids.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
                     JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
                     .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
+        }
+        int inChemX = inputFluids.isEmpty() ? JeiRecipeBackgroundDrawable.SLOT_IN_X : JeiRecipeBackgroundDrawable.AUX_SLOT_X;
+        JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT, inChemX,
+                JeiRecipeBackgroundDrawable.SLOT_IN_Y, inputChemicalSelectors);
+
+        List<String> outputFluidSelectors = new ArrayList<>();
+        List<String> outputChemicalSelectors = new ArrayList<>();
+        for (String out : recipe.outputs()) {
+            if (MaterialSelector.isChemicalPrefix(out)) {
+                outputChemicalSelectors.add(out);
+            } else {
+                outputFluidSelectors.add(out);
+            }
+        }
+        List<FluidStack> outputFluids = new ArrayList<>();
+        for (String sel : outputFluidSelectors) {
+            outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
         }
         if (!outputFluids.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.OUTPUT,
@@ -75,6 +96,9 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineG
                     JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
                     .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
         }
+        int outChemX = outputFluids.isEmpty() ? JeiRecipeBackgroundDrawable.SLOT_OUT_X : JeiRecipeBackgroundDrawable.AUX_SLOT_X;
+        JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT, outChemX,
+                JeiRecipeBackgroundDrawable.SLOT_OUT_Y, outputChemicalSelectors);
     }
 
     @Override

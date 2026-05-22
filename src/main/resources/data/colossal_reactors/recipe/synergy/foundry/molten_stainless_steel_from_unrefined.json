@@ -1,0 +1,11 @@
+{
+  "type": "synergy:foundry",
+  "fluid": {
+    "amount": 90,
+    "id": "colossal_reactors:molten_stainless_steel_source"
+  },
+  "input": {
+    "item": "colossal_reactors:unrefined_stainless_steel"
+  },
+  "ticks": 100
+}

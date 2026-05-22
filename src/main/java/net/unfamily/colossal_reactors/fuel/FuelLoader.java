@@ -12,6 +12,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -39,6 +41,7 @@ public class FuelLoader {
     private static final String KEY_BASE_FUEL_UNITS_PER_TICK = "base_fuel_units_per_tick";
     private static final String KEY_BASE_MB_PER_TICK_LEGACY = "base_mb_per_tick";
     private static final String KEY_OUTPUT = "output";
+    private static final String KEY_SUB_TYPE = "sub_type";
     private static final String KEY_OVERWRITABLE = "overwritable";
 
     private static final Map<ResourceLocation, FuelDefinition> DEFINITIONS = new HashMap<>();
@@ -67,12 +70,13 @@ public class FuelLoader {
         double baseFuelUnitsPerTick = 0.03;
         List<String> inputs = List.of("#c:ingots/uranium");
         String output = ColossalReactors.MODID + ":nuclear_waste";
-        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
+        DEFINITIONS.put(uraniumId, new FuelDefinition(uraniumId, FuelDefinition.SUBTYPE_ITEM_ITEM, inputs, output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, true));
 
         // Azurite: 500 base RF, 500 fuel units per ingot, 1500 consumed units per 1 waste (nuclear_waste)
         ResourceLocation azuriteId = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "azurite");
         DEFINITIONS.put(azuriteId, new FuelDefinition(
                 azuriteId,
+                FuelDefinition.SUBTYPE_ITEM_ITEM,
                 List.of("#c:ingots/azurite"),
                 ColossalReactors.MODID + ":nuclear_waste",
                 500,
@@ -112,7 +116,8 @@ public class FuelLoader {
                 : json.has(KEY_BASE_MB_PER_TICK_LEGACY) ? json.get(KEY_BASE_MB_PER_TICK_LEGACY).getAsDouble()
                 : 0.03;
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new FuelDefinition(fuelId, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
+        String subType = json.has(KEY_SUB_TYPE) ? json.get(KEY_SUB_TYPE).getAsString() : FuelDefinition.SUBTYPE_ITEM_ITEM;
+        return new FuelDefinition(fuelId, subType, inputs.isEmpty() ? List.of(fuelId.toString()) : List.copyOf(inputs), output, unitsPerFuel, unitsPerWaste, baseRf, baseFuelUnitsPerTick, overwritable);
     }
 
     private static void processEntry(FuelDefinition def) {
@@ -179,6 +184,22 @@ public class FuelLoader {
             }
         }
         return tagMatch;
+    }
+
+    @Nullable
+    public static FuelDefinition getDefinitionForChemical(Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return null;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.isChemicalFuel()) continue;
+            for (String input : def.inputs()) {
+                if (MaterialSelector.matchesChemical(chemicalStack, input.startsWith("%") ? input : "%" + input)) {
+                    return def;
+                }
+            }
+        }
+        return null;
     }
 
     /**

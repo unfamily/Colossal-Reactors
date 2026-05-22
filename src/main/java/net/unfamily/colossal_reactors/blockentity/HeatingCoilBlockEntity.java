@@ -106,6 +106,15 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         return false;
     }
 
+    public boolean hasChemicalRequirement() {
+        HeatingCoilDefinition def = getDefinition();
+        if (def == null) return false;
+        for (ConsumeOption opt : def.consume()) {
+            if (opt.chemical() != null) return true;
+        }
+        return false;
+    }
+
     private boolean hasEnergyRequirement() {
         HeatingCoilDefinition def = getDefinition();
         if (def == null) return false;
@@ -146,6 +155,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
                     case 12 -> hasEnergyRequirement() ? 1 : 0;
                     case 13 -> hasItemRequirement() ? 1 : 0;
                     case 14 -> redstoneMode;
+                    case 15 -> hasChemicalRequirement() ? 1 : 0;
                     default -> 0;
                 };
             }
@@ -158,7 +168,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
             @Override
             public int getCount() {
-                return 15;
+                return 16;
             }
         };
         if (def != null && !def.consume().isEmpty()) {

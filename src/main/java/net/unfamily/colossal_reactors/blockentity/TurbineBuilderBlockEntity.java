@@ -507,7 +507,17 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
             case TurbineBuildLogic.STAGE_ROD_CONTROLLERS -> frameTotal + deckTotal;
             case TurbineBuildLogic.STAGE_RODS -> frameTotal + deckTotal + rodCtrlTotal;
             case TurbineBuildLogic.STAGE_BLADES -> frameTotal + deckTotal + rodCtrlTotal + rodsTotal;
-            case TurbineBuildLogic.STAGE_COILS -> frameTotal + deckTotal + rodCtrlTotal + rodsTotal + bladesTotal;
+            case TurbineBuildLogic.STAGE_COILS -> {
+                long base = frameTotal + deckTotal + rodCtrlTotal + rodsTotal + bladesTotal;
+                if (coilsTotal <= 0) {
+                    yield base;
+                }
+                var bounds = TurbineBuildLogic.bounds(serverLevel, this);
+                if (bounds == null) {
+                    yield base;
+                }
+                yield base + TurbineBuildLogic.countMatchingCoilCells(serverLevel, bounds, getSelectedCoilIndex());
+            }
             default -> total;
         };
         return (int) Math.max(0, Math.min(100, (done * 100L) / total));

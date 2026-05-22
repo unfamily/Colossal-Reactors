@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.network;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -14,6 +15,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
@@ -21,7 +23,16 @@ import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 /**
  * C2S: discard all fluid in the block's internal tank (GUI dump button).
  */
-public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload {
+public record FluidTankDumpPayload(BlockPos pos, byte tankType) implements CustomPacketPayload {
+
+    /** {@link net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity} liquid tank */
+    public static final byte TANK_FLUID = 0;
+    /** Gas (Mek chemical) tank */
+    public static final byte TANK_GAS = 1;
+
+    public FluidTankDumpPayload(BlockPos pos) {
+        this(pos, TANK_FLUID);
+    }
 
     public static final Type<FluidTankDumpPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "fluid_tank_dump"));
@@ -29,6 +40,8 @@ public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload 
     public static final StreamCodec<FriendlyByteBuf, FluidTankDumpPayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
             FluidTankDumpPayload::pos,
+            ByteBufCodecs.BYTE,
+            FluidTankDumpPayload::tankType,
             FluidTankDumpPayload::new
     );
 
@@ -48,11 +61,15 @@ public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload 
             } else if (be instanceof TurbineBuilderBlockEntity turbineBuilder) {
                 emptied = turbineBuilder.dumpFluidTankContents();
             } else if (be instanceof ResourcePortBlockEntity port) {
-                emptied = port.dumpFluidTankContents();
+                emptied = packet.tankType() == TANK_GAS
+                        ? port.dumpGasTankContents()
+                        : port.dumpFluidTankContents();
             } else if (be instanceof MelterBlockEntity melter) {
                 emptied = melter.dumpFluidTankContents();
             } else if (be instanceof HeatingCoilBlockEntity coil) {
                 emptied = coil.dumpFluidTankContents();
+            } else if (be instanceof RadiationScrubberBlockEntity scrubber) {
+                emptied = scrubber.dumpChemicalTankContents();
             }
             if (emptied) {
                 level.playSound(null, packet.pos(), SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 0.25f, 1.0f);

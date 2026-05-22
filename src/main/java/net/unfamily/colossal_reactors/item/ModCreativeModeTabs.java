@@ -94,6 +94,7 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.NUCLEAR_WASTE.get());
                                 output.accept(ModItems.CATALYST_BREEZIUM.get());
                                 output.accept(ModFluids.MOLTEN_TOUGH_ALLOY.bucket().get());
+                                output.accept(ModFluids.MOLTEN_STAINLESS_STEEL.bucket().get());
                                 output.accept(ModFluids.ENDER_GOO.bucket().get());
                                 output.accept(ModFluids.GELID_BREEZIUM.bucket().get());
                                 output.accept(new ItemStack(ModGases.steam().bucketItem()));

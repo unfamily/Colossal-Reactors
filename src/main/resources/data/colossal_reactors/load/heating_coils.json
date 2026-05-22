@@ -8,8 +8,15 @@
       "duration": 60,
       "consume": [
         {
-          "fluid":{
+          "fluid": {
             "id": "#c:steam",
+            "activation": 10000,
+            "substain": 100
+          }
+        },
+        {
+          "chemical": {
+            "id": "%mekanism:steam",
             "activation": 10000,
             "substain": 100
           }

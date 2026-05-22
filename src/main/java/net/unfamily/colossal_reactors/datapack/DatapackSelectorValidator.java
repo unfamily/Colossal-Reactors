@@ -18,6 +18,8 @@ import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import net.unfamily.colossal_reactors.turbine.ElecCoilDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
 import org.jetbrains.annotations.Nullable;
@@ -65,12 +67,42 @@ public final class DatapackSelectorValidator {
 
     public static boolean isResolvableFluidSelector(String selector) {
         if (selector == null || selector.isBlank()) return false;
+        if (MaterialSelector.isChemicalPrefix(selector)) {
+            return isResolvableChemicalSelector(selector);
+        }
         if (selector.startsWith("#")) {
             ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
             if (tagId == null) return false;
             return tagHasEntries(TagKey.create(Registries.FLUID, tagId), BuiltInRegistries.FLUID);
         }
         return fluidExists(ResourceLocation.tryParse(selector));
+    }
+
+    /** Mek gas/chemical: {@code %namespace:id} or {@code %mekanism:tag_name} (mekanism:chemical/* only). */
+    public static boolean isResolvableChemicalSelector(String selector) {
+        if (!MekChemicalHelper.isLoaded() || selector == null || !selector.startsWith("%")) return false;
+        ResourceLocation id = ResourceLocation.tryParse(selector.substring(1));
+        if (id == null) return false;
+        if (MekChemicalHelper.createStack(id, 1) != null) return true;
+        return MekChemicalHelper.chemicalTagExists(id);
+    }
+
+    public static List<String> filterMaterialSelectors(List<String> selectors) {
+        if (!validationEnabled()) return List.copyOf(selectors);
+        List<String> out = new ArrayList<>();
+        for (String selector : selectors) {
+            boolean ok = MaterialSelector.isChemicalPrefix(selector)
+                    ? isResolvableChemicalSelector(selector)
+                    : (selector.startsWith("#") || selector.contains(":"))
+                    ? isResolvableFluidSelector(selector) || isResolvableItemSelector(selector)
+                    : isResolvableItemSelector(selector) || isResolvableFluidSelector(selector);
+            if (ok) {
+                out.add(selector);
+            } else {
+                LOGGER.debug("Dropped unresolved material selector: {}", selector);
+            }
+        }
+        return out;
     }
 
     private static <T> boolean tagHasEntries(TagKey<T> tagKey, Registry<T> registry) {
@@ -146,10 +178,10 @@ public final class DatapackSelectorValidator {
     @Nullable
     public static FuelDefinition sanitizeFuel(FuelDefinition def) {
         if (!validationEnabled()) return def;
-        List<String> inputs = filterItemSelectors(def.inputs());
+        List<String> inputs = filterMaterialSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.fuelId().toString();
-            if (isResolvableItemSelector(fallback)) {
+            if (isResolvableItemSelector(fallback) || isResolvableChemicalSelector("%" + fallback)) {
                 inputs = List.of(fallback);
             } else {
                 LOGGER.debug("Skipped fuel {}: no resolvable inputs", def.fuelId());
@@ -157,33 +189,43 @@ public final class DatapackSelectorValidator {
             }
         }
         String output = def.output();
-        if (output == null || output.isBlank() || !isResolvableItemSelector(output)) {
+        boolean outOk = output != null && !output.isBlank()
+                && (MaterialSelector.isChemicalPrefix(output)
+                ? isResolvableChemicalSelector(output)
+                : isResolvableItemSelector(output));
+        if (!outOk) {
             LOGGER.debug("Skipped fuel {}: unresolved output '{}'", def.fuelId(), output);
             return null;
         }
-        return new FuelDefinition(def.fuelId(), inputs, output, def.unitsPerFuel(), def.unitsPerWaste(),
+        return new FuelDefinition(def.fuelId(), def.subType(), inputs, output, def.unitsPerFuel(), def.unitsPerWaste(),
                 def.baseRfPerTick(), def.baseFuelUnitsPerTick(), def.overwritable());
     }
 
     @Nullable
     public static CoolantDefinition sanitizeCoolant(CoolantDefinition def) {
         if (!validationEnabled()) return def;
-        List<String> inputs = filterFluidSelectors(def.inputs());
+        List<String> inputs = filterMaterialSelectors(def.inputs());
         if (inputs.isEmpty()) {
             String fallback = def.coolantId().toString();
-            if (isResolvableFluidSelector(fallback)) {
+            if (isResolvableFluidSelector(fallback) || isResolvableChemicalSelector("%" + fallback)) {
                 inputs = List.of(fallback);
             } else {
                 LOGGER.debug("Skipped coolant {}: no resolvable inputs", def.coolantId());
                 return null;
             }
         }
-        String output = def.output();
-        if (output == null || output.isBlank() || !isResolvableFluidSelector(output)) {
-            LOGGER.debug("Skipped coolant {}: unresolved output '{}'", def.coolantId(), output);
+        List<String> outputs = filterMaterialSelectors(def.outputs());
+        if (outputs.isEmpty() && def.output() != null && !def.output().isBlank()) {
+            String legacy = def.output();
+            if (isResolvableFluidSelector(legacy) || isResolvableChemicalSelector(legacy.startsWith("%") ? legacy : "%" + legacy)) {
+                outputs = List.of(legacy);
+            }
+        }
+        if (outputs.isEmpty()) {
+            LOGGER.debug("Skipped coolant {}: no resolvable outputs", def.coolantId());
             return null;
         }
-        return new CoolantDefinition(def.coolantId(), inputs, output, def.rfIncrementPercent(), def.mbDecrementPercent(),
+        return new CoolantDefinition(def.coolantId(), inputs, def.output(), outputs, def.rfIncrementPercent(), def.mbDecrementPercent(),
                 def.reduceRfProduction(), def.rfToCoolantFactor(), def.steamPerCoolant(), def.overheatingMultiplier(),
                 def.fluidColor(), def.outputColor(), def.overwritable());
     }
@@ -204,17 +246,23 @@ public final class DatapackSelectorValidator {
     @Nullable
     public static TurbineGenerationDefinition sanitizeTurbineGeneration(TurbineGenerationDefinition def) {
         if (!validationEnabled()) return def;
-        List<String> inputs = filterFluidSelectors(def.inputs());
+        List<String> inputs = filterMaterialSelectors(def.inputs());
         if (inputs.isEmpty()) {
             LOGGER.debug("Skipped turbine generation {}: no resolvable inputs", def.generationId());
             return null;
         }
-        String output = def.output();
-        if (output != null && !output.isBlank() && !isResolvableFluidSelector(output)) {
-            LOGGER.debug("Skipped turbine generation {}: unresolved output '{}'", def.generationId(), output);
+        List<String> outputs = filterMaterialSelectors(def.outputs());
+        if (outputs.isEmpty() && def.output() != null && !def.output().isBlank()) {
+            String legacy = def.output();
+            if (isResolvableFluidSelector(legacy) || isResolvableChemicalSelector(legacy.startsWith("%") ? legacy : "%" + legacy)) {
+                outputs = List.of(legacy);
+            }
+        }
+        if (outputs.isEmpty()) {
+            LOGGER.debug("Skipped turbine generation {}: no resolvable outputs", def.generationId());
             return null;
         }
-        return new TurbineGenerationDefinition(def.generationId(), inputs, output, def.rfProduction(), def.overwritable());
+        return new TurbineGenerationDefinition(def.generationId(), inputs, def.output(), outputs, def.rfProduction(), def.overwritable());
     }
 
     @Nullable
@@ -292,6 +340,14 @@ public final class DatapackSelectorValidator {
                 fluid = null;
             }
         }
+        ConsumeOption.ChemicalRequirement chemical = opt.chemical();
+        if (chemical != null) {
+            String selector = chemical.selector();
+            if (!MaterialSelector.isChemicalPrefix(selector) || !isResolvableChemicalSelector(selector)) {
+                LOGGER.debug("Dropped unresolved heating coil chemical selector: {}", selector);
+                chemical = null;
+            }
+        }
         ConsumeOption.ItemRequirement item = opt.item();
         if (item != null) {
             String selector = item.isTag() ? "#" + item.tagOrId() : item.tagOrId().toString();
@@ -300,10 +356,10 @@ public final class DatapackSelectorValidator {
                 item = null;
             }
         }
-        if (fluid == null && item == null && opt.energy() == null && opt.burnable() == null) {
+        if (fluid == null && chemical == null && item == null && opt.energy() == null && opt.burnable() == null) {
             return null;
         }
-        return new ConsumeOption(fluid, item, opt.energy(), opt.burnable());
+        return new ConsumeOption(fluid, chemical, item, opt.energy(), opt.burnable());
     }
 
     public static HeatingCoilDefinition sanitizeHeatingCoil(HeatingCoilDefinition def) {

@@ -1,3 +1,4 @@
+
 {
   "type": "colossal_reactors:fuel",
   "entries": [
@@ -17,6 +18,16 @@
       "units_per_fuel": 500,
       "units_per_waste": 1500,
       "base_rf_per_tick": 1000.0,
+      "base_fuel_units_per_tick": 0.03
+    },
+    {
+      "fuel_id": "colossal_reactors:mek_fissile",
+      "sub_type": "chemical-chemical",
+      "inputs": ["%mekanism:fissile_fuel"],
+      "output": "%mekanism:spent_nuclear_waste",
+      "units_per_fuel": 1000,
+      "units_per_waste": 1000,
+      "base_rf_per_tick": 800.0,
       "base_fuel_units_per_tick": 0.03
     }
   ]
