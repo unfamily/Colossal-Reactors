@@ -425,9 +425,28 @@ public final class TurbineBuildLogic {
 
     private static boolean placeBladesToRing(ServerLevel level, TurbineBuilderBlockEntity builder,
                                              BlockPos rodPos, BlockState rodState, Direction axis, int targetRing) {
-        while (TurbineBladePlacement.currentRing(level, rodPos, axis) <= targetRing
-                && TurbineBladePlacement.placeNextBlade(level, rodPos, rodState)) {
-            if (!consumeItem(level, builder, ModItems.TURBINE_BLADE.get())) {
+        int targetBlades = targetRing * 4;
+        int onRod = TurbineBladePlacement.totalBladesOnRod(level, rodPos, axis);
+        if (onRod >= targetBlades) {
+            return false;
+        }
+        if (!hasItemInBuffer(builder, ModItems.TURBINE_BLADE.get())) {
+            return true;
+        }
+        if (!consumeItem(level, builder, ModItems.TURBINE_BLADE.get())) {
+            return true;
+        }
+        if (!TurbineBladePlacement.placeNextBlade(level, rodPos, rodState)) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean hasItemInBuffer(TurbineBuilderBlockEntity builder, net.minecraft.world.item.Item item) {
+        var handler = builder.getBufferHandler();
+        for (int i = 0; i < handler.getSlots(); i++) {
+            ItemStack s = handler.getStackInSlot(i);
+            if (!s.isEmpty() && s.is(item)) {
                 return true;
             }
         }
