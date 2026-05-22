@@ -26,11 +26,22 @@ public final class MelterHeatsLoader {
     private static final String KEY_NOT_VALID = "not_valid";
 
     private static final List<MelterHeatEntry> ENTRIES = new ArrayList<>();
+    private static List<MelterHeatEntry> rawEntries = List.of();
 
     public static void applyLoaded(List<MelterHeatEntry> loaded) {
+        rawEntries = loaded != null ? List.copyOf(loaded) : List.of();
+        if (DatapackSelectorValidator.registriesReady()) {
+            rebuild();
+        }
+    }
+
+    /** Re-resolve block/fluid selectors when registries/tags are bound to a loaded level. */
+    public static void rebuild() {
+        if (!DatapackSelectorValidator.registriesReady()) {
+            return;
+        }
         ENTRIES.clear();
-        if (loaded == null || loaded.isEmpty()) return;
-        for (MelterHeatEntry entry : loaded) {
+        for (MelterHeatEntry entry : rawEntries) {
             MelterHeatEntry sanitized = DatapackSelectorValidator.sanitizeMelterHeat(entry);
             if (sanitized != null) {
                 ENTRIES.add(sanitized);
@@ -40,6 +51,10 @@ public final class MelterHeatsLoader {
 
     public static List<MelterHeatEntry> getAll() {
         return Collections.unmodifiableList(ENTRIES);
+    }
+
+    public static int getRawCount() {
+        return rawEntries.size();
     }
 
     /**

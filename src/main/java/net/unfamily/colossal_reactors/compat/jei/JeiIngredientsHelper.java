@@ -19,6 +19,7 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.neoforged.neoforge.fluids.FluidStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -209,13 +210,21 @@ public final class JeiIngredientsHelper {
         } else {
             Identifier id = Identifier.tryParse(selector);
             if (id != null) {
-                Fluid fluid = BuiltInRegistries.FLUID.get(id).map(Holder::value).orElse(null);
+                Fluid fluid = resolveFluid(id, registryAccess);
                 if (fluid != null && fluid != Fluids.EMPTY) {
                     list.add(new FluidStack(fluid, DISPLAY_AMOUNT_MB));
                 }
             }
         }
         return list;
+    }
+
+    @Nullable
+    private static Fluid resolveFluid(Identifier id, RegistryAccess registryAccess) {
+        return registryAccess.lookup(Registries.FLUID)
+                .flatMap(registry -> registry.get(id))
+                .map(Holder::value)
+                .orElseGet(() -> BuiltInRegistries.FLUID.get(id).map(Holder::value).orElse(null));
     }
 
     private static List<ItemStack> selectorToItemStacks(String selector, RegistryAccess registryAccess) {

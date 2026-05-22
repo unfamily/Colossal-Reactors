@@ -48,11 +48,19 @@ public final class TurbineGenerationLoader {
     public static void applyLoaded(Map<Identifier, TurbineGenerationDefinition> loaded) {
         synchronized (TurbineGenerationLoader.class) {
             rawDatapackGeneration = loaded != null ? Map.copyOf(loaded) : Map.of();
-            rebuildDefinitions();
+            if (DatapackSelectorValidator.registriesReady()) {
+                rebuildDefinitions();
+            }
         }
     }
 
-    private static void rebuildDefinitions() {
+    public static void rebuildDefinitions() {
+        synchronized (TurbineGenerationLoader.class) {
+            rebuildDefinitionsInner();
+        }
+    }
+
+    private static void rebuildDefinitionsInner() {
         DEFINITIONS.clear();
         registerInternalDefaults();
         for (TurbineGenerationDefinition def : rawDatapackGeneration.values()) {
@@ -96,7 +104,7 @@ public final class TurbineGenerationLoader {
         return formatRfPerSteamMb(rfPerSteamBucket(rfPerMb));
     }
 
-    /** All loaded entries registered in JEI; per-recipe visibility uses {@link #isVisibleInJei}. */
+    /** All loaded entries (includes unresolved selectors). JEI uses {@link #getVisibleDefinitions()} only. */
     public static List<TurbineGenerationDefinition> getJeIDefinitions() {
         return DEFINITIONS.values().stream()
                 .sorted(java.util.Comparator.comparing(d -> d.generationId().toString()))

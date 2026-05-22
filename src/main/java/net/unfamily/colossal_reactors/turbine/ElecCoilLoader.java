@@ -43,11 +43,19 @@ public final class ElecCoilLoader {
     public static void applyLoaded(List<ElecCoilDefinition> loaded) {
         synchronized (ElecCoilLoader.class) {
             rawDatapackCoils = loaded != null ? List.copyOf(loaded) : List.of();
-            rebuildDefinitions();
+            if (DatapackSelectorValidator.registriesReady()) {
+                rebuildDefinitions();
+            }
         }
     }
 
-    private static void rebuildDefinitions() {
+    public static void rebuildDefinitions() {
+        synchronized (ElecCoilLoader.class) {
+            rebuildDefinitionsInner();
+        }
+    }
+
+    private static void rebuildDefinitionsInner() {
         DEFINITIONS.clear();
         double empty = Config.TURBINE_EMPTY_COIL_EFFICIENCY.get();
         DEFINITIONS.add(new ElecCoilDefinition(List.of("minecraft:air"), empty, empty));
@@ -64,7 +72,7 @@ public final class ElecCoilLoader {
         }
     }
 
-    /** All loaded entries registered in JEI; per-recipe visibility uses {@link #isVisibleInJei}. */
+    /** All loaded entries (includes air-only / unresolved). JEI uses {@link #getVisibleDefinitions()} only. */
     public static List<ElecCoilDefinition> getJeIDefinitions() {
         return List.copyOf(DEFINITIONS);
     }

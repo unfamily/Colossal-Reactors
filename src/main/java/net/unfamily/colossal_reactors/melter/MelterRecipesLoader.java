@@ -31,11 +31,22 @@ public final class MelterRecipesLoader {
     private static final String KEY_COUNT = "count";
 
     private static final List<MelterRecipe> RECIPES = new ArrayList<>();
+    private static List<MelterRecipe> rawRecipes = List.of();
 
     public static void applyLoaded(List<MelterRecipe> loaded) {
+        rawRecipes = loaded != null ? List.copyOf(loaded) : List.of();
+        if (DatapackSelectorValidator.registriesReady()) {
+            rebuild();
+        }
+    }
+
+    /** Re-resolve selectors when registries/tags are bound to a loaded level. */
+    public static void rebuild() {
+        if (!DatapackSelectorValidator.registriesReady()) {
+            return;
+        }
         RECIPES.clear();
-        if (loaded == null || loaded.isEmpty()) return;
-        for (MelterRecipe recipe : loaded) {
+        for (MelterRecipe recipe : rawRecipes) {
             if (DatapackSelectorValidator.isMelterRecipeResolvable(recipe)) {
                 RECIPES.add(recipe);
             }
@@ -44,6 +55,10 @@ public final class MelterRecipesLoader {
 
     public static List<MelterRecipe> getAll() {
         return Collections.unmodifiableList(RECIPES);
+    }
+
+    public static int getRawCount() {
+        return rawRecipes.size();
     }
 
     @Nullable

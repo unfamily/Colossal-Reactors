@@ -9,8 +9,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
+import net.minecraft.client.Minecraft;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
@@ -170,6 +174,14 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
                 LOGGER.debug("Could not load builtin elec_coils.json: {}", e.getMessage());
             }
         }
+        if (turbineGeneration.isEmpty()) {
+            loadBuiltinFromClasspath(BUILTIN_TURBINE_GENERATION, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                    radiationScrubberCatalysts, turbineGeneration, elecCoils, rsMult, rsGasMult);
+        }
+        if (elecCoils.isEmpty()) {
+            loadBuiltinFromClasspath(BUILTIN_TURBINE_ELEC_COILS, fuel, coolant, heatSinks, melterRecipes, melterHeats,
+                    radiationScrubberCatalysts, turbineGeneration, elecCoils, rsMult, rsGasMult);
+        }
         profiler.pop();
         return new ReactorReloadLoadedData(fuel, coolant, heatSinks, melterRecipes, melterHeats, radiationScrubberCatalysts,
                 turbineGeneration, elecCoils, rsMult[0], rsGasMult[0]);
@@ -197,19 +209,33 @@ public class ReactorDataReloadListener extends SimplePreparableReloadListener<Re
         HeatSinkLoader.applyLoaded(data.heatSinks());
         MelterRecipesLoader.applyLoaded(data.melterRecipes());
         MelterHeatsLoader.applyLoaded(data.melterHeats());
+        MelterRecipesLoader.rebuild();
+        MelterHeatsLoader.rebuild();
         RadiationScrubberCatalystsLoader.applyLoaded(data.radiationScrubberCatalysts(), data.radiationScrubberMult(), data.radiationScrubberGasMult());
         TurbineGenerationLoader.applyLoaded(data.turbineGeneration());
         ElecCoilLoader.applyLoaded(data.elecCoils());
+        if (DatapackSelectorValidator.registriesReady()) {
+            TurbineGenerationLoader.rebuildDefinitions();
+            ElecCoilLoader.rebuildDefinitions();
+        }
         if (profiler != null) {
             profiler.pop();
         }
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink entries in datapack, {} applied after sanitize, {} melter recipe, {} melter heat, {} radiation scrubber catalyst(s), {} turbine generation in datapack, {} applied, {} elec coil in datapack, {} JEI/builder options",
+            LOGGER.info("Reactor data loaded: {} fuel, {} coolant, {} heat sink entries in datapack, {} applied after sanitize, {} melter recipe ({} raw -> {} JEI), {} melter heat ({} raw -> {} JEI), {} radiation scrubber catalyst(s), {} turbine generation in datapack, {} applied, {} elec coil in datapack, {} visible in JEI/builder",
                     data.fuel().size(), data.coolant().size(), data.heatSinks().size(),
                     HeatSinkLoader.getAllDefinitions().size(),
-                    data.melterRecipes().size(), data.melterHeats().size(), data.radiationScrubberCatalysts().size(),
+                    data.melterRecipes().size(), MelterRecipesLoader.getRawCount(), MelterRecipesLoader.getAll().size(),
+                    data.melterHeats().size(), MelterHeatsLoader.getRawCount(), MelterHeatsLoader.getAll().size(),
+                    data.radiationScrubberCatalysts().size(),
                     data.turbineGeneration().size(), TurbineGenerationLoader.getAll().size(),
-                    data.elecCoils().size(), ElecCoilLoader.getJeIDefinitions().size());
+                    data.elecCoils().size(), ElecCoilLoader.getVisibleDefinitions().size());
+        }
+        if (FMLEnvironment.getDist() == Dist.CLIENT) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.level != null) {
+                JeiDatapackRecipeSync.syncWhenWorldReady();
+            }
         }
     }
 

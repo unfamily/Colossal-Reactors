@@ -54,11 +54,11 @@ public final class HeatingCoilRegistry {
         if (builtinCoilIds != null) return builtinCoilIds;
         Map<Identifier, HeatingCoilDefinition> merged = new LinkedHashMap<>();
         for (HeatingCoilDefinition def : parseBuiltinFile()) {
-            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
+            putSanitized(merged, def);
         }
         int jarCount = merged.size();
         for (var entry : HeatingCoilFilesystemLoader.loadFromGameDir().entrySet()) {
-            merged.put(entry.getKey(), DatapackSelectorValidator.sanitizeHeatingCoil(entry.getValue()));
+            putSanitized(merged, entry.getValue());
         }
         DEFINITIONS.putAll(merged);
         builtinCoilIds = List.copyOf(merged.keySet());
@@ -79,13 +79,18 @@ public final class HeatingCoilRegistry {
         }
         Map<Identifier, HeatingCoilDefinition> merged = new HashMap<>();
         for (HeatingCoilDefinition def : parseBuiltinFile()) {
-            merged.put(def.id(), def);
+            putSanitized(merged, def);
         }
         for (HeatingCoilDefinition def : loaded.values()) {
-            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
+            putSanitized(merged, def);
         }
         DEFINITIONS.clear();
         DEFINITIONS.putAll(merged);
+    }
+
+    private static void putSanitized(Map<Identifier, HeatingCoilDefinition> merged, HeatingCoilDefinition def) {
+        HeatingCoilDefinition sanitized = DatapackSelectorValidator.sanitizeHeatingCoil(def);
+        merged.put(def.id(), sanitized != null ? sanitized : def);
     }
 
     @Nullable

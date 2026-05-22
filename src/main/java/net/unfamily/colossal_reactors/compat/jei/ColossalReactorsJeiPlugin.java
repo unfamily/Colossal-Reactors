@@ -6,6 +6,7 @@ import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
+import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.minecraft.world.item.ItemStack;
@@ -14,12 +15,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
-import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
-import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
-import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
-import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
-
 @JeiPlugin
 public class ColossalReactorsJeiPlugin implements IModPlugin {
 
@@ -49,20 +45,27 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, CoolantLoader.getVisibleDefinitions());
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getVisibleDefinitions());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
-        registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
-        registration.addRecipes(MelterHeatSourceRecipeCategory.RECIPE_TYPE, MelterHeatsLoader.getAll());
+        // Melter / turbine: filled after world load (JeiDatapackRecipeSync).
 
-        var coilRecipes = HeatingCoilRegistry.getAll().values().stream()
+        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, buildHeatingCoilJeiRecipes());
+    }
+
+    @Override
+    public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        JeiDatapackRecipeSync.onRuntimeAvailable(jeiRuntime);
+    }
+
+    public static java.util.List<HeatingCoilJeiRecipe> buildHeatingCoilJeiRecipes() {
+        return HeatingCoilRegistry.getAll().values().stream()
                 .flatMap(def -> {
                     var opts = def.consume();
-                    if (opts == null || opts.isEmpty()) return java.util.stream.Stream.empty();
+                    if (opts == null || opts.isEmpty()) {
+                        return java.util.stream.Stream.empty();
+                    }
                     return java.util.stream.IntStream.range(0, opts.size())
                             .mapToObj(i -> new HeatingCoilJeiRecipe(def.id(), def.duration(), i, opts.get(i)));
                 })
                 .toList();
-        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
-        registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getJeIDefinitions());
-        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, TurbineGenerationLoader.getJeIDefinitions());
     }
 
     @Override

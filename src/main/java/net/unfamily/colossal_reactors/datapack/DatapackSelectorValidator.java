@@ -41,6 +41,16 @@ public final class DatapackSelectorValidator {
 
     private DatapackSelectorValidator() {}
 
+    /** True when block/fluid/item tags can be resolved against a loaded world or server. */
+    public static boolean registriesReady() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            return true;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        return mc != null && mc.level != null;
+    }
+
     /**
      * Skip selector filtering when registries/tags are not ready (e.g. early client resource reload).
      * Matches 1.21.1: without this, fuel JSON (e.g. uranium 400 RF/t) is dropped and internal defaults (200) remain.
@@ -395,6 +405,9 @@ public final class DatapackSelectorValidator {
             if (sanitized != null && !sanitized.isEmpty()) {
                 consume.add(sanitized);
             }
+        }
+        if (consume.isEmpty() && def.consume() != null && !def.consume().isEmpty()) {
+            return def;
         }
         return new HeatingCoilDefinition(def.id(), def.duration(), consume, def.allSides(),
                 def.noItem(), def.noFluid(), def.noEnergy());
