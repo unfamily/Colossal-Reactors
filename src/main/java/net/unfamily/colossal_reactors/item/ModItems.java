@@ -60,6 +60,8 @@ public class ModItems {
     public static final DeferredItem<BlockItem> DEEPSLATE_LEAD_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_LEAD_ORE);
     public static final DeferredItem<BlockItem> BORON_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.BORON_ORE);
     public static final DeferredItem<BlockItem> DEEPSLATE_BORON_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_BORON_ORE);
+    public static final DeferredItem<BlockItem> CHROMIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.CHROMIUM_ORE);
+    public static final DeferredItem<BlockItem> DEEPSLATE_CHROMIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_CHROMIUM_ORE);
     public static final DeferredItem<BlockItem> URANIUM_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_BLOCK);
     public static final DeferredItem<BlockItem> URANIUM_RAW_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_RAW_BLOCK);
     public static final DeferredItem<BlockItem> LEAD_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.LEAD_BLOCK);
@@ -69,6 +71,9 @@ public class ModItems {
     public static final DeferredItem<BlockItem> GRAPHITE_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.GRAPHITE_BLOCK);
     public static final DeferredItem<BlockItem> AZURITE_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.AZURITE_BLOCK);
     public static final DeferredItem<BlockItem> TOUGH_ALLOY_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.TOUGH_ALLOY_BLOCK);
+    public static final DeferredItem<BlockItem> CHROMIUM_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.CHROMIUM_BLOCK);
+    public static final DeferredItem<BlockItem> CHROMIUM_RAW_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.CHROMIUM_RAW_BLOCK);
+    public static final DeferredItem<BlockItem> STAINLESS_STEEL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.STAINLESS_STEEL_BLOCK);
 
     // Raw materials and ingots
     public static final DeferredItem<Item> RAW_URANIUM = ITEMS.registerSimpleItem("raw_uranium");
@@ -85,6 +90,13 @@ public class ModItems {
     public static final DeferredItem<Item> URANIUM_DUST = ITEMS.registerSimpleItem("uranium_dust");
     public static final DeferredItem<Item> LEAD_DUST = ITEMS.registerSimpleItem("lead_dust");
     public static final DeferredItem<Item> BORON_DUST = ITEMS.registerSimpleItem("boron_dust");
+
+    public static final DeferredItem<Item> CHROMIUM_RAW = ITEMS.registerSimpleItem("chromium_raw");
+    public static final DeferredItem<Item> CHROMIUM_INGOT = ITEMS.registerSimpleItem("chromium_ingot");
+    public static final DeferredItem<Item> CHROMIUM_DUST = ITEMS.registerSimpleItem("chromium_dust");
+
+    public static final DeferredItem<Item> UNREFINED_STAINLESS_STEEL = ITEMS.registerSimpleItem("unrefined_stainless_steel");
+    public static final DeferredItem<Item> STAINLESS_STEEL_INGOT = ITEMS.registerSimpleItem("stainless_steel_ingot");
 
     static {
         List<Identifier> coilIds = HeatingCoilRegistry.getBuiltinCoilIds();

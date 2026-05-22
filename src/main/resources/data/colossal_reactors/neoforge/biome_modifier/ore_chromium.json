@@ -1,0 +1,7 @@
+{
+  "type": "colossal_reactors:add_features_if_oregen_enabled",
+  "biomes": "#minecraft:is_overworld",
+  "features": "colossal_reactors:ore_chromium_placed",
+  "step": "underground_ores",
+  "ore": "chromium"
+}

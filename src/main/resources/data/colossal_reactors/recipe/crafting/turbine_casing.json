@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "BBB",
+    "ABA"
+  ],
+  "key": {
+    "A": "#c:ingots/stainless_steel",
+    "B": "#c:ingots/graphite"
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_casing",
+    "count": 4
+  }
+}

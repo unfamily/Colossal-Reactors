@@ -1,5 +1,0 @@
-{
-  "type": "mekanism:crushing",
-  "input": { "ingredient": { "tag": "c:ingots/lead" } },
-  "output": { "item": "colossal_reactors:lead_dust" }
-}

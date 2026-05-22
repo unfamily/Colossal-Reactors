@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "BAB",
+    "ACA",
+    "BAB"
+  ],
+  "key": {
+    "A": "#c:ingots/tough_alloy",
+    "B": "#c:ingots/stainless_steel",
+    "C": "colossal_reactors:turbine_rod"
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_rod_controller",
+    "count": 1
+  }
+}

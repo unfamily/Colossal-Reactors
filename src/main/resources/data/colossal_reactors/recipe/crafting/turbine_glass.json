@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "B B",
+    "ABA"
+  ],
+  "key": {
+    "A": "#c:ingots/stainless_steel",
+    "B": "#c:glass_blocks"
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_glass",
+    "count": 4
+  }
+}

@@ -18,6 +18,7 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraft.core.Direction;
@@ -40,6 +41,7 @@ import net.unfamily.colossal_reactors.blockentity.TurbinePowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
+import net.unfamily.colossal_reactors.item.ModMekItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
@@ -73,6 +75,9 @@ public class ColossalReactors {
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        if (ModList.get().isLoaded("mekanism")) {
+            ModMekItems.MEK_ITEMS.register(modEventBus);
+        }
         ModFluids.FLUID_TYPES.register(modEventBus);
         ModFluids.FLUIDS.register(modEventBus);
 

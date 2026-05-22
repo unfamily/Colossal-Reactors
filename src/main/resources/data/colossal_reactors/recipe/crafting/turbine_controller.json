@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
+  "key": {
+    "A": "#c:ingots/stainless_steel",
+    "B": "#c:glass_blocks/colorless",
+    "C": "#c:dusts/redstone"
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_controller",
+    "count": 1
+  }
+}

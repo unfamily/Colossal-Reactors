@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 0.2,
+  "ingredient": "colossal_reactors:unrefined_stainless_steel",
+  "result": {
+    "id": "colossal_reactors:stainless_steel_ingot",
+    "count": 1
+  }
+}

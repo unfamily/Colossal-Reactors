@@ -82,44 +82,45 @@ public class ModBlocks {
     // ----- Turbine (shell blocks, no block entities yet) -----
     public static final DeferredBlock<Block> TURBINE_CASING = BLOCKS.registerBlock("turbine_casing",
             Block::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineGlassBlock> TURBINE_GLASS = BLOCKS.registerBlock("turbine_glass",
             TurbineGlassBlock::new,
             p -> p.sound(SoundType.GLASS)
                     .instrument(NoteBlockInstrument.HAT)
                     .strength(0.3f)
                     .noOcclusion()
+                    .requiresCorrectToolForDrops()
                     .isValidSpawn((s, l, pos, e) -> false)
                     .isRedstoneConductor((s, l, pos) -> false)
                     .isSuffocating((s, l, pos) -> false)
                     .isViewBlocking((s, l, pos) -> false));
     public static final DeferredBlock<TurbineControllerBlock> TURBINE_CONTROLLER = BLOCKS.registerBlock("turbine_controller",
             TurbineControllerBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion());
+            p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion().requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbinePowerPortBlock> TURBINE_POWER_PORT = BLOCKS.registerBlock("turbine_power_port",
             TurbinePowerPortBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineHighCondPowerPortBlock> TURBINE_HIGH_COND_POWER_PORT = BLOCKS.registerBlock("turbine_high_cond_power_port",
             TurbineHighCondPowerPortBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineRedstonePortBlock> TURBINE_REDSTONE_PORT = BLOCKS.registerBlock("turbine_redstone_port",
             TurbineRedstonePortBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f).isRedstoneConductor((state, level, pos) -> false));
+            p -> p.sound(SoundType.METAL).strength(2.0f).isRedstoneConductor((state, level, pos) -> false).requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineResourcePortBlock> TURBINE_RESOURCE_PORT = BLOCKS.registerBlock("turbine_resource_port",
             TurbineResourcePortBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineBuilderBlock> TURBINE_BUILDER = BLOCKS.registerBlock("turbine_builder",
             TurbineBuilderBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineRodBlock> TURBINE_ROD = BLOCKS.registerBlock("turbine_rod",
             TurbineRodBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion());
+            p -> p.sound(SoundType.METAL).strength(2.0f).noOcclusion().requiresCorrectToolForDrops());
     public static final DeferredBlock<TurbineBladeBlock> TURBINE_BLADE = BLOCKS.registerBlock("turbine_blade",
             TurbineBladeBlock::new,
             p -> p.sound(SoundType.METAL).strength(-1.0f, 3600000.0f).noOcclusion().noLootTable());
     public static final DeferredBlock<TurbineRodControllerBlock> TURBINE_ROD_CONTROLLER = BLOCKS.registerBlock("turbine_rod_controller",
             TurbineRodControllerBlock::new,
-            p -> p.sound(SoundType.METAL).strength(2.0f));
+            p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
 
     // Resource ores (stone + deepslate)
     public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.registerBlock("uranium_ore",
@@ -146,6 +147,14 @@ public class ModBlocks {
             Block::new,
             p -> p.sound(SoundType.DEEPSLATE).strength(4.5f, 3.0f).requiresCorrectToolForDrops());
 
+    public static final DeferredBlock<Block> CHROMIUM_ORE = BLOCKS.registerBlock("chromium_ore",
+            Block::new,
+            p -> p.sound(SoundType.STONE).strength(3.0f, 3.0f).requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> DEEPSLATE_CHROMIUM_ORE = BLOCKS.registerBlock("deep_chromium_ore",
+            Block::new,
+            p -> p.sound(SoundType.DEEPSLATE).strength(4.5f, 3.0f).requiresCorrectToolForDrops());
+
     // Storage and raw blocks
     public static final DeferredBlock<Block> URANIUM_BLOCK = BLOCKS.registerBlock("uranium_block",
             Block::new,
@@ -154,6 +163,18 @@ public class ModBlocks {
     public static final DeferredBlock<Block> URANIUM_RAW_BLOCK = BLOCKS.registerBlock("uranium_raw_block",
             Block::new,
             p -> p.sound(SoundType.STONE).strength(5.0f, 6.0f).requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> CHROMIUM_BLOCK = BLOCKS.registerBlock("chromium_block",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(5.0f, 6.0f).requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> CHROMIUM_RAW_BLOCK = BLOCKS.registerBlock("chromium_raw_block",
+            Block::new,
+            p -> p.sound(SoundType.STONE).strength(5.0f, 6.0f).requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> STAINLESS_STEEL_BLOCK = BLOCKS.registerBlock("stainless_steel_block",
+            Block::new,
+            p -> p.sound(SoundType.METAL).strength(5.0f, 6.0f).requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> LEAD_BLOCK = BLOCKS.registerBlock("lead_block",
             Block::new,

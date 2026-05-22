@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
+  "key": {
+    "A": "#c:ingots/stainless_steel",
+    "B": "#c:gems/amethyst",
+    "C": "#c:gems/diamond"
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_builder",
+    "count": 1
+  }
+}

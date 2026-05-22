@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "#c:ingots/steel",
+    "#c:ingots/steel",
+    "#c:ingots/chromium"
+  ],
+  "result": {
+    "id": "colossal_reactors:unrefined_stainless_steel",
+    "count": 5
+  }
+}
