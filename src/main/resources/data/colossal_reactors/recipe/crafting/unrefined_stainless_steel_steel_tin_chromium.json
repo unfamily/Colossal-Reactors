@@ -3,7 +3,8 @@
   "ingredients": [
     "#c:ingots/steel",
     "#c:ingots/steel",
-    "#colossal_reactors:stainless_steel_comp0",
+    "#c:ingots/tin",
+    "#c:ingots/tin",
     "#c:ingots/chromium"
   ],
   "result": {
@@ -15,7 +16,7 @@
       "type": "neoforge:not",
       "value": {
         "type": "neoforge:tag_empty",
-        "tag": "colossal_reactors:stainless_steel_comp0"
+        "tag": "c:ingots/tin"
       }
     }
   ]

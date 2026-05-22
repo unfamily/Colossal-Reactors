@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
+  "key": {
+    "A": "#c:ingots/invar",
+    "B": "#c:glass_blocks/colorless",
+    "C": "#c:dusts/redstone"
+  },
+  "result": {
+    "id": "colossal_reactors:turbine_controller",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/invar"
+      }
+    }
+  ]
+}

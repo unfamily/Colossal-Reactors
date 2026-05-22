@@ -3,10 +3,19 @@
   "ingredients": [
     "#c:ingots/iron",
     "#c:ingots/iron",
-    "#colossal_reactors:alloy_modifiers"
+    "#colossal_reactors:stainless_steel_comp0"
   ],
   "result": {
     "id": "colossal_reactors:unrefined_stainless_steel",
     "count": 3
-  }
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "colossal_reactors:stainless_steel_comp0"
+      }
+    }
+  ]
 }

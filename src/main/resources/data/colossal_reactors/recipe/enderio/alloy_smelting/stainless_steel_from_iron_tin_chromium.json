@@ -1,0 +1,36 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "enderio"
+    },
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:ingots/tin"
+      }
+    }
+  ],
+  "type": "enderio:alloy_smelting",
+  "energy": 5600,
+  "experience": 0.3,
+  "inputs": [
+    {
+      "count": 2,
+      "ingredient": "#c:ingots/iron"
+    },
+    {
+      "count": 2,
+      "ingredient": "#c:ingots/tin"
+    },
+    {
+      "count": 1,
+      "ingredient": "#c:ingots/chromium"
+    }
+  ],
+  "output": {
+    "count": 6,
+    "id": "colossal_reactors:stainless_steel_ingot"
+  }
+}

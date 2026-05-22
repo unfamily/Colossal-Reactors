@@ -1,0 +1,46 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "immersiveengineering"
+    },
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "colossal_reactors:stainless_steel_comp0"
+      }
+    }
+  ],
+  "type": "immersiveengineering:arc_furnace",
+  "additives": [
+    {
+      "basePredicate": {
+        "tag": "colossal_reactors:stainless_steel_comp0"
+      },
+      "count": 1
+    },
+    {
+      "basePredicate": {
+        "tag": "c:ingots/chromium"
+      },
+      "count": 1
+    }
+  ],
+  "energy": 51200,
+  "input": {
+    "basePredicate": {
+      "tag": "c:ingots/iron"
+    },
+    "count": 2
+  },
+  "results": [
+    {
+      "basePredicate": {
+        "item": "colossal_reactors:stainless_steel_ingot"
+      },
+      "count": 6
+    }
+  ],
+  "time": 100
+}
