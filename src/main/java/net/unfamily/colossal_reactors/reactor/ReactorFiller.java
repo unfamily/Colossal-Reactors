@@ -10,6 +10,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
@@ -19,6 +20,7 @@ import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
+import net.unfamily.colossal_reactors.multiblock.MultiblockPortScaling;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,10 +55,10 @@ public final class ReactorFiller {
         }
 
         RegistryAccess registryAccess = level.registryAccess();
-        int coolantMoveBudgetMb = 4000;
+        int coolantMoveBudgetMb = MultiblockPortScaling.estimateReactorCoolantMoveBudgetMb(controller, registryAccess);
 
         for (ResourcePortBlockEntity port : insertPorts) {
-            if (port.isAllowSolid()) {
+            if (portAcceptsFuel(port) && port.isAllowSolid()) {
                 pullSolidFuel(port, controller, registryAccess);
             }
 
@@ -64,13 +66,23 @@ public final class ReactorFiller {
                 coolantMoveBudgetMb = pullChemicals(port, controller, registryAccess, coolantMoveBudgetMb);
             }
 
-            if (port.isAllowLiquid()) {
+            if (portAcceptsFuel(port) && port.isAllowLiquid()) {
                 pullLiquidFuel(port, controller, registryAccess);
-                if (coolantMoveBudgetMb > 0) {
-                    coolantMoveBudgetMb = pullLiquidCoolant(port, controller, registryAccess, coolantMoveBudgetMb);
-                }
+            }
+            if (portAcceptsCoolant(port) && port.isAllowLiquid() && coolantMoveBudgetMb > 0) {
+                coolantMoveBudgetMb = pullLiquidCoolant(port, controller, registryAccess, coolantMoveBudgetMb);
             }
         }
+    }
+
+    private static boolean portAcceptsFuel(ResourcePortBlockEntity port) {
+        PortFilter filter = port.getPortFilter();
+        return filter == PortFilter.BOTH || filter == PortFilter.ONLY_SOLID_FUEL;
+    }
+
+    private static boolean portAcceptsCoolant(ResourcePortBlockEntity port) {
+        PortFilter filter = port.getPortFilter();
+        return filter == PortFilter.BOTH || filter == PortFilter.ONLY_COOLANT_LIQUID;
     }
 
     private static void pullSolidFuel(
@@ -119,6 +131,9 @@ public final class ReactorFiller {
             ReactorControllerBlockEntity controller,
             RegistryAccess registryAccess,
             int coolantMoveBudgetMb) {
+        if (!port.isAllowGas()) {
+            return coolantMoveBudgetMb;
+        }
         Object handler = port.getChemicalHandler();
         if (handler == null) {
             return coolantMoveBudgetMb;
@@ -130,8 +145,10 @@ public final class ReactorFiller {
             }
 
             int budget = coolantMoveBudgetMb;
-            budget = pullChemicalFuel(port, controller, inTank, budget);
-            if (budget > 0) {
+            if (portAcceptsFuel(port)) {
+                budget = pullChemicalFuel(port, controller, inTank, budget);
+            }
+            if (portAcceptsCoolant(port) && budget > 0) {
                 budget = pullChemicalCoolant(port, controller, inTank, registryAccess, budget);
             }
             return budget;

@@ -340,44 +340,10 @@ public final class HeatSinkLoader {
         if (defIdx >= DEFINITIONS.size()) return Component.literal("?");
         HeatSinkDefinition def = DEFINITIONS.get(defIdx);
         if (!def.validBlocks().isEmpty()) {
-            String selector = def.validBlocks().getFirst();
-            var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
-            if (selector.startsWith("#")) {
-                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
-                if (tagId != null) {
-                    TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
-                    return blockReg.getTag(tagKey)
-                            .flatMap(holders -> holders.stream().findFirst())
-                            .map(h -> Component.translatable(h.value().getDescriptionId()))
-                            .orElse(Component.literal(selector));
-                }
-            } else {
-                ResourceLocation id = ResourceLocation.tryParse(selector);
-                if (id != null && blockReg.containsKey(id)) {
-                    return Component.translatable(blockReg.get(id).getDescriptionId());
-                }
-            }
-            return Component.literal(selector);
+            return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.validBlocks(), registryAccess);
         }
         if (!def.validLiquids().isEmpty()) {
-            String selector = def.validLiquids().getFirst();
-            var fluidReg = registryAccess.registryOrThrow(Registries.FLUID);
-            if (selector.startsWith("#")) {
-                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
-                if (tagId != null) {
-                    TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
-                    return fluidReg.getTag(tagKey)
-                            .flatMap(holders -> holders.stream().findFirst())
-                            .map(h -> Component.translatable(h.value().getFluidType().getDescriptionId()))
-                            .orElse(Component.literal(selector));
-                }
-            } else {
-                ResourceLocation id = ResourceLocation.tryParse(selector);
-                if (id != null && fluidReg.containsKey(id)) {
-                    return Component.translatable(fluidReg.get(id).getFluidType().getDescriptionId());
-                }
-            }
-            return Component.literal(selector);
+            return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.validLiquids(), registryAccess);
         }
         return Component.literal("?");
     }

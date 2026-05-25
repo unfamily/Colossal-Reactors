@@ -511,6 +511,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
 
         rebuildSimulationCaches(level, result, cachedRodPositions);
         updateRodVisualFillIfNeeded();
+        net.unfamily.colossal_reactors.multiblock.MultiblockPortScaling.scaleReactorPorts(level, this);
     }
 
     private void rebuildSimulationCaches(ServerLevel level, ReactorValidation.Result result, long[] rodPositions) {

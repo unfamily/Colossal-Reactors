@@ -33,7 +33,7 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
-import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
+import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
 import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
@@ -185,7 +185,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
-    private boolean previewActive;
+    private boolean previewButtonShowsHide;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block: 0=Coil, 1=Pattern, 2=Placement axis, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -275,6 +275,20 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         addRenderableWidget(steamGenerationButton);
         simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
+        previewButtonShowsHide = menu.isPreviewEnabled();
+        updatePreviewButtonLabel();
+        if (menu.isPreviewEnabled()) {
+            PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(menu.getBlockPos(), true, false));
+        }
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (viewMode == ViewMode.BUILDER && menu.isPreviewEnabled() != previewButtonShowsHide) {
+            previewButtonShowsHide = menu.isPreviewEnabled();
+            updatePreviewButtonLabel();
+        }
     }
 
     private List<TurbineGenerationDefinition> getVisibleGenerations() {
@@ -323,20 +337,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         if (ra == null || def.inputs().isEmpty()) {
             return Component.literal(def.generationId().toString());
         }
-        for (String input : def.inputs()) {
-            if (input == null || input.isBlank()) continue;
-            Fluid f;
-            if (input.startsWith("#")) {
-                f = TurbineGenerationLoader.getFirstFluidFromTag(input, ra);
-            } else {
-                ResourceLocation id = ResourceLocation.tryParse(input);
-                f = id != null ? BuiltInRegistries.FLUID.get(id) : Fluids.EMPTY;
-            }
-            if (f != null && f != Fluids.EMPTY) {
-                return Component.translatable(f.getFluidType().getDescriptionId());
-            }
-        }
-        return Component.literal(def.generationId().toString());
+        return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.inputs(), ra);
     }
 
     private void onCloseButtonClicked() {
@@ -935,20 +936,18 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     }
 
     private void togglePreview() {
-        if (previewActive) {
-            PreviewMarkRenderer.getInstance().clearMarkers();
-            previewActive = false;
-        } else if (menu.getBlockEntity() != null) {
-            PacketDistributor.sendToServer(new TurbinePreviewPayload(menu.getBlockPos()));
-            previewActive = true;
-        }
+        BlockPos builderPos = menu.getBlockPos();
+        boolean enabling = !menu.isPreviewEnabled();
+        PreviewMarkRenderer.getInstance().clearMarkersForBuilder(builderPos);
+        PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, false));
+        previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();
     }
 
     private void updatePreviewButtonLabel() {
         if (buttonPreview != null) {
             buttonPreview.setMessage(Component.translatable(
-                    previewActive
+                    previewButtonShowsHide
                             ? "gui.colossal_reactors.turbine_builder.preview.hide"
                             : "gui.colossal_reactors.turbine_builder.preview"));
         }

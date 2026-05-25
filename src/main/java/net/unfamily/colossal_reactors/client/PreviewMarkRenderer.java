@@ -12,48 +12,72 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Renders preview markers (small cubes) for reactor footprint. Client-only.
+ * Renders footprint preview markers per builder origin. Client-only.
  */
 public class PreviewMarkRenderer {
 
+    /** Markers not owned by a builder (validation hints). */
+    public static final BlockPos EPHEMERAL_OWNER = BlockPos.ZERO;
+
     private static final PreviewMarkRenderer INSTANCE = new PreviewMarkRenderer();
-    private final Map<BlockPos, MarkData> markers = new ConcurrentHashMap<>();
+    private final Map<BlockPos, Map<BlockPos, MarkData>> markersByBuilder = new ConcurrentHashMap<>();
 
     public static PreviewMarkRenderer getInstance() {
         return INSTANCE;
     }
 
+    /** Clears markers for every builder (disconnect / world unload). */
     public void clearMarkers() {
-        markers.clear();
+        markersByBuilder.clear();
     }
 
-    public void addMarker(BlockPos pos, int color, int durationTicks) {
+    public void clearMarkersForBuilder(BlockPos builderOrigin) {
+        if (builderOrigin != null) {
+            markersByBuilder.remove(builderOrigin.immutable());
+        }
+    }
+
+    public void addMarker(BlockPos builderOrigin, BlockPos worldPos, int color, int durationTicks) {
+        if (worldPos == null) {
+            return;
+        }
+        BlockPos owner = builderOrigin == null ? EPHEMERAL_OWNER : builderOrigin;
         Minecraft mc = Minecraft.getInstance();
+        Runnable add = () -> {
+            if (mc.level == null) {
+                return;
+            }
+            long expire = durationTicks > 0 ? mc.level.getGameTime() + durationTicks : Long.MAX_VALUE;
+            markersByBuilder
+                    .computeIfAbsent(owner.immutable(), k -> new ConcurrentHashMap<>())
+                    .put(worldPos.immutable(), new MarkData(color, expire));
+        };
         if (mc.level == null) {
-            mc.execute(() -> {
-                if (mc.level != null) {
-                    long expire = mc.level.getGameTime() + durationTicks;
-                    markers.put(pos.immutable(), new MarkData(color, expire));
-                }
-            });
+            mc.execute(add);
         } else {
-            long expire = mc.level.getGameTime() + durationTicks;
-            markers.put(pos.immutable(), new MarkData(color, expire));
+            add.run();
         }
     }
 
     public void render(PoseStack poseStack, float partialTick) {
-        if (markers.isEmpty()) return;
+        if (markersByBuilder.isEmpty()) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
+        if (mc.level == null) {
+            return;
+        }
 
         long currentTime = mc.level.getGameTime();
-        markers.entrySet().removeIf(e -> e.getValue().expirationTime <= currentTime);
-        if (markers.isEmpty()) return;
+        pruneExpired(currentTime);
+        if (markersByBuilder.isEmpty()) {
+            return;
+        }
 
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
@@ -64,13 +88,26 @@ public class PreviewMarkRenderer {
 
         BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
-        for (Map.Entry<BlockPos, MarkData> entry : markers.entrySet()) {
-            drawSmallCube(buffer, entry.getKey(), cameraPos, entry.getValue().color);
+        for (Map<BlockPos, MarkData> worldMarkers : markersByBuilder.values()) {
+            for (Map.Entry<BlockPos, MarkData> entry : worldMarkers.entrySet()) {
+                drawSmallCube(buffer, entry.getKey(), cameraPos, entry.getValue().color);
+            }
         }
 
         BufferUploader.drawWithShader(buffer.buildOrThrow());
         RenderSystem.enableDepthTest();
         RenderSystem.disableBlend();
+    }
+
+    private void pruneExpired(long currentTime) {
+        Iterator<Map.Entry<BlockPos, Map<BlockPos, MarkData>>> builderIt = markersByBuilder.entrySet().iterator();
+        while (builderIt.hasNext()) {
+            Map<BlockPos, MarkData> worldMarkers = builderIt.next().getValue();
+            worldMarkers.entrySet().removeIf(e -> e.getValue().expirationTime <= currentTime);
+            if (worldMarkers.isEmpty()) {
+                builderIt.remove();
+            }
+        }
     }
 
     private static void drawSmallCube(BufferBuilder buffer, BlockPos pos, Vec3 cameraPos, int color) {
@@ -85,36 +122,30 @@ public class PreviewMarkRenderer {
         float b = (color & 0xFF) / 255.0f;
         float a = ((color >> 24) & 0xFF) / 255.0f;
 
-        // bottom
         buffer.addVertex(x, y, z).setColor(r, g, b, a);
         buffer.addVertex(x + size, y, z).setColor(r, g, b, a);
         buffer.addVertex(x + size, y, z + size).setColor(r, g, b, a);
         buffer.addVertex(x, y, z + size).setColor(r, g, b, a);
-        // top
         buffer.addVertex(x, y + size, z).setColor(r, g, b, a);
         buffer.addVertex(x, y + size, z + size).setColor(r, g, b, a);
         buffer.addVertex(x + size, y + size, z + size).setColor(r, g, b, a);
         buffer.addVertex(x + size, y + size, z).setColor(r, g, b, a);
-        // north
         buffer.addVertex(x, y, z).setColor(r, g, b, a);
         buffer.addVertex(x, y + size, z).setColor(r, g, b, a);
         buffer.addVertex(x + size, y + size, z).setColor(r, g, b, a);
         buffer.addVertex(x + size, y, z).setColor(r, g, b, a);
-        // south
         buffer.addVertex(x, y, z + size).setColor(r, g, b, a);
         buffer.addVertex(x + size, y, z + size).setColor(r, g, b, a);
         buffer.addVertex(x + size, y + size, z + size).setColor(r, g, b, a);
         buffer.addVertex(x, y + size, z + size).setColor(r, g, b, a);
-        // west
-        buffer.addVertex(x, y, z).setColor(r, g, b, a);
-        buffer.addVertex(x, y, z + size).setColor(r, g, b, a);
-        buffer.addVertex(x, y + size, z + size).setColor(r, g, b, a);
-        buffer.addVertex(x, y + size, z).setColor(r, g, b, a);
-        // east
         buffer.addVertex(x + size, y, z).setColor(r, g, b, a);
         buffer.addVertex(x + size, y + size, z).setColor(r, g, b, a);
         buffer.addVertex(x + size, y + size, z + size).setColor(r, g, b, a);
         buffer.addVertex(x + size, y, z + size).setColor(r, g, b, a);
+        buffer.addVertex(x, y, z).setColor(r, g, b, a);
+        buffer.addVertex(x, y, z + size).setColor(r, g, b, a);
+        buffer.addVertex(x, y + size, z + size).setColor(r, g, b, a);
+        buffer.addVertex(x, y + size, z).setColor(r, g, b, a);
     }
 
     private record MarkData(int color, long expirationTime) {}

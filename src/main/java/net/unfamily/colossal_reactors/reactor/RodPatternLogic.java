@@ -98,16 +98,13 @@ public final class RodPatternLogic {
         };
     }
 
-    /** Dots (2D): rod columns every 2 in a grid; avoid 2x2 at center when both width and depth even. */
+    /**
+     * Dots (2D): rod columns on a 2-step grid ({@code rx % 2 == 0 && rz % 2 == 0}).
+     * For even×even rod footprints the geometric center is a 2×2 of cells, but only
+     * {@code (rw/2 - 1, rd/2 - 1)} lies on the dots grid — that central column must stay a rod.
+     */
     private static boolean isRodDotsColumn(int rx, int rz, int rw, int rd) {
-        boolean onGrid = (rx % 2 == 0) && (rz % 2 == 0);
-        if (!onGrid) return false;
-        int cx = rw / 2, cz = rd / 2;
-        boolean evenW = (rw & 1) == 0, evenD = (rd & 1) == 0;
-        if (evenW && evenD) {
-            if (rx >= cx - 1 && rx <= cx && rz >= cz - 1 && rz <= cz) return false;
-        }
-        return true;
+        return (rx % 2 == 0) && (rz % 2 == 0);
     }
 
     /** Checkerboard (2D): alternating columns so no two rod columns touch. */

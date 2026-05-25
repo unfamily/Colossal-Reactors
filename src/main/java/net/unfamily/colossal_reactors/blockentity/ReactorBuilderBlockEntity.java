@@ -79,6 +79,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final String TAG_BUILD_PROGRESS = "BuildProgress";
     private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
+    private static final String TAG_PREVIEW_ENABLED = "PreviewEnabled";
     private static final String TAG_MARK_INPUT_FILTERS = "MarkInputFilters";
     private static final int BUFFER_SLOTS = 9 * 3;
 
@@ -179,6 +180,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Last computed build progress (0-100). Kept visible after build completes/aborts until user stops or restarts. */
     private int buildProgressPercent = 0;
     private boolean buildProgressVisible = false;
+    /** Footprint preview active (synced to client GUI). */
+    private boolean previewEnabled = false;
 
     // Build progress cursors (NEXT position to process). These make building "forward-only" and avoid rescanning from start.
     private int buildStage = 0;
@@ -246,13 +249,14 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected ? 1 : 0;
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
+                case 15 -> previewEnabled ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -272,15 +276,27 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected = value != 0;
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
+                case 15 -> previewEnabled = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 15;
+            return 16;
         }
     };
+
+    public boolean isPreviewEnabled() {
+        return previewEnabled;
+    }
+
+    public void setPreviewEnabled(boolean enabled) {
+        if (previewEnabled != enabled) {
+            previewEnabled = enabled;
+            setChanged();
+        }
+    }
 
     public ReactorBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_BUILDER_BE.get(), pos, state);
@@ -436,106 +452,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private int computeBuildProgressPercent(net.minecraft.server.level.ServerLevel serverLevel) {
-        if (!buildProgressVisible) return 0;
-        BlockState builderState = serverLevel.getBlockState(getBlockPos());
-        if (!(builderState.getBlock() instanceof ReactorBuilderBlock)) return buildProgressPercent;
-        Direction facing = builderState.getValue(ReactorBuilderBlock.FACING);
-        AABB aabb = getReactorVolumeAABB(getBlockPos(), facing, getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth());
-        int minX = (int) Math.floor(aabb.minX);
-        int minY = (int) Math.floor(aabb.minY);
-        int minZ = (int) Math.floor(aabb.minZ);
-        int maxX = (int) Math.floor(aabb.maxX - 1e-6);
-        int maxY = (int) Math.floor(aabb.maxY - 1e-6);
-        int maxZ = (int) Math.floor(aabb.maxZ - 1e-6);
-        int w = maxX - minX + 1;
-        int h = maxY - minY + 1;
-        int d = maxZ - minZ + 1;
-
-        int rw = RodPatternLogic.rodSpaceWidth(w, getPatternMode());
-        int rd = RodPatternLogic.rodSpaceDepth(d, getPatternMode());
-        int insetXZ = RodPatternLogic.rodSpaceInsetXZ(getPatternMode());
-
-        long frameTotal = (long) w * h * d;
-        long rodCtrlTotal = (long) rw * rd;
-        long rodSpaceW = Math.max(0, w - 2L * insetXZ);
-        long rodSpaceD = Math.max(0, d - 2L * insetXZ);
-        long rodSpaceH = Math.max(0, h - 2L);
-        long rodsTotal = rodSpaceW * rodSpaceH * rodSpaceD;
-        long interiorTotal = Math.max(0, w - 2L) * Math.max(0, h - 2L) * Math.max(0, d - 2L);
-        long liquidsTotal = interiorTotal;
-        long heatTotal = interiorTotal;
-        long total = frameTotal + rodCtrlTotal + rodsTotal + liquidsTotal + heatTotal;
-        if (total <= 0) return 0;
-
-        long done;
-        long stagePos;
-        long stageTotal;
-        switch (buildStage) {
-            case 0 -> {
-                done = 0;
-                stageTotal = Math.max(1, frameTotal);
-                int x = (buildFrameX == Integer.MIN_VALUE) ? minX : buildFrameX;
-                int y = (buildFrameY == Integer.MIN_VALUE) ? minY : buildFrameY;
-                int z = (buildFrameZ == Integer.MIN_VALUE) ? minZ : buildFrameZ;
-                long ix = Math.max(0, Math.min(w, x - minX));
-                long iy = Math.max(0, Math.min(h, y - minY));
-                long iz = Math.max(0, Math.min(d, z - minZ));
-                stagePos = (ix * h + iy) * d + iz;
-            }
-            case 1 -> {
-                done = frameTotal;
-                stageTotal = Math.max(1, rodCtrlTotal);
-                int rx = (buildRodCtrlRx == Integer.MIN_VALUE) ? 0 : buildRodCtrlRx;
-                int rz = (buildRodCtrlRz == Integer.MIN_VALUE) ? 0 : buildRodCtrlRz;
-                stagePos = (long) rx * rd + rz;
-            }
-            case 2 -> {
-                done = frameTotal + rodCtrlTotal;
-                stageTotal = Math.max(1, rodsTotal);
-                int lx = (buildRodLx == Integer.MIN_VALUE) ? insetXZ : buildRodLx;
-                int ly = (buildRodLy == Integer.MIN_VALUE) ? 1 : buildRodLy;
-                int lz = (buildRodLz == Integer.MIN_VALUE) ? insetXZ : buildRodLz;
-                long ilx = Math.max(0, Math.min(rodSpaceW, lx - insetXZ));
-                long ily = Math.max(0, Math.min(rodSpaceH, ly - 1));
-                long ilz = Math.max(0, Math.min(rodSpaceD, lz - insetXZ));
-                stagePos = (ilx * rodSpaceH + ily) * rodSpaceD + ilz;
-            }
-            case 3 -> {
-                done = frameTotal + rodCtrlTotal + rodsTotal;
-                stageTotal = Math.max(1, liquidsTotal);
-                int lx = (buildLiquidLx == Integer.MIN_VALUE) ? 1 : buildLiquidLx;
-                int ly = (buildLiquidLy == Integer.MIN_VALUE) ? 1 : buildLiquidLy;
-                int lz = (buildLiquidLz == Integer.MIN_VALUE) ? 1 : buildLiquidLz;
-                long iw = Math.max(0, w - 2L);
-                long ih = Math.max(0, h - 2L);
-                long idd = Math.max(0, d - 2L);
-                long ilx = Math.max(0, Math.min(iw, lx - 1));
-                long ily = Math.max(0, Math.min(ih, ly - 1));
-                long ilz = Math.max(0, Math.min(idd, lz - 1));
-                stagePos = (ilx * ih + ily) * idd + ilz;
-            }
-            case 4 -> {
-                done = frameTotal + rodCtrlTotal + rodsTotal + liquidsTotal;
-                stageTotal = Math.max(1, heatTotal);
-                int lx = (buildHeatLx == Integer.MIN_VALUE) ? 1 : buildHeatLx;
-                int ly = (buildHeatLy == Integer.MIN_VALUE) ? 1 : buildHeatLy;
-                int lz = (buildHeatLz == Integer.MIN_VALUE) ? 1 : buildHeatLz;
-                long iw = Math.max(0, w - 2L);
-                long ih = Math.max(0, h - 2L);
-                long idd = Math.max(0, d - 2L);
-                long ilx = Math.max(0, Math.min(iw, lx - 1));
-                long ily = Math.max(0, Math.min(ih, ly - 1));
-                long ilz = Math.max(0, Math.min(idd, lz - 1));
-                stagePos = (ilx * ih + ily) * idd + ilz;
-            }
-            default -> {
-                return 100;
-            }
-        }
-
-        long clamped = Math.max(0, Math.min(stageTotal, stagePos));
-        long progress = done + clamped;
-        return (int) Math.max(0, Math.min(100, (progress * 100L) / total));
+        return ReactorBuildLogic.computeBuildProgressPercent(serverLevel, this);
     }
 
     /** Cycle open top: next=true -> open, next=false -> closed. Same as heat sink: left=next, right=previous. */
@@ -697,6 +614,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
         tag.putInt(TAG_BUILD_PROGRESS, buildProgressPercent);
         tag.putBoolean(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
+        tag.putBoolean(TAG_PREVIEW_ENABLED, previewEnabled);
         CompoundTag markTag = new CompoundTag();
         for (int i = 0; i < markInputFilters.size(); i++) {
             final int slot = i;
@@ -750,6 +668,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
         if (tag.contains(TAG_BUILD_PROGRESS)) buildProgressPercent = tag.getInt(TAG_BUILD_PROGRESS);
         if (tag.contains(TAG_BUILD_PROGRESS_VISIBLE)) buildProgressVisible = tag.getBoolean(TAG_BUILD_PROGRESS_VISIBLE);
+        if (tag.contains(TAG_PREVIEW_ENABLED)) previewEnabled = tag.getBoolean(TAG_PREVIEW_ENABLED);
         if (tag.contains(TAG_BUILD_STAGE)) buildStage = tag.getInt(TAG_BUILD_STAGE);
         if (tag.contains(TAG_BUILD_FRAME_X)) buildFrameX = tag.getInt(TAG_BUILD_FRAME_X);
         if (tag.contains(TAG_BUILD_FRAME_Y)) buildFrameY = tag.getInt(TAG_BUILD_FRAME_Y);

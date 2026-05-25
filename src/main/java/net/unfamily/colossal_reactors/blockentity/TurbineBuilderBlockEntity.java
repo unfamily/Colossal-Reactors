@@ -81,6 +81,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final String TAG_BUILD_PROGRESS = "BuildProgress";
     private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
+    private static final String TAG_PREVIEW_ENABLED = "PreviewEnabled";
     private static final String TAG_PLACEMENT_AXIS = "PlacementAxis";
     private static final String TAG_MARK_INPUT_FILTERS = "MarkInputFilters";
     private static final int BUFFER_SLOTS = 9 * 3;
@@ -184,6 +185,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Last computed build progress (0-100). Kept visible after build completes/aborts until user stops or restarts. */
     private int buildProgressPercent = 0;
     private boolean buildProgressVisible = false;
+    private boolean previewEnabled = false;
 
     // Build progress cursors (NEXT position to process). These make building "forward-only" and avoid rescanning from start.
     private int buildStage = 0;
@@ -254,13 +256,14 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
                 case 15 -> placementAxisIndex;
+                case 16 -> previewEnabled ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) {
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15 && index != 16) {
                 return;
             }
             switch (index) {
@@ -287,15 +290,27 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                         placementAxisIndex = value;
                     }
                 }
+                case 16 -> previewEnabled = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 16;
+            return 17;
         }
     };
+
+    public boolean isPreviewEnabled() {
+        return previewEnabled;
+    }
+
+    public void setPreviewEnabled(boolean enabled) {
+        if (previewEnabled != enabled) {
+            previewEnabled = enabled;
+            setChanged();
+        }
+    }
 
     public TurbineBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TURBINE_BUILDER_BE.get(), pos, state);
@@ -485,42 +500,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     private int computeBuildProgressPercent(net.minecraft.server.level.ServerLevel serverLevel) {
-        if (!buildProgressVisible) return 0;
-        if (buildStage >= TurbineBuildLogic.STAGE_DONE) return 100;
-        var counts = TurbineBuildMaterialCounter.estimate(
-                serverLevel.registryAccess(),
-                getSizeLeft(), getSizeRight(), getSizeHeight(), getSizeDepth(),
-                getPlacementAxisIndex(),
-                getRodPattern(), getSelectedCoilIndex(), getAppliedCoilLayerCount(), isOpenTop());
-        long frameTotal = counts.frameShellTotal();
-        long deckTotal = counts.closureDeckCasings();
-        long rodCtrlTotal = counts.rodControllers();
-        long rodsTotal = counts.rods();
-        long bladesTotal = counts.blades();
-        long coilsTotal = counts.coilBlocks();
-        long total = frameTotal + deckTotal + rodCtrlTotal + rodsTotal + bladesTotal + coilsTotal;
-        if (total <= 0) return buildStage >= TurbineBuildLogic.STAGE_DONE ? 100 : 0;
-
-        long done = switch (buildStage) {
-            case TurbineBuildLogic.STAGE_FRAME -> 0;
-            case TurbineBuildLogic.STAGE_CLOSURE_DECK -> frameTotal;
-            case TurbineBuildLogic.STAGE_ROD_CONTROLLERS -> frameTotal + deckTotal;
-            case TurbineBuildLogic.STAGE_RODS -> frameTotal + deckTotal + rodCtrlTotal;
-            case TurbineBuildLogic.STAGE_BLADES -> frameTotal + deckTotal + rodCtrlTotal + rodsTotal;
-            case TurbineBuildLogic.STAGE_COILS -> {
-                long base = frameTotal + deckTotal + rodCtrlTotal + rodsTotal + bladesTotal;
-                if (coilsTotal <= 0) {
-                    yield base;
-                }
-                var bounds = TurbineBuildLogic.bounds(serverLevel, this);
-                if (bounds == null) {
-                    yield base;
-                }
-                yield base + TurbineBuildLogic.countMatchingCoilCells(serverLevel, bounds, getSelectedCoilIndex());
-            }
-            default -> total;
-        };
-        return (int) Math.max(0, Math.min(100, (done * 100L) / total));
+        return TurbineBuildLogic.computeBuildProgressPercent(serverLevel, this);
     }
 
     public boolean isOpenTop() {
@@ -710,6 +690,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
         tag.putInt(TAG_BUILD_PROGRESS, buildProgressPercent);
         tag.putBoolean(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
+        tag.putBoolean(TAG_PREVIEW_ENABLED, previewEnabled);
         CompoundTag markTag = new CompoundTag();
         for (int i = 0; i < markInputFilters.size(); i++) {
             final int slot = i;
@@ -778,6 +759,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
         if (tag.contains(TAG_BUILD_PROGRESS)) buildProgressPercent = tag.getInt(TAG_BUILD_PROGRESS);
         if (tag.contains(TAG_BUILD_PROGRESS_VISIBLE)) buildProgressVisible = tag.getBoolean(TAG_BUILD_PROGRESS_VISIBLE);
+        if (tag.contains(TAG_PREVIEW_ENABLED)) previewEnabled = tag.getBoolean(TAG_PREVIEW_ENABLED);
         if (tag.contains(TAG_BUILD_STAGE)) buildStage = tag.getInt(TAG_BUILD_STAGE);
         if (tag.contains(TAG_BUILD_FRAME_X)) buildFrameX = tag.getInt(TAG_BUILD_FRAME_X);
         if (tag.contains(TAG_BUILD_FRAME_Y)) buildFrameY = tag.getInt(TAG_BUILD_FRAME_Y);

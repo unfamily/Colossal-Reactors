@@ -32,7 +32,7 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
-import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
+import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
@@ -187,7 +187,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
-    private boolean previewActive;
+    private boolean previewButtonShowsHide;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -279,6 +279,20 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(fuelCycleButton);
         simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
+        previewButtonShowsHide = menu.isPreviewEnabled();
+        updatePreviewButtonLabel();
+        if (menu.isPreviewEnabled()) {
+            PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(menu.getBlockPos(), true, true));
+        }
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (viewMode == ViewMode.BUILDER && menu.isPreviewEnabled() != previewButtonShowsHide) {
+            previewButtonShowsHide = menu.isPreviewEnabled();
+            updatePreviewButtonLabel();
+        }
     }
 
     private static List<ResourceLocation> getOrderedCoolantIds() {
@@ -352,9 +366,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     /** Display name: first input fluid (from tag = first in tag, from id = that fluid's name). */
     private static Component getCoolantDisplayName(CoolantDefinition def, net.minecraft.core.RegistryAccess ra) {
         if (ra == null) return Component.literal(def.coolantId().toString());
-        Fluid input = CoolantLoader.getFirstFluidFromDefinition(def, ra);
-        if (input == null || input == Fluids.EMPTY) return Component.literal(def.coolantId().toString());
-        return Component.translatable(input.getFluidType().getDescriptionId());
+        return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.inputs(), ra);
     }
 
     private static Component getCoolantTooltip(CoolantDefinition def, net.minecraft.core.RegistryAccess ra) {
@@ -991,20 +1003,18 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void togglePreview() {
-        if (previewActive) {
-            PreviewMarkRenderer.getInstance().clearMarkers();
-            previewActive = false;
-        } else if (menu.getBlockEntity() != null) {
-            PacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
-            previewActive = true;
-        }
+        BlockPos builderPos = menu.getBlockPos();
+        boolean enabling = !menu.isPreviewEnabled();
+        PreviewMarkRenderer.getInstance().clearMarkersForBuilder(builderPos);
+        PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, true));
+        previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();
     }
 
     private void updatePreviewButtonLabel() {
         if (buttonPreview != null) {
             buttonPreview.setMessage(Component.translatable(
-                    previewActive
+                    previewButtonShowsHide
                             ? "gui.colossal_reactors.reactor_builder.preview.hide"
                             : "gui.colossal_reactors.reactor_builder.preview"));
         }

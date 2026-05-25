@@ -24,11 +24,11 @@
     },
     {
       "fuel_id": "colossal_reactors:mek_fissile",
-      "waste_id": "colossal_reactors:spent_nuclear_waste",
+      "waste_id": "mekanism:nuclear_waste",
       "sub_type": "chemical-chemical",
       "inputs": ["%mekanism:fissile_fuel"],
       "consume": 500,
-      "output": "%mekanism:spent_nuclear_waste",
+      "output": "%mekanism:nuclear_waste",
       "produce": 500,
       "units_per_fuel": 500,
       "units_per_waste": 500,

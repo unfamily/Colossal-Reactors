@@ -28,8 +28,8 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_coolant");
     private static final int WIDTH = 180;
-    /** Slots (~18px) + four text lines */
-    private static final int HEIGHT = 62;
+    /** Slots (~18px) + five text lines */
+    private static final int HEIGHT = 76;
 
     public static final RecipeType<CoolantJeiRecipe> RECIPE_TYPE = new RecipeType<>(UID, CoolantJeiRecipe.class);
 
@@ -115,6 +115,10 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
         guiGraphics.drawString(font, produceExhaust, margin, line2, color, false);
         guiGraphics.drawString(font, heatReduction, margin, line3, color, false);
         guiGraphics.drawString(font, rfBehavior, margin, line4, color, false);
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.coolant.rf_to_coolant",
+                        formatMultiplier(def.rfToCoolantFactor())),
+                margin, line4 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
     }
 
     private static String formatMultiplier(double value) {

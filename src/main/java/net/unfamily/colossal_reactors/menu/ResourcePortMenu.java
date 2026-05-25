@@ -11,6 +11,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortGuiLayout;
@@ -26,8 +27,9 @@ public class ResourcePortMenu extends AbstractContainerMenu {
     private static final int DATA_ALLOW_GAS = 9;
     private static final int DATA_GAS_AMOUNT = 10;
     private static final int DATA_GAS_CAPACITY = 11;
+    private static final int DATA_PORT_FILTER = 29;
     /** Must match {@link ResourcePortBlockEntity} fluid data slot count. */
-    public static final int DATA_COUNT = 29;
+    public static final int DATA_COUNT = 30;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData fluidData;
@@ -92,6 +94,12 @@ public class ResourcePortMenu extends AbstractContainerMenu {
 
     public ContainerData getFluidData() {
         return fluidData;
+    }
+
+    /** True when this menu is bound to a turbine resource port (not reactor). */
+    public boolean isTurbinePort() {
+        return levelAccess.evaluate((level, pos) ->
+                level.getBlockState(pos).is(ModBlocks.TURBINE_RESOURCE_PORT.get())).orElse(false);
     }
 
     @Override
@@ -177,5 +185,9 @@ public class ResourcePortMenu extends AbstractContainerMenu {
             }
         }
         return sb.toString();
+    }
+
+    public PortFilter getPortFilter() {
+        return PortFilter.fromId(fluidData.get(DATA_PORT_FILTER));
     }
 }

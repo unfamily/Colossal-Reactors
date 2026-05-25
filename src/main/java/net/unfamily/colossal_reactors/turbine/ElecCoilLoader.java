@@ -171,28 +171,15 @@ public final class ElecCoilLoader {
         return false;
     }
 
+    /** Display name for option index (0 = Air, 1.. = first block name from that definition). */
     public static Component getOptionDisplayName(RegistryAccess registryAccess, int index) {
         if (index < 0 || index >= DEFINITIONS.size()) return Component.literal("?");
         ElecCoilDefinition def = DEFINITIONS.get(index);
+        if (isAirOnlyDefinition(def)) {
+            return Component.translatable("block.minecraft.air");
+        }
         if (!def.validBlocks().isEmpty()) {
-            String selector = def.validBlocks().getFirst();
-            var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
-            if (selector.startsWith("#")) {
-                ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
-                if (tagId != null) {
-                    TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
-                    return blockReg.getTag(tagKey)
-                            .flatMap(holders -> holders.stream().findFirst())
-                            .map(h -> Component.translatable(h.value().getDescriptionId()))
-                            .orElse(Component.literal(selector));
-                }
-            } else {
-                ResourceLocation id = ResourceLocation.tryParse(selector);
-                if (id != null && blockReg.containsKey(id)) {
-                    return Component.translatable(blockReg.get(id).getDescriptionId());
-                }
-            }
-            return Component.literal(selector);
+            return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.validBlocks(), registryAccess);
         }
         return Component.literal("?");
     }

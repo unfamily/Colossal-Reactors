@@ -1,6 +1,8 @@
 package net.unfamily.colossal_reactors.reactor;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -14,7 +16,7 @@ import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
-import net.unfamily.colossal_reactors.reactor.RodPatternLogic;
+import net.unfamily.colossal_reactors.reactor.ReactorValidation;
 
 /**
  * Server-side reactor build: checks red zones and places blocks from builder inventory/tank.
@@ -607,5 +609,180 @@ public final class ReactorBuildLogic {
     private static void consumeOne(ReactorBuilderBlockEntity builder, ItemStack stack) {
         stack.shrink(1);
         builder.setChanged();
+    }
+
+    /**
+     * Overall build completion (0–100) from blocks already placed vs {@link ReactorBuildMaterialCounter} totals.
+     * Cumulative across all stages (not per-stage cursor / bounding-box scan).
+     */
+    public static int computeBuildProgressPercent(ServerLevel level, ReactorBuilderBlockEntity builder) {
+        if (!builder.isBuildProgressVisible()) {
+            return 0;
+        }
+        if (builder.getBuildStage() >= STAGE_DONE) {
+            return 100;
+        }
+        long total = estimateTotalWork(builder);
+        if (total <= 0) {
+            return 0;
+        }
+        long placed = countPlacedWork(level, builder);
+        return (int) Math.min(100, (placed * 100L) / total);
+    }
+
+    private static long estimateTotalWork(ReactorBuilderBlockEntity builder) {
+        ReactorBuildMaterialCounter.BuildMaterialCounts counts = ReactorBuildMaterialCounter.estimate(
+                builder.getSizeLeft(), builder.getSizeRight(), builder.getSizeHeight(), builder.getSizeDepth(),
+                builder.getRodPattern(), builder.getPatternMode(), builder.getSelectedHeatSinkIndex(), builder.isOpenTop());
+        long total = counts.frameCasings() + counts.faceCasings() + counts.rodControllers() + counts.rods();
+        int heatSinkIndex = builder.getSelectedHeatSinkIndex();
+        if (HeatSinkLoader.requiresLiquidPlacement(heatSinkIndex)) {
+            total += counts.heatSinkCells();
+        }
+        if (!HeatSinkLoader.shouldSkipSolidHeatSinkAutoPlacement(heatSinkIndex)) {
+            total += counts.heatSinkCells();
+        }
+        return total;
+    }
+
+    private static long countPlacedWork(ServerLevel level, ReactorBuilderBlockEntity builder) {
+        BlockState builderState = level.getBlockState(builder.getBlockPos());
+        if (!(builderState.getBlock() instanceof ReactorBuilderBlock)) {
+            return 0;
+        }
+        Direction facing = builderState.getValue(ReactorBuilderBlock.FACING);
+        var aabb = ReactorBuilderBlockEntity.getReactorVolumeAABB(
+                builder.getBlockPos(), facing,
+                builder.getSizeLeft(), builder.getSizeRight(),
+                builder.getSizeHeight(), builder.getSizeDepth());
+        int minX = (int) Math.floor(aabb.minX);
+        int minY = (int) Math.floor(aabb.minY);
+        int minZ = (int) Math.floor(aabb.minZ);
+        int maxX = (int) Math.floor(aabb.maxX - 1e-6);
+        int maxY = (int) Math.floor(aabb.maxY - 1e-6);
+        int maxZ = (int) Math.floor(aabb.maxZ - 1e-6);
+        int w = maxX - minX + 1;
+        int h = maxY - minY + 1;
+        int d = maxZ - minZ + 1;
+        int patternMode = builder.getPatternMode();
+        int pattern = builder.getRodPattern();
+        int rw = RodPatternLogic.rodSpaceWidth(w, patternMode);
+        int rh = RodPatternLogic.rodSpaceHeight(h, patternMode);
+        int rd = RodPatternLogic.rodSpaceDepth(d, patternMode);
+        int insetXZ = RodPatternLogic.rodSpaceInsetXZ(patternMode);
+        boolean expansionRodAtCenter = (pattern == RodPatternLogic.PATTERN_EXPANSION)
+                ? RodPatternLogic.getExpansionRodAtCenterForPreview(rw, rd)
+                : false;
+        boolean openTop = builder.isOpenTop();
+        RegistryAccess registryAccess = level.registryAccess();
+        int heatSinkIndex = builder.getSelectedHeatSinkIndex();
+
+        long placed = 0;
+        int maxYLocal = h - 1;
+        for (int lx = 0; lx < w; lx++) {
+            for (int ly = 0; ly < h; ly++) {
+                for (int lz = 0; lz < d; lz++) {
+                    if (ly == maxYLocal && openTop) {
+                        continue;
+                    }
+                    boolean onBorder = (lx == 0 || lx == w - 1 || ly == 0 || ly == h - 1 || lz == 0 || lz == d - 1);
+                    if (!onBorder) {
+                        continue;
+                    }
+                    if (ly == maxYLocal && isRodControllerLocal(lx, lz, insetXZ, rw, rd, pattern, expansionRodAtCenter)) {
+                        continue;
+                    }
+                    BlockState state = level.getBlockState(new BlockPos(minX + lx, minY + ly, minZ + lz));
+                    if (ReactorValidation.isShellBlock(state)) {
+                        placed++;
+                    }
+                }
+            }
+        }
+
+        int rodControllerY = maxY;
+        for (int rx = 0; rx < rw; rx++) {
+            for (int rz = 0; rz < rd; rz++) {
+                if (!RodPatternLogic.isRodColumnForPreview(rx, rz, rw, rd, pattern, expansionRodAtCenter)) {
+                    continue;
+                }
+                BlockPos pos = new BlockPos(minX + insetXZ + rx, rodControllerY, minZ + insetXZ + rz);
+                if (level.getBlockState(pos).is(ModBlocks.ROD_CONTROLLER.get())) {
+                    placed++;
+                }
+            }
+        }
+
+        for (int ly = 1; ly < h - 1; ly++) {
+            for (int lx = insetXZ; lx < w - insetXZ; lx++) {
+                for (int lz = insetXZ; lz < d - insetXZ; lz++) {
+                    int rx = lx - insetXZ;
+                    int ry = ly - 1;
+                    int rz = lz - insetXZ;
+                    if (!RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter)) {
+                        continue;
+                    }
+                    if (level.getBlockState(new BlockPos(minX + lx, minY + ly, minZ + lz)).is(ModBlocks.REACTOR_ROD.get())) {
+                        placed++;
+                    }
+                }
+            }
+        }
+
+        if (heatSinkIndex > 0) {
+            boolean countLiquid = HeatSinkLoader.requiresLiquidPlacement(heatSinkIndex);
+            boolean countSolid = !HeatSinkLoader.shouldSkipSolidHeatSinkAutoPlacement(heatSinkIndex);
+            for (int ly = 1; ly < h - 1; ly++) {
+                for (int lx = 1; lx < w - 1; lx++) {
+                    for (int lz = 1; lz < d - 1; lz++) {
+                        if (isInteriorCellRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) {
+                            continue;
+                        }
+                        if (patternMode == RodPatternLogic.MODE_SUPER_ECONOMY) {
+                            if (!isInRodSpace(lx, ly, lz, w, h, d, insetXZ)
+                                    || !isRodSpaceCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) {
+                                continue;
+                            }
+                        } else if (patternMode == RodPatternLogic.MODE_ECONOMY
+                                && !isInteriorCellAdjacentToRod(lx, ly, lz, w, h, d, insetXZ, rw, rh, rd, pattern, expansionRodAtCenter)) {
+                            continue;
+                        }
+                        BlockState state = level.getBlockState(new BlockPos(minX + lx, minY + ly, minZ + lz));
+                        if (countLiquid && isPlacedLiquidHeatSink(state, registryAccess, heatSinkIndex)) {
+                            placed++;
+                        }
+                        if (countSolid && isPlacedSolidHeatSink(state, registryAccess, heatSinkIndex)) {
+                            placed++;
+                        }
+                    }
+                }
+            }
+        }
+        return placed;
+    }
+
+    private static boolean isPlacedLiquidHeatSink(BlockState state, RegistryAccess registryAccess, int heatSinkIndex) {
+        FluidState fluidState = state.getFluidState();
+        if (fluidState.isEmpty()) {
+            return false;
+        }
+        Fluid fluid = fluidState.getType();
+        return HeatSinkLoader.isFluidMatchingSelectedHeatSink(registryAccess, heatSinkIndex, fluid);
+    }
+
+    private static boolean isPlacedSolidHeatSink(BlockState state, RegistryAccess registryAccess, int heatSinkIndex) {
+        if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        return HeatSinkLoader.isBlockMatchingSelectedHeatSink(state, heatSinkIndex, registryAccess);
+    }
+
+    private static boolean isRodControllerLocal(int lx, int lz, int insetXZ, int rw, int rd, int pattern, boolean expansionRodAtCenter) {
+        int rx = lx - insetXZ;
+        int rz = lz - insetXZ;
+        if (rx < 0 || rx >= rw || rz < 0 || rz >= rd) {
+            return false;
+        }
+        return RodPatternLogic.isRodColumnForPreview(rx, rz, rw, rd, pattern, expansionRodAtCenter);
     }
 }

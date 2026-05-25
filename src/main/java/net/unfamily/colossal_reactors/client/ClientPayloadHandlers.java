@@ -10,6 +10,7 @@ public final class ClientPayloadHandlers {
 
     public static void handlePreviewMarker(ReactorPreviewMarkerPayload payload, IPayloadContext context) {
         context.enqueueWork(() ->
-                PreviewMarkRenderer.getInstance().addMarker(payload.pos(), payload.color(), payload.durationTicks()));
+                PreviewMarkRenderer.getInstance().addMarker(
+                        payload.builderOrigin(), payload.pos(), payload.color(), payload.durationTicks()));
     }
 }

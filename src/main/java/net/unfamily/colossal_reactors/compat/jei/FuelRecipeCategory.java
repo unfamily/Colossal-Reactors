@@ -28,7 +28,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 64;
+    private static final int HEIGHT = 76;
 
     public static final RecipeType<FuelDefinition> RECIPE_TYPE = new RecipeType<>(UID, FuelDefinition.class);
 
@@ -113,10 +113,38 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         guiGraphics.drawString(font,
                 Component.translatable("jei.colossal_reactors.fuel.power", formatFuelPower(fuelPower)),
                 margin, textY + lineHeight * 2, color, false);
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.fuel.consume_factor",
+                        formatConsumeFactor(recipe.baseFuelUnitsPerTick())),
+                margin, textY + lineHeight * 3, color, false);
     }
 
     private static String formatFuelPower(double power) {
         if (power == (long) power) return String.valueOf((long) power);
         return String.format("%.1f", power);
+    }
+
+    private static String formatConsumeFactor(double value) {
+        if (!Double.isFinite(value)) return "0";
+        if (value == 0d) return "0";
+        if (value == (long) value) return String.valueOf((long) value);
+        String s = Double.toString(value);
+        if (s.indexOf('E') >= 0 || s.indexOf('e') >= 0) {
+            s = java.math.BigDecimal.valueOf(value).toPlainString();
+        }
+        int lastDigit = -1;
+        for (int i = s.length() - 1; i >= 0; i--) {
+            char c = s.charAt(i);
+            if (c >= '1' && c <= '9') {
+                lastDigit = i;
+                break;
+            }
+        }
+        if (lastDigit < 0) return "0";
+        String trimmed = s.substring(0, lastDigit + 1);
+        if (trimmed.endsWith(".")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 }

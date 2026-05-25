@@ -70,7 +70,7 @@ public final class MekChemicalHelper {
     }
 
     /**
-     * Chemical tank that accepts any Mek chemical, including radioactive gases (fissile fuel, spent waste).
+     * Chemical tank that accepts any Mek chemical, including radioactive gases (fissile fuel, nuclear waste).
      * {@link mekanism.api.chemical.BasicChemicalTank#create(long, mekanism.api.IContentsListener)} uses
      * {@link mekanism.api.chemical.attribute.ChemicalAttributeValidator#DEFAULT}, which rejects them.
      */

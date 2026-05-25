@@ -261,8 +261,20 @@ public class Config {
     }
 
     public static final ModConfigSpec.IntValue RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
-            .comment("Fluid tank capacity in mB. Default: 16000")
+            .comment("Fluid/gas tank capacity in mB when scaling is disabled. Default: 16000")
             .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, Integer.MAX_VALUE);
+    public static final ModConfigSpec.BooleanValue SCALE_PORT_TANK_WITH_MULTIBLOCK = BUILDER
+            .comment("When true, resource port tank capacity scales from multiblock demand on rebuild.")
+            .define("001_scalePortTankWithMultiblock", true);
+    public static final ModConfigSpec.IntValue PORT_CAPACITY_BUFFER_TICKS = BUILDER
+            .comment("Legacy; unused by port scaling (see portDemandMultiplier). Kept for config migration.")
+            .defineInRange("002_portCapacityBufferTicks", 40, 1, 600);
+    public static final ModConfigSpec.IntValue PORT_DEMAND_MULTIPLIER = BUILDER
+            .comment("Scaled port tank capacity = max(resourcePortTankCapacityMb, demandMbPerTick * this value). Default: 10")
+            .defineInRange("003_portDemandMultiplier", 10, 1, 100);
+    public static final ModConfigSpec.IntValue MIN_PORT_CAPACITY_MB = BUILDER
+            .comment("Legacy minimum; scaling uses resourcePortTankCapacityMb as floor instead.")
+            .defineInRange("004_minPortCapacityMb", 4000, 100, Integer.MAX_VALUE);
 
     static {
         BUILDER.pop();
@@ -409,8 +421,8 @@ public class Config {
     }
 
     public static final ModConfigSpec.DoubleValue TURBINE_STEAM_MB_PER_BLADE_PER_TICK = BUILDER
-            .comment("Max mB steam per tick counted per valid balanced blade. Default: 250")
-            .defineInRange("004_steamMbPerBladePerTick", 250.0, 1.0, Double.MAX_VALUE);
+            .comment("Max mB steam per tick counted per valid balanced blade. Default: 750")
+            .defineInRange("004_steamMbPerBladePerTick", 750.0, 1.0, Double.MAX_VALUE);
 
     public static final ModConfigSpec.IntValue MAX_TURBINE_BLADE_RING = BUILDER
             .comment("Maximum blade distance from a turbine rod in blocks (ring index). Each complete ring adds four blades.",

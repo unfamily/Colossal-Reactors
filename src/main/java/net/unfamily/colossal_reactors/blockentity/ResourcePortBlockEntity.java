@@ -63,7 +63,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final int DATA_GAS_TYPE_LENGTH = 12;
     private static final int DATA_GAS_TYPE_START = 13;
     private static final int DATA_GAS_TYPE_INTS = 16;
-    private static final int DATA_COUNT = DATA_GAS_TYPE_START + DATA_GAS_TYPE_INTS;
+    private static final int DATA_PORT_FILTER = DATA_GAS_TYPE_START + DATA_GAS_TYPE_INTS;
+    private static final int DATA_COUNT = DATA_PORT_FILTER + 1;
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(SLOT_SIZE) {
         @Override
@@ -103,6 +104,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 case DATA_ALLOW_GAS -> mediumFlags.isAllowGas() ? 1 : 0;
                 case DATA_GAS_AMOUNT -> getGasAmountMb();
                 case DATA_GAS_CAPACITY -> getGasCapacityMb();
+                case DATA_PORT_FILTER -> getPortFilter().getId();
                 default -> {
                     if (index == DATA_GAS_TYPE_LENGTH) {
                         String name = getGasTypeRegistryName();
@@ -356,6 +358,31 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     public FluidTank getFluidTank() {
         return fluidTank;
+    }
+
+    /** Server: resize fluid and Mek gas tanks (clamps existing contents). */
+    public void applyTankCapacityMb(int capacityMb) {
+        if (capacityMb <= 0 || level == null || level.isClientSide()) {
+            return;
+        }
+        if (fluidTank.getCapacity() != capacityMb) {
+            fluidTank.setCapacity(capacityMb);
+            if (fluidTank.getFluidAmount() > capacityMb) {
+                FluidStack stack = fluidTank.getFluid();
+                fluidTank.setFluid(new FluidStack(stack.getFluid(), capacityMb));
+            }
+            setChanged();
+        }
+        if (MekChemicalHelper.isLoaded()) {
+            int currentCap = getGasCapacityMb();
+            if (currentCap != capacityMb) {
+                chemicalHandler = MekChemicalHelper.createBasicTank(capacityMb);
+                if (chemicalHandler != null) {
+                    chemicalHandler = MekChemicalHelper.wrapAsHandler(chemicalHandler);
+                }
+                setChanged();
+            }
+        }
     }
 
     /** Server: discard all fluid in the internal tank (GUI dump). @return true if any fluid was removed */
