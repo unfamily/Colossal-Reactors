@@ -587,6 +587,10 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         if (level != null && !level.isClientSide()) {
             syncStructureOnly = true;
         }
+        if (level instanceof ServerLevel serverLevel) {
+            updateFluidBufferCapacities(serverLevel, result);
+            net.unfamily.colossal_reactors.multiblock.MultiblockPortScaling.scaleTurbinePorts(serverLevel, this);
+        }
     }
 
     /** Rebuilds rod/port caches without incrementing {@link #structureRevision} (client-only validation). */

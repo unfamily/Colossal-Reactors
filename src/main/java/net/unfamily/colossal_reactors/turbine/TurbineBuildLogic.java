@@ -448,8 +448,14 @@ public final class TurbineBuildLogic {
         return false;
     }
 
+    /**
+     * @return {@code true} to stall one tick (placed a blade); {@code false} when this rod needs no more work or cannot progress
+     */
     private static boolean placeBladesToRing(ServerLevel level, TurbineBuilderBlockEntity builder,
                                              BlockPos rodPos, BlockState rodState, Direction axis, int targetRing) {
+        if (targetRing <= 0) {
+            return false;
+        }
         int targetBlades = targetRing * 4;
         int onRod = TurbineBladePlacement.totalBladesOnRod(level, rodPos, axis);
         if (onRod >= targetBlades) {
@@ -458,12 +464,11 @@ public final class TurbineBuildLogic {
         if (!hasItemInBuffer(builder, ModItems.TURBINE_BLADE.get())) {
             return true;
         }
-        if (!consumeItem(level, builder, ModItems.TURBINE_BLADE.get())) {
-            return true;
-        }
         if (!TurbineBladePlacement.placeNextBlade(level, rodPos, rodState)) {
+            // Obstructed or no valid slot — skip this rod layer without consuming buffer items.
             return false;
         }
+        consumeItem(level, builder, ModItems.TURBINE_BLADE.get());
         return true;
     }
 
@@ -476,6 +481,29 @@ public final class TurbineBuildLogic {
             }
         }
         return false;
+    }
+
+    /** Coil zone cells already matching the selected coil type. */
+    public static int countMatchingCoilCells(ServerLevel level, BuildBounds b, int coilIndex) {
+        if (ElecCoilLoader.shouldSkipSolidCoilAutoPlacement(coilIndex)) {
+            return 0;
+        }
+        int count = 0;
+        TurbineRotorLayout layout = b.layout;
+        for (int xx = b.minX + 1; xx < b.maxX; xx++) {
+            for (int yy = b.minY + 1; yy < b.maxY; yy++) {
+                for (int zz = b.minZ + 1; zz < b.maxZ; zz++) {
+                    if (!layout.isCoilZoneWorld(xx, yy, zz)) {
+                        continue;
+                    }
+                    if (ElecCoilLoader.isBlockMatchingSelectedCoil(
+                            level.getBlockState(new BlockPos(xx, yy, zz)), coilIndex, level.registryAccess())) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     /** Coils: last build stage — fill entire coil zone from buffer (supports tag selectors). */
@@ -719,4 +747,184 @@ public final class TurbineBuildLogic {
     private record BuildBounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
                                int w, int h, int d, int rw, int rh, int rd, int interiorH,
                                int coilLayers, int closureWorldY, TurbineRotorLayout layout) {}
+
+    /**
+     * Overall build completion (0–100) from placed blocks vs {@link TurbineBuildMaterialCounter} totals.
+     * Cumulative across all stages (not per-stage cursor / full bounding-box scan).
+     */
+    public static int computeBuildProgressPercent(ServerLevel level, TurbineBuilderBlockEntity builder) {
+        if (!builder.isBuildProgressVisible()) {
+            return 0;
+        }
+        if (builder.getBuildStage() >= STAGE_DONE) {
+            return 100;
+        }
+        BuildBounds bounds = bounds(level, builder);
+        if (bounds == null) {
+            return 0;
+        }
+        long total = estimateTotalWork(level, builder);
+        if (total <= 0) {
+            return 0;
+        }
+        long placed = countPlacedWork(level, builder, bounds);
+        return (int) Math.min(100, (placed * 100L) / total);
+    }
+
+    private static long estimateTotalWork(ServerLevel level, TurbineBuilderBlockEntity builder) {
+        TurbineBuildMaterialCounter.BuildMaterialCounts counts = TurbineBuildMaterialCounter.estimate(
+                level.registryAccess(),
+                builder.getSizeLeft(), builder.getSizeRight(), builder.getSizeHeight(), builder.getSizeDepth(),
+                builder.getPlacementAxisIndex(),
+                builder.getRodPattern(), builder.getSelectedCoilIndex(), builder.getAppliedCoilLayerCount(),
+                builder.isOpenTop());
+        return counts.frameShellTotal()
+                + counts.closureDeckCasings()
+                + counts.rodControllers()
+                + counts.rods()
+                + counts.blades()
+                + counts.coilBlocks();
+    }
+
+    private static long countPlacedWork(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
+        return countPlacedFrameShell(level, builder, b)
+                + countPlacedClosureDeck(level, b, b.layout)
+                + countPlacedRodController(level, b, b.layout)
+                + countPlacedRods(level, b, builder.getRodPattern())
+                + countPlacedBlades(level, b, builder.getRodPattern())
+                + countMatchingCoilCells(level, b, builder.getSelectedCoilIndex());
+    }
+
+    private static int countPlacedFrameShell(ServerLevel level, TurbineBuilderBlockEntity builder, BuildBounds b) {
+        TurbinePlacementAxis placement = TurbinePlacementAxis.fromIndex(builder.getPlacementAxisIndex());
+        boolean openTop = builder.isOpenTop();
+        int maxY = b.h - 1;
+        int count = 0;
+        for (int lx = 0; lx < b.w; lx++) {
+            for (int ly = 0; ly < b.h; ly++) {
+                for (int lz = 0; lz < b.d; lz++) {
+                    if (placement.isOpenEndCapLocal(lx, ly, lz, b.w, b.h, b.d) && openTop) {
+                        continue;
+                    }
+                    boolean onBorder = (lx == 0 || lx == b.w - 1 || ly == 0 || ly == maxY || lz == 0 || lz == b.d - 1);
+                    if (!onBorder) {
+                        continue;
+                    }
+                    BlockState state = level.getBlockState(new BlockPos(b.minX + lx, b.minY + ly, b.minZ + lz));
+                    if (TurbineValidation.isShellBlock(state)) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countPlacedClosureDeck(ServerLevel level, BuildBounds b, TurbineRotorLayout layout) {
+        TurbineRodControllerLayout.Center center = layout.primaryCenter();
+        int closure = layout.closureCoord();
+        int count = 0;
+        switch (layout.growthAxis().getAxis()) {
+            case Y -> {
+                for (int xx = b.minX + 1; xx < b.maxX; xx++) {
+                    for (int zz = b.minZ + 1; zz < b.maxZ; zz++) {
+                        if (layout.isRodControllerAt(xx, closure, zz, center)) {
+                            continue;
+                        }
+                        if (isClosureDeckPlaced(level, new BlockPos(xx, closure, zz))) {
+                            count++;
+                        }
+                    }
+                }
+            }
+            case Z -> {
+                for (int xx = b.minX + 1; xx < b.maxX; xx++) {
+                    for (int yy = b.minY + 1; yy < b.maxY; yy++) {
+                        if (layout.isRodControllerAt(xx, yy, closure, center)) {
+                            continue;
+                        }
+                        if (isClosureDeckPlaced(level, new BlockPos(xx, yy, closure))) {
+                            count++;
+                        }
+                    }
+                }
+            }
+            case X -> {
+                for (int yy = b.minY + 1; yy < b.maxY; yy++) {
+                    for (int zz = b.minZ + 1; zz < b.maxZ; zz++) {
+                        if (layout.isRodControllerAt(closure, yy, zz, center)) {
+                            continue;
+                        }
+                        if (isClosureDeckPlaced(level, new BlockPos(closure, yy, zz))) {
+                            count++;
+                        }
+                    }
+                }
+            }
+            default -> { }
+        }
+        return count;
+    }
+
+    private static boolean isClosureDeckPlaced(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return state.is(ModBlockTags.TURBINE_SHELL_CASINGS) || TurbineValidation.isShellBlock(state);
+    }
+
+    private static int countPlacedRodController(ServerLevel level, BuildBounds b, TurbineRotorLayout layout) {
+        if (layout.crossSizeA() <= 0 || layout.crossSizeB() <= 0) {
+            return 0;
+        }
+        TurbineRodControllerLayout.Center center = layout.primaryCenter();
+        BlockPos pos = layout.controllerPos(center);
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())) {
+            return 0;
+        }
+        if (state.hasProperty(TurbineRodControllerBlock.FACING)
+                && state.getValue(TurbineRodControllerBlock.FACING) == layout.growthAxis()) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private static int countPlacedRods(ServerLevel level, BuildBounds b, int rodPattern) {
+        TurbineRotorLayout layout = b.layout;
+        int count = 0;
+        for (int t = 0; t < layout.rodExtent(); t++) {
+            for (int ca = 0; ca < layout.crossSizeA(); ca++) {
+                for (int cb = 0; cb < layout.crossSizeB(); cb++) {
+                    if (!TurbineRodPatternLogic.isRodColumn(ca, cb, layout.crossSizeA(), layout.crossSizeB(), rodPattern)) {
+                        continue;
+                    }
+                    if (level.getBlockState(layout.rodPos(t, ca, cb)).is(ModBlocks.TURBINE_ROD.get())) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countPlacedBlades(ServerLevel level, BuildBounds b, int rodPattern) {
+        TurbineRotorLayout layout = b.layout;
+        int count = 0;
+        for (int t = 0; t < layout.rodExtent(); t++) {
+            for (int ca = 0; ca < layout.crossSizeA(); ca++) {
+                for (int cb = 0; cb < layout.crossSizeB(); cb++) {
+                    if (!TurbineRodPatternLogic.isRodColumn(ca, cb, layout.crossSizeA(), layout.crossSizeB(), rodPattern)) {
+                        continue;
+                    }
+                    BlockPos rodPos = layout.rodPos(t, ca, cb);
+                    BlockState rodState = level.getBlockState(rodPos);
+                    if (!rodState.is(ModBlocks.TURBINE_ROD.get()) || !rodState.hasProperty(TurbineRodBlock.FACING)) {
+                        continue;
+                    }
+                    Direction axis = rodState.getValue(TurbineRodBlock.FACING);
+                    count += TurbineBladePlacement.totalBladesOnRod(level, rodPos, axis);
+                }
+            }
+        }
+        return count;
+    }
 }

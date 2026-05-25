@@ -19,11 +19,15 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
+import net.unfamily.colossal_reactors.network.ResourcePortFilterPayload;
 import net.unfamily.colossal_reactors.network.ResourcePortModePayload;
 import net.unfamily.colossal_reactors.network.ResourcePortSettingsPayload;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +51,11 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
 
     private final Button[] toggleButtons = new Button[TOGGLE_COUNT];
     private Button btnDumpLiquid;
+    @Nullable
+    private Button btnFilter;
 
     private PortMode lastMode;
+    private PortFilter lastFilter;
     private boolean lastSolid;
     private boolean lastLiquid;
     private boolean lastGas;
@@ -83,6 +90,11 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
             toggleButtons[3].visible = false;
             toggleButtons[3].active = false;
         }
+        boolean turbinePort = menu.isTurbinePort();
+        if (turbinePort) {
+            toggleButtons[1].visible = false;
+            toggleButtons[1].active = false;
+        }
 
         btnDumpLiquid = Button.builder(Component.literal("D"), b -> sendDump())
                 .bounds(leftPos + ResourcePortGuiLayout.LIQUID_DUMP_X, topPos + ResourcePortGuiLayout.LIQUID_DUMP_Y,
@@ -91,7 +103,16 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         btnDumpLiquid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
         addRenderableWidget(btnDumpLiquid);
 
+        if (!menu.isTurbinePort()) {
+            btnFilter = Button.builder(filterLabel(menu.getPortMode(), menu.getPortFilter()), b -> onFilterClick())
+                    .bounds(leftPos + ResourcePortGuiLayout.FILTER_X, topPos + ResourcePortGuiLayout.FILTER_Y,
+                            ResourcePortGuiLayout.FILTER_BTN_W, ResourcePortGuiLayout.FILTER_BTN_H)
+                    .build();
+            addRenderableWidget(btnFilter);
+        }
+
         lastMode = null;
+        lastFilter = null;
         lastSolid = !menu.isAllowSolid();
         lastLiquid = !menu.isAllowLiquid();
         lastGas = !menu.isAllowGas();
@@ -112,6 +133,9 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 ClientPacketDistributor.sendToServer(new ResourcePortModePayload(pos, next.getId()));
             }
             case 1 -> {
+                if (menu.isTurbinePort()) {
+                    return;
+                }
                 boolean next = !menu.isAllowSolid();
                 ClientPacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
                         ResourcePortSettingsPayload.KIND_SOLID, next ? 1 : 0));
@@ -139,16 +163,41 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         };
     }
 
+    private void onFilterClick() {
+        BlockPos pos = menu.getSyncedBlockPos();
+        if (pos.equals(BlockPos.ZERO)) {
+            return;
+        }
+        PortFilter next = switch (menu.getPortFilter()) {
+            case BOTH -> PortFilter.ONLY_SOLID_FUEL;
+            case ONLY_SOLID_FUEL -> PortFilter.ONLY_COOLANT_LIQUID;
+            case ONLY_COOLANT_LIQUID -> PortFilter.BOTH;
+        };
+        ClientPacketDistributor.sendToServer(new ResourcePortFilterPayload(pos, next.getId()));
+    }
+
+    private static Component filterLabel(PortMode mode, PortFilter filter) {
+        return filter.getFilterButtonLabel(mode);
+    }
+
     private void updateToggleButtonLabels() {
         PortMode mode = menu.getPortMode();
-        if (lastMode != mode) {
+        PortFilter filter = menu.getPortFilter();
+        boolean modeChanged = lastMode != mode;
+        if (modeChanged) {
             lastMode = mode;
             applyModeLabel(toggleButtons[0], modeLabel(mode));
         }
-        boolean solid = menu.isAllowSolid();
-        if (lastSolid != solid) {
-            lastSolid = solid;
-            applyMediumLabel(toggleButtons[1], mediumLabel("solid"), solid, COLOR_SOLID);
+        if (btnFilter != null && (lastFilter != filter || modeChanged)) {
+            lastFilter = filter;
+            btnFilter.setMessage(filterLabel(mode, filter));
+        }
+        if (!menu.isTurbinePort()) {
+            boolean solid = menu.isAllowSolid();
+            if (lastSolid != solid) {
+                lastSolid = solid;
+                applyMediumLabel(toggleButtons[1], mediumLabel("solid"), solid, COLOR_SOLID);
+            }
         }
         boolean liquid = menu.isAllowLiquid();
         if (lastLiquid != liquid) {

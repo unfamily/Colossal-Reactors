@@ -261,8 +261,14 @@ public class Config {
     }
 
     public static final ModConfigSpec.IntValue RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
-            .comment("Fluid tank capacity in mB. Default: 16000")
+            .comment("Minimum fluid tank capacity in mB for resource ports; also used when scaling is disabled. Default: 16000")
             .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, Integer.MAX_VALUE);
+    public static final ModConfigSpec.BooleanValue SCALE_PORT_TANK_WITH_MULTIBLOCK = BUILDER
+            .comment("When true, resource port tank capacity scales from estimated multiblock fluid/gas demand on rebuild.")
+            .define("001_scalePortTankWithMultiblock", true);
+    public static final ModConfigSpec.IntValue PORT_DEMAND_MULTIPLIER = BUILDER
+            .comment("Scaled port tank capacity = max(resourcePortTankCapacityMb, demandMbPerTick * this value). Default: 10")
+            .defineInRange("002_portDemandMultiplier", 10, 1, 100);
 
     static {
         BUILDER.pop();

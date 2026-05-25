@@ -11,12 +11,15 @@ import net.unfamily.colossal_reactors.ColossalReactors;
  * S2C: add one preview marker at the given position (for reactor footprint preview).
  * Handler is in client package (ClientPayloadHandlers).
  */
-public record ReactorPreviewMarkerPayload(BlockPos pos, int color, int durationTicks) implements CustomPacketPayload {
+public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, int color, int durationTicks)
+        implements CustomPacketPayload {
 
     public static final Type<ReactorPreviewMarkerPayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_preview_marker"));
 
     public static final StreamCodec<FriendlyByteBuf, ReactorPreviewMarkerPayload> STREAM_CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC,
+            ReactorPreviewMarkerPayload::builderOrigin,
             BlockPos.STREAM_CODEC,
             ReactorPreviewMarkerPayload::pos,
             net.minecraft.network.codec.ByteBufCodecs.INT,

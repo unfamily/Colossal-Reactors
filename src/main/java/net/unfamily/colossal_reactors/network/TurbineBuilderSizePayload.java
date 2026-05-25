@@ -8,8 +8,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
@@ -48,7 +46,6 @@ public record TurbineBuilderSizePayload(BlockPos pos, int direction, boolean inc
             if (be instanceof TurbineBuilderBlockEntity builder) {
                 int amt = Math.max(1, Math.min(10, packet.amount()));
                 builder.adjustSize(packet.direction(), packet.increment(), amt);
-                level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });
     }

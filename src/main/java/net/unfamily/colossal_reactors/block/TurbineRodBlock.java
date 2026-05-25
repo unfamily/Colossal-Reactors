@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DirectionalBlock;
@@ -63,15 +64,11 @@ public class TurbineRodBlock extends DirectionalBlock {
         }
     }
 
+    /** Runs before neighbor updates (1.26 {@code onRemove} equivalent); drops blades at the rod position like 1.21.1. */
     @Override
-    protected void spawnAfterBreak(
-            BlockState state,
-            net.minecraft.server.level.ServerLevel level,
-            BlockPos pos,
-            net.minecraft.world.item.ItemStack tool,
-            boolean dropExperience) {
+    protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
         TurbineBladePlacement.dropBladesOnRod(level, pos, state);
         TurbineControllerBlock.notifyTurbineStructureChanged(level, pos);
-        super.spawnAfterBreak(state, level, pos, tool, dropExperience);
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 }

@@ -54,6 +54,7 @@ import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.network.ModPayloads;
 import net.unfamily.colossal_reactors.client.ColossalModelLoaders;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
+import net.unfamily.iskalib.client.marker.VanillaWorldMarkerClientHooks;
 
 @Mod(ColossalReactors.MODID)
 public class ColossalReactors {
@@ -104,8 +105,10 @@ public class ColossalReactors {
         GuideMeRegistration.register();
 
         if (FMLEnvironment.getDist() == Dist.CLIENT) {
-            modEventBus.addListener(FMLClientSetupEvent.class, e -> e.enqueueWork(() ->
-                    NeoForge.EVENT_BUS.register(ColossalReactorsClientEvents.class)));
+            modEventBus.addListener(FMLClientSetupEvent.class, e -> e.enqueueWork(() -> {
+                NeoForge.EVENT_BUS.register(ColossalReactorsClientEvents.class);
+                VanillaWorldMarkerClientHooks.registerIfNeeded(NeoForge.EVENT_BUS);
+            }));
             modEventBus.addListener(AddClientReloadListenersEvent.class, ColossalReactors::onAddClientReloadListeners);
             modEventBus.addListener(RegisterFluidModelsEvent.class, ColossalFluidModels::registerFluidModels);
             modEventBus.addListener(RegisterMenuScreensEvent.class, ColossalClientSetup::registerMenuScreens);

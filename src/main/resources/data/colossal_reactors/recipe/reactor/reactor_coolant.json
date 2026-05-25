@@ -5,6 +5,7 @@
       "coolant_id": "colossal_reactors:water",
       "inputs": ["#c:water"],
       "output": "#c:steam",
+      "outputs": ["#c:steam", "%mekanism:steam"],
       "rf_increment_percent": 0,
       "mb_decrement_percent": 100,
       "reduce_rf_production": true,

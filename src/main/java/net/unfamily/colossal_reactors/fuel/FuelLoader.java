@@ -182,6 +182,11 @@ public class FuelLoader {
         if (legacy != null && wasteBufferId.equals(legacy.wasteId())) {
             return legacy;
         }
+        Identifier oldMekWasteBuffer = Identifier.fromNamespaceAndPath(
+                ColossalReactors.MODID, "spent_nuclear_waste");
+        if (wasteBufferId.equals(oldMekWasteBuffer)) {
+            return DEFINITIONS.get(Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "mek_fissile"));
+        }
         return null;
     }
 

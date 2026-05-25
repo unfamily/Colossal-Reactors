@@ -37,16 +37,27 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
 
     public static void handle(TurbinePreviewPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.level();
-            BlockEntity be = level.getBlockEntity(packet.pos());
-            if (!(be instanceof TurbineBuilderBlockEntity builder)) return;
-            BlockState state = level.getBlockState(packet.pos());
-            if (!(state.getBlock() instanceof TurbineBuilderBlock)) return;
-            var facing = state.getValue(TurbineBuilderBlock.FACING);
-            var aabb = TurbineBuilderBlockEntity.getTurbineVolumeAABB(
-                    packet.pos(), facing, builder.getSizeLeft(), builder.getSizeRight(),
-                    builder.getSizeHeight(), builder.getSizeDepth());
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            BlockEntity be = player.level().getBlockEntity(packet.pos());
+            if (be instanceof TurbineBuilderBlockEntity builder) {
+                builder.setPreviewEnabled(true);
+                sendFootprint(player, builder, packet.pos());
+            }
+        });
+    }
+
+    public static void sendFootprint(ServerPlayer player, TurbineBuilderBlockEntity builder, BlockPos builderPos) {
+        ServerLevel level = (ServerLevel) player.level();
+        BlockState state = level.getBlockState(builderPos);
+        if (!(state.getBlock() instanceof TurbineBuilderBlock)) {
+            return;
+        }
+        var facing = state.getValue(TurbineBuilderBlock.FACING);
+        var aabb = TurbineBuilderBlockEntity.getTurbineVolumeAABB(
+                builderPos, facing, builder.getSizeLeft(), builder.getSizeRight(),
+                builder.getSizeHeight(), builder.getSizeDepth());
             int minX = (int) Math.floor(aabb.minX);
             int minY = (int) Math.floor(aabb.minY);
             int minZ = (int) Math.floor(aabb.minZ);
@@ -70,7 +81,7 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
             int colorRod = 0xE0FFFF00;
             int colorClosureDeck = 0xE070D8FF;
             int colorRodController = 0xE0FFFFFF;
-            int durationTicks = 6000;
+            int durationTicks = net.unfamily.colossal_reactors.client.BuilderPreviewTracker.BUILDER_PREVIEW_DURATION_TICKS;
             var registryAccess = level.registryAccess();
             TurbineRodControllerLayout.Center rodCtrlCenter = layout.primaryCenter();
 
@@ -89,7 +100,7 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
                             continue;
                         }
                         if (TurbineRodPatternLogic.isRodColumn(rx, rz, rw, rd, pattern)) {
-                            ModPayloads.sendPreviewMarker(player, new BlockPos(wx, wy, wz), colorRod, durationTicks);
+                            ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(wx, wy, wz), colorRod, durationTicks);
                         }
                     }
                 }
@@ -111,14 +122,14 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
                                     || (blockState.is(ModBlocks.TURBINE_ROD_CONTROLLER.get())
                                     && layout.isRodControllerAt(x, y, z, rodCtrlCenter));
                             if (hasBlock && !validFrame) {
-                                ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                             } else {
                                 boolean onEdge = ((x == minX || x == maxX) && (y == minY || y == maxY))
                                         || ((x == minX || x == maxX) && (z == minZ || z == maxZ))
                                         || ((y == minY || y == maxY) && (z == minZ || z == maxZ));
                                 if (onEdge) {
                                     int edgeColor = layout.isClosureDeckWorld(x, y, z) ? colorClosureDeck : colorFree;
-                                    ModPayloads.sendPreviewMarker(player, pos, edgeColor, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, edgeColor, durationTicks);
                                 }
                             }
                         } else {
@@ -130,12 +141,12 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
                                 if (isRodCol) {
                                     if (hasBlock && !blockState.is(ModBlocks.TURBINE_ROD.get())
                                             && !blockState.is(ModBlocks.TURBINE_BLADE.get())) {
-                                        ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                        ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                                     }
                                 } else if (hasBlock && !blockState.is(ModBlocks.TURBINE_BLADE.get())
                                         && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
                                         && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                                 }
                             } else if (layout.isClosureDeckWorld(x, y, z)) {
                                 if (layout.isRodControllerAt(x, y, z, rodCtrlCenter)) {
@@ -144,26 +155,25 @@ public record TurbinePreviewPayload(BlockPos pos) implements CustomPacketPayload
                                 if (hasBlock && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
                                         && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)
                                         && !blockState.isAir()) {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                                 } else {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorClosureDeck, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorClosureDeck, durationTicks);
                                 }
                             } else if (layout.isCoilZoneWorld(x, y, z)) {
                                 if (hasBlock && !ElecCoilLoader.isCoilBlock(blockState, registryAccess)
                                         && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
                                         && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                                 }
                             } else if (hasBlock && !blockState.is(ModBlockTags.TURBINE_SHELL_CASINGS)
                                     && !blockState.is(ModBlockTags.TURBINE_SHELL_GLASSES)) {
-                                ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                             }
                         }
                     }
                 }
             }
 
-            ModPayloads.sendPreviewMarker(player, layout.controllerPos(rodCtrlCenter), colorRodController, durationTicks);
-        });
+        ModPayloads.sendPreviewMarker(player, builderPos, layout.controllerPos(rodCtrlCenter), colorRodController, durationTicks);
     }
 }

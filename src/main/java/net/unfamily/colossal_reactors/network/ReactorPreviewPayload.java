@@ -48,20 +48,31 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
 
     public static void handle(ReactorPreviewPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (!(context.player() instanceof ServerPlayer player)) return;
-            ServerLevel level = player.level();
-            BlockEntity be = level.getBlockEntity(packet.pos());
-            if (!(be instanceof ReactorBuilderBlockEntity builder)) return;
-            var state = level.getBlockState(packet.pos());
-            if (!(state.getBlock() instanceof ReactorBuilderBlock block)) return;
-            var facing = state.getValue(ReactorBuilderBlock.FACING);
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            BlockEntity be = player.level().getBlockEntity(packet.pos());
+            if (be instanceof ReactorBuilderBlockEntity builder) {
+                builder.setPreviewEnabled(true);
+                sendFootprint(player, builder, packet.pos());
+            }
+        });
+    }
 
-            var aabb = ReactorBuilderBlockEntity.getReactorVolumeAABB(
-                    packet.pos(), facing,
-                    builder.getSizeLeft(), builder.getSizeRight(),
-                    builder.getSizeHeight(), builder.getSizeDepth());
+    public static void sendFootprint(ServerPlayer player, ReactorBuilderBlockEntity builder, BlockPos builderPos) {
+        ServerLevel level = (ServerLevel) player.level();
+        var state = level.getBlockState(builderPos);
+        if (!(state.getBlock() instanceof ReactorBuilderBlock)) {
+            return;
+        }
+        var facing = state.getValue(ReactorBuilderBlock.FACING);
 
-            int minX = (int) Math.floor(aabb.minX);
+        var aabb = ReactorBuilderBlockEntity.getReactorVolumeAABB(
+                builderPos, facing,
+                builder.getSizeLeft(), builder.getSizeRight(),
+                builder.getSizeHeight(), builder.getSizeDepth());
+
+        int minX = (int) Math.floor(aabb.minX);
             int minY = (int) Math.floor(aabb.minY);
             int minZ = (int) Math.floor(aabb.minZ);
             int maxX = (int) Math.floor(aabb.maxX - 1e-6);
@@ -72,7 +83,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             int colorOccupied = 0xE0FF0000; // red tint for occupied blocks
             int colorRod = 0xE0FFFF00; // yellow tint for rod positions
             int colorRodController = 0xE0FFFFFF; // white tint for rod controllers (above rod columns, part of frame)
-            int durationTicks = 6000;
+            int durationTicks = net.unfamily.colossal_reactors.client.BuilderPreviewTracker.BUILDER_PREVIEW_DURATION_TICKS;
 
             int pattern = builder.getRodPattern();
             int patternMode = builder.getPatternMode();
@@ -97,7 +108,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                         int ry = ly - 1; // rod space Y 0..rh-1
                         int rz = lz - insetXZ;
                         if (RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter)) {
-                            ModPayloads.sendPreviewMarker(player, new BlockPos(minX + lx, minY + ly, minZ + lz), colorRod, durationTicks);
+                            ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(minX + lx, minY + ly, minZ + lz), colorRod, durationTicks);
                         }
                     }
                 }
@@ -108,7 +119,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             for (int rx = 0; rx < rw; rx++) {
                 for (int rz = 0; rz < rd; rz++) {
                     if (RodPatternLogic.isRodColumnForPreview(rx, rz, rw, rd, pattern, expansionRodAtCenter)) {
-                        ModPayloads.sendPreviewMarker(player, new BlockPos(minX + insetXZ + rx, rodControllerY, minZ + insetXZ + rz), colorRodController, durationTicks);
+                        ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(minX + insetXZ + rx, rodControllerY, minZ + insetXZ + rz), colorRodController, durationTicks);
                     }
                 }
             }
@@ -128,14 +139,14 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                             boolean validFrame = ReactorValidation.isShellBlock(blockState)
                                     || (blockState.is(ModBlocks.ROD_CONTROLLER.get()) && y == maxY && isRodControllerPosition(x, z, minX, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter));
                             if (hasBlock && !validFrame) {
-                                ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                             } else {
                                 // Purple only on the frame outline (12 edges), not on every face
                                 boolean onEdge = ((x == minX || x == maxX) && (y == minY || y == maxY))
                                         || ((x == minX || x == maxX) && (z == minZ || z == maxZ))
                                         || ((y == minY || y == maxY) && (z == minZ || z == maxZ));
                                 if (onEdge) {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorFree, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorFree, durationTicks);
                                 }
                             }
                         } else {
@@ -143,18 +154,17 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                                     && RodPatternLogic.isRodForPreview(lx - insetXZ, ly - 1, lz - insetXZ, rw, rh, rd, pattern, expansionRodAtCenter);
                             if (isRodPos) {
                                 if (hasBlock && !blockState.is(ModBlocks.REACTOR_ROD.get())) {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                                 }
                             } else {
                                 if (hasBlock && !HeatSinkLoader.isHeatSinkBlock(blockState, registryAccess)) {
-                                    ModPayloads.sendPreviewMarker(player, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
                                 }
                             }
                         }
                     }
                 }
             }
-        });
     }
 
     /** True if (x, z) at y=maxY is a valid rod controller position (top face, above a rod column). */

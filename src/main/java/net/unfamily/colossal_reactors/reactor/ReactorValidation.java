@@ -205,7 +205,7 @@ public final class ReactorValidation {
             return;
         }
         if (result.failurePos() != null) {
-            ModPayloads.sendPreviewMarker(player, result.failurePos(), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
+            ModPayloads.sendEphemeralPreviewMarker(player, result.failurePos(), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
         }
         if (result.failure() != FailureCode.ROD_COLUMN_INCOMPLETE) {
             return;
@@ -227,7 +227,7 @@ public final class ReactorValidation {
                         continue;
                     }
                     if (!level.getBlockState(p).is(ModBlocks.REACTOR_ROD.get())) {
-                        ModPayloads.sendPreviewMarker(player, p, MARKER_COLOR_ROD_HINT, MARKER_DURATION_TICKS);
+                        ModPayloads.sendEphemeralPreviewMarker(player, p, MARKER_COLOR_ROD_HINT, MARKER_DURATION_TICKS);
                     }
                 }
             }

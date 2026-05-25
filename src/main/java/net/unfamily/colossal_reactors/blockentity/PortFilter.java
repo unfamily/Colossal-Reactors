@@ -10,8 +10,10 @@ public enum PortFilter {
     ONLY_SOLID_FUEL(1),
     ONLY_COOLANT_LIQUID(2);
 
+    private static final String LANG_INSERT_PREFIX = "gui.colossal_reactors.resource_port.insert.";
     private static final String LANG_OUTPUT_PREFIX = "gui.colossal_reactors.resource_port.output.";
     private static final String LANG_EJECT_PREFIX = "gui.colossal_reactors.resource_port.eject.";
+    private static final String LANG_FILTER_BTN_PREFIX = "gui.colossal_reactors.resource_port.filter_btn.";
 
     private final int id;
 
@@ -28,9 +30,18 @@ public enum PortFilter {
         return Component.translatable(LANG_OUTPUT_PREFIX + getOutputLangSuffix());
     }
 
-    /** Display name depending on port mode: EJECT uses eject.* keys, EXTRACT uses output.* keys. */
+    /** Short label for the compact filter button in the resource port GUI. */
+    public Component getFilterButtonLabel(PortMode mode) {
+        return Component.translatable(LANG_FILTER_BTN_PREFIX + getFilterButtonLangSuffix(mode));
+    }
+
+    /** Display name depending on port mode (INSERT / EXTRACT / EJECT). */
     public Component getDisplayName(PortMode mode) {
-        String key = (mode == PortMode.EJECT) ? LANG_EJECT_PREFIX + getEjectLangSuffix() : LANG_OUTPUT_PREFIX + getOutputLangSuffix();
+        String key = switch (mode) {
+            case INSERT -> LANG_INSERT_PREFIX + getInsertLangSuffix();
+            case EJECT -> LANG_EJECT_PREFIX + getEjectLangSuffix();
+            default -> LANG_OUTPUT_PREFIX + getOutputLangSuffix();
+        };
         return Component.translatable(key);
     }
 
@@ -41,9 +52,33 @@ public enum PortFilter {
 
     /** Tooltip key depending on port mode. */
     public String getTooltipKey(PortMode mode) {
-        String suffix = (mode == PortMode.EJECT) ? getEjectLangSuffix() : getOutputLangSuffix();
-        String prefix = (mode == PortMode.EJECT) ? LANG_EJECT_PREFIX : LANG_OUTPUT_PREFIX;
+        String suffix = switch (mode) {
+            case INSERT -> getInsertLangSuffix();
+            case EJECT -> getEjectLangSuffix();
+            default -> getOutputLangSuffix();
+        };
+        String prefix = switch (mode) {
+            case INSERT -> LANG_INSERT_PREFIX;
+            case EJECT -> LANG_EJECT_PREFIX;
+            default -> LANG_OUTPUT_PREFIX;
+        };
         return prefix + suffix + ".tooltip";
+    }
+
+    private String getInsertLangSuffix() {
+        return switch (this) {
+            case BOTH -> "both";
+            case ONLY_SOLID_FUEL -> "fuel_only";
+            case ONLY_COOLANT_LIQUID -> "coolant_only";
+        };
+    }
+
+    private String getFilterButtonLangSuffix(PortMode mode) {
+        return switch (mode) {
+            case INSERT -> getInsertLangSuffix();
+            case EJECT -> getEjectLangSuffix();
+            default -> getOutputLangSuffix();
+        };
     }
 
     private String getOutputLangSuffix() {

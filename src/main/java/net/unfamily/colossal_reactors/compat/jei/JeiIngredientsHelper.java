@@ -372,4 +372,60 @@ public final class JeiIngredientsHelper {
         }
         return list;
     }
+
+    public static Component displayNameForSelector(String selector, RegistryAccess registryAccess) {
+        if (selector == null || selector.isBlank()) {
+            return Component.literal("?");
+        }
+        if (selector.startsWith("%")) {
+            List<Object> chem = getChemicalStacks(List.of(selector));
+            if (!chem.isEmpty()) {
+                Object stack = chem.get(0);
+                try {
+                    Object result = stack.getClass().getMethod("getHoverName").invoke(stack);
+                    if (result instanceof Component c) {
+                        return c;
+                    }
+                } catch (Throwable ignored) {
+                    // fall through
+                }
+            }
+        }
+        List<ItemStack> stacks = new ArrayList<>();
+        stacks.addAll(blockSelectorToItemStacks(selector, registryAccess));
+        if (stacks.isEmpty()) {
+            stacks.addAll(selectorToItemStacks(selector, registryAccess));
+        }
+        if (stacks.isEmpty()) {
+            stacks.addAll(selectorToBucketStacks(selector, registryAccess));
+        }
+        if (!stacks.isEmpty()) {
+            return stacks.get(0).getHoverName();
+        }
+        return Component.literal(selector);
+    }
+
+    public static Component displayNameForFirstSelector(List<String> selectors, RegistryAccess registryAccess) {
+        if (selectors == null || registryAccess == null) {
+            return Component.literal("?");
+        }
+        for (String selector : selectors) {
+            if (selector == null || selector.isBlank()) {
+                continue;
+            }
+            Component name = displayNameForSelector(selector, registryAccess);
+            if (!name.getString().isEmpty() && !name.getString().equals(selector)) {
+                return name;
+            }
+            List<ItemStack> stacks = getBlockStacks(List.of(selector), registryAccess);
+            if (!stacks.isEmpty()) {
+                return stacks.get(0).getHoverName();
+            }
+            stacks = getElecCoilDisplayStacks(List.of(selector), registryAccess);
+            if (!stacks.isEmpty()) {
+                return stacks.get(0).getHoverName();
+            }
+        }
+        return Component.literal("?");
+    }
 }

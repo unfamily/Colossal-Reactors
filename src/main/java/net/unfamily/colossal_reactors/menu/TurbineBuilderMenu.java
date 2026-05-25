@@ -62,7 +62,7 @@ public class TurbineBuilderMenu extends AbstractContainerMenu {
             this.blockEntity = null;
             this.levelAccess = ContainerLevelAccess.NULL;
             this.fluidData = new SimpleContainerData(3);
-            this.sizeData = new SimpleContainerData(16);
+            this.sizeData = new SimpleContainerData(17);
         }
         addDataSlots(fluidData);
         addDataSlots(sizeData);
@@ -159,6 +159,7 @@ public class TurbineBuilderMenu extends AbstractContainerMenu {
     public int getBuildProgressPercent() { return sizeData.get(13); }
     public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
     public int getPlacementAxisOrdinal() { return sizeData.get(15); }
+    public boolean isPreviewEnabled() { return sizeData.get(16) != 0; }
 
     @Override
     public boolean stillValid(Player player) {

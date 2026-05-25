@@ -8,6 +8,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -35,8 +37,8 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
-import net.unfamily.iskalib.client.marker.MarkRenderer;
-import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
+import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
+import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
@@ -194,7 +196,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
-    private boolean previewActive;
+    private boolean previewButtonShowsHide;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -284,6 +286,11 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(fuelCycleButton);
         simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
+        previewButtonShowsHide = menu.isPreviewEnabled();
+        updatePreviewButtonLabel();
+        if (menu.isPreviewEnabled()) {
+            ClientPacketDistributor.sendToServer(new BuilderPreviewTogglePayload(menu.getBlockPos(), true, true));
+        }
     }
 
     @Override
@@ -292,6 +299,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         // Match StructureSaverMachineScreen / DeepDrawers: refresh labels in tick, not every extractLabels frame.
         if (viewMode == ViewMode.BUILDER) {
             updateButtonTooltips();
+            if (menu.isPreviewEnabled() != previewButtonShowsHide) {
+                previewButtonShowsHide = menu.isPreviewEnabled();
+                updatePreviewButtonLabel();
+            }
         }
     }
 
@@ -453,11 +464,18 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void switchToBuilderView() {
+        playUiClickSound();
         viewMode = ViewMode.BUILDER;
         simulationScrollbar.disposeButtons(this::removeWidget);
         menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
         menu.broadcastChanges();
+    }
+
+    private void playUiClickSound() {
+        if (minecraft != null && minecraft.getSoundManager() != null) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
     }
 
     private void updateWidgetVisibility() {
@@ -1005,20 +1023,18 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void togglePreview() {
-        if (previewActive) {
-            MarkRenderer.getInstance().clearHighlightedBlocks();
-            previewActive = false;
-        } else if (menu.getBlockEntity() != null) {
-            ClientPacketDistributor.sendToServer(new ReactorPreviewPayload(menu.getBlockPos()));
-            previewActive = true;
-        }
+        BlockPos builderPos = menu.getBlockPos();
+        boolean enabling = !menu.isPreviewEnabled();
+        BuilderPreviewTracker.clearForBuilder(builderPos);
+        ClientPacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, true));
+        previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();
     }
 
     private void updatePreviewButtonLabel() {
         if (buttonPreview != null) {
             buttonPreview.setMessage(Component.translatable(
-                    previewActive
+                    previewButtonShowsHide
                             ? "gui.colossal_reactors.reactor_builder.preview.hide"
                             : "gui.colossal_reactors.reactor_builder.preview"));
         }

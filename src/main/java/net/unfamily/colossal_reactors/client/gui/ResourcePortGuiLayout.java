@@ -48,6 +48,12 @@ public final class ResourcePortGuiLayout {
     public static final int TOGGLE_X = ITEM_SLOT_X + ITEM_SLOT_SIZE + TOGGLE_SLOT_GAP;
     public static final int TOGGLE_ROW0_Y = 17;
 
+    /** Narrow strip between liquid tank and mode/medium toggle column (reactor only). */
+    public static final int FILTER_BTN_W = 40;
+    public static final int FILTER_BTN_H = 14;
+    public static final int FILTER_X = LIQUID_BAR_X + BAR_FILL_W + 3;
+    public static final int FILTER_Y = TOGGLE_ROW0_Y + TOGGLE_BTN_H + TOGGLE_GAP;
+
     public static final int MASK_COLOR = 0xFFC6C6C6;
     public static final int MASK_INSET = 1;
 

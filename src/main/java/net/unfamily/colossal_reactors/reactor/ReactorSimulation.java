@@ -65,6 +65,18 @@ public final class ReactorSimulation {
         return (long) rfProduced;
     }
 
+    private static boolean canAcceptRfFromReactor(List<ReactorPowerPort> powerPorts) {
+        if (powerPorts.isEmpty()) {
+            return false;
+        }
+        for (ReactorPowerPort port : powerPorts) {
+            if (port.receiveEnergyFromReactor(1) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static double rodEnergyScaling(double effectiveRodCount) {
         double n = Math.max(0.0, effectiveRodCount);
         int mode = Config.ROD_ENERGY_SCALING_MODE.get();
@@ -232,11 +244,6 @@ public final class ReactorSimulation {
             fuelConsumptionRate *= Math.max(0.1, Config.HEAT_SINK_FUEL_UNITS_MULTIPLIER.get());
         }
         fuelConsumptionRate = Math.max(fuelConsumptionRate, Config.MIN_FUEL_UNITS_PER_TICK.get());
-        double fuelUnitsToConsume = Math.min(fuelConsumptionRate, totalFuelUnits);
-
-        if (fuelUnitsToConsume > 0) {
-            consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
-        }
 
         // RF with coolant cells (adjacency-only): only coolant blocks adjacent to rods contribute.
         double rfProduced;
@@ -262,6 +269,20 @@ public final class ReactorSimulation {
         List<ResourcePortBlockEntity> extractPorts = resourcePorts.stream()
                 .filter(p -> p.getPortMode() == PortMode.EXTRACT)
                 .toList();
+
+        boolean canOutputCoolant = !waterMode || ResourcePortOutputRouter.availableFluidSpace(extractPorts) > 0;
+        boolean canOutputEnergy = waterMode
+                ? canOutputCoolant
+                : canAcceptRfFromReactor(powerPorts);
+        if (!canOutputEnergy || !canOutputCoolant) {
+            controller.setLastTickStats(0, 0, 0, 0);
+            return;
+        }
+
+        double fuelUnitsToConsume = Math.min(fuelConsumptionRate, totalFuelUnits);
+        if (fuelUnitsToConsume > 0) {
+            consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
+        }
 
         if (waterMode) {
             // Water mode: consume coolant from INSERT ports for steam; push steam to EXTRACT ports only (EJECT = input back out, not reactor output). If all EXTRACT fluid ports are full, do not consume water (saturated).

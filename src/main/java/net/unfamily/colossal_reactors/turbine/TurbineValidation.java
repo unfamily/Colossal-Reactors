@@ -483,7 +483,7 @@ public final class TurbineValidation {
             return;
         }
         if (result.failurePos() != null) {
-            ModPayloads.sendPreviewMarker(player, result.failurePos(), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
+            ModPayloads.sendEphemeralPreviewMarker(player, result.failurePos(), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
         }
         FailureCode code = result.failure();
         if (code != FailureCode.COIL_ZONE_BLOCK && code != FailureCode.ROD_IN_COIL_ZONE) {
@@ -507,7 +507,7 @@ public final class TurbineValidation {
                     if (result.failurePos() != null && result.failurePos().equals(p)) {
                         continue;
                     }
-                    ModPayloads.sendPreviewMarker(player, p, MARKER_COLOR_COIL_ZONE, MARKER_DURATION_TICKS);
+                    ModPayloads.sendEphemeralPreviewMarker(player, p, MARKER_COLOR_COIL_ZONE, MARKER_DURATION_TICKS);
                 }
             }
         }

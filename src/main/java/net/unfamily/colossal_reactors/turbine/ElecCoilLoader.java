@@ -187,30 +187,15 @@ public final class ElecCoilLoader {
         return false;
     }
 
+    /** Display name for option index (0 = Air, 1.. = first block name from that definition). */
     public static Component getOptionDisplayName(RegistryAccess registryAccess, int index) {
         if (index < 0 || index >= DEFINITIONS.size()) return Component.literal("?");
         ElecCoilDefinition def = DEFINITIONS.get(index);
+        if (isAirOnlyDefinition(def)) {
+            return Component.translatable("block.minecraft.air");
+        }
         if (!def.validBlocks().isEmpty()) {
-            String selector = def.validBlocks().getFirst();
-            Registry<Block> blockReg = registryAccess.lookupOrThrow(Registries.BLOCK);
-            if (selector.startsWith("#")) {
-                Identifier tagId = Identifier.tryParse(selector.substring(1));
-                if (tagId != null) {
-                    TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagId);
-                    return blockReg.get(tagKey)
-                            .flatMap(holders -> holders.stream().findFirst())
-                            .map(h -> Component.translatable(h.value().getDescriptionId()))
-                            .orElse(Component.literal(selector));
-                }
-            } else {
-                Identifier id = Identifier.tryParse(selector);
-                if (id != null) {
-                    return blockReg.get(id)
-                            .map(h -> Component.translatable(h.value().getDescriptionId()))
-                            .orElse(Component.literal(selector));
-                }
-            }
-            return Component.literal(selector);
+            return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.validBlocks(), registryAccess);
         }
         return Component.literal("?");
     }

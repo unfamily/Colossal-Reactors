@@ -23,6 +23,11 @@ public class ModPayloads {
                 ResourcePortModePayload::handle
         );
         registrar.playToServer(
+                ResourcePortFilterPayload.TYPE,
+                ResourcePortFilterPayload.STREAM_CODEC,
+                ResourcePortFilterPayload::handle
+        );
+        registrar.playToServer(
                 ResourcePortSettingsPayload.TYPE,
                 ResourcePortSettingsPayload.STREAM_CODEC,
                 ResourcePortSettingsPayload::handle
@@ -61,6 +66,11 @@ public class ModPayloads {
                 ReactorPreviewPayload.TYPE,
                 ReactorPreviewPayload.STREAM_CODEC,
                 ReactorPreviewPayload::handle
+        );
+        registrar.playToServer(
+                BuilderPreviewTogglePayload.TYPE,
+                BuilderPreviewTogglePayload.STREAM_CODEC,
+                BuilderPreviewTogglePayload::handle
         );
         registrar.playToServer(
                 ReactorBuilderHeatSinkPayload.TYPE,
@@ -118,19 +128,29 @@ public class ModPayloads {
                 TurbineBuilderMarkInputPayload::handle
         );
         registrar.playToClient(
+                ClearPreviewPayload.TYPE,
+                ClearPreviewPayload.STREAM_CODEC,
+                ClearPreviewPayload::handle
+        );
+        registrar.playToClient(
                 ReactorPreviewMarkerPayload.TYPE,
                 ReactorPreviewMarkerPayload.STREAM_CODEC,
                 ClientPayloadHandlers::handlePreviewMarker
         );
         registrar.playToClient(
-                ClearPreviewPayload.TYPE,
-                ClearPreviewPayload.STREAM_CODEC,
-                ClearPreviewPayload::handle
+                ClearPreviewForBuilderPayload.TYPE,
+                ClearPreviewForBuilderPayload.STREAM_CODEC,
+                ClearPreviewForBuilderPayload::handle
         );
     }
 
-    /** S2C: send one preview marker to the player (called from server in ReactorPreviewPayload handler). */
-    public static void sendPreviewMarker(ServerPlayer player, BlockPos pos, int color, int durationTicks) {
-        PacketDistributor.sendToPlayer(player, new ReactorPreviewMarkerPayload(pos, color, durationTicks));
+    /** S2C: footprint preview marker owned by a builder block. */
+    public static void sendPreviewMarker(ServerPlayer player, BlockPos builderOrigin, BlockPos pos, int color, int durationTicks) {
+        PacketDistributor.sendToPlayer(player, new ReactorPreviewMarkerPayload(builderOrigin, pos, color, durationTicks));
+    }
+
+    /** S2C: ephemeral marker (validation hints) not tied to a builder. */
+    public static void sendEphemeralPreviewMarker(ServerPlayer player, BlockPos pos, int color, int durationTicks) {
+        sendPreviewMarker(player, BlockPos.ZERO, pos, color, durationTicks);
     }
 }

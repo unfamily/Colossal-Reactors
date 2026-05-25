@@ -61,7 +61,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final int DATA_ALLOW_SOLID = 7;
     private static final int DATA_ALLOW_LIQUID = 8;
     private static final int DATA_ALLOW_GAS = 9;
-    private static final int DATA_COUNT = 10;
+    private static final int DATA_PORT_FILTER = 10;
+    private static final int DATA_COUNT = 11;
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(SLOT_SIZE) {
         @Override
@@ -70,12 +71,16 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     };
 
-    private final FluidStacksResourceHandler fluidStorage = new FluidStacksResourceHandler(1, tankCapacityMb()) {
-        @Override
-        protected void onContentsChanged(int index, FluidStack previousContents) {
-            setChanged();
-        }
-    };
+    private FluidStacksResourceHandler fluidStorage = createFluidStorage(tankCapacityMb());
+
+    private FluidStacksResourceHandler createFluidStorage(int capacityMb) {
+        return new FluidStacksResourceHandler(1, capacityMb) {
+            @Override
+            protected void onContentsChanged(int index, FluidStack previousContents) {
+                setChanged();
+            }
+        };
+    }
 
     private PortMode portMode = PortMode.INSERT;
     private final PortMediumFlags mediumFlags = new PortMediumFlags();
@@ -105,6 +110,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 case DATA_ALLOW_SOLID -> mediumFlags.isAllowSolid() ? 1 : 0;
                 case DATA_ALLOW_LIQUID -> mediumFlags.isAllowLiquid() ? 1 : 0;
                 case DATA_ALLOW_GAS -> mediumFlags.isAllowGas() ? 1 : 0;
+                case DATA_PORT_FILTER -> getPortFilter().getId();
                 default -> 0;
             };
         }
@@ -360,6 +366,24 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     public void setAllowGas(boolean allow) {
         mediumFlags.setAllowGas(allow);
+        setChanged();
+    }
+
+    /** Server: resize fluid tank (clamps existing contents). */
+    public void applyTankCapacityMb(int capacityMb) {
+        if (capacityMb <= 0 || level == null || level.isClientSide()) {
+            return;
+        }
+        int currentCap = fluidStorage.getCapacityAsInt(0, FluidResource.EMPTY);
+        if (currentCap == capacityMb) {
+            return;
+        }
+        FluidStack stored = FluidUtil.getStack(fluidStorage, 0);
+        fluidStorage = createFluidStorage(capacityMb);
+        cachedFluidCapability = null;
+        if (!stored.isEmpty()) {
+            fluidStorage.set(0, FluidResource.of(stored), Math.min(stored.getAmount(), capacityMb));
+        }
         setChanged();
     }
 

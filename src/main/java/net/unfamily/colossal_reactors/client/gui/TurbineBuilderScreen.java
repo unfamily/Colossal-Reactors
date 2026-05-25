@@ -39,8 +39,8 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderCoilPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
-import net.unfamily.iskalib.client.marker.MarkRenderer;
-import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
+import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
+import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
 import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
@@ -186,7 +186,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private Button buttonRight;
     private Button buttonDown;
     private Button buttonPreview;
-    private boolean previewActive;
+    private boolean previewButtonShowsHide;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block: 0=Coil, 1=Pattern, 2=Placement axis, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -274,6 +274,23 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         addRenderableWidget(steamGenerationButton);
         simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
+        previewButtonShowsHide = menu.isPreviewEnabled();
+        updatePreviewButtonLabel();
+        if (menu.isPreviewEnabled()) {
+            ClientPacketDistributor.sendToServer(new BuilderPreviewTogglePayload(menu.getBlockPos(), true, false));
+        }
+    }
+
+    @Override
+    public void containerTick() {
+        super.containerTick();
+        if (viewMode == ViewMode.BUILDER) {
+            updateButtonTooltips();
+            if (menu.isPreviewEnabled() != previewButtonShowsHide) {
+                previewButtonShowsHide = menu.isPreviewEnabled();
+                updatePreviewButtonLabel();
+            }
+        }
     }
 
     private List<TurbineGenerationDefinition> getVisibleGenerations() {
@@ -283,9 +300,6 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private void cycleSimulationGeneration(boolean next) {
         List<TurbineGenerationDefinition> gens = getVisibleGenerations();
         if (gens.isEmpty()) return;
-        if (minecraft != null && minecraft.getSoundManager() != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-        }
         if (next) {
             simulationGenerationIndex = (simulationGenerationIndex + 1) % gens.size();
         } else {
@@ -340,12 +354,8 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
 
     private void onCloseButtonClicked() {
         if (viewMode != ViewMode.BUILDER) {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             switchToBuilderView();
         } else {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         }
     }
@@ -380,11 +390,19 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     }
 
     private void switchToBuilderView() {
+        playUiClickSound();
         viewMode = ViewMode.BUILDER;
         simulationScrollbar.disposeButtons(this::removeWidget);
         menu.setHideAllSlotsForSimulationView(false);
         updateWidgetVisibility();
         menu.broadcastChanges();
+    }
+
+    /** Simulation view uses a custom {@link #extractRenderState} path; vanilla button click sounds are not played there. */
+    private void playUiClickSound() {
+        if (minecraft != null && minecraft.getSoundManager() != null) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
     }
 
     private void updateWidgetVisibility() {
@@ -849,7 +867,6 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             guiGraphics.text(font, simTitle, titleX, 6, GuiTextColors.TITLE, false);
             return;
         }
-        updateButtonTooltips();
 
         int titleX = (imageWidth - font.width(title)) / 2;
         guiGraphics.text(font, title, titleX, 6, GuiTextColors.TITLE, false);
@@ -859,7 +876,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         Component sizeLabel = Component.translatable("gui.colossal_reactors.turbine_builder.size",
                 menu.getSizeLeft(), menu.getSizeRight(), totalW + 1, menu.getSizeH() + 1, menu.getSizeD() + 1);
         int sizeX = (imageWidth - font.width(sizeLabel)) / 2;
-        guiGraphics.text(font, sizeLabel, sizeX, SIZE_LABEL_Y, 0x404040, false);
+        guiGraphics.text(font, sizeLabel, sizeX, SIZE_LABEL_Y, GuiTextColors.TITLE, false);
 
         if (menu.isBuildProgressVisible()) {
             int percent = menu.getBuildProgressPercent();
@@ -873,10 +890,11 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         }
         if (menu.isInvalidBlocksDetected()) {
             guiGraphics.text(font, Component.translatable("gui.colossal_reactors.turbine_builder.warning.invalid_blocks"),
-                    WARNING_RIGHT_X, buildInvalidBlocksTextY(font.lineHeight), 0xFF0000, false);
+                    WARNING_RIGHT_X, buildInvalidBlocksTextY(font.lineHeight), GuiTextColors.ERROR, false);
         }
     }
 
+    /** Ghost item + dark overlay in empty buffer slots with a mark-input filter (same as Reactor Builder). */
     private void renderMarkInputGhosts(GuiGraphicsExtractor guiGraphics) {
         if (menu.getBlockEntity() == null) return;
         guiGraphics.nextStratum();
@@ -886,17 +904,22 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             if (!guiSlot.getItem().isEmpty()) continue;
             ItemStack ghost = menu.getMarkInputFilter(i);
             if (ghost.isEmpty()) continue;
-            guiGraphics.pose().pushMatrix();
-            guiGraphics.pose().translate(leftPos + guiSlot.x, topPos + guiSlot.y);
-            guiGraphics.item(ghost, 0, 0);
-            guiGraphics.fill(0, 0, 16, 16, 0x80000000);
-            guiGraphics.pose().popMatrix();
+            renderMarkInputGhostItem(guiGraphics, ghost, guiSlot.x, guiSlot.y);
         }
+    }
+
+    private void renderMarkInputGhostItem(GuiGraphicsExtractor guiGraphics, ItemStack stack, int sx, int sy) {
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(leftPos + sx, topPos + sy);
+        guiGraphics.item(stack, 0, 0);
+        guiGraphics.fill(0, 0, 16, 16, 0x80000000);
+        guiGraphics.pose().popMatrix();
     }
 
     @Override
     protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         super.extractTooltip(guiGraphics, mouseX, mouseY);
+        if (viewMode != ViewMode.BUILDER) return;
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
         if (mouseX >= left && mouseX < left + FLUID_FILL_WIDTH && mouseY >= top && mouseY < top + FLUID_FILL_HEIGHT) {
@@ -950,20 +973,18 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     }
 
     private void togglePreview() {
-        if (previewActive) {
-            MarkRenderer.getInstance().clearHighlightedBlocks();
-            previewActive = false;
-        } else if (menu.getBlockEntity() != null) {
-            ClientPacketDistributor.sendToServer(new TurbinePreviewPayload(menu.getBlockPos()));
-            previewActive = true;
-        }
+        BlockPos builderPos = menu.getBlockPos();
+        boolean enabling = !menu.isPreviewEnabled();
+        BuilderPreviewTracker.clearForBuilder(builderPos);
+        ClientPacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, false));
+        previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();
     }
 
     private void updatePreviewButtonLabel() {
         if (buttonPreview != null) {
             buttonPreview.setMessage(Component.translatable(
-                    previewActive
+                    previewButtonShowsHide
                             ? "gui.colossal_reactors.turbine_builder.preview.hide"
                             : "gui.colossal_reactors.turbine_builder.preview"));
         }
