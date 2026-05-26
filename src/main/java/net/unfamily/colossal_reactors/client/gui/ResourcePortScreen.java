@@ -294,17 +294,16 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         PacketDistributor.sendToServer(new FluidTankDumpPayload(pos, tankType));
     }
 
+    /** Only gas dump is gated: disabled when the tank holds radioactive Mek gas. Liquid dump is unchanged. */
     private void updateDumpButtons() {
-        if (btnDumpLiquid != null) {
-            btnDumpLiquid.active = menu.getFluidAmount() > 0;
+        if (btnDumpGas == null) {
+            return;
         }
-        if (btnDumpGas != null) {
-            boolean radioactive = menu.isGasDumpBlockedByRadioactivity();
-            btnDumpGas.active = mekLoaded && menu.getGasAmount() > 0 && !radioactive;
-            btnDumpGas.setTooltip(Tooltip.create(radioactive
-                    ? Component.translatable("gui.colossal_reactors.gas_dump.tooltip.radioactive")
-                    : Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
-        }
+        boolean radioactive = menu.isGasDumpBlockedByRadioactivity();
+        btnDumpGas.active = !radioactive;
+        btnDumpGas.setTooltip(Tooltip.create(radioactive
+                ? Component.translatable("gui.colossal_reactors.gas_dump.tooltip.radioactive")
+                : Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
     }
 
     private void playClickSound() {
