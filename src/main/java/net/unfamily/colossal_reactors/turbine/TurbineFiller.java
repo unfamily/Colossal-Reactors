@@ -17,7 +17,8 @@ import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import java.util.List;
 
 /**
- * Pulls steam from INSERT resource ports into the controller steam input buffer (one tick of consumption).
+ * Pulls steam from INSERT resource ports into the controller steam input buffer (up to free capacity).
+ * {@link net.unfamily.colossal_reactors.turbine.TurbineSimulation} consumes from that buffer each tick.
  */
 public final class TurbineFiller {
 
@@ -33,8 +34,8 @@ public final class TurbineFiller {
         List<String> inputs = gen.inputs();
         if (inputs.isEmpty()) return;
 
-        int space = Math.max(0, controller.getSteamInputCapacityMb() - controller.getTotalSteamInputMb());
-        if (space <= 0) return;
+        int budget = Math.max(0, controller.getSteamInputCapacityMb() - controller.getTotalSteamInputMb());
+        if (budget <= 0) return;
 
         long[] resourcePorts = controller.getCachedResourcePortPositions();
         if (resourcePorts.length == 0) {
@@ -43,7 +44,6 @@ public final class TurbineFiller {
         }
 
         RegistryAccess registryAccess = level.registryAccess();
-        int budget = space;
         for (long lp : resourcePorts) {
             if (budget <= 0) break;
             if (!(level.getBlockEntity(BlockPos.of(lp)) instanceof ResourcePortBlockEntity port)) continue;
@@ -70,7 +70,11 @@ public final class TurbineFiller {
         if (!MaterialSelector.matchesAnyFluidInput(stored.getFluid(), inputs)) {
             return 0;
         }
-        return drainFluidIntoSteamBuffer(port, stored.getFluid(), controller, budget);
+        int toMove = Math.min(budget, stored.getAmount());
+        if (toMove <= 0) {
+            return 0;
+        }
+        return drainFluidIntoSteamBuffer(port, stored.getFluid(), controller, toMove);
     }
 
     private static int drainFluidIntoSteamBuffer(

@@ -363,20 +363,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         coolantCycleButton.setTooltip(Tooltip.create(tooltip));
     }
 
-    /** Display name: first input fluid (from tag = first in tag, from id = that fluid's name). */
     private static Component getCoolantDisplayName(CoolantDefinition def, net.minecraft.core.RegistryAccess ra) {
-        if (ra == null) return Component.literal(def.coolantId().toString());
-        return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.inputs(), ra);
+        return CoolantLoader.getPrimaryInputDisplayName(def, ra);
     }
 
     private static Component getCoolantTooltip(CoolantDefinition def, net.minecraft.core.RegistryAccess ra) {
-        Component consume = Component.literal("—");
-        Component produce = Component.literal("—");
-        if (ra != null) {
-            Fluid in = CoolantLoader.getFirstFluidFromDefinition(def, ra);
-            if (in != null && in != Fluids.EMPTY) consume = Component.translatable(in.getFluidType().getDescriptionId());
-            Fluid out = CoolantLoader.getFirstFluidFromTag(def.output(), ra);
-            if (out != null && out != Fluids.EMPTY) produce = Component.translatable(out.getFluidType().getDescriptionId());
+        Component consume = CoolantLoader.getPrimaryInputDisplayName(def, ra);
+        Component produce = ra != null ? CoolantLoader.getPrimaryOutputDisplayName(def, ra) : null;
+        if (produce == null) {
+            produce = Component.literal("—");
         }
         return Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip", consume, produce);
     }

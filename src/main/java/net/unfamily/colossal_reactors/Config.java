@@ -421,8 +421,12 @@ public class Config {
     }
 
     public static final ModConfigSpec.DoubleValue TURBINE_STEAM_MB_PER_BLADE_PER_TICK = BUILDER
-            .comment("Max mB steam per tick counted per valid balanced blade. Default: 750")
-            .defineInRange("004_steamMbPerBladePerTick", 750.0, 1.0, Double.MAX_VALUE);
+            .comment("Max mB steam per tick counted per valid balanced blade. Default: 1000")
+            .defineInRange("004_steamMbPerBladePerTick", 1000.0, 1.0, Double.MAX_VALUE);
+    public static final ModConfigSpec.IntValue TURBINE_STEAM_INPUT_MB_PER_BLADE = BUILDER
+            .comment("Steam input buffer capacity (mB) per valid balanced blade in the turbine controller,",
+                    "same idea as reactor coolant per rod (10000). Output condensate stays one tick on ports. Default: 10000")
+            .defineInRange("005_steamInputMbPerBlade", 10_000, 1, Integer.MAX_VALUE);
 
     public static final ModConfigSpec.IntValue MAX_TURBINE_BLADE_RING = BUILDER
             .comment("Maximum blade distance from a turbine rod in blocks (ring index). Each complete ring adds four blades.",

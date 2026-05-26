@@ -1,7 +1,9 @@
 package net.unfamily.colossal_reactors.integration.mekanism;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -138,6 +140,35 @@ public final class MekChemicalHelper {
         } catch (Throwable e) {
             return false;
         }
+    }
+
+    @Nullable
+    public static Object getChemicalInTank(@Nullable Object handler, int tank) {
+        if (handler == null) {
+            return null;
+        }
+        try {
+            return handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, tank);
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    public static boolean isRadioactiveInTank(@Nullable Object handler) {
+        return isRadioactiveStack(getChemicalInTank(handler, 0));
+    }
+
+    /** Client/server helper when only the synced registry name is available (e.g. port GUI). */
+    public static boolean isRadioactiveGasId(@Nullable String registryName) {
+        if (!isLoaded() || registryName == null || registryName.isBlank()) {
+            return false;
+        }
+        ResourceLocation id = ResourceLocation.tryParse(registryName);
+        if (id == null) {
+            return false;
+        }
+        Object stack = createStack(id, 1);
+        return isRadioactiveStack(stack);
     }
 
     public static boolean isEmpty(@Nullable Object chemicalStack) {
@@ -439,6 +470,44 @@ public final class MekChemicalHelper {
         } catch (Throwable ignored) {
         }
         return false;
+    }
+
+    /** True when Mekanism global radiation is enabled (same gate as {@code IRadiationManager#dumpRadiation}). */
+    public static boolean isMekRadiationEnabled() {
+        if (!isLoaded()) {
+            return false;
+        }
+        try {
+            Class<?> managerClass = Class.forName("mekanism.api.radiation.IRadiationManager");
+            Object manager = managerClass.getField("INSTANCE").get(null);
+            return Boolean.TRUE.equals(managerClass.getMethod("isRadiationEnabled").invoke(manager));
+        } catch (Throwable t) {
+            LOGGER.debug("Could not query Mek radiation enabled: {}", t.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Releases radioactive gas into the world at {@code pos}, like Mek {@code TileEntityMekanism#blockRemoved}
+     * and the Radioactive Waste Barrel. When {@code clearRadioactive} is true, emptied tanks are cleared.
+     */
+    public static void dumpRadiationFromHandler(Level level, BlockPos pos, @Nullable Object chemicalHandler,
+                                                boolean clearRadioactive) {
+        if (level == null || level.isClientSide() || chemicalHandler == null || !isLoaded()) {
+            return;
+        }
+        try {
+            Class<?> managerClass = Class.forName("mekanism.api.radiation.IRadiationManager");
+            Class<?> handlerClass = Class.forName("mekanism.api.chemical.IChemicalHandler");
+            if (!handlerClass.isInstance(chemicalHandler)) {
+                return;
+            }
+            Object manager = managerClass.getField("INSTANCE").get(null);
+            managerClass.getMethod("dumpRadiation", Level.class, BlockPos.class, handlerClass, boolean.class)
+                    .invoke(manager, level, pos, chemicalHandler, clearRadioactive);
+        } catch (Throwable t) {
+            LOGGER.debug("Could not dump Mek radiation from chemical handler: {}", t.getMessage());
+        }
     }
 
     public static boolean dumpTank(Object handler) {

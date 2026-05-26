@@ -121,7 +121,7 @@ public final class TurbineBuilderMetrics {
 
     /**
      * Counts rods and blades like {@link TurbineBuildLogic}: one rod stack at the primary center column,
-     * {@code targetBladeRingForLayer(t) * 4} blades on that rod per layer {@code t}.
+     * {@link TurbineBladePlacement#effectiveTargetBladeRing} × 4 blades on that rod per layer {@code t}.
      */
     public static RodBladeCounts countRodsAndBlades(TurbineRotorLayout layout, int rodPattern) {
         int rodBlocks = 0;
@@ -135,7 +135,7 @@ public final class TurbineBuilderMetrics {
         boolean hasRodColumn = rw > 0 && rd > 0;
 
         for (int t = 0; t < layout.rodExtent(); t++) {
-            int ring = TurbineRodPatternLogic.targetBladeRingForLayer(t, layout.rodExtent(), rodPattern);
+            int ring = TurbineBladePlacement.effectiveTargetBladeRing(layout, t, rodPattern);
             int bladesPerRod = ring * 4;
             int rodsOnLayer = hasRodColumn ? 1 : 0;
             rodBlocks += rodsOnLayer;

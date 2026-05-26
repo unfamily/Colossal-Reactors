@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.menu;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -9,12 +10,17 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortGuiLayout;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
+import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -28,42 +34,55 @@ public class ResourcePortMenu extends AbstractContainerMenu {
     private static final int DATA_GAS_AMOUNT = 10;
     private static final int DATA_GAS_CAPACITY = 11;
     private static final int DATA_PORT_FILTER = 29;
+    private static final int DATA_IS_TURBINE = 30;
     /** Must match {@link ResourcePortBlockEntity} fluid data slot count. */
-    public static final int DATA_COUNT = 30;
+    public static final int DATA_COUNT = 31;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData fluidData;
+    /** Fixed at open time so client slots match server (turbine ports omit the item slot entirely). */
+    private final boolean turbinePort;
     @Nullable
     private final ResourcePortBlockEntity blockEntity;
+
+    /** Client: block pos from {@link net.minecraft.world.MenuProvider} open packet. */
+    public ResourcePortMenu(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
+        this(containerId, playerInventory, buf.readBlockPos());
+    }
+
+    private ResourcePortMenu(int containerId, Inventory playerInventory, BlockPos pos) {
+        super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
+        Level level = playerInventory.player.level();
+        BlockEntity entity = level.getBlockEntity(pos);
+        this.blockEntity = entity instanceof ResourcePortBlockEntity port ? port : null;
+        this.turbinePort = level.getBlockState(pos).is(ModBlocks.TURBINE_RESOURCE_PORT.get());
+        this.levelAccess = ContainerLevelAccess.create(level, pos);
+        this.fluidData = new SimpleContainerData(DATA_COUNT);
+        addDataSlots(fluidData);
+        addPortSlots(blockEntity, playerInventory);
+    }
 
     /** Server: opened from block entity with live container data. */
     public ResourcePortMenu(int containerId, Inventory playerInventory, ResourcePortBlockEntity blockEntity,
                             ContainerData fluidData) {
         super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
         this.blockEntity = blockEntity;
+        this.turbinePort = blockEntity instanceof TurbineResourcePortBlockEntity;
         this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
         this.fluidData = fluidData;
         addDataSlots(fluidData);
         addPortSlots(blockEntity, playerInventory);
     }
 
-    /** Client: synced data only (same pattern as {@link RedstonePortMenu}). */
-    public ResourcePortMenu(int containerId, Inventory playerInventory) {
-        super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
-        this.blockEntity = null;
-        this.levelAccess = ContainerLevelAccess.NULL;
-        this.fluidData = new SimpleContainerData(DATA_COUNT);
-        addDataSlots(fluidData);
-        addPortSlots(null, playerInventory);
-    }
-
     private void addPortSlots(@Nullable ResourcePortBlockEntity port, Inventory playerInventory) {
-        if (port != null) {
-            addSlot(new SlotItemHandler(port.getItemHandler(), 0, ResourcePortGuiLayout.ITEM_SLOT_X,
-                    ResourcePortGuiLayout.ITEM_SLOT_Y));
-        } else {
-            addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0,
-                    ResourcePortGuiLayout.ITEM_SLOT_X, ResourcePortGuiLayout.ITEM_SLOT_Y));
+        if (showItemSlot()) {
+            if (port != null) {
+                addSlot(new SlotItemHandler(port.getItemHandler(), 0, ResourcePortGuiLayout.ITEM_SLOT_X,
+                        ResourcePortGuiLayout.ITEM_SLOT_Y));
+            } else {
+                addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0,
+                        ResourcePortGuiLayout.ITEM_SLOT_X, ResourcePortGuiLayout.ITEM_SLOT_Y));
+            }
         }
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
@@ -96,10 +115,13 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         return fluidData;
     }
 
-    /** True when this menu is bound to a turbine resource port (not reactor). */
     public boolean isTurbinePort() {
-        return levelAccess.evaluate((level, pos) ->
-                level.getBlockState(pos).is(ModBlocks.TURBINE_RESOURCE_PORT.get())).orElse(false);
+        return turbinePort || fluidData.get(DATA_IS_TURBINE) != 0;
+    }
+
+    /** Turbine ports have no item slot in the GUI. */
+    public boolean showItemSlot() {
+        return !turbinePort;
     }
 
     @Override
@@ -120,11 +142,15 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack stackInSlot = slot.getItem();
             stack = stackInSlot.copy();
-            if (index == 0) {
-                if (!moveItemStackTo(stackInSlot, 1, 37, true)) {
+            if (showItemSlot()) {
+                if (index == 0) {
+                    if (!moveItemStackTo(stackInSlot, 1, 37, true)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else if (!moveItemStackTo(stackInSlot, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (!moveItemStackTo(stackInSlot, 0, 1, false)) {
+            } else if (!moveItemStackTo(stackInSlot, 0, 36, true)) {
                 return ItemStack.EMPTY;
             }
             if (stackInSlot.isEmpty()) {
@@ -189,5 +215,13 @@ public class ResourcePortMenu extends AbstractContainerMenu {
 
     public PortFilter getPortFilter() {
         return PortFilter.fromId(fluidData.get(DATA_PORT_FILTER));
+    }
+
+    /** True when the gas dump button must stay disabled (radioactive Mek gas in the tank). */
+    public boolean isGasDumpBlockedByRadioactivity() {
+        if (!ModList.get().isLoaded("mekanism") || getGasAmount() <= 0) {
+            return false;
+        }
+        return MekChemicalHelper.isRadioactiveGasId(getGasRegistryName());
     }
 }

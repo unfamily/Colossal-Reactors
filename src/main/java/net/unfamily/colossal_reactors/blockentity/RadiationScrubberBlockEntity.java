@@ -201,17 +201,7 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
      * Call from block's onRemove before super.
      */
     public static void dumpRadiationOnBreak(Level level, BlockPos pos, RadiationScrubberBlockEntity scrubber) {
-        Object handler = scrubber.getChemicalHandler();
-        if (handler == null) return;
-        try {
-            Class<?> managerClass = Class.forName("mekanism.api.radiation.IRadiationManager");
-            Class<?> chemicalHandlerClass = Class.forName("mekanism.api.chemical.IChemicalHandler");
-            Object manager = managerClass.getField("INSTANCE").get(null);
-            managerClass.getMethod("dumpRadiation", Level.class, BlockPos.class, chemicalHandlerClass, boolean.class)
-                    .invoke(manager, level, pos, handler, true);
-        } catch (Throwable ignored) {
-            // Mekanism API or handler not IChemicalHandler
-        }
+        MekChemicalHelper.dumpRadiationFromHandler(level, pos, scrubber.getChemicalHandler(), true);
     }
 
     /** GUI dump: vent radioactive gas into the world (Mek radiation) and clear the tank. */

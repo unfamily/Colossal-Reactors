@@ -97,7 +97,8 @@ public final class FuelIo {
         }
         ItemStack stack = new ItemStack(template.getItem(), actualItems);
         for (ResourcePortBlockEntity port : ejectPorts) {
-            if (!port.isAllowSolid() || stack.isEmpty() || !port.canAcceptItemFromReactor()) {
+            if (!port.getPortFilter().acceptsFuelRole() || !port.isAllowSolid() || stack.isEmpty()
+                    || !port.canAcceptItemFromReactor()) {
                 continue;
             }
             stack = port.receiveItemFromReactor(stack);
@@ -136,7 +137,7 @@ public final class FuelIo {
             if (remaining <= 0) {
                 break;
             }
-            if (!port.isAllowLiquid() || port.isAllowGas()) {
+            if (!port.getPortFilter().acceptsFuelRole() || !port.isAllowLiquid() || port.isAllowGas()) {
                 continue;
             }
             int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
@@ -184,12 +185,12 @@ public final class FuelIo {
             if (remaining <= 0) {
                 break;
             }
-            if (!port.isAllowGas() || port.isAllowLiquid()) {
+            if (!port.getPortFilter().acceptsFuelRole() || !port.isAllowGas() || port.isAllowLiquid()) {
                 continue;
             }
             Object copy = MekChemicalHelper.copyStack(stack, remaining);
             if (copy == null) {
-                break;
+                continue;
             }
             int filled = port.receiveGasFromReactor(copy);
             remaining -= filled;
@@ -240,21 +241,25 @@ public final class FuelIo {
         if (wasteMb <= 0) {
             return;
         }
-        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(wasteMb);
+        Fluid fluid = resolveOutputFluid(def.output(), registryAccess);
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return;
+        }
+        int left = ResourcePortOutputRouter.pushFuelFluid(extractPorts, new FluidStack(fluid, wasteMb));
+        if (left >= wasteMb) {
+            return;
+        }
+        int exportedMb = wasteMb - left;
+        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(exportedMb);
         float consumedUnits = controller.consumeWasteUnits(wasteBufferId, wasteUnitsCost);
         int actualMb = def.wasteEjectAmountFromWasteUnits(consumedUnits);
         if (actualMb <= 0) {
             controller.addWasteUnits(wasteBufferId, consumedUnits);
             return;
         }
-        Fluid fluid = resolveOutputFluid(def.output(), registryAccess);
-        if (fluid == null || fluid == Fluids.EMPTY) {
-            controller.addWasteUnits(wasteBufferId, wasteUnitsCost);
-            return;
-        }
-        int left = ResourcePortOutputRouter.pushFluid(extractPorts, new FluidStack(fluid, actualMb));
-        if (left > 0) {
-            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(left));
+        int refundMb = exportedMb - actualMb;
+        if (refundMb > 0) {
+            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(refundMb));
         }
     }
 
@@ -279,21 +284,25 @@ public final class FuelIo {
         if (wasteMb <= 0) {
             return;
         }
-        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(wasteMb);
+        Object stack = MekChemicalHelper.createStack(chemId, wasteMb);
+        if (stack == null) {
+            return;
+        }
+        int left = ResourcePortOutputRouter.pushFuelGas(extractPorts, stack);
+        if (left >= wasteMb) {
+            return;
+        }
+        int exportedMb = wasteMb - left;
+        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(exportedMb);
         float consumedUnits = controller.consumeWasteUnits(wasteBufferId, wasteUnitsCost);
         int actualMb = def.wasteEjectAmountFromWasteUnits(consumedUnits);
         if (actualMb <= 0) {
             controller.addWasteUnits(wasteBufferId, consumedUnits);
             return;
         }
-        Object stack = MekChemicalHelper.createStack(chemId, actualMb);
-        if (stack == null) {
-            controller.addWasteUnits(wasteBufferId, wasteUnitsCost);
-            return;
-        }
-        int left = ResourcePortOutputRouter.pushGas(extractPorts, stack);
-        if (left > 0) {
-            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(left));
+        int refundMb = exportedMb - actualMb;
+        if (refundMb > 0) {
+            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(refundMb));
         }
     }
 

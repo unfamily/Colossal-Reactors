@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
@@ -200,6 +202,66 @@ public class CoolantLoader {
                     if (f != null && f != Fluids.EMPTY) return f;
                 }
             }
+        }
+        return null;
+    }
+
+    /** Builder simulation button: fluid/chemical medium name (not bucket item). */
+    public static Component getPrimaryInputDisplayName(CoolantDefinition def, @Nullable RegistryAccess registryAccess) {
+        if (def == null) {
+            return Component.literal("?");
+        }
+        if (registryAccess == null) {
+            return Component.literal(def.coolantId().toString());
+        }
+        for (String input : def.inputs()) {
+            if (isInputExcluded(input)) {
+                continue;
+            }
+            Component name = mediumDisplayNameForSelector(input, registryAccess);
+            if (name != null) {
+                return name;
+            }
+        }
+        return Component.literal(def.coolantId().toString());
+    }
+
+    /** Builder simulation tooltip: first resolvable output (fluid tag/id or Mek chemical). */
+    @Nullable
+    public static Component getPrimaryOutputDisplayName(CoolantDefinition def, @Nullable RegistryAccess registryAccess) {
+        if (def == null || registryAccess == null) {
+            return null;
+        }
+        for (String output : def.outputs()) {
+            Component name = mediumDisplayNameForSelector(output, registryAccess);
+            if (name != null) {
+                return name;
+            }
+        }
+        String legacy = def.output();
+        if (legacy != null && !legacy.isBlank()) {
+            return mediumDisplayNameForSelector(legacy, registryAccess);
+        }
+        return null;
+    }
+
+    @Nullable
+    private static Component mediumDisplayNameForSelector(String selector, RegistryAccess registryAccess) {
+        if (selector == null || selector.isBlank()) {
+            return null;
+        }
+        if (MaterialSelector.isChemicalPrefix(selector)) {
+            return FuelLoader.getChemicalDisplayName(selector);
+        }
+        Fluid fluid;
+        if (selector.startsWith("#")) {
+            fluid = getFirstFluidFromTag(selector, registryAccess);
+        } else {
+            ResourceLocation id = ResourceLocation.tryParse(selector);
+            fluid = id != null ? BuiltInRegistries.FLUID.get(id) : null;
+        }
+        if (fluid != null && fluid != Fluids.EMPTY) {
+            return Component.translatable(fluid.getFluidType().getDescriptionId());
         }
         return null;
     }

@@ -32,6 +32,34 @@ public final class TurbineBladePlacement {
         return maxRing() * 4;
     }
 
+    /**
+     * Max 1-based blade ring index that fits in the rod cross-section before the interior shell.
+     * Does not shrink the interior; caps radial extent from this rod column index.
+     */
+    public static int maxRingForRodColumn(int crossA, int crossB, int crossSizeA, int crossSizeB) {
+        if (crossSizeA <= 0 || crossSizeB <= 0) {
+            return 0;
+        }
+        int clampedA = Math.max(0, Math.min(crossA, crossSizeA - 1));
+        int clampedB = Math.max(0, Math.min(crossB, crossSizeB - 1));
+        int clearance = Math.min(
+                Math.min(clampedA, crossSizeA - 1 - clampedA),
+                Math.min(clampedB, crossSizeB - 1 - clampedB));
+        return Math.max(0, clearance);
+    }
+
+    /**
+     * Pattern/config target ring clamped to what fits in {@link TurbineRotorLayout} for the primary rod column.
+     */
+    public static int effectiveTargetBladeRing(TurbineRotorLayout layout, int layerIndex, int rodPattern) {
+        TurbineRodControllerLayout.Center center = layout.primaryCenter();
+        int structural = maxRingForRodColumn(
+                center.rx(), center.rz(), layout.crossSizeA(), layout.crossSizeB());
+        int patternRing = TurbineRodPatternLogic.targetBladeRingForLayer(
+                layerIndex, layout.rodExtent(), rodPattern);
+        return Math.min(patternRing, Math.min(maxRing(), structural));
+    }
+
     /** Four directions perpendicular to the rod axis (stable order). */
     public static List<Direction> lateralDirections(Direction rodAxis) {
         List<Direction> dirs = new ArrayList<>(4);

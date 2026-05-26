@@ -150,6 +150,13 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
                 "gui.colossal_reactors.turbine_controller.steam_runtime.label",
                 Component.translatable("gui.colossal_reactors.turbine_controller.steam_runtime.value",
                         GuiNumberFormat.format(steamPerTick)));
+        int steamCap = menu.getSteamCapacityMb();
+        int steamStored = menu.getSteamStoredMb();
+        String steamFillStr = steamCap > 0 ? String.format("%d", (int) Math.round((steamStored * 100.0) / steamCap)) : "0";
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.turbine_capacity.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.turbine_capacity.value",
+                        GuiNumberFormat.format(steamStored), GuiNumberFormat.format(steamCap), steamFillStr));
         y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
                 "gui.colossal_reactors.turbine_controller.efficiency.label",
                 Component.translatable("gui.colossal_reactors.turbine_controller.efficiency.value",

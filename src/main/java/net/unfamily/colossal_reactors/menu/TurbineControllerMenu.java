@@ -26,7 +26,9 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
     private static final int INDEX_VISUAL = 7;
     private static final int INDEX_HAS_REDSTONE_PORT = 8;
     private static final int INDEX_REDSTONE_GATE_SATISFIED = 9;
-    private static final int DATA_COUNT = 10;
+    private static final int INDEX_STEAM_STORED_MB = 10;
+    private static final int INDEX_STEAM_CAPACITY_MB = 11;
+    private static final int DATA_COUNT = 12;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData data;
@@ -59,6 +61,8 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
                     case INDEX_VISUAL -> visual.ordinal();
                     case INDEX_HAS_REDSTONE_PORT -> be.getCachedRedstonePortPositions().length > 0 ? 1 : 0;
                     case INDEX_REDSTONE_GATE_SATISFIED -> be.isRedstoneGateOpen() ? 1 : 0;
+                    case INDEX_STEAM_STORED_MB -> Math.max(0, be.getTotalSteamInputMb());
+                    case INDEX_STEAM_CAPACITY_MB -> Math.max(0, be.getSteamInputCapacityMb());
                     default -> 0;
                 };
             }
@@ -103,6 +107,10 @@ public class TurbineControllerMenu extends AbstractContainerMenu {
     public boolean hasRedstonePort() { return data.get(INDEX_HAS_REDSTONE_PORT) != 0; }
 
     public boolean isRedstoneGateSatisfied() { return data.get(INDEX_REDSTONE_GATE_SATISFIED) != 0; }
+
+    public int getSteamStoredMb() { return data.get(INDEX_STEAM_STORED_MB); }
+
+    public int getSteamCapacityMb() { return data.get(INDEX_STEAM_CAPACITY_MB); }
 
     @Override
     public boolean stillValid(Player player) {

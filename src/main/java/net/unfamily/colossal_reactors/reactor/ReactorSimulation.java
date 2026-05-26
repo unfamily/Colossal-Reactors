@@ -13,6 +13,8 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorPowerPort;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
@@ -67,13 +69,22 @@ public final class ReactorSimulation {
         return (long) rfProduced;
     }
 
+    /** Normal (RF) mode: at least one power port has buffer space (no simulate insert). */
     private static boolean canAcceptRfFromReactor(List<ReactorPowerPort> powerPorts) {
         if (powerPorts.isEmpty()) {
             return false;
         }
         for (ReactorPowerPort port : powerPorts) {
-            if (port.receiveEnergyFromReactor(1) > 0) {
-                return true;
+            if (port instanceof PowerPortBlockEntity pp) {
+                var storage = pp.getEnergyStorageForCapability();
+                if (storage.getEnergyStored() < storage.getMaxEnergyStored()) {
+                    return true;
+                }
+            } else if (port instanceof HighCondPowerPortBlockEntity hp) {
+                var storage = hp.getEnergyStorageForCapability();
+                if (storage.getEnergyStored() < storage.getMaxEnergyStored()) {
+                    return true;
+                }
             }
         }
         return false;
@@ -269,11 +280,12 @@ public final class ReactorSimulation {
                 .filter(p -> p.getPortMode() == PortMode.EXTRACT)
                 .toList();
 
-        boolean canOutputCoolant = !waterMode || ResourcePortOutputRouter.availableFluidSpace(extractPorts) > 0;
-        boolean canOutputEnergy = waterMode
-                ? canOutputCoolant
+        // Steam/coolant mode: run when EXTRACT ports can take steam (RF sink ignored — conversion suppresses RF).
+        // Normal mode: run only when a power port can accept RF.
+        boolean canRun = waterMode
+                ? ResourcePortOutputRouter.canExportCoolantOutput(extractPorts, coolantDef, level.registryAccess())
                 : canAcceptRfFromReactor(powerPorts);
-        if (!canOutputEnergy || !canOutputCoolant) {
+        if (!canRun) {
             controller.setLastTickStats(0, 0, 0, 0);
             return;
         }
@@ -284,9 +296,10 @@ public final class ReactorSimulation {
         }
 
         if (waterMode) {
-            // Water mode: consume coolant from INSERT ports for steam; push steam to EXTRACT ports only (EJECT = input back out, not reactor output). If all EXTRACT fluid ports are full, do not consume water (saturated).
+            // Water mode: consume coolant from INSERT ports for steam; push to EXTRACT (fluid and/or Mek gas). No output space => no coolant burn.
             List<String> coolantInputs = coolantDef.inputs();
-            int steamOutputSpace = ResourcePortOutputRouter.availableFluidSpace(extractPorts);
+            int steamOutputSpace = ResourcePortOutputRouter.availableCoolantOutputSpaceMb(
+                    extractPorts, coolantDef, level.registryAccess());
             int coolantToConsumeMb = (steamOutputSpace <= 0) ? 0 : (int) (rfProduced * coolantDef.rfToCoolantFactor());
             if (coolantToConsumeMb > 0 && !coolantInputs.isEmpty()) {
                 int totalDrained = controller.consumeCoolantMatching(coolantInputs, coolantToConsumeMb);
@@ -324,17 +337,6 @@ public final class ReactorSimulation {
                             rfToPush -= accepted;
                             if (rfToPush <= 0) break;
                         }
-                    }
-                }
-            } else {
-                // No valid coolant fluid: push all as RF
-                long rfPerTick = doubleToPositiveLongRf(rfProduced);
-                if (rfPerTick > 0 && !powerPorts.isEmpty()) {
-                    for (ReactorPowerPort port : powerPorts) {
-                        long accepted = port.receiveEnergyFromReactor(rfPerTick);
-                        rfPushedThisTick += accepted;
-                        rfPerTick -= accepted;
-                        if (rfPerTick <= 0) break;
                     }
                 }
             }
