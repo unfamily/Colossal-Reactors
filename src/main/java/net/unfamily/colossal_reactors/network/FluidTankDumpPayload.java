@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.network;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -21,7 +22,16 @@ import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 /**
  * C2S: discard all fluid in the block's internal tank (GUI dump button).
  */
-public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload {
+public record FluidTankDumpPayload(BlockPos pos, byte tankType) implements CustomPacketPayload {
+
+    /** {@link ResourcePortBlockEntity} liquid tank */
+    public static final byte TANK_FLUID = 0;
+    /** Gas (Mek chemical) tank on resource ports */
+    public static final byte TANK_GAS = 1;
+
+    public FluidTankDumpPayload(BlockPos pos) {
+        this(pos, TANK_FLUID);
+    }
 
     public static final Type<FluidTankDumpPayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "fluid_tank_dump"));
@@ -29,6 +39,8 @@ public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload 
     public static final StreamCodec<FriendlyByteBuf, FluidTankDumpPayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC,
             FluidTankDumpPayload::pos,
+            ByteBufCodecs.BYTE,
+            FluidTankDumpPayload::tankType,
             FluidTankDumpPayload::new
     );
 
@@ -39,7 +51,9 @@ public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload 
 
     public static void handle(FluidTankDumpPayload packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (!(context.player() instanceof ServerPlayer player)) return;
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
             ServerLevel level = (ServerLevel) player.level();
             BlockEntity be = level.getBlockEntity(packet.pos());
             boolean emptied = false;
@@ -48,7 +62,9 @@ public record FluidTankDumpPayload(BlockPos pos) implements CustomPacketPayload 
             } else if (be instanceof TurbineBuilderBlockEntity turbineBuilder) {
                 emptied = turbineBuilder.dumpFluidTankContents();
             } else if (be instanceof ResourcePortBlockEntity port) {
-                emptied = port.dumpFluidTankContents();
+                emptied = packet.tankType() == TANK_GAS
+                        ? port.dumpGasTankContents()
+                        : port.dumpFluidTankContents();
             } else if (be instanceof MelterBlockEntity melter) {
                 emptied = melter.dumpFluidTankContents();
             } else if (be instanceof HeatingCoilBlockEntity coil) {

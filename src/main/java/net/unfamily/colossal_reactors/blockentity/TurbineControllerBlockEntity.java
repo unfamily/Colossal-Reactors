@@ -31,6 +31,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.unfamily.colossal_reactors.block.TurbineRodBlock;
@@ -193,10 +194,19 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         return Math.max(1, cachedSteamConsumeMbPerTick);
     }
 
+    /**
+     * Aggregated steam input buffer in the controller (like reactor coolant): valid blades × config mB per blade.
+     */
     public int getSteamInputCapacityMb() {
-        return getCachedSteamConsumeMbPerTick();
+        TurbineValidation.Result result = getCachedResult();
+        if (!result.valid() || result.validBladeCount() <= 0) {
+            return 0;
+        }
+        long cap = (long) result.validBladeCount() * Config.TURBINE_STEAM_INPUT_MB_PER_BLADE.get();
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, cap));
     }
 
+    /** One-tick condensate slot when generation defines a liquid output; not scaled per blade. */
     public int getOutputReturnCapacityMb() {
         return cachedOutputReturnBuffer ? getCachedSteamConsumeMbPerTick() : 0;
     }
@@ -526,6 +536,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             setRuntimeStats(0, 0, false, false);
             return;
         }
+        updateFluidBufferCapacities(level, cachedResult);
+        TurbineFiller.tickFill(level, this);
         boolean gateOpen = TurbineControllerBlock.isRedstoneGateSatisfied(level, this, cachedResult);
         if (!gateOpen) {
             setRuntimeStats(0, 0, false, gateOpen);
@@ -641,6 +653,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         cachedRodFacings = rodFacings.toByteArray();
     }
 
+    /** Fills steam buffer from INSERT ports; production runs only when the redstone gate allows. */
     public void tickSimulation(ServerLevel level) {
         if (!cachedResult.valid()) {
             setRuntimeStats(0, 0, false, false);
@@ -648,9 +661,14 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         }
         updateFluidBufferCapacities(level, cachedResult);
         TurbineFiller.tickFill(level, this);
-        TurbineSimulation.tick(level, this);
         lastCoilEff = cachedResult.coilEfficiency();
         lastBladeEff = cachedResult.bladeEfficiency();
+        boolean gateOpen = TurbineControllerBlock.isRedstoneGateSatisfied(level, this, cachedResult);
+        if (!gateOpen) {
+            setRuntimeStats(0, 0, false, gateOpen);
+            return;
+        }
+        TurbineSimulation.tick(level, this);
     }
 
     @Override

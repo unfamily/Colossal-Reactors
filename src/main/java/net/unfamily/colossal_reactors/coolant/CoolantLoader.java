@@ -7,12 +7,15 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,14 +188,92 @@ public class CoolantLoader {
                 .orElse(null);
     }
 
-    /** Returns the fluid to drain for this coolant (first input: fluid id or first fluid from tag). Null if definition has no valid input. */
+    /** Returns the fluid to drain for this coolant (first fluid selector in inputs). Null if none. */
     @Nullable
     public static Fluid getFirstFluidFromDefinition(CoolantDefinition def, RegistryAccess registryAccess) {
-        if (def == null || def.inputs().isEmpty()) return null;
-        String first = def.inputs().get(0);
-        if (first.startsWith("#")) return getFirstFluidFromTag(first, registryAccess);
-        Identifier id = Identifier.tryParse(first);
-        return id != null ? BuiltInRegistries.FLUID.get(id).map(Holder::value).orElse(null) : null;
+        if (def == null || def.inputs().isEmpty()) {
+            return null;
+        }
+        for (String input : def.inputs()) {
+            if (MaterialSelector.isChemicalPrefix(input)) {
+                continue;
+            }
+            if (input.startsWith("#")) {
+                Fluid f = getFirstFluidFromTag(input, registryAccess);
+                if (f != null && f != Fluids.EMPTY) {
+                    return f;
+                }
+            } else {
+                Identifier id = Identifier.tryParse(input);
+                if (id != null) {
+                    Fluid f = BuiltInRegistries.FLUID.getValue(id);
+                    if (f != null && f != Fluids.EMPTY) {
+                        return f;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Builder simulation button: fluid/chemical medium name (not bucket item). */
+    public static Component getPrimaryInputDisplayName(CoolantDefinition def, @Nullable RegistryAccess registryAccess) {
+        if (def == null) {
+            return Component.literal("?");
+        }
+        if (registryAccess == null) {
+            return Component.literal(def.coolantId().toString());
+        }
+        for (String input : def.inputs()) {
+            if (isInputExcluded(input)) {
+                continue;
+            }
+            Component name = mediumDisplayNameForSelector(input, registryAccess);
+            if (name != null) {
+                return name;
+            }
+        }
+        return Component.literal(def.coolantId().toString());
+    }
+
+    /** Builder simulation tooltip: first resolvable output (fluid tag/id or Mek chemical). */
+    @Nullable
+    public static Component getPrimaryOutputDisplayName(CoolantDefinition def, @Nullable RegistryAccess registryAccess) {
+        if (def == null || registryAccess == null) {
+            return null;
+        }
+        for (String output : def.outputs()) {
+            Component name = mediumDisplayNameForSelector(output, registryAccess);
+            if (name != null) {
+                return name;
+            }
+        }
+        String legacy = def.output();
+        if (legacy != null && !legacy.isBlank()) {
+            return mediumDisplayNameForSelector(legacy, registryAccess);
+        }
+        return null;
+    }
+
+    @Nullable
+    private static Component mediumDisplayNameForSelector(String selector, RegistryAccess registryAccess) {
+        if (selector == null || selector.isBlank()) {
+            return null;
+        }
+        if (MaterialSelector.isChemicalPrefix(selector)) {
+            return FuelLoader.getChemicalDisplayName(selector);
+        }
+        Fluid fluid;
+        if (selector.startsWith("#")) {
+            fluid = getFirstFluidFromTag(selector, registryAccess);
+        } else {
+            Identifier id = Identifier.tryParse(selector);
+            fluid = id != null ? BuiltInRegistries.FLUID.getValue(id) : null;
+        }
+        if (fluid != null && fluid != Fluids.EMPTY) {
+            return Component.translatable(fluid.getFluidType().getDescriptionId());
+        }
+        return null;
     }
 
     /**

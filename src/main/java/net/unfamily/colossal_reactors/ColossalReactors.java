@@ -137,6 +137,7 @@ public class ColossalReactors {
                 (be, direction) -> ((ResourcePortBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((ResourcePortBlockEntity) be).getFluidResourceHandlerForCapability());
+        registerResourcePortChemicalCapabilities(event);
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
                 (be, direction) -> ((ReactorBuilderBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.REACTOR_BUILDER_BE.get(),
@@ -153,6 +154,7 @@ public class ColossalReactors {
                 (be, direction) -> ((TurbineResourcePortBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((TurbineResourcePortBlockEntity) be).getFluidResourceHandlerForCapability());
+        registerTurbineResourcePortChemicalCapabilities(event);
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.TURBINE_POWER_PORT_BE.get(),
                 (be, direction) -> ((TurbinePowerPortBlockEntity) be).getEnergyHandlerForCapability());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(),
@@ -182,6 +184,38 @@ public class ColossalReactors {
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity) be).getEnergyHandlerForCapability());
         registerRadiationScrubberChemicalCapability(event);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void registerResourcePortChemicalCapabilities(RegisterCapabilitiesEvent event) {
+        try {
+            if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) return;
+            Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
+            Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
+            Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
+            event.registerBlockEntity(
+                    (BlockCapability<Object, Direction>) blockCap,
+                    ModBlockEntities.RESOURCE_PORT_BE.get(),
+                    (ResourcePortBlockEntity be, Direction direction) -> be.getChemicalHandlerForCapability());
+        } catch (Throwable t) {
+            LOGGER.debug("Could not register Resource Port chemical capability: {}", t.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void registerTurbineResourcePortChemicalCapabilities(RegisterCapabilitiesEvent event) {
+        try {
+            if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) return;
+            Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
+            Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
+            Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
+            event.registerBlockEntity(
+                    (BlockCapability<Object, Direction>) blockCap,
+                    ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
+                    (TurbineResourcePortBlockEntity be, Direction direction) -> be.getChemicalHandlerForCapability());
+        } catch (Throwable t) {
+            LOGGER.debug("Could not register Turbine Resource Port chemical capability: {}", t.getMessage());
+        }
     }
 
     /** Registers Mekanism CHEMICAL block capability for Radiation Scrubber when Mekanism is loaded (reflection). */

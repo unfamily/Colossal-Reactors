@@ -9,6 +9,8 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.reactor.ResourcePortOutputRouter;
 import net.unfamily.colossal_reactors.util.FluidInputMatcher;
 
@@ -40,7 +42,7 @@ public final class FuelIo {
             switch (def.inputMedium()) {
                 case ITEM -> ejectItemFuel(controller, ejectPorts, entry.id(), entry.units(), def, registryAccess);
                 case FLUID -> ejectFluidFuel(controller, ejectPorts, entry.id(), entry.units(), def, registryAccess);
-                case CHEMICAL -> { /* Mekanism not available on 26.x yet */ }
+                case CHEMICAL -> ejectChemicalFuel(controller, ejectPorts, entry.id(), entry.units(), def);
             }
         }
     }
@@ -63,7 +65,7 @@ public final class FuelIo {
             switch (def.outputMedium()) {
                 case ITEM -> pushItemWaste(controller, extractPorts, entry.id(), entry.units(), def, registryAccess);
                 case FLUID -> pushFluidWaste(controller, extractPorts, entry.id(), entry.units(), def, registryAccess);
-                case CHEMICAL -> { /* Mekanism not available on 26.x yet */ }
+                case CHEMICAL -> pushChemicalWaste(controller, extractPorts, entry.id(), entry.units(), def);
             }
         }
     }
@@ -96,7 +98,8 @@ public final class FuelIo {
         }
         ItemStack stack = new ItemStack(template.getItem(), actualItems);
         for (ResourcePortBlockEntity port : ejectPorts) {
-            if (!port.isAllowSolid() || stack.isEmpty() || !port.canAcceptItemFromReactor()) {
+            if (!port.getPortFilter().acceptsFuelRole() || !port.isAllowSolid() || stack.isEmpty()
+                    || !port.canAcceptItemFromReactor()) {
                 continue;
             }
             stack = port.receiveItemFromReactor(stack);
@@ -135,7 +138,7 @@ public final class FuelIo {
             if (remaining <= 0) {
                 break;
             }
-            if (!port.isAllowLiquid() || port.isAllowGas()) {
+            if (!port.getPortFilter().acceptsFuelRole() || !port.isAllowLiquid() || port.isAllowGas()) {
                 continue;
             }
             int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
@@ -187,21 +190,120 @@ public final class FuelIo {
         if (wasteMb <= 0) {
             return;
         }
-        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(wasteMb);
+        Fluid fluid = resolveOutputFluid(def.output(), registryAccess);
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return;
+        }
+        int left = ResourcePortOutputRouter.pushFuelFluid(extractPorts, new FluidStack(fluid, wasteMb));
+        if (left >= wasteMb) {
+            return;
+        }
+        int exportedMb = wasteMb - left;
+        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(exportedMb);
         float consumedUnits = controller.consumeWasteUnits(wasteBufferId, wasteUnitsCost);
         int actualMb = def.wasteEjectAmountFromWasteUnits(consumedUnits);
         if (actualMb <= 0) {
             controller.addWasteUnits(wasteBufferId, consumedUnits);
             return;
         }
-        Fluid fluid = resolveOutputFluid(def.output(), registryAccess);
-        if (fluid == null || fluid == Fluids.EMPTY) {
-            controller.addWasteUnits(wasteBufferId, wasteUnitsCost);
+        int refundMb = exportedMb - actualMb;
+        if (refundMb > 0) {
+            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(refundMb));
+        }
+    }
+
+    private static void ejectChemicalFuel(
+            ReactorControllerBlockEntity controller,
+            List<ResourcePortBlockEntity> ejectPorts,
+            Identifier fuelId,
+            float units,
+            FuelDefinition def) {
+        if (!MekChemicalHelper.isLoaded()) {
             return;
         }
-        int left = ResourcePortOutputRouter.pushFluid(extractPorts, new FluidStack(fluid, actualMb));
-        if (left > 0) {
-            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(left));
+        String selector = FuelLoader.getFirstChemicalInputSelector(fuelId);
+        if (selector == null || !MaterialSelector.isChemicalPrefix(selector)) {
+            return;
+        }
+        Identifier chemId = Identifier.tryParse(selector.substring(1));
+        if (chemId == null) {
+            return;
+        }
+        int mb = def.inputAmountForGrantedUnits(units);
+        if (mb <= 0) {
+            return;
+        }
+        float wouldConsume = def.fuelUnitsFromInputAmount(mb);
+        float consumed = controller.consumeFuel(fuelId, wouldConsume);
+        int actualMb = def.inputAmountForGrantedUnits(consumed);
+        if (actualMb <= 0) {
+            return;
+        }
+        Object stack = MekChemicalHelper.createStack(chemId, actualMb);
+        if (stack == null) {
+            controller.addFuel(fuelId, consumed);
+            return;
+        }
+        long remaining = actualMb;
+        for (ResourcePortBlockEntity port : ejectPorts) {
+            if (remaining <= 0) {
+                break;
+            }
+            if (!port.getPortFilter().acceptsFuelRole() || !port.isAllowGas() || port.isAllowLiquid()) {
+                continue;
+            }
+            Object copy = MekChemicalHelper.copyStack(stack, remaining);
+            if (copy == null) {
+                continue;
+            }
+            int filled = port.receiveGasFromReactor(copy);
+            remaining -= filled;
+        }
+        if (remaining > 0) {
+            controller.addFuel(fuelId, def.fuelUnitsFromInputAmount((int) remaining));
+        }
+    }
+
+    private static void pushChemicalWaste(
+            ReactorControllerBlockEntity controller,
+            List<ResourcePortBlockEntity> extractPorts,
+            Identifier wasteBufferId,
+            float wasteUnits,
+            FuelDefinition def) {
+        if (!MekChemicalHelper.isLoaded()) {
+            return;
+        }
+        String wasteSelector = def.output();
+        if (wasteSelector == null || !MaterialSelector.isChemicalPrefix(wasteSelector)) {
+            return;
+        }
+        Identifier chemId = Identifier.tryParse(wasteSelector.substring(1));
+        if (chemId == null) {
+            return;
+        }
+        int wasteMb = def.wasteEjectAmountFromWasteUnits(wasteUnits);
+        if (wasteMb <= 0) {
+            return;
+        }
+        Object stack = MekChemicalHelper.createStack(chemId, wasteMb);
+        if (stack == null) {
+            return;
+        }
+        int left = ResourcePortOutputRouter.pushFuelGas(extractPorts, stack);
+        if (left >= wasteMb) {
+            return;
+        }
+        int exportedMb = wasteMb - left;
+        float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(exportedMb);
+        float consumedUnits = controller.consumeWasteUnits(wasteBufferId, wasteUnitsCost);
+        int actualMb = def.wasteEjectAmountFromWasteUnits(consumedUnits);
+        if (actualMb <= 0) {
+            controller.addWasteUnits(wasteBufferId, consumedUnits);
+            return;
+        }
+        int refundMb = exportedMb - actualMb;
+        if (refundMb > 0) {
+            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(refundMb));
         }
     }
 

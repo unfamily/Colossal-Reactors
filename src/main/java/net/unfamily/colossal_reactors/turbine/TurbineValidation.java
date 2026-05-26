@@ -631,11 +631,21 @@ public final class TurbineValidation {
         return null;
     }
 
-    /** Sums balanced blades (multiples of 4 per rod) for production steam cap. */
+    /**
+     * Production blade count in the rotor zone (matches builder simulation / manual counts).
+     * Uses placed {@link ModBlocks#TURBINE_BLADE} blocks in the rod zone, not {@link TurbineBladePlacement#totalBladesOnRod}
+     * per rod — contiguous-depth counting can under-count full rings (e.g. 156 vs 180).
+     * Balance is already enforced by {@link #findUnbalancedBladesOnRod} before this runs.
+     */
     private static int countValidBalancedBlades(
             Level level, TurbineRotorLayout layout,
             int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
-        Direction growthAxis = layout.growthAxis();
+        return countBladeBlocksInRodZone(level, layout, minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private static int countBladeBlocksInRodZone(
+            Level level, TurbineRotorLayout layout,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         int total = 0;
         for (int x = minX + 1; x < maxX; x++) {
             for (int y = minY + 1; y < maxY; y++) {
@@ -643,18 +653,8 @@ public final class TurbineValidation {
                     if (!layout.isInRodZone(x, y, z)) {
                         continue;
                     }
-                    BlockPos p = new BlockPos(x, y, z);
-                    BlockState state = level.getBlockState(p);
-                    if (state.is(ModBlocks.TURBINE_ROD.get())
-                            && state.hasProperty(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING)) {
-                        Direction rodAxis = state.getValue(net.unfamily.colossal_reactors.block.TurbineRodBlock.FACING);
-                        if (rodAxis.getAxis() != growthAxis.getAxis()) {
-                            continue;
-                        }
-                        int blades = TurbineBladePlacement.totalBladesOnRod(level, p, rodAxis);
-                        if (blades > 0 && blades % 4 == 0) {
-                            total += blades;
-                        }
+                    if (level.getBlockState(new BlockPos(x, y, z)).is(ModBlocks.TURBINE_BLADE.get())) {
+                        total++;
                     }
                 }
             }

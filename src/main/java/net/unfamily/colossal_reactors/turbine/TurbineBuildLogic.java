@@ -372,7 +372,8 @@ public final class TurbineBuildLogic {
                         continue;
                     }
                     Direction axis = rodState.getValue(TurbineRodBlock.FACING);
-                    int targetRing = TurbineRodPatternLogic.targetBladeRingForLayer(t, layout.rodExtent(), builder.getRodPattern());
+                    int targetRing = TurbineBladePlacement.effectiveTargetBladeRing(
+                            layout, t, builder.getRodPattern());
                     if (placeBladesToRing(level, builder, rodPos, rodState, axis, targetRing)) {
                         builder.setBuildRodCursor(ca, t, cb);
                         return true;

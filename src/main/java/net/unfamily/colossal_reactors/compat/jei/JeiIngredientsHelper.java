@@ -396,6 +396,15 @@ public final class JeiIngredientsHelper {
         if (stacks.isEmpty()) {
             stacks.addAll(selectorToItemStacks(selector, registryAccess));
         }
+        if (stacks.isEmpty() && (selector == null || !selector.startsWith("%"))) {
+            List<FluidStack> fluids = selectorToFluidStacks(selector, registryAccess);
+            if (!fluids.isEmpty()) {
+                Fluid fluid = fluids.get(0).getFluid();
+                if (fluid != null && fluid != Fluids.EMPTY) {
+                    return Component.translatable(fluid.getFluidType().getDescriptionId());
+                }
+            }
+        }
         if (stacks.isEmpty()) {
             stacks.addAll(selectorToBucketStacks(selector, registryAccess));
         }

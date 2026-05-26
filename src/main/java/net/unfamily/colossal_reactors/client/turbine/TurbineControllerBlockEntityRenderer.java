@@ -6,12 +6,12 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockModelResolver;
 import net.minecraft.client.renderer.block.BlockModelRenderState;
 import net.minecraft.client.renderer.block.model.BlockDisplayContext;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.world.level.LightLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -19,9 +19,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.unfamily.colossal_reactors.ClientConfig;
-import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
-import org.joml.Matrix4f;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +28,8 @@ import java.util.List;
  */
 public class TurbineControllerBlockEntityRenderer
         implements BlockEntityRenderer<TurbineControllerBlockEntity, TurbineControllerBlockEntityRenderer.RotorRenderState> {
+
+    private static final BlockDisplayContext BLOCK_DISPLAY_CONTEXT = BlockDisplayContext.create();
 
     private final BlockModelResolver blockModelResolver;
     private final BlockModelRenderState blockModelRenderState = new BlockModelRenderState();
@@ -59,9 +59,11 @@ public class TurbineControllerBlockEntityRenderer
             float partialTicks,
             Vec3 cameraPosition,
             ModelFeatureRenderer.CrumblingOverlay breakProgress) {
+        BlockEntityRenderState.extractBase(be, state, breakProgress);
         state.rods.clear();
         state.controllerPos = be.getBlockPos();
         TurbineRotorClientRegistry.ensureAssemblyState(be);
+        TurbineRotorClientRegistry.ensureGloballyRendered(be);
         if (!TurbineRotorClientRegistry.shouldRunBer(be)) {
             state.renderAssembly = false;
             return;
@@ -106,7 +108,7 @@ public class TurbineControllerBlockEntityRenderer
                     angleRad,
                     poseStack,
                     (blockState, stack, lightAt) -> submitBlockModel(
-                            blockState, stack, submitNodeCollector, packedLight(level, lightAt), OverlayTexture.NO_OVERLAY));
+                            blockState, stack, submitNodeCollector, state.lightCoords, OverlayTexture.NO_OVERLAY));
         }
     }
 
@@ -116,11 +118,18 @@ public class TurbineControllerBlockEntityRenderer
             SubmitNodeCollector submitNodeCollector,
             int light,
             int overlay) {
-        blockModelRenderState.clear();
-        blockModelResolver.update(blockModelRenderState, state, BlockDisplayContext.create());
-        Matrix4f transform = new Matrix4f(poseStack.last().pose());
-        blockModelRenderState.setupModel(transform, state.canOcclude());
-        blockModelRenderState.submitMultiLayer(poseStack, submitNodeCollector, light, overlay, 0);
+        blockModelResolver.update(blockModelRenderState, state, BLOCK_DISPLAY_CONTEXT);
+        if (blockModelRenderState.isEmpty()) {
+            return;
+        }
+        // Transforms live on poseStack (see TurbineRotorRenderHelper); update() already filled modelParts.
+        blockModelRenderState.submit(poseStack, submitNodeCollector, light, overlay, 0);
+    }
+
+    @Override
+    public AABB getRenderBoundingBox(TurbineControllerBlockEntity be) {
+        AABB bounds = TurbineRotorClientRegistry.getRenderBounds(be);
+        return bounds != null ? bounds : BlockEntityRenderer.super.getRenderBoundingBox(be);
     }
 
     @Override
@@ -134,9 +143,4 @@ public class TurbineControllerBlockEntityRenderer
         return ClientConfig.getTurbineRotorRenderDistanceBlocks();
     }
 
-    private static int packedLight(Level level, BlockPos pos) {
-        int block = level.getBrightness(LightLayer.BLOCK, pos);
-        int sky = level.getBrightness(LightLayer.SKY, pos);
-        return (block << 4) | (sky << 20);
-    }
 }

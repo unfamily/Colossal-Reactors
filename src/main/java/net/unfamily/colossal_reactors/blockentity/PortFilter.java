@@ -30,9 +30,28 @@ public enum PortFilter {
         return Component.translatable(LANG_OUTPUT_PREFIX + getOutputLangSuffix());
     }
 
-    /** Short label for the compact filter button in the resource port GUI. */
+    /** Fuel channel: solid fuel insert/eject and solid waste extract. */
+    public boolean acceptsFuelRole() {
+        return this == BOTH || this == ONLY_SOLID_FUEL;
+    }
+
+    /** Coolant channel: liquid coolant insert/eject and liquid/gas exhaust extract. */
+    public boolean acceptsCoolantRole() {
+        return this == BOTH || this == ONLY_COOLANT_LIQUID;
+    }
+
+    /** Short label for the Fuel/Coolant role button (depends on port mode). */
     public Component getFilterButtonLabel(PortMode mode) {
-        return Component.translatable(LANG_FILTER_BTN_PREFIX + getFilterButtonLangSuffix(mode));
+        if (mode == PortMode.EXTRACT) {
+            return switch (this) {
+                case ONLY_COOLANT_LIQUID -> Component.translatable(LANG_FILTER_BTN_PREFIX + "coolant");
+                default -> Component.translatable(LANG_FILTER_BTN_PREFIX + "waste");
+            };
+        }
+        return switch (this) {
+            case ONLY_COOLANT_LIQUID -> Component.translatable(LANG_FILTER_BTN_PREFIX + "coolant");
+            default -> Component.translatable(LANG_FILTER_BTN_PREFIX + "fuel");
+        };
     }
 
     /** Display name depending on port mode (INSERT / EXTRACT / EJECT). */
@@ -70,14 +89,6 @@ public enum PortFilter {
             case BOTH -> "both";
             case ONLY_SOLID_FUEL -> "fuel_only";
             case ONLY_COOLANT_LIQUID -> "coolant_only";
-        };
-    }
-
-    private String getFilterButtonLangSuffix(PortMode mode) {
-        return switch (mode) {
-            case INSERT -> getInsertLangSuffix();
-            case EJECT -> getEjectLangSuffix();
-            default -> getOutputLangSuffix();
         };
     }
 

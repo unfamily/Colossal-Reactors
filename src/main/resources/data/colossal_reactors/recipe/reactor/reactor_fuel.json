@@ -7,8 +7,8 @@
       "waste_id": "colossal_reactors:nuclear_waste",
       "inputs": ["#c:ingots/uranium"],
       "output": "colossal_reactors:nuclear_waste",
-      "units_per_fuel": 1000,
-      "units_per_waste": 1000,
+      "units_per_fuel": 1500,
+      "units_per_waste": 1500,
       "base_rf_per_tick": 400.0,
       "base_fuel_units_per_tick": 0.03
     },

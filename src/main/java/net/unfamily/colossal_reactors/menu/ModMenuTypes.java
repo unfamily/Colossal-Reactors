@@ -14,8 +14,7 @@ public class ModMenuTypes {
             DeferredRegister.create(Registries.MENU, ColossalReactors.MODID);
 
     public static final DeferredHolder<MenuType<?>, MenuType<ResourcePortMenu>> RESOURCE_PORT_MENU =
-            MENUS.register("resource_port", () ->
-                    new MenuType<>(ResourcePortMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+            MENUS.register("resource_port", () -> IMenuTypeExtension.create(ResourcePortMenu::new));
 
     public static final DeferredHolder<MenuType<?>, MenuType<RedstonePortMenu>> REDSTONE_PORT_MENU =
             MENUS.register("redstone_port", () ->

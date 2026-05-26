@@ -6,7 +6,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.block.ModBlocks;
-import net.unfamily.colossal_reactors.block.TurbineBladeBlock;
 import net.unfamily.colossal_reactors.turbine.TurbineBladePlacement;
 import org.joml.Quaternionf;
 
@@ -14,14 +13,18 @@ import java.util.List;
 
 /**
  * Shared rotor assembly transforms. BER pose stack starts at the controller block origin (min corner).
+ *
+ * <p><b>DO NOT change blade placement in this class.</b> Rod and blade models are authored for a strict
+ * 16×16×16 block grid:
+ * <ul>
+ *   <li>The rod is one full block; lateral connectors are already inside {@code turbine_rod.json}.</li>
+ *   <li>Ring-1 blades live in the block <em>adjacent</em> to the rod (see {@link TurbineBladePlacement}).</li>
+ *   <li>Further rings are the next blocks along the lateral axis — one block per ring.</li>
+ * </ul>
+ * Rendering must use those {@link BlockPos} values only (plus the standard {@code -0.5} pivot to block origin).
+ * Do not add sub-block offsets to “align” hub/connector geometry; fix the block models instead.
  */
 public final class TurbineRotorRenderHelper {
-
-    /**
-     * Nudge blade hub toward the rod so it meets the lateral connector arm on {@code turbine_rod.json}
-     * (connector inner face ~4.15/16 from block center; blade hub band at y 6.85–9.15 in {@code turbine_blade.json}).
-     */
-    private static final float BLADE_HUB_TOWARD_ROD = 2f / 16f;
 
     @FunctionalInterface
     public interface BlockRenderCallback {
@@ -44,6 +47,7 @@ public final class TurbineRotorRenderHelper {
         }
 
         poseStack.pushPose();
+        // Rod rotation pivot: center of the rod block (16³).
         poseStack.translate(
                 rodPos.getX() - controllerPos.getX() + 0.5,
                 rodPos.getY() - controllerPos.getY() + 0.5,
@@ -51,6 +55,7 @@ public final class TurbineRotorRenderHelper {
         poseStack.mulPose(new Quaternionf().rotateAxis(
                 angleRad, rodAxis.getStepX(), rodAxis.getStepY(), rodAxis.getStepZ()));
 
+        // Blades: integer block offsets from rod center only — DO NOT add per-ring sub-block nudges here.
         List<BlockPos> blades = TurbineBladePlacement.collectBladePositions(level, rodPos, rodAxis);
         for (BlockPos bladePos : blades) {
             BlockState bladeState = level.getBlockState(bladePos);
@@ -62,7 +67,6 @@ public final class TurbineRotorRenderHelper {
                     bladePos.getX() - rodPos.getX(),
                     bladePos.getY() - rodPos.getY(),
                     bladePos.getZ() - rodPos.getZ());
-            applyBladeHubOffset(poseStack, bladeState);
             poseStack.translate(-0.5, -0.5, -0.5);
             blockRenderer.render(bladeState, poseStack, bladePos);
             poseStack.popPose();
@@ -71,16 +75,5 @@ public final class TurbineRotorRenderHelper {
         poseStack.translate(-0.5, -0.5, -0.5);
         TurbineRodRenderScope.run(level, rodPos, rodState, () -> blockRenderer.render(rodState, poseStack, rodPos));
         poseStack.popPose();
-    }
-
-    private static void applyBladeHubOffset(PoseStack poseStack, BlockState bladeState) {
-        if (!bladeState.hasProperty(TurbineBladeBlock.FACING)) {
-            return;
-        }
-        Direction towardRod = bladeState.getValue(TurbineBladeBlock.FACING).getOpposite();
-        poseStack.translate(
-                towardRod.getStepX() * BLADE_HUB_TOWARD_ROD,
-                towardRod.getStepY() * BLADE_HUB_TOWARD_ROD,
-                towardRod.getStepZ() * BLADE_HUB_TOWARD_ROD);
     }
 }

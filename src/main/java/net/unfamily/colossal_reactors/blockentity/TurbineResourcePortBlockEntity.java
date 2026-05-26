@@ -12,6 +12,11 @@ public class TurbineResourcePortBlockEntity extends ResourcePortBlockEntity {
     }
 
     @Override
+    protected boolean isTurbineResourcePort() {
+        return true;
+    }
+
+    @Override
     protected int tankCapacityMb() {
         return Config.TURBINE_RESOURCE_PORT_TANK_CAPACITY_MB.get();
     }

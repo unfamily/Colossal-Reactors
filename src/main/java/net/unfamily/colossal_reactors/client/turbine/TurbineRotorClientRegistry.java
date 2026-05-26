@@ -259,11 +259,15 @@ public final class TurbineRotorClientRegistry {
         ClientEntry entry = ENTRIES.computeIfAbsent(pos, p -> new ClientEntry());
         updateVisualState(controller, level);
         boolean wasAnimating = entry.shouldAnimate();
+        boolean wasHidingStatic = shouldHideStaticBlocks(entry);
+        VisibilityState prevVisibility = entry.visibility;
         TurbineControllerBlockEntity source = TurbineRotorSimulationSource.forRendering(controller);
         syncRuntime(entry, controller, source);
         updateVisibility(entry);
         entry.wasSpinning = entry.shouldAnimate();
-        if (wasAnimating != entry.shouldAnimate()) {
+        if (wasAnimating != entry.shouldAnimate()
+                || wasHidingStatic != shouldHideStaticBlocks(entry)
+                || prevVisibility != entry.visibility) {
             updateEntryHiddenPositions(entry);
             markAssemblyRenderDirty(controller);
         }
@@ -309,7 +313,12 @@ public final class TurbineRotorClientRegistry {
         if (entry == null) {
             return;
         }
+        VisibilityState prevVisibility = entry.visibility;
         updateVisibility(entry);
+        if (prevVisibility != entry.visibility) {
+            updateEntryHiddenPositions(entry);
+            markAssemblyRenderDirty(controller);
+        }
         if (entry.visibility != VisibilityState.ACTIVE) {
             return;
         }
@@ -414,11 +423,16 @@ public final class TurbineRotorClientRegistry {
     public static boolean shouldHideStatic(BlockPos worldPos) {
         long key = worldPos.asLong();
         for (ClientEntry entry : ENTRIES.values()) {
-            if (entry.shouldAnimate() && entry.activeHiddenPositions.contains(key)) {
+            if (shouldHideStaticBlocks(entry) && entry.activeHiddenPositions.contains(key)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** True when a valid assembled turbine is drawn by the BER (static world blocks stay hidden). */
+    private static boolean shouldHideStaticBlocks(ClientEntry entry) {
+        return entry.hasRenderableGeometry() && entry.visibility == VisibilityState.ACTIVE;
     }
 
     public static boolean shouldAnimate(TurbineControllerBlockEntity controller) {
@@ -428,6 +442,9 @@ public final class TurbineRotorClientRegistry {
                 && TurbineRotorVisibility.shouldRenderAssembly(entry.geometry);
     }
 
+    /**
+     * BER draws the rotor whenever the turbine is valid/assembled; static blocks are hidden in parallel.
+     */
     public static boolean shouldRunBer(TurbineControllerBlockEntity controller) {
         ClientEntry entry = ENTRIES.get(controller.getBlockPos());
         if (entry == null || !entry.hasRenderableGeometry()) {
@@ -436,10 +453,24 @@ public final class TurbineRotorClientRegistry {
         if (entry.visibility != VisibilityState.ACTIVE) {
             return false;
         }
-        if (!entry.shouldAnimate()) {
-            return false;
-        }
         return TurbineRotorVisibility.shouldRenderAssembly(entry.geometry);
+    }
+
+    /** MC 26: large assemblies need global BER registration when {@link TurbineControllerBlockEntityRenderer#shouldRenderOffScreen()} is on. */
+    public static void ensureGloballyRendered(TurbineControllerBlockEntity controller) {
+        if (!ClientConfig.TURBINE_ROTOR_ROTATION_ENABLED.get()
+                || !ClientConfig.TURBINE_ROTOR_RENDER_OFFSCREEN.get()) {
+            return;
+        }
+        Level level = controller.getLevel();
+        if (!(level instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel)) {
+            return;
+        }
+        var dispatcher = net.minecraft.client.Minecraft.getInstance().getBlockEntityRenderDispatcher();
+        var renderer = dispatcher.getRenderer(controller);
+        if (renderer != null && renderer.shouldRenderOffScreen()) {
+            clientLevel.onBlockEntityAdded(controller);
+        }
     }
 
     public static boolean hasRenderableGeometry(TurbineControllerBlockEntity controller) {
@@ -586,7 +617,7 @@ public final class TurbineRotorClientRegistry {
     private static void updateEntryHiddenPositions(ClientEntry entry) {
         LongOpenHashSet old = new LongOpenHashSet(entry.activeHiddenPositions);
         entry.activeHiddenPositions.clear();
-        if (entry.shouldAnimate() && entry.geometry != null) {
+        if (shouldHideStaticBlocks(entry) && entry.geometry != null) {
             entry.activeHiddenPositions.addAll(entry.geometry.bladeHidePositions());
         }
         if (!hiddenSetsEqual(old, entry.activeHiddenPositions)) {

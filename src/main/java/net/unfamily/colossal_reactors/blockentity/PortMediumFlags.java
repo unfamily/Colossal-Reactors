@@ -8,9 +8,9 @@ import net.minecraft.world.level.storage.ValueOutput;
  */
 public final class PortMediumFlags {
 
-    private static final String KEY_SOLID = "PortAllowSolid";
-    private static final String KEY_LIQUID = "PortAllowLiquid";
-    private static final String KEY_GAS = "PortAllowGas";
+    public static final String KEY_SOLID = "PortAllowSolid";
+    public static final String KEY_LIQUID = "PortAllowLiquid";
+    public static final String KEY_GAS = "PortAllowGas";
 
     private boolean allowSolid = true;
     private boolean allowLiquid = true;

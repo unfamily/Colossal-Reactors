@@ -48,19 +48,56 @@ public final class ResourcePortGuiLayout {
     public static final int TOGGLE_X = ITEM_SLOT_X + ITEM_SLOT_SIZE + TOGGLE_SLOT_GAP;
     public static final int TOGGLE_ROW0_Y = 17;
 
-    /** Narrow strip between liquid tank and mode/medium toggle column (reactor only). */
-    public static final int FILTER_BTN_W = 40;
-    public static final int FILTER_BTN_H = 14;
-    public static final int FILTER_X = LIQUID_BAR_X + BAR_FILL_W + 3;
-    public static final int FILTER_Y = TOGGLE_ROW0_Y + TOGGLE_BTN_H + TOGGLE_GAP;
+    /** Toggle column row 0: Insert / Extract / Eject. */
+    public static final int TOGGLE_ROW_MODE = 0;
+    /**
+     * Toggle column row 1: Solid medium (reactor only).
+     * Blocked on turbine ports in {@link ResourcePortScreen#applyTurbineLayout()}.
+     */
+    public static final int TOGGLE_ROW_SOLID = 1;
+    /** Toggle column row 2: Liquid medium. On turbine ports, drawn one step up (row 1 Y). */
+    public static final int TOGGLE_ROW_LIQUID = 2;
+    /** Toggle column row 3: Gas medium. On turbine ports, drawn one step up (row 2 Y). */
+    public static final int TOGGLE_ROW_GAS = 3;
 
     public static final int MASK_COLOR = 0xFFC6C6C6;
     public static final int MASK_INSET = 1;
+
+    /** Right edge of liquid tank frame (+{@link #MASK_INSET} over fill rect). */
+    public static final int LIQUID_FRAME_RIGHT = LIQUID_BAR_X + BAR_FILL_W + MASK_INSET;
+
+    /** Fuel/Coolant role button under item slot (reactor only), centered on the slot. */
+    public static final int FILTER_GAP_BELOW_SLOT = 4;
+    public static final int FILTER_BTN_H = 14;
+    /** Min gap from liquid tank fill / frame to the left edge of the filter button. */
+    public static final int FILTER_GAP_LIQUID_RENDER = 5;
+    public static final int FILTER_GAP_LEFT = 4;
+    public static final int FILTER_GAP_TOGGLE_COLUMN = 4;
+    private static final int FILTER_SLOT_CENTER_X = ITEM_SLOT_X + ITEM_SLOT_SIZE / 2;
+    private static final int FILTER_MIN_LEFT_X = Math.max(
+            LIQUID_BAR_X + BAR_FILL_W + FILTER_GAP_LIQUID_RENDER,
+            LIQUID_FRAME_RIGHT + FILTER_GAP_LEFT);
+    private static final int FILTER_MAX_HALF_W_FROM_LIQUID = FILTER_SLOT_CENTER_X - FILTER_MIN_LEFT_X;
+    private static final int FILTER_MAX_HALF_W_FROM_TOGGLE = TOGGLE_X - FILTER_GAP_TOGGLE_COLUMN - FILTER_SLOT_CENTER_X;
+    public static final int FILTER_BTN_W = 2 * Math.min(FILTER_MAX_HALF_W_FROM_LIQUID, FILTER_MAX_HALF_W_FROM_TOGGLE);
+    public static final int FILTER_X = FILTER_SLOT_CENTER_X - FILTER_BTN_W / 2;
+    public static final int FILTER_Y = ITEM_SLOT_Y + ITEM_SLOT_SIZE + FILTER_GAP_BELOW_SLOT;
 
     private ResourcePortGuiLayout() {}
 
     public static int toggleY(int row) {
         return TOGGLE_ROW0_Y + row * (TOGGLE_BTN_H + TOGGLE_GAP);
+    }
+
+    /**
+     * Y offset for a medium/mode toggle button.
+     * Turbine ports hide Solid ({@link #TOGGLE_ROW_SOLID}); Liquid and Gas use the slot above (one row up).
+     */
+    public static int mediumToggleY(int buttonRow, boolean turbinePort) {
+        if (turbinePort && buttonRow >= TOGGLE_ROW_LIQUID) {
+            return toggleY(buttonRow - 1);
+        }
+        return toggleY(buttonRow);
     }
 
     public static int gasBarFillLeft(int guiX) {
@@ -101,5 +138,12 @@ public final class ResourcePortGuiLayout {
 
     public static int maskGasBottom(int guiY) {
         return guiY + GAS_BAR_Y + BAR_FILL_H + MASK_INSET;
+    }
+
+    /** Covers the item slot frame on turbine ports (18×18 + inset border). */
+    public static void fillItemSlotMask(net.minecraft.client.gui.GuiGraphicsExtractor g, int guiX, int guiY) {
+        int sx = guiX + ITEM_SLOT_X - MASK_INSET;
+        int sy = guiY + ITEM_SLOT_Y - MASK_INSET;
+        g.fill(sx, sy, sx + ITEM_SLOT_SIZE + 2 * MASK_INSET, sy + ITEM_SLOT_SIZE + 2 * MASK_INSET, MASK_COLOR);
     }
 }

@@ -15,7 +15,11 @@ import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbinePowerPort;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Turbine RF/steam simulation for builder GUI and runtime estimates.
@@ -136,7 +140,7 @@ public final class TurbineSimulation {
             }
         }
 
-        pushOutputReturnToFluidPorts(level, controller, resourcePortPositions);
+        pushOutputReturnToResourcePorts(level, controller, resourcePortPositions, steamInputs, level.registryAccess());
 
         double rfScale = steamDemand > 0 ? Math.min(1.0, steamConsumed / steamDemand) : 0.0;
         long rfTarget = (long) Math.min(Long.MAX_VALUE, result.estimatedRfPerTick() * rfScale);
@@ -157,30 +161,106 @@ public final class TurbineSimulation {
         controller.setRuntimeStats(rfPushed, steamConsumed, running, gateOpen);
     }
 
-    private static void pushOutputReturnToFluidPorts(
+    private static void pushOutputReturnToResourcePorts(
             ServerLevel level,
             TurbineControllerBlockEntity controller,
-            long[] resourcePortPositions) {
+            long[] resourcePortPositions,
+            List<String> steamInputs,
+            net.minecraft.core.RegistryAccess registryAccess) {
+        List<ResourcePortBlockEntity> outputPorts = collectOutputPorts(level, resourcePortPositions);
         for (var entry : controller.getOutputReturnEntries()) {
-            if (entry.mb() <= 0) continue;
+            if (entry.mb() <= 0) {
+                continue;
+            }
             Fluid fluid = BuiltInRegistries.FLUID.getValue(entry.fluidId());
-            if (fluid == null || fluid == Fluids.EMPTY) continue;
+            if (fluid == null || fluid == Fluids.EMPTY) {
+                continue;
+            }
             int remaining = entry.mb();
             int consumed = controller.consumeOutputReturn(fluid, remaining);
-            if (consumed <= 0) continue;
+            if (consumed <= 0) {
+                continue;
+            }
             remaining = consumed;
-            for (long p : resourcePortPositions) {
-                if (remaining <= 0) break;
-                if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) continue;
-                PortMode mode = port.getPortMode();
-                if (mode != PortMode.EXTRACT && mode != PortMode.EJECT) continue;
-                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
-                remaining -= filled;
+            if (TurbineSteamMaterial.isSteamFluid(fluid, steamInputs)) {
+                remaining = pushSteamToPorts(outputPorts, steamInputs, remaining, registryAccess);
+            } else {
+                remaining = pushFluidToOutputPorts(outputPorts, new FluidStack(fluid, remaining));
             }
             if (remaining > 0) {
                 controller.addOutputReturn(fluid, remaining);
             }
         }
+    }
+
+    private static List<ResourcePortBlockEntity> collectOutputPorts(ServerLevel level, long[] resourcePortPositions) {
+        List<ResourcePortBlockEntity> ports = new ArrayList<>();
+        for (long p : resourcePortPositions) {
+            if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) {
+                continue;
+            }
+            PortMode mode = port.getPortMode();
+            if (mode == PortMode.EXTRACT || mode == PortMode.EJECT) {
+                ports.add(port);
+            }
+        }
+        return ports;
+    }
+
+    /** Push steam to gas ports first (Mek), then liquid ports; supports EXTRACT and EJECT. */
+    private static int pushSteamToPorts(
+            List<ResourcePortBlockEntity> ports,
+            List<String> steamInputs,
+            int amountMb,
+            net.minecraft.core.RegistryAccess registryAccess) {
+        if (amountMb <= 0) {
+            return 0;
+        }
+        int remaining = amountMb;
+        if (MekChemicalHelper.isLoaded()) {
+            Object gasStack = TurbineSteamMaterial.createGasStack(remaining, steamInputs);
+            if (gasStack != null) {
+                for (ResourcePortBlockEntity port : ports) {
+                    if (remaining <= 0) {
+                        break;
+                    }
+                    if (!port.isAllowGas() || port.isAllowLiquid()) {
+                        continue;
+                    }
+                    Object copy = MekChemicalHelper.copyStack(gasStack, remaining);
+                    if (copy == null) {
+                        break;
+                    }
+                    int filled = port.receiveGasFromReactor(copy);
+                    remaining -= filled;
+                }
+            }
+        }
+        if (remaining > 0) {
+            Fluid fluid = TurbineSteamMaterial.resolveBufferFluid(steamInputs, registryAccess);
+            if (fluid != null && fluid != Fluids.EMPTY) {
+                remaining = pushFluidToOutputPorts(ports, new FluidStack(fluid, remaining));
+            }
+        }
+        return remaining;
+    }
+
+    private static int pushFluidToOutputPorts(List<ResourcePortBlockEntity> ports, FluidStack stack) {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        int remaining = stack.getAmount();
+        for (ResourcePortBlockEntity port : ports) {
+            if (remaining <= 0) {
+                break;
+            }
+            if (!port.isAllowLiquid() || port.isAllowGas()) {
+                continue;
+            }
+            int filled = port.receiveFluidFromReactor(new FluidStack(stack.getFluid(), remaining));
+            remaining -= filled;
+        }
+        return remaining;
     }
 
     @Nullable
@@ -245,24 +325,28 @@ public final class TurbineSimulation {
             Fluid fluid,
             boolean steamInput) {
         int total = steamInput ? controller.getTotalSteamInputMb() : controller.getTotalOutputReturnMb();
-        if (total <= 0) return;
+        if (total <= 0) {
+            return;
+        }
         int remaining = steamInput
                 ? controller.consumeSteamInput(fluid, total)
                 : controller.consumeOutputReturn(fluid, total);
+        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
+        List<String> steamInputs = gen != null ? gen.inputs() : java.util.List.of("#c:steam");
+        List<ResourcePortBlockEntity> outputPorts = collectOutputPorts(level, resourcePortPositions);
         while (remaining > 0) {
-            int moved = 0;
-            for (long p : resourcePortPositions) {
-                if (remaining <= 0) break;
-                if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) continue;
-                PortMode mode = port.getPortMode();
-                if (mode != PortMode.EXTRACT && mode != PortMode.EJECT) continue;
-                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
-                remaining -= filled;
-                moved += filled;
+            int before = remaining;
+            if (steamInput && TurbineSteamMaterial.isSteamFluid(fluid, steamInputs)) {
+                remaining = pushSteamToPorts(outputPorts, steamInputs, remaining, level.registryAccess());
+            } else {
+                remaining = pushFluidToOutputPorts(outputPorts, new FluidStack(fluid, remaining));
             }
-            if (moved <= 0) {
-                if (steamInput) controller.addSteamInput(fluid, remaining);
-                else controller.addOutputReturn(fluid, remaining);
+            if (remaining >= before) {
+                if (steamInput) {
+                    controller.addSteamInput(fluid, remaining);
+                } else {
+                    controller.addOutputReturn(fluid, remaining);
+                }
                 break;
             }
         }

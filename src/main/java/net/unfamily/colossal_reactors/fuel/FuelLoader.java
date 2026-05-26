@@ -259,6 +259,21 @@ public class FuelLoader {
         return null;
     }
 
+    /** First chemical input selector for this fuel (for drain templates / eject). */
+    @Nullable
+    public static String getFirstChemicalInputSelector(Identifier fuelId) {
+        FuelDefinition def = DEFINITIONS.get(fuelId);
+        if (def == null) {
+            return null;
+        }
+        for (String input : def.inputs()) {
+            if (net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector.isChemicalPrefix(input)) {
+                return input;
+            }
+        }
+        return null;
+    }
+
     /**
      * Returns a single item stack for the first valid input of this fuel type (for eject: convert fuel units back to items).
      * Caller must use definition's unitsPerFuel when converting fuel units back to item count.
@@ -324,5 +339,31 @@ public class FuelLoader {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    /** Display name for chemical fuel/waste/coolant ({@code %namespace:id}), or null if not chemical. */
+    @Nullable
+    public static net.minecraft.network.chat.Component getChemicalDisplayName(String selector) {
+        if (!net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper.isLoaded()
+                || !FluidInputMatcher.isChemicalPrefix(selector)) {
+            return null;
+        }
+        Identifier id = Identifier.tryParse(selector.substring(1));
+        if (id == null) {
+            return null;
+        }
+        Object stack = net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper
+                .createStack(id, net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper.JEI_DISPLAY_AMOUNT_MB);
+        if (stack == null) {
+            return net.minecraft.network.chat.Component.literal(id.toString());
+        }
+        try {
+            Object text = stack.getClass().getMethod("getTextComponent").invoke(stack);
+            if (text instanceof net.minecraft.network.chat.Component c) {
+                return c;
+            }
+        } catch (Throwable ignored) {
+        }
+        return net.minecraft.network.chat.Component.literal(id.toString());
     }
 }

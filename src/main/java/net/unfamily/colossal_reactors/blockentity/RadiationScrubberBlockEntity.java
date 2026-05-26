@@ -28,6 +28,7 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.unfamily.colossal_reactors.transfer.LegacyEnergyStorageEnergyHandler;
 import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
 import net.unfamily.colossal_reactors.radiation_scrubber.RadiationScrubberCatalystsLoader;
 import org.jetbrains.annotations.Nullable;
@@ -267,17 +268,7 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
      * Call from block's onRemove before super.
      */
     public static void dumpRadiationOnBreak(Level level, BlockPos pos, RadiationScrubberBlockEntity scrubber) {
-        Object handler = scrubber.getChemicalHandler();
-        if (handler == null) return;
-        try {
-            Class<?> managerClass = Class.forName("mekanism.api.radiation.IRadiationManager");
-            Class<?> chemicalHandlerClass = Class.forName("mekanism.api.chemical.IChemicalHandler");
-            Object manager = managerClass.getField("INSTANCE").get(null);
-            managerClass.getMethod("dumpRadiation", Level.class, BlockPos.class, chemicalHandlerClass, boolean.class)
-                    .invoke(manager, level, pos, handler, true);
-        } catch (Throwable ignored) {
-            // Mekanism API or handler not IChemicalHandler
-        }
+        MekChemicalHelper.dumpRadiationFromHandler(level, pos, scrubber.getChemicalHandler(), true);
     }
 
     /** Destroys gas from tank: BASE_ENERGY_PER_GAS_TICK * multiplier RF per tick, destroys up to (config base * gasMult) mB. Isolated storage: no radiation released. */

@@ -63,13 +63,11 @@ public final class ReactorFiller {
     }
 
     private static boolean portAcceptsFuel(ResourcePortBlockEntity port) {
-        PortFilter filter = port.getPortFilter();
-        return filter == PortFilter.BOTH || filter == PortFilter.ONLY_SOLID_FUEL;
+        return port.getPortFilter().acceptsFuelRole();
     }
 
     private static boolean portAcceptsCoolant(ResourcePortBlockEntity port) {
-        PortFilter filter = port.getPortFilter();
-        return filter == PortFilter.BOTH || filter == PortFilter.ONLY_COOLANT_LIQUID;
+        return port.getPortFilter().acceptsCoolantRole();
     }
 
     private static void pullSolidFuel(

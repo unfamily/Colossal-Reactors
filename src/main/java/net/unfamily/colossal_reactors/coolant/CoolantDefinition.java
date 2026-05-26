@@ -2,7 +2,8 @@ package net.unfamily.colossal_reactors.coolant;
 
 import net.minecraft.resources.Identifier;
 
-import java.util.ArrayList;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -45,6 +46,17 @@ public record CoolantDefinition(
             return o;
         }
         return output != null ? output : "";
+    }
+
+    /** First gas/chemical output selector (%), or null. */
+    @Nullable
+    public String gasOutputSelector() {
+        for (String o : outputs) {
+            if (o != null && o.startsWith("%")) {
+                return o;
+            }
+        }
+        return null;
     }
 
     public double rfMultiplier() {

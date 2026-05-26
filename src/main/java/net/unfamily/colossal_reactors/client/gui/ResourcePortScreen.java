@@ -51,6 +51,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
 
     private final Button[] toggleButtons = new Button[TOGGLE_COUNT];
     private Button btnDumpLiquid;
+    private Button btnDumpGas;
     @Nullable
     private Button btnFilter;
 
@@ -79,32 +80,34 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         int bw = ResourcePortGuiLayout.TOGGLE_BTN_W;
         int bh = ResourcePortGuiLayout.TOGGLE_BTN_H;
 
+        boolean turbinePort = menu.isTurbinePort();
         for (int row = 0; row < TOGGLE_COUNT; row++) {
             final int rowIndex = row;
             toggleButtons[row] = Button.builder(toggleLabel(row), b -> onToggleClick(rowIndex))
-                    .bounds(bx, topPos + ResourcePortGuiLayout.toggleY(row), bw, bh)
+                    .bounds(bx, topPos + ResourcePortGuiLayout.mediumToggleY(row, turbinePort), bw, bh)
                     .build();
             addRenderableWidget(toggleButtons[row]);
         }
-        if (!mekLoaded) {
-            toggleButtons[3].visible = false;
-            toggleButtons[3].active = false;
-        }
-        boolean turbinePort = menu.isTurbinePort();
-        if (turbinePort) {
-            toggleButtons[1].visible = false;
-            toggleButtons[1].active = false;
-        }
+        applyTurbineLayout();
+        applyGasToggleVisibility();
 
-        btnDumpLiquid = Button.builder(Component.literal("D"), b -> sendDump())
+        btnDumpLiquid = Button.builder(Component.literal("D"), b -> sendDump(FluidTankDumpPayload.TANK_FLUID))
                 .bounds(leftPos + ResourcePortGuiLayout.LIQUID_DUMP_X, topPos + ResourcePortGuiLayout.LIQUID_DUMP_Y,
                         ResourcePortGuiLayout.DUMP_W, ResourcePortGuiLayout.DUMP_H)
                 .build();
         btnDumpLiquid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
         addRenderableWidget(btnDumpLiquid);
 
+        btnDumpGas = Button.builder(Component.literal("D"), b -> sendDump(FluidTankDumpPayload.TANK_GAS))
+                .bounds(leftPos + ResourcePortGuiLayout.GAS_DUMP_X, topPos + ResourcePortGuiLayout.GAS_DUMP_Y,
+                        ResourcePortGuiLayout.DUMP_W, ResourcePortGuiLayout.DUMP_H)
+                .build();
+        btnDumpGas.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
+        btnDumpGas.visible = mekLoaded;
+        addRenderableWidget(btnDumpGas);
+
         if (!menu.isTurbinePort()) {
-            btnFilter = Button.builder(filterLabel(menu.getPortMode(), menu.getPortFilter()), b -> onFilterClick())
+            btnFilter = Button.builder(filterLabel(menu.getPortFilter(), menu.getPortMode()), b -> onFilterClick())
                     .bounds(leftPos + ResourcePortGuiLayout.FILTER_X, topPos + ResourcePortGuiLayout.FILTER_Y,
                             ResourcePortGuiLayout.FILTER_BTN_W, ResourcePortGuiLayout.FILTER_BTN_H)
                     .build();
@@ -168,19 +171,56 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         if (pos.equals(BlockPos.ZERO)) {
             return;
         }
-        PortFilter next = switch (menu.getPortFilter()) {
-            case BOTH -> PortFilter.ONLY_SOLID_FUEL;
-            case ONLY_SOLID_FUEL -> PortFilter.ONLY_COOLANT_LIQUID;
-            case ONLY_COOLANT_LIQUID -> PortFilter.BOTH;
-        };
+        PortFilter next = menu.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID
+                ? PortFilter.ONLY_SOLID_FUEL
+                : PortFilter.ONLY_COOLANT_LIQUID;
         ClientPacketDistributor.sendToServer(new ResourcePortFilterPayload(pos, next.getId()));
     }
 
-    private static Component filterLabel(PortMode mode, PortFilter filter) {
+    private static Component filterLabel(PortFilter filter, PortMode mode) {
         return filter.getFilterButtonLabel(mode);
     }
 
+    private void applyTurbineLayout() {
+        if (!menu.isTurbinePort()) {
+            return;
+        }
+        int bx = leftPos + ResourcePortGuiLayout.TOGGLE_X;
+        int bw = ResourcePortGuiLayout.TOGGLE_BTN_W;
+        int bh = ResourcePortGuiLayout.TOGGLE_BTN_H;
+
+        // Turbine: no solid items — block row 1 (Solid) entirely.
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_SOLID].visible = false;
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_SOLID].active = false;
+
+        // Liquid and Gas shift up one row into the former Solid / Liquid slots.
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_LIQUID].setPosition(
+                bx, topPos + ResourcePortGuiLayout.mediumToggleY(ResourcePortGuiLayout.TOGGLE_ROW_LIQUID, true));
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_LIQUID].setWidth(bw);
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_LIQUID].setHeight(bh);
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_GAS].setPosition(
+                bx, topPos + ResourcePortGuiLayout.mediumToggleY(ResourcePortGuiLayout.TOGGLE_ROW_GAS, true));
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_GAS].setWidth(bw);
+        toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_GAS].setHeight(bh);
+
+        if (btnFilter != null) {
+            btnFilter.visible = false;
+            btnFilter.active = false;
+        }
+        applyGasToggleVisibility();
+    }
+
+    /** Gas medium toggle is always shown; the gas tank frame is masked when Mek is absent. */
+    private void applyGasToggleVisibility() {
+        Button gas = toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_GAS];
+        if (gas == null) return;
+        gas.visible = true;
+        gas.active = true;
+    }
+
     private void updateToggleButtonLabels() {
+        applyTurbineLayout();
+        applyGasToggleVisibility();
         PortMode mode = menu.getPortMode();
         PortFilter filter = menu.getPortFilter();
         boolean modeChanged = lastMode != mode;
@@ -190,7 +230,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         }
         if (btnFilter != null && (lastFilter != filter || modeChanged)) {
             lastFilter = filter;
-            btnFilter.setMessage(filterLabel(mode, filter));
+            btnFilter.setMessage(filterLabel(filter, mode));
         }
         if (!menu.isTurbinePort()) {
             boolean solid = menu.isAllowSolid();
@@ -205,9 +245,9 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
             applyMediumLabel(toggleButtons[2], mediumLabel("liquid"), liquid, COLOR_LIQUID);
         }
         boolean gas = menu.isAllowGas();
-        if (lastGas != gas && toggleButtons[3].visible) {
+        if (lastGas != gas) {
             lastGas = gas;
-            applyMediumLabel(toggleButtons[3], mediumLabel("gas"), gas, COLOR_GAS);
+            applyMediumLabel(toggleButtons[ResourcePortGuiLayout.TOGGLE_ROW_GAS], mediumLabel("gas"), gas, COLOR_GAS);
         }
     }
 
@@ -237,10 +277,27 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         button.active = true;
     }
 
-    private void sendDump() {
+    private void sendDump(byte tankType) {
         BlockPos pos = menu.getSyncedBlockPos();
-        if (!pos.equals(BlockPos.ZERO)) {
-            ClientPacketDistributor.sendToServer(new FluidTankDumpPayload(pos));
+        if (pos.equals(BlockPos.ZERO)) {
+            return;
+        }
+        if (tankType == FluidTankDumpPayload.TANK_GAS && menu.isGasDumpBlockedByRadioactivity()) {
+            return;
+        }
+        ClientPacketDistributor.sendToServer(new FluidTankDumpPayload(pos, tankType));
+    }
+
+    private void updateDumpButtons() {
+        if (btnDumpLiquid != null) {
+            btnDumpLiquid.active = menu.getFluidAmount() > 0;
+        }
+        if (btnDumpGas != null) {
+            boolean radioactive = menu.isGasDumpBlockedByRadioactivity();
+            btnDumpGas.active = mekLoaded && menu.getGasAmount() > 0 && !radioactive;
+            btnDumpGas.setTooltip(Tooltip.create(radioactive
+                    ? Component.translatable("gui.colossal_reactors.gas_dump.tooltip.radioactive")
+                    : Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
         }
     }
 
@@ -255,6 +312,8 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
             guiGraphics.fill(ResourcePortGuiLayout.maskGasLeft(leftPos), ResourcePortGuiLayout.maskGasTop(topPos),
                     ResourcePortGuiLayout.maskGasRight(leftPos), ResourcePortGuiLayout.maskGasBottom(topPos),
                     ResourcePortGuiLayout.MASK_COLOR);
+        } else {
+            renderGasBar(guiGraphics, leftPos, topPos);
         }
 
         int amount = menu.getFluidAmount();
@@ -272,6 +331,9 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 }
             }
         }
+        if (!menu.showItemSlot()) {
+            ResourcePortGuiLayout.fillItemSlotMask(guiGraphics, leftPos, topPos);
+        }
     }
 
     @Override
@@ -284,12 +346,39 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY,
                                    float partialTick) {
         updateToggleButtonLabels();
+        updateDumpButtons();
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    private void renderGasBar(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int guiX, int guiY) {
+        int amount = menu.getGasAmount();
+        int capacity = menu.getGasCapacity();
+        if (capacity <= 0 || amount <= 0) {
+            return;
+        }
+        int fillPx = (ResourcePortGuiLayout.BAR_FILL_H * amount) / capacity;
+        if (fillPx <= 0) {
+            return;
+        }
+        int outerLeft = ResourcePortGuiLayout.gasBarFillLeft(guiX);
+        int fillTop = ResourcePortGuiLayout.gasBarFillBottom(guiY) - fillPx;
+        GasTankRenderHelper.GasRenderInfo info =
+                GasTankRenderHelper.getGasRenderInfoFromRegistryName(menu.getGasRegistryName());
+        if (info != null && !info.isEmpty()) {
+            GasTankRenderHelper.drawGasInTank(guiGraphics, info, outerLeft, fillTop,
+                    ResourcePortGuiLayout.BAR_FILL_W, fillPx);
+        } else {
+            guiGraphics.fill(outerLeft, fillTop, outerLeft + ResourcePortGuiLayout.BAR_FILL_W,
+                    ResourcePortGuiLayout.gasBarFillBottom(guiY), 0xFF88CCFF);
+        }
     }
 
     @Override
     protected void extractTooltip(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         super.extractTooltip(guiGraphics, mouseX, mouseY);
+        if (mekLoaded) {
+            tooltipGas(guiGraphics, mouseX, mouseY);
+        }
         int left = ResourcePortGuiLayout.liquidBarFillLeft(leftPos);
         int top = ResourcePortGuiLayout.liquidBarFillTop(topPos);
         if (mouseX >= left && mouseX < left + ResourcePortGuiLayout.BAR_FILL_W
@@ -307,5 +396,23 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
             }
             guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
         }
+    }
+
+    private void tooltipGas(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        int left = ResourcePortGuiLayout.gasBarFillLeft(leftPos);
+        int top = ResourcePortGuiLayout.gasBarFillTop(topPos);
+        if (mouseX < left || mouseX >= left + ResourcePortGuiLayout.BAR_FILL_W
+                || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) {
+            return;
+        }
+        List<FormattedCharSequence> lines = new ArrayList<>();
+        lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.gas",
+                menu.getGasAmount(), menu.getGasCapacity()).getVisualOrderText());
+        String gasName = menu.getGasRegistryName();
+        Component name = GasTankRenderHelper.getGasDisplayName(gasName);
+        if (name != null) {
+            lines.add(name.getVisualOrderText());
+        }
+        guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
     }
 }
