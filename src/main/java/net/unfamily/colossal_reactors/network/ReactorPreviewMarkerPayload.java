@@ -5,12 +5,11 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
 
-/**
- * S2C: add one preview marker at the given position (for reactor footprint preview).
- * Handler is in client package (ClientPayloadHandlers).
- */
+/** S2C: add one preview marker at the given position (reactor/turbine footprint preview). */
 public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, int color, int durationTicks)
         implements CustomPacketPayload {
 
@@ -32,5 +31,11 @@ public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, 
     @Override
     public Type<? extends CustomPacketPayload> type() {
         return TYPE;
+    }
+
+    public static void handle(ReactorPreviewMarkerPayload payload, IPayloadContext context) {
+        context.enqueueWork(() ->
+                PreviewMarkRenderer.getInstance().addMarker(
+                        payload.builderOrigin(), payload.pos(), payload.color(), payload.durationTicks()));
     }
 }
