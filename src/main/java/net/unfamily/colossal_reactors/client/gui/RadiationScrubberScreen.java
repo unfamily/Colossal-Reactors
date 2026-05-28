@@ -7,6 +7,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
 
@@ -19,6 +20,10 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
 
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/radiation_scrubber.png");
+    private static final ResourceLocation BORON_DUST_GHOST =
+            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/item/boron_dust.png");
+    private static final ResourceLocation PRODUCTION_MODULE_GHOST =
+            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/item/production_module.png");
     private static final ResourceLocation ENERGY_BAR =
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
 
@@ -66,6 +71,8 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
         int y = topPos;
         guiGraphics.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
 
+        renderSlotGhosts(guiGraphics);
+
         int tankAmount = menu.getChemicalTankAmount();
         int tankCapacity = menu.getChemicalTankCapacity();
         int gasLeft = x + TANK_LEFT;
@@ -109,6 +116,8 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         super.renderTooltip(guiGraphics, mouseX, mouseY);
 
+        renderSlotTooltips(guiGraphics, mouseX, mouseY);
+
         int ex = leftPos + ENERGY_BAR_X;
         int ey = topPos + ENERGY_BAR_Y;
         if (mouseX >= ex && mouseX < ex + ENERGY_BAR_WIDTH && mouseY >= ey && mouseY < ey + ENERGY_BAR_HEIGHT) {
@@ -131,5 +140,61 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
             }
             guiGraphics.renderTooltip(font, lines.stream().map(Component::getVisualOrderText).toList(), mouseX, mouseY);
         }
+    }
+
+    private void renderSlotGhosts(GuiGraphics guiGraphics) {
+        // Slot 0: show Boron Dust as common catalyst example (rendered as texture to allow transparency).
+        if (menu.slots.size() >= 2) {
+            var s0 = menu.getSlot(0);
+            if (s0 != null && s0.getItem().isEmpty()) {
+                renderGhostTexture(guiGraphics, BORON_DUST_GHOST, s0.x, s0.y);
+            }
+            var s1 = menu.getSlot(1);
+            if (s1 != null && s1.getItem().isEmpty()) {
+                renderGhostTexture(guiGraphics, PRODUCTION_MODULE_GHOST, s1.x, s1.y);
+            }
+        }
+    }
+
+    private void renderGhostItem(GuiGraphics guiGraphics, ItemStack stack, int sx, int sy) {
+        if (stack.isEmpty()) return;
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate(leftPos + sx, topPos + sy, 0);
+        guiGraphics.renderItem(stack, 0, 0);
+        // Semi-transparent white overlay (no black background).
+        guiGraphics.fill(0, 0, 16, 16, 0x80FFFFFF);
+        guiGraphics.pose().popPose();
+    }
+
+    private void renderGhostTexture(GuiGraphics guiGraphics, ResourceLocation texture, int sx, int sy) {
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate(leftPos + sx, topPos + sy, 0);
+        guiGraphics.blit(texture, 0, 0, 0, 0, 16, 16, 16, 16);
+        guiGraphics.fill(0, 0, 16, 16, 0x80FFFFFF);
+        guiGraphics.pose().popPose();
+    }
+
+    private void renderSlotTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (menu.slots.size() < 2) return;
+        var s0 = menu.getSlot(0);
+        if (s0 != null && isMouseOverSlotArea(mouseX, mouseY, s0.x, s0.y)) {
+            guiGraphics.renderTooltip(font, List.of(
+                    Component.translatable("gui.colossal_reactors.radiation_scrubber.slot.catalyst").getVisualOrderText()
+            ), mouseX, mouseY);
+            return;
+        }
+        var s1 = menu.getSlot(1);
+        if (s1 != null && isMouseOverSlotArea(mouseX, mouseY, s1.x, s1.y)) {
+            guiGraphics.renderTooltip(font, List.of(
+                    Component.translatable("gui.colossal_reactors.radiation_scrubber.slot.modules").getVisualOrderText(),
+                    Component.translatable("gui.colossal_reactors.radiation_scrubber.slot.modules.accepts").getVisualOrderText()
+            ), mouseX, mouseY);
+        }
+    }
+
+    private boolean isMouseOverSlotArea(int mouseX, int mouseY, int sx, int sy) {
+        int x0 = leftPos + sx;
+        int y0 = topPos + sy;
+        return mouseX >= x0 && mouseX < x0 + 16 && mouseY >= y0 && mouseY < y0 + 16;
     }
 }

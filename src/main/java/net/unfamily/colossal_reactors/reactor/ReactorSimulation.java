@@ -286,6 +286,7 @@ public final class ReactorSimulation {
         long rfPushedThisTick = 0;
         int steamProducedThisTick = 0;
         int waterConsumedThisTick = 0;
+        double fuelUnitsConsumedThisTick = 0.0;
 
         List<ResourcePortBlockEntity> extractPorts = resourcePorts.stream()
                 .filter(p -> p.getPortMode() == PortMode.EXTRACT)
@@ -297,7 +298,11 @@ public final class ReactorSimulation {
         if (waterMode) {
             boolean canExportSteam = ResourcePortOutputRouter.canExportCoolantOutput(extractPorts, coolantDef, level.registryAccess());
             boolean canExportRf = canAcceptRfFromReactor(powerPorts);
-            canRun = canExportSteam || canExportRf;
+            boolean canConsumeCoolant = controller.getTotalCoolantMb() > 0
+                    && coolantDef != null
+                    && coolantDef.inputs() != null
+                    && !coolantDef.inputs().isEmpty();
+            canRun = canExportRf || (canExportSteam && canConsumeCoolant);
         } else {
             canRun = canAcceptRfFromReactor(powerPorts);
         }
@@ -306,19 +311,35 @@ public final class ReactorSimulation {
             return;
         }
 
-        double fuelUnitsToConsume = Math.min(fuelConsumptionRate, totalFuelUnits);
-        if (fuelUnitsToConsume > 0) {
-            consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
-        }
-
         if (waterMode) {
-            // Water mode: attempt steam conversion; any unconverted part falls back to RF.
+            // Water mode: attempt steam conversion. RF is produced ONLY when steam conversion is limited by coolant shortage,
+            // not when limited by steam output capacity (output space should throttle the reactor instead).
             List<String> coolantInputs = coolantDef.inputs();
             int steamOutputSpace = ResourcePortOutputRouter.availableCoolantOutputSpaceMb(
                     extractPorts, coolantDef, level.registryAccess());
 
             int desiredCoolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
-            int maxConvertibleMb = Math.max(0, Math.min(desiredCoolantToConsumeMb, steamOutputSpace));
+            long rfExportCapacity = availableRfExportCapacity(powerPorts);
+            boolean canConsumeCoolant = controller.getTotalCoolantMb() > 0
+                    && coolantInputs != null
+                    && !coolantInputs.isEmpty();
+            int effectiveDesiredCoolantMb = (desiredCoolantToConsumeMb > 0 && canConsumeCoolant)
+                    ? Math.min(desiredCoolantToConsumeMb, Math.max(0, steamOutputSpace))
+                    : 0;
+            double utilization = (desiredCoolantToConsumeMb > 0)
+                    ? Math.min(1.0, (double) effectiveDesiredCoolantMb / (double) desiredCoolantToConsumeMb)
+                    : 0.0;
+
+            double fuelUnitsToConsume = Math.min(fuelConsumptionRate * utilization, totalFuelUnits);
+            if (fuelUnitsToConsume > 0) {
+                consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
+                fuelUnitsConsumedThisTick = fuelUnitsToConsume;
+            } else {
+                controller.setLastTickStats(0, 0, 0, 0);
+                return;
+            }
+
+            int maxConvertibleMb = effectiveDesiredCoolantMb;
 
             int totalDrained = 0;
             if (maxConvertibleMb > 0 && coolantInputs != null && !coolantInputs.isEmpty()) {
@@ -349,10 +370,14 @@ public final class ReactorSimulation {
                 }
             }
 
-            double fractionNotConverted = (desiredCoolantToConsumeMb > 0)
-                    ? (1.0 - (double) totalDrained / desiredCoolantToConsumeMb)
+            // RF fallback is only for coolant shortage against the EFFECTIVE desired amount (already capped by output space).
+            double fractionNotConverted = (maxConvertibleMb > 0)
+                    ? (1.0 - (double) totalDrained / (double) maxConvertibleMb)
                     : 1.0;
             long rfToPush = (long) (rfProduced * fractionNotConverted);
+            if (rfToPush > rfExportCapacity) {
+                rfToPush = rfExportCapacity;
+            }
             if (rfToPush > 0 && !powerPorts.isEmpty()) {
                 for (ReactorPowerPort port : powerPorts) {
                     long accepted = port.receiveEnergyFromReactor(rfToPush);
@@ -364,12 +389,25 @@ public final class ReactorSimulation {
         } else {
             // Normal mode: only RF (no steam). Steam is only produced in water mode from consumed coolant.
             long rfPerTick = doubleToPositiveLongRf(rfProduced);
-            if (rfPerTick > 0 && !powerPorts.isEmpty()) {
+            long rfExportCapacity = availableRfExportCapacity(powerPorts);
+            long rfToPush = Math.min(rfPerTick, rfExportCapacity);
+            double utilization = (rfPerTick > 0) ? ((double) rfToPush / (double) rfPerTick) : 0.0;
+
+            double fuelUnitsToConsume = Math.min(fuelConsumptionRate * utilization, totalFuelUnits);
+            if (fuelUnitsToConsume > 0) {
+                consumeFuelFromController(controller, fuelUnitsToConsume, level.registryAccess());
+                fuelUnitsConsumedThisTick = fuelUnitsToConsume;
+            } else {
+                controller.setLastTickStats(0, 0, 0, 0);
+                return;
+            }
+
+            if (rfToPush > 0 && !powerPorts.isEmpty()) {
                 for (ReactorPowerPort port : powerPorts) {
-                    long accepted = port.receiveEnergyFromReactor(rfPerTick);
+                    long accepted = port.receiveEnergyFromReactor(rfToPush);
                     rfPushedThisTick += accepted;
-                    rfPerTick -= accepted;
-                    if (rfPerTick <= 0) break;
+                    rfToPush -= accepted;
+                    if (rfToPush <= 0) break;
                 }
             }
         }
@@ -377,13 +415,30 @@ public final class ReactorSimulation {
         pushEjectToPorts(controller, resourcePorts, level.registryAccess());
         pushWasteToPorts(controller, resourcePorts, level.registryAccess());
 
-        int fuelHundredths = (int) Math.round(fuelConsumptionRate * 100);
+        int fuelHundredths = (int) Math.round(fuelUnitsConsumedThisTick * 100);
         controller.setLastTickStats(rfPushedThisTick, steamProducedThisTick, waterConsumedThisTick, fuelHundredths);
 
         if (Config.REACTOR_UNSTABILITY.get()) {
             updateStability(level, controller, result, rfProduced, waterMode, waterConsumedThisTick,
                     coolantDef, heatSink.sumOverheatingAdj(), heatSink.sumOverheatingNon(), baseRf);
         }
+    }
+
+    private static long availableRfExportCapacity(List<ReactorPowerPort> powerPorts) {
+        if (powerPorts == null || powerPorts.isEmpty()) {
+            return 0L;
+        }
+        long cap = 0L;
+        for (ReactorPowerPort port : powerPorts) {
+            if (port instanceof PowerPortBlockEntity pp) {
+                var storage = pp.getEnergyStorageForCapability();
+                cap += Math.max(0, storage.getMaxEnergyStored() - storage.getEnergyStored());
+            } else if (port instanceof HighCondPowerPortBlockEntity hp) {
+                var storage = hp.getEnergyStorageForCapability();
+                cap += Math.max(0, storage.getMaxEnergyStored() - storage.getEnergyStored());
+            }
+        }
+        return cap;
     }
 
     /** Approximate center of reactor interior: for even dimensions (e.g. 10 blocks) picks one of the central blocks (2x2 or 2x1). */
