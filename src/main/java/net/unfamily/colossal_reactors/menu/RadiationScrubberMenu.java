@@ -9,6 +9,8 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
@@ -20,6 +22,8 @@ import javax.annotation.Nullable;
  * Data indices 0-2 pos, 3-4 energy, 5-6 tank amount/cap, 7 = gas type length, 8-23 = gas type string (packed).
  */
 public class RadiationScrubberMenu extends AbstractContainerMenu {
+    private static final String PRODUCTION_MODULE_ITEM_ID = "iska_utils:production_module";
+    private static final int MAX_PRODUCTION_MODULES = 8;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData data;
@@ -30,8 +34,25 @@ public class RadiationScrubberMenu extends AbstractContainerMenu {
         this.data = data;
         addDataSlots(data);
 
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 38));
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 1, 80, 38));
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 44, 38) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return !stack.isEmpty() && RadiationScrubberBlockEntity.isCatalyst(stack);
+            }
+        });
+        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 1, 80, 38) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                if (stack.isEmpty()) return false;
+                Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                return id != null && PRODUCTION_MODULE_ITEM_ID.equals(id.toString());
+            }
+
+            @Override
+            public int getMaxStackSize() {
+                return MAX_PRODUCTION_MODULES;
+            }
+        });
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {

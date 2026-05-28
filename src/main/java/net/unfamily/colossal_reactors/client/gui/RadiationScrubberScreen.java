@@ -4,10 +4,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.client.gui.GasTankRenderHelper.GasRenderInfo;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
@@ -24,6 +27,10 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/radiation_scrubber.png");
     private static final Identifier ENERGY_BAR =
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
+    private static final Identifier BORON_DUST_GHOST =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/item/boron_dust.png");
+    private static final Identifier PRODUCTION_MODULE_GHOST =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/item/production_module.png");
 
     private static final int GUI_WIDTH = 176;
     private static final int GUI_HEIGHT = 176;
@@ -66,6 +73,8 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
         int y = topPos;
         guiGraphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, x, y, 0.0F, 0.0F, imageWidth, imageHeight, GUI_WIDTH, GUI_HEIGHT);
 
+        renderSlotGhosts(guiGraphics);
+
         int tankAmount = menu.getChemicalTankAmount();
         int tankCapacity = menu.getChemicalTankCapacity();
         int gasLeft = x + TANK_LEFT;
@@ -103,6 +112,8 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         super.extractTooltip(guiGraphics, mouseX, mouseY);
 
+        extractSlotTooltips(guiGraphics, mouseX, mouseY);
+
         int ex = leftPos + ENERGY_BAR_X;
         int ey = topPos + ENERGY_BAR_Y;
         if (mouseX >= ex && mouseX < ex + ENERGY_BAR_WIDTH && mouseY >= ey && mouseY < ey + ENERGY_BAR_HEIGHT) {
@@ -126,5 +137,62 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
             List<FormattedCharSequence> lines = lineComponents.stream().map(Component::getVisualOrderText).toList();
             guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
         }
+    }
+
+    private void renderSlotGhosts(GuiGraphicsExtractor guiGraphics) {
+        if (menu.slots.size() < 2) return;
+        guiGraphics.nextStratum();
+
+        // Slot 0: show Boron Dust as common catalyst example (rendered as texture to allow transparency).
+        Slot s0 = menu.getSlot(0);
+        if (s0 != null && s0.getItem().isEmpty()) {
+            renderGhostTexture(guiGraphics, BORON_DUST_GHOST, s0.x, s0.y);
+        }
+
+        Slot s1 = menu.getSlot(1);
+        if (s1 != null && s1.getItem().isEmpty()) {
+            renderGhostTexture(guiGraphics, PRODUCTION_MODULE_GHOST, s1.x, s1.y);
+        }
+    }
+
+    private void renderGhostItem(GuiGraphicsExtractor guiGraphics, ItemStack stack, int sx, int sy) {
+        if (stack.isEmpty()) return;
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(leftPos + sx, topPos + sy);
+        guiGraphics.item(stack, 0, 0);
+        guiGraphics.fill(0, 0, 16, 16, 0x80FFFFFF);
+        guiGraphics.pose().popMatrix();
+    }
+
+    private void renderGhostTexture(GuiGraphicsExtractor guiGraphics, Identifier texture, int sx, int sy) {
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(leftPos + sx, topPos + sy);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 0.0F, 0.0F, 16, 16, 16, 16);
+        guiGraphics.fill(0, 0, 16, 16, 0x80FFFFFF);
+        guiGraphics.pose().popMatrix();
+    }
+
+    private void extractSlotTooltips(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        if (menu.slots.size() < 2) return;
+        Slot s0 = menu.getSlot(0);
+        if (s0 != null && isMouseOverSlotArea(mouseX, mouseY, s0.x, s0.y)) {
+            guiGraphics.setTooltipForNextFrame(font, List.of(
+                    Component.translatable("gui.colossal_reactors.radiation_scrubber.slot.catalyst").getVisualOrderText()
+            ), mouseX, mouseY);
+            return;
+        }
+        Slot s1 = menu.getSlot(1);
+        if (s1 != null && isMouseOverSlotArea(mouseX, mouseY, s1.x, s1.y)) {
+            List<FormattedCharSequence> lines = new ArrayList<>();
+            lines.add(Component.translatable("gui.colossal_reactors.radiation_scrubber.slot.modules").getVisualOrderText());
+            lines.add(Component.translatable("gui.colossal_reactors.radiation_scrubber.slot.modules.accepts").getVisualOrderText());
+            guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
+        }
+    }
+
+    private boolean isMouseOverSlotArea(int mouseX, int mouseY, int sx, int sy) {
+        int x0 = leftPos + sx;
+        int y0 = topPos + sy;
+        return mouseX >= x0 && mouseX < x0 + 16 && mouseY >= y0 && mouseY < y0 + 16;
     }
 }

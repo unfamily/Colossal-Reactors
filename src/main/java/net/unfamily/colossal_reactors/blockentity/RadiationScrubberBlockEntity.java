@@ -48,6 +48,8 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
     private static final String TAG_ENERGY = "Energy";
     /** Capacity for Mekanism chemical (gas) tank in mb. Same position as melter tank in GUI. */
     private static final long CHEMICAL_TANK_CAPACITY = 10_000L;
+    private static final int MAX_PRODUCTION_MODULES = 8;
+    private static final String PRODUCTION_MODULE_ITEM_ID = "iska_utils:production_module";
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(2) {
         @Override
@@ -58,7 +60,16 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == 0) return !stack.isEmpty() && isCatalyst(stack);
+            if (slot == 1) return !stack.isEmpty() && isProductionModule(stack);
             return super.isItemValid(slot, stack);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            if (slot == 1) {
+                return MAX_PRODUCTION_MODULES;
+            }
+            return super.getSlotLimit(slot);
         }
     };
 
@@ -339,29 +350,44 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         }
         int interval = Config.RADIATION_SCRUBBER_INTERVAL_TICKS.get();
         if (level.getGameTime() % interval != 0) return;
-        // Per-interval: catalyst and (if scrubbing) energy for scrub
-        int catalystConsume = (hasRadiation ? multiplier : 0) + (hasGas && !hasRadiation ? 1 : 0);
-        if (catalystConsume <= 0) return;
         ItemStack catalystStack = itemHandler.getStackInSlot(0);
-        boolean hasCatalyst = !catalystStack.isEmpty() && isCatalyst(catalystStack) && catalystStack.getCount() >= catalystConsume;
+        boolean hasCatalyst = !catalystStack.isEmpty() && isCatalyst(catalystStack);
+        int moduleCount = getProductionModuleCount();
+        int moduleMultiplier = 1 + moduleCount;
         if (hasRadiation) {
-            int energyPerTick = Config.RADIATION_SCRUBBER_ENERGY_PER_TICK.get() * multiplier;
+            int energyPerTick = Config.RADIATION_SCRUBBER_ENERGY_PER_TICK.get() * multiplier * moduleMultiplier;
             if (energyStorage.getEnergyStored() < energyPerTick) return;
-            int decayPerTick = Config.RADIATION_SCRUBBER_BASE_RADIATION_REMOVAL.get();
+            int decayPerTick = Config.RADIATION_SCRUBBER_BASE_RADIATION_REMOVAL.get() * moduleMultiplier;
             if (hasCatalyst) {
-                decayPerTick *= RadiationScrubberCatalystsLoader.getEffectiveness();
-                catalystStack.shrink(catalystConsume);
-            } else {
-                return;
+                int catalystConsume = multiplier * moduleMultiplier;
+                if (catalystStack.getCount() >= catalystConsume) {
+                    decayPerTick *= RadiationScrubberCatalystsLoader.getEffectiveness();
+                    catalystStack.shrink(catalystConsume);
+                }
             }
             energyStorage.extractEnergy(energyPerTick, false);
             scrubRadiationInArea(level, pos, radiusBlocks, decayPerTick);
         } else {
             // Only gas job: consume 1 catalyst per interval (energy already used in destroyGasFromTank)
             if (hasCatalyst) {
-                catalystStack.shrink(catalystConsume);
+                int catalystConsume = 1;
+                if (catalystStack.getCount() >= catalystConsume) {
+                    catalystStack.shrink(catalystConsume);
+                }
             }
         }
+    }
+
+    private static boolean isProductionModule(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id != null && PRODUCTION_MODULE_ITEM_ID.equals(id.toString());
+    }
+
+    private int getProductionModuleCount() {
+        ItemStack stack = itemHandler.getStackInSlot(1);
+        if (!isProductionModule(stack)) return 0;
+        return Math.min(MAX_PRODUCTION_MODULES, stack.getCount());
     }
 
     /** Returns true if there is any radiation source in the scrubber's area (magnitude above minimum). */
