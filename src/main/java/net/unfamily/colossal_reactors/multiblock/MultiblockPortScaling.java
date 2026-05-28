@@ -201,7 +201,8 @@ public final class MultiblockPortScaling {
         double curveStrengthAdjusted = 0.4 + 0.50 * curveStrength;
         double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.pow(effectiveRodCount + 1, 0.5 * curveStrengthAdjusted);
         double consumptionDivisor = Math.max(0.1, Config.HEAT_SINK_CONSUMPTION_DIVISOR.get());
-        double fuelConsumptionRate = baseFuelUnitsPerTick * consumptionMult * fuelEfficiency * effectiveRodCount
+        double fuelRodFactor = rodFuelScaling(effectiveRodCount);
+        double fuelConsumptionRate = baseFuelUnitsPerTick * consumptionMult * fuelEfficiency * fuelRodFactor
                 * consumptionScale / mbMultiplier / heatSinkFuelMult / consumptionDivisor;
         if (countAdj + countNon > 0) {
             fuelConsumptionRate *= Math.max(0.1, Config.HEAT_SINK_FUEL_UNITS_MULTIPLIER.get());
@@ -297,6 +298,20 @@ public final class MultiblockPortScaling {
         }
         if (mode == 1) {
             double exp = Config.ROD_ENERGY_SCALING_EXPONENT.get();
+            return Math.pow(n, exp);
+        }
+        return n * (Math.log(n + 1.0) / 2.3);
+    }
+
+    private static double rodFuelScaling(double effectiveRodCount) {
+        double n = Math.max(0.0, effectiveRodCount);
+        int mode = Config.ROD_FUEL_SCALING_MODE.get();
+        if (mode == 2) {
+            double k = Math.max(1.0, Config.ROD_FUEL_SCALING_SATURATION_K.get());
+            return n / (1.0 + (n / k));
+        }
+        if (mode == 1) {
+            double exp = Config.ROD_FUEL_SCALING_EXPONENT.get();
             return Math.pow(n, exp);
         }
         return n * (Math.log(n + 1.0) / 2.3);
