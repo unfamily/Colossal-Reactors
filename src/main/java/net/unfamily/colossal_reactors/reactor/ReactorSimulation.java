@@ -5,8 +5,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -16,9 +14,7 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorPowerPort;
-import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
-import net.unfamily.colossal_reactors.reactor.ResourcePortOutputRouter;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
@@ -99,6 +95,20 @@ public final class ReactorSimulation {
         }
         if (mode == 1) {
             double exp = Config.ROD_ENERGY_SCALING_EXPONENT.get();
+            return Math.pow(n, exp);
+        }
+        return n * (Math.log(n + 1.0) / 2.3);
+    }
+
+    private static double rodFuelScaling(double effectiveRodCount) {
+        double n = Math.max(0.0, effectiveRodCount);
+        int mode = Config.ROD_FUEL_SCALING_MODE.get();
+        if (mode == 2) {
+            double k = Math.max(1.0, Config.ROD_FUEL_SCALING_SATURATION_K.get());
+            return n / (1.0 + (n / k));
+        }
+        if (mode == 1) {
+            double exp = Config.ROD_FUEL_SCALING_EXPONENT.get();
             return Math.pow(n, exp);
         }
         return n * (Math.log(n + 1.0) / 2.3);
@@ -249,7 +259,8 @@ public final class ReactorSimulation {
         double consumptionScale = Config.CONSUMPTION_SCALE.get() / Math.pow(effectiveRodCount + 1, 0.5 * curveStrengthAdjusted);
         double mbDivisor = (coolantDef != null && coolantDef.mbMultiplier() > 0) ? coolantDef.mbMultiplier() : 1.0;
         double consumptionDivisor = Math.max(0.1, Config.HEAT_SINK_CONSUMPTION_DIVISOR.get());
-        double fuelConsumptionRate = baseFuelUnitsPerTick * consumptionMult * fuelEfficiency * effectiveRodCount * consumptionScale / mbDivisor / heatSinkFuelMult / consumptionDivisor;
+        double fuelRodFactor = rodFuelScaling(effectiveRodCount);
+        double fuelConsumptionRate = baseFuelUnitsPerTick * consumptionMult * fuelEfficiency * fuelRodFactor * consumptionScale / mbDivisor / heatSinkFuelMult / consumptionDivisor;
         if (countAdj + countNon > 0) {
             fuelConsumptionRate *= Math.max(0.1, Config.HEAT_SINK_FUEL_UNITS_MULTIPLIER.get());
         }
@@ -280,11 +291,16 @@ public final class ReactorSimulation {
                 .filter(p -> p.getPortMode() == PortMode.EXTRACT)
                 .toList();
 
-        // Steam/coolant mode: run when EXTRACT ports can take steam (RF sink ignored — conversion suppresses RF).
+        // Steam/coolant mode: run when we can export steam OR when we can fall back to RF.
         // Normal mode: run only when a power port can accept RF.
-        boolean canRun = waterMode
-                ? ResourcePortOutputRouter.canExportCoolantOutput(extractPorts, coolantDef, level.registryAccess())
-                : canAcceptRfFromReactor(powerPorts);
+        boolean canRun;
+        if (waterMode) {
+            boolean canExportSteam = ResourcePortOutputRouter.canExportCoolantOutput(extractPorts, coolantDef, level.registryAccess());
+            boolean canExportRf = canAcceptRfFromReactor(powerPorts);
+            canRun = canExportSteam || canExportRf;
+        } else {
+            canRun = canAcceptRfFromReactor(powerPorts);
+        }
         if (!canRun) {
             controller.setLastTickStats(0, 0, 0, 0);
             return;
@@ -296,48 +312,53 @@ public final class ReactorSimulation {
         }
 
         if (waterMode) {
-            // Water mode: consume coolant from INSERT ports for steam; push to EXTRACT (fluid and/or Mek gas). No output space => no coolant burn.
+            // Water mode: attempt steam conversion; any unconverted part falls back to RF.
             List<String> coolantInputs = coolantDef.inputs();
             int steamOutputSpace = ResourcePortOutputRouter.availableCoolantOutputSpaceMb(
                     extractPorts, coolantDef, level.registryAccess());
-            int coolantToConsumeMb = (steamOutputSpace <= 0) ? 0 : (int) (rfProduced * coolantDef.rfToCoolantFactor());
-            if (coolantToConsumeMb > 0 && !coolantInputs.isEmpty()) {
-                int totalDrained = controller.consumeCoolantMatching(coolantInputs, coolantToConsumeMb);
-                waterConsumedThisTick = totalDrained;
-                double steamMb = totalDrained * coolantDef.steamPerCoolant();
-                int steamPerTick = (int) steamMb;
-                steamProducedThisTick = steamPerTick;
-                if (steamPerTick > 0) {
-                    String liquidOut = coolantDef.liquidOutputSelector();
-                    Fluid steamFluid = liquidOut.startsWith("#")
-                            ? CoolantLoader.getFirstFluidFromTag(liquidOut, level.registryAccess())
-                            : BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(liquidOut));
-                    if (steamFluid != null && steamFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
-                        ResourcePortOutputRouter.pushFluid(extractPorts, new FluidStack(steamFluid, steamPerTick));
-                    }
-                    String gasOut = coolantDef.gasOutputSelector();
-                    if (gasOut != null && MekChemicalHelper.isLoaded()) {
-                        ResourceLocation chemId = ResourceLocation.tryParse(gasOut.startsWith("%") ? gasOut.substring(1) : gasOut);
-                        if (chemId != null) {
-                            Object gasStack = MekChemicalHelper.createStack(chemId, steamPerTick);
-                            if (gasStack != null) {
-                                ResourcePortOutputRouter.pushGas(extractPorts, gasStack);
-                            }
+
+            int desiredCoolantToConsumeMb = (int) (rfProduced * coolantDef.rfToCoolantFactor());
+            int maxConvertibleMb = Math.max(0, Math.min(desiredCoolantToConsumeMb, steamOutputSpace));
+
+            int totalDrained = 0;
+            if (maxConvertibleMb > 0 && coolantInputs != null && !coolantInputs.isEmpty()) {
+                totalDrained = controller.consumeCoolantMatching(coolantInputs, maxConvertibleMb);
+            }
+            waterConsumedThisTick = totalDrained;
+
+            double steamMb = totalDrained * coolantDef.steamPerCoolant();
+            int steamPerTick = (int) steamMb;
+            steamProducedThisTick = steamPerTick;
+            if (steamPerTick > 0) {
+                String liquidOut = coolantDef.liquidOutputSelector();
+                Fluid steamFluid = liquidOut.startsWith("#")
+                        ? CoolantLoader.getFirstFluidFromTag(liquidOut, level.registryAccess())
+                        : BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(liquidOut));
+                if (steamFluid != null && steamFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
+                    ResourcePortOutputRouter.pushFluid(extractPorts, new FluidStack(steamFluid, steamPerTick));
+                }
+                String gasOut = coolantDef.gasOutputSelector();
+                if (gasOut != null && MekChemicalHelper.isLoaded()) {
+                    ResourceLocation chemId = ResourceLocation.tryParse(gasOut.startsWith("%") ? gasOut.substring(1) : gasOut);
+                    if (chemId != null) {
+                        Object gasStack = MekChemicalHelper.createStack(chemId, steamPerTick);
+                        if (gasStack != null) {
+                            ResourcePortOutputRouter.pushGas(extractPorts, gasStack);
                         }
                     }
                 }
-                // Produce energy only when water was insufficient (unconverted part goes to RF)
-                if (totalDrained < coolantToConsumeMb && coolantToConsumeMb > 0) {
-                    double fractionNotConverted = 1.0 - (double) totalDrained / coolantToConsumeMb;
-                    long rfToPush = (long) (rfProduced * fractionNotConverted);
-                    if (rfToPush > 0 && !powerPorts.isEmpty()) {
-                        for (ReactorPowerPort port : powerPorts) {
-                            long accepted = port.receiveEnergyFromReactor(rfToPush);
-                            rfPushedThisTick += accepted;
-                            rfToPush -= accepted;
-                            if (rfToPush <= 0) break;
-                        }
-                    }
+            }
+
+            double fractionNotConverted = (desiredCoolantToConsumeMb > 0)
+                    ? (1.0 - (double) totalDrained / desiredCoolantToConsumeMb)
+                    : 1.0;
+            long rfToPush = (long) (rfProduced * fractionNotConverted);
+            if (rfToPush > 0 && !powerPorts.isEmpty()) {
+                for (ReactorPowerPort port : powerPorts) {
+                    long accepted = port.receiveEnergyFromReactor(rfToPush);
+                    rfPushedThisTick += accepted;
+                    rfToPush -= accepted;
+                    if (rfToPush <= 0) break;
                 }
             }
         } else {

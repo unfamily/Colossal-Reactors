@@ -171,6 +171,18 @@ public class Config {
             .comment("When rodEnergyScalingMode=2: saturation constant k for n/(1+n/k). Default: 600")
             .defineInRange("002_rodEnergyScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
 
+    public static final ModConfigSpec.IntValue ROD_FUEL_SCALING_MODE = BUILDER
+            .comment("Fuel scaling mode vs effectiveRodCount. 0=Legacy (n*log), 1=Power (n^exp), 2=Saturating (n/(1+n/k)). Default: 1 (linear exponent=1.0 keeps old behavior)")
+            .defineInRange("003_rodFuelScalingMode", 1, 0, 2);
+
+    public static final ModConfigSpec.DoubleValue ROD_FUEL_SCALING_EXPONENT = BUILDER
+            .comment("When rodFuelScalingMode=1: exponent for n^exp. Default: 1.00 (linear; keeps old behavior)")
+            .defineInRange("004_rodFuelScalingExponent", 1.00, 0.05, 1.50);
+
+    public static final ModConfigSpec.DoubleValue ROD_FUEL_SCALING_SATURATION_K = BUILDER
+            .comment("When rodFuelScalingMode=2: saturation constant k for n/(1+n/k). Default: 600")
+            .defineInRange("005_rodFuelScalingSaturationK", 600.0, 1.0, Double.MAX_VALUE);
+
     static {
         BUILDER.pop();
     }

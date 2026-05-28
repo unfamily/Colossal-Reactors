@@ -15,7 +15,6 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
-import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
@@ -68,8 +67,6 @@ public record FluidTankDumpPayload(BlockPos pos, byte tankType) implements Custo
                 emptied = melter.dumpFluidTankContents();
             } else if (be instanceof HeatingCoilBlockEntity coil) {
                 emptied = coil.dumpFluidTankContents();
-            } else if (be instanceof RadiationScrubberBlockEntity scrubber) {
-                emptied = scrubber.dumpChemicalTankContents();
             }
             if (emptied) {
                 level.playSound(null, packet.pos(), SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 0.25f, 1.0f);

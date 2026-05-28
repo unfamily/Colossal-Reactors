@@ -2,16 +2,13 @@ package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.menu.RadiationScrubberMenu;
-import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 
 import java.util.List;
 
@@ -47,12 +44,6 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
     private static final int ENERGY_BAR_X = GUI_WIDTH - ENERGY_BAR_WIDTH - 8;
     private static final int ENERGY_BAR_Y = TANK_TOP + (TANK_HEIGHT + 2 - ENERGY_BAR_HEIGHT) / 2;
 
-    private static final int DUMP_BUTTON_W = 14;
-    private static final int DUMP_BUTTON_H = 12;
-    private static final int DUMP_BUTTON_GAP_BELOW = 3;
-    private static final int DUMP_X = TANK_LEFT + (TANK_WIDTH - DUMP_BUTTON_W) / 2;
-    private static final int DUMP_Y = TANK_BOTTOM + DUMP_BUTTON_GAP_BELOW;
-
     public RadiationScrubberScreen(RadiationScrubberMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         imageWidth = GUI_WIDTH;
@@ -67,13 +58,6 @@ public class RadiationScrubberScreen extends AbstractContainerScreen<RadiationSc
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
             if (minecraft != null && minecraft.player != null) minecraft.player.closeContainer();
         }).bounds(leftPos + CLOSE_BUTTON_X, topPos + CLOSE_BUTTON_Y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE).build());
-
-        Button dumpButton = Button.builder(Component.literal("D"), b ->
-                        PacketDistributor.sendToServer(new FluidTankDumpPayload(menu.getBlockPos(), FluidTankDumpPayload.TANK_GAS)))
-                .bounds(leftPos + DUMP_X, topPos + DUMP_Y, DUMP_BUTTON_W, DUMP_BUTTON_H)
-                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")))
-                .build();
-        addRenderableWidget(dumpButton);
     }
 
     @Override

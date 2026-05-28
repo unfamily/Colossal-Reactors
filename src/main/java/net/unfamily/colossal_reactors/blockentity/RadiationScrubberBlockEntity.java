@@ -204,21 +204,6 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         MekChemicalHelper.dumpRadiationFromHandler(level, pos, scrubber.getChemicalHandler(), true);
     }
 
-    /** GUI dump: vent radioactive gas into the world (Mek radiation) and clear the tank. */
-    public boolean dumpChemicalTankContents() {
-        if (level == null || level.isClientSide()) return false;
-        if (getChemicalTankAmount() <= 0) return false;
-        dumpRadiationOnBreak(level, getBlockPos(), this);
-        if (getChemicalTankAmount() > 0) {
-            Object handler = getChemicalHandler();
-            if (handler != null) {
-                MekChemicalHelper.dumpTank(handler);
-            }
-        }
-        setChanged();
-        return true;
-    }
-
     /** Destroys gas from tank: BASE_ENERGY_PER_GAS_TICK * multiplier RF per tick, destroys up to (config base * gasMult) mB. Isolated storage: no radiation released. */
     private void destroyGasFromTank(int energyPerGasTick) {
         Object handler = getChemicalHandler();

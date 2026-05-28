@@ -7,7 +7,6 @@ navigation:
 item_ids:
   - colossal_reactors:turbine_casing
   - colossal_reactors:turbine_glass
-  - colossal_reactors:turbine_rod
   - colossal_reactors:turbine_rod_controller
 categories:
   - multiblock
