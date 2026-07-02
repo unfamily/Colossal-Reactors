@@ -10,7 +10,6 @@ import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
-import net.unfamily.colossal_reactors.gas.ModGases;
 
 public class ModCreativeModeTabs {
 
@@ -93,11 +92,13 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.BORON_DUST.get());
                                 output.accept(ModItems.NUCLEAR_WASTE.get());
                                 output.accept(ModItems.CATALYST_BREEZIUM.get());
-                                output.accept(ModFluids.MOLTEN_TOUGH_ALLOY.bucket().get());
-                                output.accept(ModFluids.MOLTEN_STAINLESS_STEEL.bucket().get());
-                                output.accept(ModFluids.ENDER_GOO.bucket().get());
-                                output.accept(ModFluids.GELID_BREEZIUM.bucket().get());
-                                output.accept(new ItemStack(ModGases.steam().bucketItem()));
+                                output.accept(ModFluids.MOLTEN_TOUGH_ALLOY.bucketItem());
+                                output.accept(ModFluids.MOLTEN_STAINLESS_STEEL.bucketItem());
+                                output.accept(ModFluids.ENDER_GOO.bucketItem());
+                                output.accept(ModFluids.GELID_BREEZIUM.bucketItem());
+                                if (ColossalReactors.STEAM_GAS != null && ColossalReactors.STEAM_GAS.isBucketReady()) {
+                                    output.accept(ColossalReactors.STEAM_GAS.bucketItem());
+                                }
                             })
                             .build());
 

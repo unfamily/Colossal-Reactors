@@ -6,7 +6,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
+import net.unfamily.iskalib.client.marker.MarkRenderer;
 
 /** S2C: clear all footprint preview markers on the client. */
 public record ClearPreviewPayload() implements CustomPacketPayload {
@@ -23,6 +23,6 @@ public record ClearPreviewPayload() implements CustomPacketPayload {
     }
 
     public static void handle(ClearPreviewPayload packet, IPayloadContext context) {
-        context.enqueueWork(PreviewMarkRenderer.getInstance()::clearMarkers);
+        context.enqueueWork(() -> MarkRenderer.getInstance().clearHighlightedBlocks());
     }
 }

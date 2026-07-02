@@ -193,6 +193,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
             if (result != null && result.valid()) {
                 // Always allow filling/visuals even when "off" by redstone gate.
                 ReactorFiller.tickFill(level, controllerBe);
+                ReactorSimulation.flushResourcePorts(level, controllerBe);
                 if (ClientConfig.shouldUpdateReactorRodFillVisuals()) {
                     controllerBe.tickRodVisuals(level);
                 }

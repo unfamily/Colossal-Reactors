@@ -294,8 +294,11 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         return 0;
     }
 
-    /** Coolant definition from stored coolant fluids; prefers water when present. */
+    /** Coolant definition from stored coolant fluids; null when buffer is empty (RF-only mode). */
     public CoolantDefinition getCoolantDefinition(net.minecraft.core.RegistryAccess registryAccess) {
+        if (coolantEntries.isEmpty() || getTotalCoolantMb() <= 0) {
+            return null;
+        }
         CoolantDefinition waterDef =
                 CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         for (CoolantEntry e : coolantEntries) {
@@ -318,7 +321,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             def = CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
             if (def != null) return def;
         }
-        return waterDef;
+        return null;
     }
 
     public int getMaxFuelUnitsTotal() {
@@ -692,7 +695,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             ReactorValidation.ValidationReport report = new ReactorValidation.ValidationReport(
                     minX, minY, minZ, maxX, maxY, maxZ,
                     maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1,
-                    0, rodColumns);
+                    0, rodColumns, 0, new long[0]);
             cachedResult = new ReactorValidation.Result(
                     true, null, null, report,
                     minX, minY, minZ, maxX, maxY, maxZ,

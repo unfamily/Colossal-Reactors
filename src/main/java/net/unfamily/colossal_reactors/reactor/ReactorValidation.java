@@ -13,6 +13,9 @@ import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import net.unfamily.colossal_reactors.network.ModPayloads;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Validates reactor multiblock structure: parallelepiped, casing border, rod columns with rod_controller on top.
  */
@@ -26,17 +29,20 @@ public final class ReactorValidation {
         INTERIOR_UNKNOWN,
         ROD_COLUMN_INCOMPLETE,
         ROD_COUNT_MISMATCH,
-        EXTERIOR_CONTROLLER_COUNT
+        EXTERIOR_CONTROLLER_COUNT,
+        REDSTONE_PORT_COUNT
     }
 
     public record ValidationReport(
             int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
             int width, int height, int length,
             int exteriorControllers,
-            int rodColumnsExpected
+            int rodColumnsExpected,
+            int redstonePortCount,
+            long[] redstonePortPositions
     ) {
         public static ValidationReport empty() {
-            return new ValidationReport(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            return new ValidationReport(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, new long[0]);
         }
     }
 
@@ -134,6 +140,7 @@ public final class ReactorValidation {
 
         int rodCount = 0;
         int coolantCount = 0;
+        List<BlockPos> redstonePorts = new ArrayList<>();
 
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
@@ -143,6 +150,9 @@ public final class ReactorValidation {
                     BlockState state = level.getBlockState(p);
 
                     if (onBorder) {
+                        if (state.is(ModBlocks.REDSTONE_PORT.get())) {
+                            redstonePorts.add(p.immutable());
+                        }
                         if (!isShellBlock(state) && !isRodController(state)) {
                             return fail(FailureCode.SHELL_GAP, p, report.build());
                         }
@@ -190,6 +200,11 @@ public final class ReactorValidation {
             }
         }
 
+        report.redstonePorts(redstonePorts);
+        if (redstonePorts.size() >= 2) {
+            return fail(FailureCode.REDSTONE_PORT_COUNT, null, report.build());
+        }
+
         Result result = new Result(true, null, null, report.build(),
                 minX, minY, minZ, maxX, maxY, maxZ, rodCount, rodColumnsExpected, coolantCount);
         logDebug(report.build(), null, true);
@@ -203,6 +218,12 @@ public final class ReactorValidation {
 
     public static void sendFailureMarkers(ServerPlayer player, Level level, Result result) {
         if (result.valid() || result.failure() == null) {
+            return;
+        }
+        if (result.failure() == FailureCode.REDSTONE_PORT_COUNT) {
+            for (long packed : result.report().redstonePortPositions()) {
+                ModPayloads.sendEphemeralPreviewMarker(player, BlockPos.of(packed), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
+            }
             return;
         }
         if (result.failurePos() != null) {
@@ -235,13 +256,6 @@ public final class ReactorValidation {
         }
     }
 
-    public static net.minecraft.network.chat.Component failureMessage(Result result) {
-        if (result.valid() || result.failure() == null) {
-            return net.minecraft.network.chat.Component.translatable("message.colossal_reactors.reactor_valid");
-        }
-        return failureMessage(result.failure(), result.report());
-    }
-
     public static net.minecraft.network.chat.Component failureMessage(FailureCode failure, ValidationReport r) {
         return switch (failure) {
             case BAD_START -> net.minecraft.network.chat.Component.translatable(
@@ -261,7 +275,23 @@ public final class ReactorValidation {
                     "message.colossal_reactors.reactor_invalid.rod_count_mismatch");
             case EXTERIOR_CONTROLLER_COUNT -> net.minecraft.network.chat.Component.translatable(
                     "message.colossal_reactors.reactor_invalid.exterior_controller_count", r.exteriorControllers());
+            case REDSTONE_PORT_COUNT -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.reactor_invalid.redstone_port_count");
         };
+    }
+
+    public static net.minecraft.network.chat.Component failureMessage(Result result) {
+        if (result.valid() || result.failure() == null) {
+            return net.minecraft.network.chat.Component.translatable("message.colossal_reactors.reactor_valid");
+        }
+        return failureMessage(result.failure(), result.report());
+    }
+
+    public static net.minecraft.network.chat.Component failureMessage(int failureOrdinal) {
+        if (failureOrdinal < 0 || failureOrdinal >= FailureCode.values().length) {
+            return net.minecraft.network.chat.Component.translatable("gui.colossal_reactors.reactor_controller.status.invalid");
+        }
+        return failureMessage(FailureCode.values()[failureOrdinal], ValidationReport.empty());
     }
 
     private static void logDebug(ValidationReport report, @Nullable FailureCode failure, boolean valid) {
@@ -339,6 +369,16 @@ public final class ReactorValidation {
         private int width, height, length;
         private int exteriorControllers;
         private int rodColumnsExpected;
+        private int redstonePortCount;
+        private long[] redstonePortPositions = new long[0];
+
+        void redstonePorts(List<BlockPos> positions) {
+            this.redstonePortCount = positions.size();
+            this.redstonePortPositions = new long[positions.size()];
+            for (int i = 0; i < positions.size(); i++) {
+                this.redstonePortPositions[i] = positions.get(i).asLong();
+            }
+        }
 
         void bounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int w, int h, int l) {
             this.minX = minX;
@@ -362,7 +402,7 @@ public final class ReactorValidation {
 
         ValidationReport build() {
             return new ValidationReport(minX, minY, minZ, maxX, maxY, maxZ, width, height, length,
-                    exteriorControllers, rodColumnsExpected);
+                    exteriorControllers, rodColumnsExpected, redstonePortCount, redstonePortPositions);
         }
     }
 }

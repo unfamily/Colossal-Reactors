@@ -95,6 +95,21 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
 
     private int drawPanelContent(GuiGraphics guiGraphics, int scrollOffset) {
         int y = PANEL_Y - scrollOffset;
+        int contentStart = y;
+
+        if (!menu.isValid()) {
+            ReactorPanelText.drawStatusLine(guiGraphics, font, PANEL_X, y,
+                    Component.translatable("gui.colossal_reactors.reactor_controller.status.invalid"), null);
+            y += LINE_HEIGHT;
+
+            Component failure = menu.getFailureDetail();
+            for (var line : font.split(failure, GuiPanelScrollbar.TEXT_RIGHT - PANEL_X)) {
+                guiGraphics.drawString(font, line, PANEL_X, y, 0xFF5555, false);
+                y += LINE_HEIGHT;
+            }
+            return y - contentStart;
+        }
+
         int stateId = menu.getControllerStateId();
         boolean effectivelyOff = (stateId == 2 && menu.hasRedstonePort() && !menu.isRedstoneGateSatisfied());
         Component statusKey = switch (stateId) {
@@ -175,7 +190,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
             y += LINE_HEIGHT;
         }
 
-        return y - (PANEL_Y - scrollOffset);
+        return y - contentStart;
     }
 
     @Override

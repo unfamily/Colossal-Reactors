@@ -235,7 +235,6 @@ public final class ReactorSimulation {
         double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
 
         CoolantDefinition coolantDef = controller.getCoolantDefinition(level.registryAccess());
-        if (coolantDef == null) coolantDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null ? coolantDef.mbMultiplier() : 1.0;
         Fluid coolantFluidFromPorts = (coolantDef != null) ? CoolantLoader.getFirstFluidFromDefinition(coolantDef, level.registryAccess()) : null;
@@ -412,9 +411,6 @@ public final class ReactorSimulation {
             }
         }
 
-        pushEjectToPorts(controller, resourcePorts, level.registryAccess());
-        pushWasteToPorts(controller, resourcePorts, level.registryAccess());
-
         int fuelHundredths = (int) Math.round(fuelUnitsConsumedThisTick * 100);
         controller.setLastTickStats(rfPushedThisTick, steamProducedThisTick, waterConsumedThisTick, fuelHundredths);
 
@@ -422,6 +418,36 @@ public final class ReactorSimulation {
             updateStability(level, controller, result, rfProduced, waterMode, waterConsumedThisTick,
                     coolantDef, heatSink.sumOverheatingAdj(), heatSink.sumOverheatingNon(), baseRf);
         }
+    }
+
+    /**
+     * Pushes EJECT fuel/coolant and EXTRACT waste to resource ports. Runs every controller tick while the
+     * multiblock is valid, independent of fuel level, RF export capacity, or redstone gate.
+     */
+    public static void flushResourcePorts(ServerLevel level, ReactorControllerBlockEntity controller) {
+        ReactorValidation.Result result = controller.getCachedResult();
+        if (result == null || !result.valid()) {
+            return;
+        }
+
+        long[] resourcePortPositions = controller.getCachedResourcePortPositions();
+        if (resourcePortPositions.length == 0) {
+            controller.rebuildPartCaches(level, result);
+            resourcePortPositions = controller.getCachedResourcePortPositions();
+        }
+
+        List<ResourcePortBlockEntity> resourcePorts = new ArrayList<>();
+        for (long p : resourcePortPositions) {
+            if (level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port) {
+                resourcePorts.add(port);
+            }
+        }
+        if (resourcePorts.isEmpty()) {
+            return;
+        }
+
+        pushEjectToPorts(controller, resourcePorts, level.registryAccess());
+        pushWasteToPorts(controller, resourcePorts, level.registryAccess());
     }
 
     private static long availableRfExportCapacity(List<ReactorPowerPort> powerPorts) {
@@ -529,6 +555,7 @@ public final class ReactorSimulation {
             int remaining = consumed;
             for (ResourcePortBlockEntity port : ejectPorts) {
                 if (remaining <= 0) break;
+                if (!port.getPortFilter().acceptsCoolantRole()) continue;
                 if (!port.isAllowLiquid() || port.isAllowGas()) continue;
                 int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
                 remaining -= filled;

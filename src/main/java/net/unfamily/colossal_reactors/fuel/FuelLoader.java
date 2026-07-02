@@ -181,9 +181,9 @@ public class FuelLoader {
                 return def;
             }
         }
-        FuelDefinition legacy = DEFINITIONS.get(wasteBufferId);
-        if (legacy != null && wasteBufferId.equals(legacy.wasteId())) {
-            return legacy;
+        FuelDefinition byKey = DEFINITIONS.get(wasteBufferId);
+        if (byKey != null) {
+            return byKey;
         }
         // Pre-fix mek_fissile used colossal_reactors:spent_nuclear_waste as buffer id (wrong Mek output).
         ResourceLocation oldMekWasteBuffer = ResourceLocation.fromNamespaceAndPath(

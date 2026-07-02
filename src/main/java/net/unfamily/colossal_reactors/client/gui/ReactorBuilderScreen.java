@@ -31,7 +31,7 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
-import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
+import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
 import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -1000,7 +1000,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private void togglePreview() {
         BlockPos builderPos = menu.getBlockPos();
         boolean enabling = !menu.isPreviewEnabled();
-        PreviewMarkRenderer.getInstance().clearMarkersForBuilder(builderPos);
+        BuilderPreviewTracker.clearForBuilder(builderPos);
         PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, true));
         previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();

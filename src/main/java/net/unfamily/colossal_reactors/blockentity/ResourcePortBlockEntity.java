@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -25,6 +26,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import org.jetbrains.annotations.NotNull;
@@ -406,9 +409,23 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (MekChemicalHelper.isLoaded()) {
             int currentCap = getGasCapacityMb();
             if (currentCap != capacityMb) {
+                Object savedStack = null;
+                Object existing = getChemicalHandler();
+                if (existing != null) {
+                    try {
+                        Object inTank = existing.getClass().getMethod("getChemicalInTank", int.class).invoke(existing, 0);
+                        if (!MekChemicalHelper.isEmpty(inTank)) {
+                            savedStack = inTank;
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
                 chemicalHandler = MekChemicalHelper.createBasicTank(capacityMb);
                 if (chemicalHandler != null) {
                     chemicalHandler = MekChemicalHelper.wrapAsHandler(chemicalHandler);
+                    if (savedStack != null) {
+                        MekChemicalHelper.fill(chemicalHandler, savedStack, false);
+                    }
                 }
                 setChanged();
             }
@@ -597,7 +614,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         @Override
         @NotNull
         public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
-            if (!allowInsert()) {
+            if (!allowInsert() || !acceptsItemForCapability(stack)) {
                 return stack;
             }
             return itemHandler.insertItem(slot, stack, simulate);
@@ -619,7 +636,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
-            return allowInsert() && itemHandler.isItemValid(slot, stack);
+            return allowInsert() && acceptsItemForCapability(stack) && itemHandler.isItemValid(slot, stack);
         }
     }
 
@@ -653,7 +670,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            if (!allowFill()) {
+            if (!allowFill() || !acceptsFluidForCapability(resource)) {
                 return 0;
             }
             return fluidTank.fill(resource, action);
@@ -679,8 +696,50 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
-            return allowFill() && fluidTank.isFluidValid(tank, stack);
+            return allowFill() && acceptsFluidForCapability(stack) && fluidTank.isFluidValid(tank, stack);
         }
+    }
+
+    private boolean acceptsItemForCapability(ItemStack stack) {
+        if (stack.isEmpty() || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        boolean isFuel = FuelLoader.getDefinitionForItem(stack, registries) != null;
+        if (portFilter.acceptsFuelRole() && isFuel) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean acceptsFluidForCapability(FluidStack stack) {
+        if (stack.isEmpty() || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        Fluid fluid = stack.getFluid();
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return false;
+        }
+        boolean isFuel = FuelLoader.getDefinitionForFluid(fluid, registries) != null;
+        boolean isCoolant = CoolantLoader.getDefinitionForFluid(fluid, registries) != null;
+        if (portFilter.acceptsFuelRole() && isFuel) {
+            return true;
+        }
+        return portFilter.acceptsCoolantRole() && isCoolant;
+    }
+
+    private boolean acceptsChemicalForCapability(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack) || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        boolean isFuel = FuelLoader.getDefinitionForChemical(chemicalStack) != null;
+        boolean isCoolant = CoolantLoader.getDefinitionForChemical(chemicalStack, registries) != null;
+        if (portFilter.acceptsFuelRole() && isFuel) {
+            return true;
+        }
+        return portFilter.acceptsCoolantRole() && isCoolant;
     }
 
     @Nullable
@@ -694,6 +753,23 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                     if (!allowChemicalFill()) {
                         return MekChemicalHelper.rejectedInsertReturn(args);
                     }
+                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                    if (stack != null && !MekChemicalHelper.isEmpty(stack)
+                            && !acceptsChemicalForCapability(stack)) {
+                        return MekChemicalHelper.rejectedInsertReturn(args);
+                    }
+                }
+                if ("isChemicalValid".equals(name)) {
+                    if (allowChemicalFill()) {
+                        Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                        if (stack != null && !MekChemicalHelper.isEmpty(stack)
+                                && !acceptsChemicalForCapability(stack)) {
+                            return false;
+                        }
+                    } else if (!allowChemicalDrain()) {
+                        return false;
+                    }
+                    // EXTRACT/EJECT drain: no per-gas whitelist; type comes from fuel JSON output / tank contents.
                 }
                 if ("extractChemical".equals(name) && !allowChemicalDrain()) {
                     Class<?> stackClass = Class.forName("mekanism.api.chemical.ChemicalStack");
@@ -712,6 +788,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean allowChemicalDrain() {
-        return portMode == PortMode.EXTRACT || portMode == PortMode.EJECT;
+        return (portMode == PortMode.EXTRACT || portMode == PortMode.EJECT)
+                && mediumFlags.isAllowGas() && !mediumFlags.isAllowLiquid();
     }
 }

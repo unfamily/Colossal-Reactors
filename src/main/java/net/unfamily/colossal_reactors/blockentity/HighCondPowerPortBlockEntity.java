@@ -1,7 +1,5 @@
 package net.unfamily.colossal_reactors.blockentity;
 
-import com.brandon3055.brandonscore.api.power.IOPStorage;
-import com.brandon3055.brandonscore.capability.CapabilityOP;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -13,13 +11,13 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.transfer.FluxNetworksLongEnergyBridge;
 import net.unfamily.colossal_reactors.transfer.LongBackedForgeEnergyStorage;
 
 /**
  * High-conduction power port: {@code long} buffer and transfer rates.
- * Pushes to native OP ({@link IOPStorage}) when the neighbor exposes it (no parallel FE on that face),
- * otherwise Flux long API, then standard FE.
+ * Pushes to native OP when Brandon's Core is present, otherwise Flux long API, then standard FE.
  */
 public class HighCondPowerPortBlockEntity extends BlockEntity implements ReactorPowerPort {
 
@@ -28,7 +26,7 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
 
     private final long maxExtractPerTick;
     private final LongBackedForgeEnergyStorage energyStorage;
-    private final HighCondPowerPortOpStorage opOutput;
+    private Object opOutput;
 
     public HighCondPowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(), pos, state);
@@ -36,7 +34,6 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
         long maxExtractCfg = Config.HIGH_COND_POWER_PORT_MAX_EXTRACT.getAsLong();
         this.maxExtractPerTick = Math.min(capacity, maxExtractCfg);
         this.energyStorage = new LongBackedForgeEnergyStorage(capacity, 0L, capacity, 0L);
-        this.opOutput = new HighCondPowerPortOpStorage(energyStorage, maxExtractPerTick);
     }
 
     public void tick() {
@@ -60,18 +57,10 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
         }
     }
 
-    /**
-     * One transfer path per neighbor per tick. OP-capable faces use {@link IOPStorage} only (Draconic/BC register FE too).
-     */
     private long tryPushToNeighbor(BlockPos neighborPos, Direction intoNeighbor, long offer) {
-        if (ModList.get().isLoaded("brandonscore")) {
-            IOPStorage nativeOp = level.getCapability(CapabilityOP.BLOCK, neighborPos, intoNeighbor);
-            if (nativeOp != null) {
-                if (nativeOp.canReceive()) {
-                    return nativeOp.receiveOP(offer, false);
-                }
-                return 0L;
-            }
+        long opMoved = BrandonScoreIntegration.tryPushToNeighbor(level, neighborPos, intoNeighbor, offer);
+        if (opMoved > 0) {
+            return opMoved;
         }
 
         long fluxMoved = FluxNetworksLongEnergyBridge.tryReceiveEnergyLong(level, neighborPos, intoNeighbor, offer);
@@ -88,11 +77,17 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
     }
 
     public IEnergyStorage getEnergyStorageForCapability() {
-        return opOutput;
+        return energyStorage;
     }
 
-    /** OP capability (same instance as FE view; 1:1 with RF). */
-    public IOPStorage getOpStorageForCapability() {
+    /** OP capability when Brandon's Core is loaded. */
+    public Object getOpStorageForCapability() {
+        if (!ModList.get().isLoaded("brandonscore")) {
+            return null;
+        }
+        if (opOutput == null) {
+            opOutput = BrandonScoreIntegration.createOpStorage(energyStorage, maxExtractPerTick);
+        }
         return opOutput;
     }
 

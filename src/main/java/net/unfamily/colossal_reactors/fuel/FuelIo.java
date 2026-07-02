@@ -284,6 +284,14 @@ public final class FuelIo {
         if (wasteMb <= 0) {
             return;
         }
+        long portSpaceMb = ResourcePortOutputRouter.availableFuelGasSpace(extractPorts);
+        if (portSpaceMb <= 0) {
+            return;
+        }
+        wasteMb = (int) Math.min(wasteMb, portSpaceMb);
+        if (wasteMb <= 0) {
+            return;
+        }
         Object stack = MekChemicalHelper.createStack(chemId, wasteMb);
         if (stack == null) {
             return;

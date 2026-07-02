@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.Config;
 
 /**
@@ -60,17 +61,22 @@ public final class ReactorMeltdownIntegrations {
      */
     private static void triggerIskaExplosion(ServerLevel level, BlockPos center, int volume) {
         try {
-            Class<?> sysClass = Class.forName("net.unfamily.iskautils.explosion.ExplosionSystem");
             double linear = Math.min(1.0, (double) volume / REF_VOLUME_ISKA);
-            double scale = Math.sqrt(linear); // softer curve: smaller reactors keep higher relative scale
+            double scale = Math.sqrt(linear);
             int hRad = Math.max(5, (int) (ISKA_HORIZONTAL_MAX * scale));
             int vRad = Math.max(5, (int) (ISKA_VERTICAL_MAX * scale));
             float damage = (float) Math.max(50.0, ISKA_DAMAGE_MAX * scale);
+            if (ModList.get().isLoaded("iska_lib")) {
+                net.unfamily.iskalib.explosion.ExplosionSystem.createExplosion(
+                        level, center, hRad, vRad, ISKA_TICK_INTERVAL, damage, false);
+                return;
+            }
+            Class<?> sysClass = Class.forName("net.unfamily.iskautils.explosion.ExplosionSystem");
             sysClass.getMethod("createExplosion", ServerLevel.class, BlockPos.class,
                             int.class, int.class, int.class, float.class, boolean.class)
                     .invoke(null, level, center, hRad, vRad, ISKA_TICK_INTERVAL, damage, false);
         } catch (Throwable ignored) {
-            // Iska Utils not present or API changed
+            // Iska library/utils not present or API changed
         }
     }
 

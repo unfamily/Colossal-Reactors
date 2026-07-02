@@ -1,4 +1,4 @@
-package net.unfamily.colossal_reactors.blockentity;
+package net.unfamily.colossal_reactors.integration.brandonscore;
 
 import com.brandon3055.brandonscore.api.power.IOPStorage;
 import net.unfamily.colossal_reactors.transfer.LongBackedForgeEnergyStorage;
@@ -7,12 +7,12 @@ import net.unfamily.colossal_reactors.transfer.LongBackedForgeEnergyStorage;
  * Output-only {@link IOPStorage} for high-conduction power ports (Brandon's Core OP / Draconic).
  * 1 OP equals 1 FE; uses long transfers when neighbors support {@link IOPStorage}.
  */
-final class HighCondPowerPortOpStorage implements IOPStorage {
+public final class HighCondPowerPortOpStorage implements IOPStorage {
 
     private final LongBackedForgeEnergyStorage storage;
     private final long maxExtractPerTick;
 
-    HighCondPowerPortOpStorage(LongBackedForgeEnergyStorage storage, long maxExtractPerTick) {
+    public HighCondPowerPortOpStorage(LongBackedForgeEnergyStorage storage, long maxExtractPerTick) {
         this.storage = storage;
         this.maxExtractPerTick = maxExtractPerTick;
     }

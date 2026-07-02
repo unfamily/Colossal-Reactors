@@ -32,7 +32,7 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderCoilPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderOptionPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
-import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
+import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
 import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
@@ -938,7 +938,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private void togglePreview() {
         BlockPos builderPos = menu.getBlockPos();
         boolean enabling = !menu.isPreviewEnabled();
-        PreviewMarkRenderer.getInstance().clearMarkersForBuilder(builderPos);
+        BuilderPreviewTracker.clearForBuilder(builderPos);
         PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, false));
         previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();

@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.client.PreviewMarkRenderer;
+import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
 
 /** S2C: add one preview marker at the given position (reactor/turbine footprint preview). */
 public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, int color, int durationTicks)
@@ -35,7 +35,7 @@ public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, 
 
     public static void handle(ReactorPreviewMarkerPayload payload, IPayloadContext context) {
         context.enqueueWork(() ->
-                PreviewMarkRenderer.getInstance().addMarker(
+                BuilderPreviewTracker.addMarker(
                         payload.builderOrigin(), payload.pos(), payload.color(), payload.durationTicks()));
     }
 }

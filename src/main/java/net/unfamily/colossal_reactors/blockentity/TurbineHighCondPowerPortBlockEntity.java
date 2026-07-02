@@ -1,7 +1,5 @@
 package net.unfamily.colossal_reactors.blockentity;
 
-import com.brandon3055.brandonscore.api.power.IOPStorage;
-import com.brandon3055.brandonscore.capability.CapabilityOP;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -13,6 +11,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.transfer.FluxNetworksLongEnergyBridge;
 import net.unfamily.colossal_reactors.transfer.LongBackedForgeEnergyStorage;
 
@@ -23,7 +22,7 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
 
     private final long maxExtractPerTick;
     private final LongBackedForgeEnergyStorage energyStorage;
-    private final HighCondPowerPortOpStorage opOutput;
+    private Object opOutput;
 
     public TurbineHighCondPowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(), pos, state);
@@ -31,7 +30,6 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
         long maxExtractCfg = Config.TURBINE_HIGH_COND_POWER_PORT_MAX_EXTRACT.getAsLong();
         this.maxExtractPerTick = Math.min(capacity, maxExtractCfg);
         this.energyStorage = new LongBackedForgeEnergyStorage(capacity, 0L, capacity, 0L);
-        this.opOutput = new HighCondPowerPortOpStorage(energyStorage, maxExtractPerTick);
     }
 
     public void tick() {
@@ -56,14 +54,9 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
     }
 
     private long tryPushToNeighbor(BlockPos neighborPos, Direction intoNeighbor, long offer) {
-        if (ModList.get().isLoaded("brandonscore")) {
-            IOPStorage nativeOp = level.getCapability(CapabilityOP.BLOCK, neighborPos, intoNeighbor);
-            if (nativeOp != null) {
-                if (nativeOp.canReceive()) {
-                    return nativeOp.receiveOP(offer, false);
-                }
-                return 0L;
-            }
+        long opMoved = BrandonScoreIntegration.tryPushToNeighbor(level, neighborPos, intoNeighbor, offer);
+        if (opMoved > 0) {
+            return opMoved;
         }
 
         long fluxMoved = FluxNetworksLongEnergyBridge.tryReceiveEnergyLong(level, neighborPos, intoNeighbor, offer);
@@ -80,10 +73,16 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
     }
 
     public IEnergyStorage getEnergyStorageForCapability() {
-        return opOutput;
+        return energyStorage;
     }
 
-    public IOPStorage getOpStorageForCapability() {
+    public Object getOpStorageForCapability() {
+        if (!ModList.get().isLoaded("brandonscore")) {
+            return null;
+        }
+        if (opOutput == null) {
+            opOutput = BrandonScoreIntegration.createOpStorage(energyStorage, maxExtractPerTick);
+        }
         return opOutput;
     }
 
