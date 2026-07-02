@@ -28,7 +28,10 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraft.core.RegistryAccess;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
@@ -514,9 +517,23 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (MekChemicalHelper.isLoaded()) {
             int gasCap = getGasCapacityMb();
             if (gasCap != capacityMb) {
+                Object savedStack = null;
+                Object existing = getChemicalHandler();
+                if (existing != null) {
+                    try {
+                        Object inTank = existing.getClass().getMethod("getChemicalInTank", int.class).invoke(existing, 0);
+                        if (!MekChemicalHelper.isEmpty(inTank)) {
+                            savedStack = inTank;
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
                 chemicalHandler = MekChemicalHelper.createBasicTank(capacityMb);
                 if (chemicalHandler != null) {
                     chemicalHandler = MekChemicalHelper.wrapAsHandler(chemicalHandler);
+                    if (savedStack != null) {
+                        MekChemicalHelper.fill(chemicalHandler, savedStack, false);
+                    }
                 }
             }
         }
@@ -622,7 +639,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         @Override
         @NotNull
         public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
-            if (!allowInsert()) {
+            if (!allowInsert() || !acceptsItemForCapability(stack)) {
                 return stack;
             }
             return itemHandler.insertItem(slot, stack, simulate);
@@ -644,7 +661,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
-            return allowInsert() && itemHandler.isItemValid(slot, stack);
+            return allowInsert() && acceptsItemForCapability(stack) && itemHandler.isItemValid(slot, stack);
         }
 
         @Override
@@ -672,13 +689,13 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int insert(int index, FluidResource resource, int amount, TransactionContext transaction) {
-            if (!allowFill()) return 0;
+            if (!allowFill() || !acceptsFluidForCapability(resource)) return 0;
             return super.insert(index, resource, amount, transaction);
         }
 
         @Override
         public int insert(FluidResource resource, int amount, TransactionContext transaction) {
-            if (!allowFill()) return 0;
+            if (!allowFill() || !acceptsFluidForCapability(resource)) return 0;
             return super.insert(resource, amount, transaction);
         }
 
@@ -695,6 +712,54 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
+    private boolean acceptsItemForCapability(ItemStack stack) {
+        if (stack.isEmpty() || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        boolean isFuel = FuelLoader.getDefinitionForItem(stack, registries) != null;
+        return portFilter.acceptsFuelRole() && isFuel;
+    }
+
+    private boolean acceptsFluidForCapability(FluidResource resource) {
+        if (resource == null || resource.isEmpty() || level == null) {
+            return false;
+        }
+        FluidStack stack = resource.toStack(1);
+        if (stack.isEmpty()) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        Fluid fluid = stack.getFluid();
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return false;
+        }
+        boolean isFuel = FuelLoader.getDefinitionForFluid(fluid, registries) != null;
+        boolean isCoolant = CoolantLoader.getDefinitionForFluid(fluid, registries) != null;
+        if (portFilter.acceptsFuelRole() && isFuel) {
+            return true;
+        }
+        return portFilter.acceptsCoolantRole() && isCoolant;
+    }
+
+    private boolean acceptsChemicalForCapability(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack) || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        boolean isFuel = FuelLoader.getDefinitionForChemical(chemicalStack) != null;
+        boolean isCoolant = CoolantLoader.getDefinitionForChemical(chemicalStack, registries) != null;
+        if (portFilter.acceptsFuelRole() && isFuel) {
+            return true;
+        }
+        return portFilter.acceptsCoolantRole() && isCoolant;
+    }
+
+    /** EXTRACT/EJECT: chemical waste produced by reactor fuel recipes. */
+    private boolean acceptsChemicalWasteForCapability(@Nullable Object chemicalStack) {
+        return portFilter.acceptsFuelRole() && FuelLoader.isChemicalWasteOutput(chemicalStack);
+    }
+
     @Nullable
     private Object wrapFilteredChemicalHandler(@Nullable Object inner) {
         if (inner == null) return null;
@@ -705,6 +770,27 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 if ("insertChemical".equals(name)) {
                     if (!allowChemicalFill()) {
                         return MekChemicalHelper.rejectedInsertReturn(args);
+                    }
+                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                    if (stack != null && !MekChemicalHelper.isEmpty(stack)
+                            && !acceptsChemicalForCapability(stack)) {
+                        return MekChemicalHelper.rejectedInsertReturn(args);
+                    }
+                }
+                if ("isChemicalValid".equals(name)) {
+                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                    if (allowChemicalFill()) {
+                        if (stack != null && !MekChemicalHelper.isEmpty(stack)
+                                && !acceptsChemicalForCapability(stack)) {
+                            return false;
+                        }
+                    } else if (allowChemicalDrain()) {
+                        if (stack != null && !MekChemicalHelper.isEmpty(stack)
+                                && !acceptsChemicalWasteForCapability(stack)) {
+                            return false;
+                        }
+                    } else {
+                        return false;
                     }
                 }
                 if ("extractChemical".equals(name) && !allowChemicalDrain()) {

@@ -23,6 +23,7 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData data;
+    private final ReactorControllerBlockEntity blockEntity;
 
     private static final int INDEX_STATE = 0;
     private static final int INDEX_ROD_COUNT = 1;
@@ -48,10 +49,13 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     private static final int INDEX_WASTE_CAPACITY_UNITS = 21;
     /** Upper 32 bits of {@link ReactorControllerBlockEntity#getLastRfPerTick()} (low bits in {@link #INDEX_ENERGY_PER_TICK}). */
     private static final int INDEX_ENERGY_PER_TICK_HI = 22;
-    private static final int DATA_COUNT = 23;
+    private static final int INDEX_VALID = 23;
+    private static final int INDEX_FAILURE = 24;
+    private static final int DATA_COUNT = 25;
 
     public ReactorControllerMenu(int containerId, Inventory playerInventory, ReactorControllerBlockEntity blockEntity) {
         super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
+        this.blockEntity = blockEntity;
         this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
         this.data = new ContainerData() {
             @Override
@@ -89,6 +93,13 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
                     case INDEX_COOLANT_CAPACITY_MB -> Math.max(0, blockEntity.getCoolantCapacityMbTotal());
                     case INDEX_WASTE_STORED_UNITS -> (int) Math.min(Integer.MAX_VALUE, Math.max(0, Math.round(blockEntity.getTotalWasteUnits())));
                     case INDEX_WASTE_CAPACITY_UNITS -> Math.max(0, blockEntity.getMaxFuelUnitsTotal());
+                    case INDEX_VALID -> result != null && result.valid() ? 1 : 0;
+                    case INDEX_FAILURE -> {
+                        if (result == null || result.valid() || result.failure() == null) {
+                            yield -1;
+                        }
+                        yield result.failure().ordinal();
+                    }
                     default -> 0;
                 };
             }
@@ -119,6 +130,7 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
 
     public ReactorControllerMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.REACTOR_CONTROLLER_MENU.get(), containerId);
+        this.blockEntity = null;
         this.levelAccess = ContainerLevelAccess.NULL;
         this.data = new SimpleContainerData(DATA_COUNT);
         addDataSlots(data);
@@ -179,6 +191,28 @@ public class ReactorControllerMenu extends AbstractContainerMenu {
     /** True when reactor unstability (evil_things) is enabled; stability line is shown only then. */
     public boolean isUnstabilityEnabled() {
         return data.get(INDEX_UNSTABILITY_ENABLED) != 0;
+    }
+
+    public boolean isValid() {
+        return data.get(INDEX_VALID) != 0;
+    }
+
+    /** {@link ReactorValidation.FailureCode#ordinal()}, or -1 if valid. */
+    public int getFailureOrdinal() {
+        return data.get(INDEX_FAILURE);
+    }
+
+    public net.minecraft.network.chat.Component getFailureDetail() {
+        if (isValid()) {
+            return net.minecraft.network.chat.Component.empty();
+        }
+        if (blockEntity != null) {
+            ReactorValidation.Result result = blockEntity.getCachedResult();
+            if (result != null && !result.valid() && result.failure() != null) {
+                return ReactorValidation.failureMessage(result.failure(), result.report());
+            }
+        }
+        return ReactorValidation.failureMessage(getFailureOrdinal());
     }
 
     @Override

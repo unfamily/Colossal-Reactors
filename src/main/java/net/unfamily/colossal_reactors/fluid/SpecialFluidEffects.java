@@ -45,14 +45,14 @@ public final class SpecialFluidEffects {
 
         if (entity instanceof LivingEntity living) {
             // Breezium: strong freeze (MC 26+: no per-fluid-type height on LivingEntity; use feet fluid column)
-            double breeziumHeight = fluidColumnHeightAtFeet(level, living, ModFluids.GELID_BREEZIUM.getSource(), ModFluids.GELID_BREEZIUM.getFlowing());
+            double breeziumHeight = fluidColumnHeightAtFeet(level, living, ModFluids.GELID_BREEZIUM.sourceFluid(), ModFluids.GELID_BREEZIUM.flowingFluid());
             if (breeziumHeight > 0) {
                 living.setTicksFrozen(BREEZIUM_FREEZE_TICKS);
                 DamageSource freeze = level.damageSources().source(DamageTypes.FREEZE);
                 living.hurt(freeze, BREEZIUM_FREEZE_DAMAGE);
             }
 
-            double enderHeight = fluidColumnHeightAtFeet(level, living, ModFluids.ENDER_GOO.getSource(), ModFluids.ENDER_GOO.getFlowing());
+            double enderHeight = fluidColumnHeightAtFeet(level, living, ModFluids.ENDER_GOO.sourceFluid(), ModFluids.ENDER_GOO.flowingFluid());
             if (enderHeight > 0) {
                 int cooldown = enderGooCooldowns.getOrDefault(living.getUUID(), 0);
                 if (cooldown <= 0) {

@@ -12,10 +12,8 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
-import net.neoforged.neoforge.client.event.RegisterFluidModelsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.fml.ModList;
@@ -48,10 +46,10 @@ import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import net.unfamily.colossal_reactors.client.ColossalClientSetup;
 import net.unfamily.colossal_reactors.client.ColossalReactorsClientEvents;
 import net.unfamily.colossal_reactors.client.GuideMeRegistration;
-import net.unfamily.colossal_reactors.client.ColossalFluidModels;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.client.ColossalModelLoaders;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
 import net.unfamily.iskalib.client.marker.VanillaWorldMarkerClientHooks;
@@ -79,8 +77,7 @@ public class ColossalReactors {
         if (ModList.get().isLoaded("mekanism")) {
             ModMekItems.MEK_ITEMS.register(modEventBus);
         }
-        ModFluids.FLUID_TYPES.register(modEventBus);
-        ModFluids.FLUIDS.register(modEventBus);
+        ModFluids.register(modEventBus);
 
         // Gas (steam): NeoForge 26.x via iska_lib — uses this mod's deferred registers (no second registrar).
         STEAM_GAS = IskaLibGases.registerGas(
@@ -110,11 +107,10 @@ public class ColossalReactors {
                 VanillaWorldMarkerClientHooks.registerIfNeeded(NeoForge.EVENT_BUS);
             }));
             modEventBus.addListener(AddClientReloadListenersEvent.class, ColossalReactors::onAddClientReloadListeners);
-            modEventBus.addListener(RegisterFluidModelsEvent.class, ColossalFluidModels::registerFluidModels);
             modEventBus.addListener(RegisterMenuScreensEvent.class, ColossalClientSetup::registerMenuScreens);
-            modEventBus.addListener(ModelEvent.RegisterLoaders.class, ColossalModelLoaders::registerModelLoaders);
+            modEventBus.addListener(net.neoforged.neoforge.client.event.ModelEvent.RegisterLoaders.class, ColossalModelLoaders::registerModelLoaders);
             modEventBus.addListener(EntityRenderersEvent.RegisterRenderers.class, TurbineRotorClientRegistration::registerRenderers);
-            modEventBus.addListener(ModelEvent.ModifyBakingResult.class, TurbineRotorClientRegistration::onModifyBakingResult);
+            modEventBus.addListener(net.neoforged.neoforge.client.event.ModelEvent.ModifyBakingResult.class, TurbineRotorClientRegistration::onModifyBakingResult);
         }
 
     }
@@ -150,6 +146,7 @@ public class ColossalReactors {
                 (be, direction) -> ((PowerPortBlockEntity) be).getEnergyHandlerForCapability());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(),
                 (be, direction) -> ((HighCondPowerPortBlockEntity) be).getEnergyHandlerForCapability());
+        BrandonScoreIntegration.registerHighCondPowerPortCapabilities(event);
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
                 (be, direction) -> ((TurbineResourcePortBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.TURBINE_RESOURCE_PORT_BE.get(),
@@ -159,6 +156,7 @@ public class ColossalReactors {
                 (be, direction) -> ((TurbinePowerPortBlockEntity) be).getEnergyHandlerForCapability());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(),
                 (be, direction) -> ((TurbineHighCondPowerPortBlockEntity) be).getEnergyHandlerForCapability());
+        BrandonScoreIntegration.registerTurbineHighCondPowerPortCapabilities(event);
         // Heating coil: by default only front face accepts items/fluids/energy; all_sides overrides that; no_* disables type
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.HEATING_COIL_BE.get(),
                 (be, direction) -> ((HeatingCoilBlockEntity) be).allowsCapabilityOnSide(direction)

@@ -179,8 +179,11 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, total));
     }
 
-    /** Coolant definition from stored coolant fluids; prefers water when present. */
+    /** Coolant definition from stored coolant fluids; null when buffer is empty (RF-only mode). */
     public net.unfamily.colossal_reactors.coolant.CoolantDefinition getCoolantDefinition(net.minecraft.core.RegistryAccess registryAccess) {
+        if (coolantEntries.isEmpty() || getTotalCoolantMb() <= 0) {
+            return null;
+        }
         net.unfamily.colossal_reactors.coolant.CoolantDefinition waterDef =
                 net.unfamily.colossal_reactors.coolant.CoolantLoader.get(net.unfamily.colossal_reactors.coolant.CoolantLoader.WATER_COOLANT_ID);
         for (CoolantEntry e : coolantEntries) {
@@ -197,7 +200,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             var def = net.unfamily.colossal_reactors.coolant.CoolantLoader.getDefinitionForFluid(fluid, registryAccess);
             if (def != null) return def;
         }
-        return waterDef;
+        return null;
     }
 
     /** Adds coolant (mB) by fluid type; clamps to total capacity. Returns amount actually added. */
@@ -679,7 +682,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
             ReactorValidation.ValidationReport report = new ReactorValidation.ValidationReport(
                     minX.get(), minY, minZ, maxX, maxY, maxZ,
                     maxX - minX.get() + 1, maxY - minY + 1, maxZ - minZ + 1,
-                    0, rodColumns);
+                    0, rodColumns, 0, new long[0]);
             cachedResult = new ReactorValidation.Result(
                     true, null, null, report,
                     minX.get(), minY, minZ, maxX, maxY, maxZ,

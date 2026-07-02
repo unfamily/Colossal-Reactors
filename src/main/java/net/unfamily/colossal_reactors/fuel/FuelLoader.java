@@ -13,6 +13,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.util.FluidInputMatcher;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
@@ -241,6 +243,44 @@ public class FuelLoader {
             }
         }
         return tagMatch;
+    }
+
+    @Nullable
+    public static FuelDefinition getDefinitionForChemical(Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return null;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (!def.acceptsInputMedium(FuelMedium.CHEMICAL)) {
+                continue;
+            }
+            for (String input : def.inputs()) {
+                if (!MaterialSelector.isChemicalPrefix(input)) {
+                    continue;
+                }
+                if (MaterialSelector.matchesChemical(chemicalStack, input)) {
+                    return def;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** True when the Mek chemical matches a fuel recipe's chemical waste output (e.g. nuclear waste). */
+    public static boolean isChemicalWasteOutput(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return false;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (def.outputMedium() != FuelMedium.CHEMICAL) {
+                continue;
+            }
+            String output = def.output();
+            if (output != null && MaterialSelector.matchesChemical(chemicalStack, output)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable

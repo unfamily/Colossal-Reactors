@@ -12,6 +12,9 @@ import net.unfamily.colossal_reactors.network.ModPayloads;
 import net.unfamily.colossal_reactors.tags.ModBlockTags;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Validates turbine multiblock structure (shell, rods, blades, coil zone).
  */
@@ -31,7 +34,8 @@ public final class TurbineValidation {
         ROD_NOT_TO_FLOOR,
         UNBALANCED_BLADES,
         EXTERIOR_CONTROLLER_COUNT,
-        INTERIOR_UNKNOWN
+        INTERIOR_UNKNOWN,
+        REDSTONE_PORT_COUNT
     }
 
     public record ValidationReport(
@@ -49,11 +53,13 @@ public final class TurbineValidation {
             int closureInteriorIndex,
             int coilZoneStartInterior,
             int coilLayersUsed,
-            int rodControllersFound
+            int rodControllersFound,
+            int redstonePortCount,
+            long[] redstonePortPositions
     ) {
         public static ValidationReport empty() {
             return new ValidationReport(0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    null, null, null, null, null, null, 0, null, 0, 0, 0, 0, 0);
+                    null, null, null, null, null, null, 0, null, 0, 0, 0, 0, 0, 0, new long[0]);
         }
     }
 
@@ -231,6 +237,7 @@ public final class TurbineValidation {
         int coilBlockCount = 0;
         double sumCoe = 0;
         double sumMax = 0;
+        List<BlockPos> redstonePorts = new ArrayList<>();
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
@@ -238,6 +245,9 @@ public final class TurbineValidation {
                     boolean onBorder = x == minX || x == maxX || y == minY || y == maxY || z == minZ || z == maxZ;
                     BlockState state = level.getBlockState(p);
                     if (onBorder) {
+                        if (state.is(ModBlocks.TURBINE_REDSTONE_PORT.get())) {
+                            redstonePorts.add(p.immutable());
+                        }
                         if (isRodController(state)) {
                             return fail(FailureCode.ROD_CONTROLLER_BORDER, p, report.build());
                         }
@@ -291,6 +301,11 @@ public final class TurbineValidation {
             if (unbalanced != null) {
                 return fail(FailureCode.UNBALANCED_BLADES, unbalanced, report.build());
             }
+        }
+
+        report.redstonePorts(redstonePorts);
+        if (redstonePorts.size() >= 2) {
+            return fail(FailureCode.REDSTONE_PORT_COUNT, null, report.build());
         }
 
         double coilEff = coilBlockCount > 0
@@ -482,6 +497,12 @@ public final class TurbineValidation {
         if (result.valid() || result.failure() == null) {
             return;
         }
+        if (result.failure() == FailureCode.REDSTONE_PORT_COUNT) {
+            for (long packed : result.report().redstonePortPositions()) {
+                ModPayloads.sendEphemeralPreviewMarker(player, BlockPos.of(packed), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
+            }
+            return;
+        }
         if (result.failurePos() != null) {
             ModPayloads.sendEphemeralPreviewMarker(player, result.failurePos(), MARKER_COLOR_ERROR, MARKER_DURATION_TICKS);
         }
@@ -552,6 +573,8 @@ public final class TurbineValidation {
                     "message.colossal_reactors.turbine_invalid.exterior_controller_count", r.exteriorControllers());
             case INTERIOR_UNKNOWN -> net.minecraft.network.chat.Component.translatable(
                     "message.colossal_reactors.turbine_invalid.interior_unknown");
+            case REDSTONE_PORT_COUNT -> net.minecraft.network.chat.Component.translatable(
+                    "message.colossal_reactors.turbine_invalid.redstone_port_count");
         };
     }
 
@@ -754,6 +777,17 @@ public final class TurbineValidation {
             private int coilZoneStartInterior;
             private int coilLayersUsed;
             private int rodControllersFound;
+            private int redstonePortCount;
+            private long[] redstonePortPositions = new long[0];
+
+            ValidationReportBuilder redstonePorts(List<BlockPos> positions) {
+                this.redstonePortCount = positions.size();
+                this.redstonePortPositions = new long[positions.size()];
+                for (int i = 0; i < positions.size(); i++) {
+                    this.redstonePortPositions[i] = positions.get(i).asLong();
+                }
+                return this;
+            }
 
             ValidationReportBuilder bounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int w, int h, int l) {
                 this.minX = minX;
@@ -806,7 +840,8 @@ public final class TurbineValidation {
                         minX, minY, minZ, maxX, maxY, maxZ, width, height, length,
                         faceCenterNegX, faceCenterPosX, faceCenterNegY, faceCenterPosY, faceCenterNegZ, faceCenterPosZ,
                         exteriorControllers, growthAxis, closureCoord, closureInteriorIndex,
-                        coilZoneStartInterior, coilLayersUsed, rodControllersFound);
+                        coilZoneStartInterior, coilLayersUsed, rodControllersFound,
+                        redstonePortCount, redstonePortPositions);
             }
     }
 }

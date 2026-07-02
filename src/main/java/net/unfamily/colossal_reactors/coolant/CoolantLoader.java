@@ -16,6 +16,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -272,6 +273,21 @@ public class CoolantLoader {
         }
         if (fluid != null && fluid != Fluids.EMPTY) {
             return Component.translatable(fluid.getFluidType().getDescriptionId());
+        }
+        return null;
+    }
+
+    @Nullable
+    public static CoolantDefinition getDefinitionForChemical(Object chemicalStack, RegistryAccess registryAccess) {
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return null;
+        }
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String input : def.inputs()) {
+                if (MaterialSelector.matchesChemical(chemicalStack, input.startsWith("%") ? input : "%" + input)) {
+                    return def;
+                }
+            }
         }
         return null;
     }

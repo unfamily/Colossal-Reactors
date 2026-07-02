@@ -6,23 +6,26 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil;
 import net.neoforged.neoforge.transfer.energy.LimitingEnergyHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.transfer.FluxNetworksLongEnergyBridge;
 import net.unfamily.colossal_reactors.transfer.LongBackedEnergyHandler;
 
 /**
  * High-conduction power port: {@code long} buffer and transfer rates.
- * Pushes to Flux long API when available, then standard {@link EnergyHandler} (int per operation).
+ * Pushes to native OP when Brandon's Core is present, otherwise Flux long API, then standard energy API.
  */
 public class HighCondPowerPortBlockEntity extends BlockEntity implements ReactorPowerPort {
 
     private final long maxExtractPerTick;
     private final LongBackedEnergyHandler core;
     private final EnergyHandler capabilityView;
+    private Object opOutput;
 
     public HighCondPowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.HIGH_COND_POWER_PORT_BE.get(), pos, state);
@@ -44,6 +47,14 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
             long stored = core.getAmountAsLong();
             long offer = Math.min(budget, stored);
             if (offer <= 0) continue;
+
+            long opMoved = BrandonScoreIntegration.tryPushToNeighbor(level, neighborPos, intoNeighbor, offer);
+            if (opMoved > 0) {
+                core.extractEnergyLong(opMoved);
+                budget -= opMoved;
+                setChanged();
+                continue;
+            }
 
             long fluxMoved = FluxNetworksLongEnergyBridge.tryReceiveEnergyLong(level, neighborPos, intoNeighbor, offer);
             if (fluxMoved > 0) {
@@ -70,6 +81,17 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
 
     public LongBackedEnergyHandler getEnergyCore() {
         return core;
+    }
+
+    /** OP capability when Brandon's Core is loaded. */
+    public Object getOpStorageForCapability() {
+        if (!ModList.get().isLoaded("brandonscore")) {
+            return null;
+        }
+        if (opOutput == null) {
+            opOutput = BrandonScoreIntegration.createOpStorage(core, maxExtractPerTick);
+        }
+        return opOutput;
     }
 
     @Override

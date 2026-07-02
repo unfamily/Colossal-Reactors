@@ -1,183 +1,77 @@
 package net.unfamily.colossal_reactors.fluid;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.FlowingFluid;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.MapColor;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.BucketItem;
-import net.minecraft.world.item.Items;
+import net.minecraft.resources.Identifier;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.registries.DeferredRegister;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.BreeziumBlock;
 import net.unfamily.colossal_reactors.block.EnderGooBlock;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.item.ModItems;
-import net.neoforged.neoforge.common.SoundActions;
-import net.neoforged.neoforge.fluids.BaseFlowingFluid;
-import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
-
-import java.util.function.BiFunction;
+import net.unfamily.iskalib.liquid.IskaLibLiquids;
+import net.unfamily.iskalib.liquid.LiquidRegistrationRegisters;
+import net.unfamily.iskalib.liquid.LiquidSpec;
+import net.unfamily.iskalib.liquid.RegisteredLiquid;
 
 /**
- * Registers fluid types and fluids. Molten metals use custom block/fluid textures with tint.
- * Custom molten alloys (tough, stainless) plus gelid breezium and ender goo.
+ * Fluid deferred registers and registration via Iskandert Library ({@link IskaLibLiquids}).
  */
 public final class ModFluids {
 
-    /**
-     * ARGB tint colors for client fluid rendering ({@code RegisterFluidModelsEvent}),
-     * matching legacy Colossal-Reactors {@code IClientFluidTypeExtensions#getTintColor}.
-     */
-    public static final class FluidColors {
-        public static final int MOLTEN_TOUGH_ALLOY = 0xFF5A6A7A;
-        public static final int MOLTEN_STAINLESS_STEEL = 0xFFFF2F23;
-        /** Bright cyan over vanilla water still/flow. */
-        public static final int GELID_BREEZIUM = 0xFF00E5FF;
-        /** Dark teal over molten still/flow. */
-        public static final int ENDER_GOO = 0xFF2C4742;
-
-        private FluidColors() {}
-    }
-
     public static final DeferredRegister<FluidType> FLUID_TYPES =
             DeferredRegister.create(net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.FLUID_TYPES, ColossalReactors.MODID);
-    public static final DeferredRegister<Fluid> FLUIDS =
+    public static final DeferredRegister<net.minecraft.world.level.material.Fluid> FLUIDS =
             DeferredRegister.create(BuiltInRegistries.FLUID, ColossalReactors.MODID);
 
-    /** Molten tough alloy (Synergy does not provide this). Uses custom molten textures. */
-    public static final TintedFluid MOLTEN_TOUGH_ALLOY = registerMolten("molten_tough_alloy", FluidColors.MOLTEN_TOUGH_ALLOY,
-            "fluid.colossal_reactors.molten_tough_alloy");
+    private static final Identifier WATER_OVERLAY =
+            Identifier.withDefaultNamespace("block/water_overlay");
 
-    public static final TintedFluid MOLTEN_STAINLESS_STEEL = registerMolten("molten_stainless_steel", FluidColors.MOLTEN_STAINLESS_STEEL,
-            "fluid.colossal_reactors.molten_stainless_steel");
-
-    /** Ender goo: teleports entities on contact. Uses custom EnderGooBlock. */
-    public static final TintedFluid ENDER_GOO = registerEnderGoo();
-
-    /** Gelid breezium: gravity, 3x3 snow, freezes water, cold damage. Uses custom BreeziumBlock. */
-    public static final TintedFluid GELID_BREEZIUM = registerGelidBreezium();
+    public static RegisteredLiquid MOLTEN_TOUGH_ALLOY;
+    public static RegisteredLiquid MOLTEN_STAINLESS_STEEL;
+    public static RegisteredLiquid GELID_BREEZIUM;
+    public static RegisteredLiquid ENDER_GOO;
 
     private ModFluids() {}
 
-    /**
-     * Registers a molten metal fluid with custom still/flow textures and ARGB tint.
-     * Hot (1300), high viscosity, not swimmable.
-     */
-    private static TintedFluid registerMolten(String name, int tintColor, String descriptionId) {
-        DeferredHolder<FluidType, FluidType> type = FLUID_TYPES.register(name + "_type",
-                () -> new FluidType(FluidType.Properties.create()
-                        .descriptionId(descriptionId)
-                        .lightLevel(7)
-                        .temperature(1300)
-                        .viscosity(6000)
-                        .canDrown(false)
-                        .canSwim(false)
-                        .canPushEntity(true)
-                        .canConvertToSource(false)
-                        .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
+    public static void register(IEventBus modEventBus) {
+        FLUID_TYPES.register(modEventBus);
+        FLUIDS.register(modEventBus);
 
-        return registerTintedFluid(name, type, 7, false);
-    }
+        var registers = new LiquidRegistrationRegisters(
+                FLUID_TYPES, FLUIDS, ModBlocks.BLOCKS, ModItems.ITEMS);
 
-    /**
-     * Gelid breezium: water-like fluid with bright cyan tint. Cold, swimmable.
-     */
-    private static TintedFluid registerGelidBreezium() {
-        DeferredHolder<FluidType, FluidType> type = FLUID_TYPES.register("gelid_breezium_type",
-                () -> new FluidType(FluidType.Properties.create()
-                        .descriptionId("fluid.colossal_reactors.gelid_breezium")
-                        .lightLevel(0)
-                        .temperature(260)
-                        .viscosity(1000)
-                        .canDrown(true)
-                        .canSwim(true)
-                        .canPushEntity(true)
-                        .canConvertToSource(false)
-                        .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
+        MOLTEN_TOUGH_ALLOY = IskaLibLiquids.registerLiquid(modEventBus, registers,
+                LiquidSpec.withThickLibrarySprites(
+                                ColossalReactors.MODID, "molten_tough_alloy", 0xFF5A6A7A,
+                                "fluid.colossal_reactors.molten_tough_alloy", 7, true)
+                        .withMoltenType()
+                        .withBlockLightLevel(7)
+                        .withOverlay(WATER_OVERLAY));
 
-        return registerTintedFluid("gelid_breezium", type, 0, true, BreeziumBlock::new);
-    }
+        MOLTEN_STAINLESS_STEEL = IskaLibLiquids.registerLiquid(modEventBus, registers,
+                LiquidSpec.withThickLibrarySprites(
+                                ColossalReactors.MODID, "molten_stainless_steel", 0xFFFF2F23,
+                                "fluid.colossal_reactors.molten_stainless_steel", 7, true)
+                        .withMoltenType()
+                        .withBlockLightLevel(7)
+                        .withOverlay(WATER_OVERLAY));
 
-    /** Ender goo: same visuals as molten, custom block for teleport-on-contact (handled in SpecialFluidEffects). */
-    private static TintedFluid registerEnderGoo() {
-        DeferredHolder<FluidType, FluidType> type = FLUID_TYPES.register("ender_goo_type",
-                () -> new FluidType(FluidType.Properties.create()
-                        .descriptionId("fluid.colossal_reactors.ender_goo")
-                        .lightLevel(7)
-                        .temperature(1300)
-                        .viscosity(6000)
-                        .canDrown(false)
-                        .canSwim(false)
-                        .canPushEntity(true)
-                        .canConvertToSource(false)
-                        .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                        .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
-        return registerTintedFluid("ender_goo", type, 7, false, EnderGooBlock::new);
-    }
+        GELID_BREEZIUM = IskaLibLiquids.registerLiquid(modEventBus, registers,
+                LiquidSpec.withThinVanillaWaterSprites(
+                                ColossalReactors.MODID, "gelid_breezium", 0xFF00E5FF,
+                                "fluid.colossal_reactors.gelid_breezium", 0, true)
+                        .withColdWaterType()
+                        .withBlockFactory(BreeziumBlock::new));
 
-    /**
-     * Shared registration for a tinted fluid (block, bucket, source, flowing).
-     * Uses custom block class when blockFactory is provided (e.g. BreeziumBlock, EnderGooBlock).
-     */
-    private static TintedFluid registerTintedFluid(String name, DeferredHolder<FluidType, FluidType> type, int blockLightLevel, boolean sourceIdIsBaseName, BiFunction<FlowingFluid, BlockBehaviour.Properties, LiquidBlock> blockFactory) {
-        var refs = new Object() {
-            DeferredHolder<Fluid, BaseFlowingFluid.Source> source;
-            DeferredHolder<Fluid, FlowingFluid> flowing;
-            DeferredBlock<Block> block;
-            DeferredHolder<Item, BucketItem> bucket;
-        };
-
-        BaseFlowingFluid.Properties prop = new BaseFlowingFluid.Properties(
-                        type,
-                        () -> refs.source.get(),
-                        () -> refs.flowing.get())
-                .block(() -> (LiquidBlock) refs.block.get())
-                .bucket(() -> refs.bucket.get());
-
-        String sourceId = sourceIdIsBaseName ? name : (name + "_source");
-        refs.source = FLUIDS.register(sourceId, () -> new BaseFlowingFluid.Source(prop));
-        refs.flowing = FLUIDS.register(name + "_flowing", () -> new BaseFlowingFluid.Flowing(prop));
-        refs.block = ModBlocks.BLOCKS.registerBlock(name,
-                props -> blockFactory.apply(refs.flowing.get(), props),
-                p -> p.mapColor(MapColor.COLOR_GRAY)
-                        .replaceable()
-                        .strength(100.0F)
-                        .pushReaction(PushReaction.DESTROY)
-                        .noLootTable()
-                        .liquid()
-                        .lightLevel(s -> blockLightLevel));
-        refs.bucket = ModItems.ITEMS.registerItem(name + "_bucket",
-                props -> new BucketItem(refs.source.get(), props),
-                () -> new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1));
-
-        return new TintedFluid(refs.source, refs.flowing, refs.block, refs.bucket);
-    }
-
-    /**
-     * Shared registration for a tinted fluid with default LiquidBlock.
-     */
-    private static TintedFluid registerTintedFluid(String name, DeferredHolder<FluidType, FluidType> type, int blockLightLevel, boolean sourceIdIsBaseName) {
-        return registerTintedFluid(name, type, blockLightLevel, sourceIdIsBaseName, LiquidBlock::new);
-    }
-
-    public record TintedFluid(
-            DeferredHolder<Fluid, BaseFlowingFluid.Source> source,
-            DeferredHolder<Fluid, FlowingFluid> flowing,
-            DeferredBlock<Block> block,
-            DeferredHolder<Item, BucketItem> bucket
-    ) {
-        public Fluid getSource() { return source.get(); }
-        public Fluid getFlowing() { return flowing.get(); }
-        public Block getBlock() { return block.get(); }
+        ENDER_GOO = IskaLibLiquids.registerLiquid(modEventBus, registers,
+                LiquidSpec.withThickLibrarySprites(
+                                ColossalReactors.MODID, "ender_goo", 0xFF2c4742,
+                                "fluid.colossal_reactors.ender_goo", 7, true)
+                        .withMoltenType()
+                        .withBlockLightLevel(7)
+                        .withBlockFactory(EnderGooBlock::new)
+                        .withOverlay(WATER_OVERLAY));
     }
 }

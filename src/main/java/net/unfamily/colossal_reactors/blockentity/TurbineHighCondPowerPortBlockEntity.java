@@ -6,11 +6,13 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil;
 import net.neoforged.neoforge.transfer.energy.LimitingEnergyHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.transfer.FluxNetworksLongEnergyBridge;
 import net.unfamily.colossal_reactors.transfer.LongBackedEnergyHandler;
 
@@ -19,6 +21,7 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
     private final long maxExtractPerTick;
     private final LongBackedEnergyHandler core;
     private final EnergyHandler capabilityView;
+    private Object opOutput;
 
     public TurbineHighCondPowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TURBINE_HIGH_COND_POWER_PORT_BE.get(), pos, state);
@@ -41,6 +44,14 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
             long offer = Math.min(budget, stored);
             if (offer <= 0) continue;
 
+            long opMoved = BrandonScoreIntegration.tryPushToNeighbor(level, neighborPos, intoNeighbor, offer);
+            if (opMoved > 0) {
+                core.extractEnergyLong(opMoved);
+                budget -= opMoved;
+                setChanged();
+                continue;
+            }
+
             long fluxMoved = FluxNetworksLongEnergyBridge.tryReceiveEnergyLong(level, neighborPos, intoNeighbor, offer);
             if (fluxMoved > 0) {
                 core.extractEnergyLong(fluxMoved);
@@ -62,6 +73,17 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
 
     public EnergyHandler getEnergyHandlerForCapability() {
         return capabilityView;
+    }
+
+    /** OP capability when Brandon's Core is loaded. */
+    public Object getOpStorageForCapability() {
+        if (!ModList.get().isLoaded("brandonscore")) {
+            return null;
+        }
+        if (opOutput == null) {
+            opOutput = BrandonScoreIntegration.createOpStorage(core, maxExtractPerTick);
+        }
+        return opOutput;
     }
 
     @Override
