@@ -755,11 +755,6 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return portFilter.acceptsCoolantRole() && isCoolant;
     }
 
-    /** EXTRACT/EJECT: chemical waste produced by reactor fuel recipes. */
-    private boolean acceptsChemicalWasteForCapability(@Nullable Object chemicalStack) {
-        return portFilter.acceptsFuelRole() && FuelLoader.isChemicalWasteOutput(chemicalStack);
-    }
-
     @Nullable
     private Object wrapFilteredChemicalHandler(@Nullable Object inner) {
         if (inner == null) return null;
@@ -778,20 +773,16 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                     }
                 }
                 if ("isChemicalValid".equals(name)) {
-                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
                     if (allowChemicalFill()) {
+                        Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
                         if (stack != null && !MekChemicalHelper.isEmpty(stack)
                                 && !acceptsChemicalForCapability(stack)) {
                             return false;
                         }
-                    } else if (allowChemicalDrain()) {
-                        if (stack != null && !MekChemicalHelper.isEmpty(stack)
-                                && !acceptsChemicalWasteForCapability(stack)) {
-                            return false;
-                        }
-                    } else {
+                    } else if (!allowChemicalDrain()) {
                         return false;
                     }
+                    // EXTRACT/EJECT drain: no per-gas whitelist; type comes from fuel JSON output / tank contents.
                 }
                 if ("extractChemical".equals(name) && !allowChemicalDrain()) {
                     Class<?> stackClass = Class.forName("mekanism.api.chemical.ChemicalStack");

@@ -180,9 +180,9 @@ public class FuelLoader {
                 return def;
             }
         }
-        FuelDefinition legacy = DEFINITIONS.get(wasteBufferId);
-        if (legacy != null && wasteBufferId.equals(legacy.wasteId())) {
-            return legacy;
+        FuelDefinition byKey = DEFINITIONS.get(wasteBufferId);
+        if (byKey != null) {
+            return byKey;
         }
         Identifier oldMekWasteBuffer = Identifier.fromNamespaceAndPath(
                 ColossalReactors.MODID, "spent_nuclear_waste");
@@ -264,23 +264,6 @@ public class FuelLoader {
             }
         }
         return null;
-    }
-
-    /** True when the Mek chemical matches a fuel recipe's chemical waste output (e.g. nuclear waste). */
-    public static boolean isChemicalWasteOutput(@Nullable Object chemicalStack) {
-        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {
-            return false;
-        }
-        for (FuelDefinition def : DEFINITIONS.values()) {
-            if (def.outputMedium() != FuelMedium.CHEMICAL) {
-                continue;
-            }
-            String output = def.output();
-            if (output != null && MaterialSelector.matchesChemical(chemicalStack, output)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Nullable

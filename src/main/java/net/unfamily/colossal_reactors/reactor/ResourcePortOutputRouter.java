@@ -183,6 +183,27 @@ public final class ResourcePortOutputRouter {
         return space;
     }
 
+    /** Free mB on EXTRACT gas ports that accept fuel waste (fuel or coolant filter role). */
+    public static long availableFuelGasSpace(List<ResourcePortBlockEntity> ports) {
+        long space = 0;
+        for (ResourcePortBlockEntity port : ports) {
+            if (port.getPortMode() != PortMode.EXTRACT) {
+                continue;
+            }
+            if (!port.isAllowGas() || port.isAllowLiquid()) {
+                continue;
+            }
+            if (!port.getPortFilter().acceptsFuelRole() && !port.getPortFilter().acceptsCoolantRole()) {
+                continue;
+            }
+            if (!port.canAcceptGasFromReactor()) {
+                continue;
+            }
+            space += port.getGasSpaceMb();
+        }
+        return space;
+    }
+
     /**
      * Free mB on EXTRACT ports for this coolant's configured outputs (max of liquid and/or gas paths).
      */
