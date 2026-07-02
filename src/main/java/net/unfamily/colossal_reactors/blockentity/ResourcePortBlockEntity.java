@@ -32,6 +32,8 @@ import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -42,6 +44,7 @@ import java.lang.reflect.Proxy;
  */
 public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePortBlockEntity.class);
     private static final String TAG_ITEMS = "Items";
     private static final String TAG_FLUID = "Fluid";
     private static final String TAG_FLUID_ID = "FluidId";
@@ -205,10 +208,21 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public int receiveGasFromReactor(Object chemicalStack) {
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) return 0;
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return 0;
-        if (!mediumFlags.isAllowGas() || mediumFlags.isAllowLiquid()) return 0;
+        if (!canAcceptChemicalFromReactor(chemicalStack)) {
+            LOGGER.debug("[CR-port] receiveGasFromReactor: canAcceptChemicalFromReactor=false at {} (mode={} gas={} liq={} amountMb={} capMb={})",
+                    getBlockPos(), portMode, mediumFlags.isAllowGas(), mediumFlags.isAllowLiquid(),
+                    getGasAmountMb(), getGasCapacityMb());
+            return 0;
+        }
         Object handler = getChemicalHandler();
         if (handler == null) return 0;
-        return MekChemicalHelper.fill(handler, chemicalStack, false);
+        int filled = MekChemicalHelper.fill(handler, chemicalStack, false);
+        if (filled <= 0) {
+            LOGGER.warn("[CR-port] fill returned 0 for chemical '{}' at {} (handler={}, capMb={}, amountMb={})",
+                    MekChemicalHelper.getTypeRegistryName(chemicalStack), getBlockPos(),
+                    handler.getClass().getSimpleName(), getGasCapacityMb(), getGasAmountMb());
+        }
+        return filled;
     }
 
     /** True if this port is in EXTRACT or EJECT and can accept items from the reactor (slot not full). */
@@ -230,6 +244,21 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
         if (!mediumFlags.isAllowGas() || mediumFlags.isAllowLiquid()) return false;
         return getGasAmountMb() < getGasCapacityMb();
+    }
+
+    /** True when the gas tank is empty or already holds the same Mek chemical (reactor push). */
+    public boolean canAcceptChemicalFromReactor(@Nullable Object chemicalStack) {
+        if (!canAcceptGasFromReactor() || !MekChemicalHelper.isLoaded()
+                || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return false;
+        }
+        Object handler = getChemicalHandler();
+        if (handler == null) {
+            return false;
+        }
+        Object inTank = MekChemicalHelper.getChemicalInTank(handler, 0);
+        return MekChemicalHelper.isEmpty(inTank)
+                || MekChemicalHelper.chemicalsMatch(inTank, chemicalStack);
     }
 
     public long getGasSpaceMb() {
@@ -325,7 +354,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public Object getChemicalHandler() {
         if (!MekChemicalHelper.isLoaded()) return null;
         if (chemicalHandler == null) {
-            Object tank = MekChemicalHelper.createBasicTank(tankCapacityMb());
+            int cap = tankCapacityMb();
+            Object tank = MekChemicalHelper.createBasicTank(cap);
+            if (tank == null) {
+                LOGGER.warn("[CR-port] createBasicTank({}) returned null at {} — Mek chemical tank unavailable", cap, getBlockPos());
+            }
             chemicalHandler = tank != null ? MekChemicalHelper.wrapAsHandler(tank) : null;
         }
         return chemicalHandler;
@@ -742,6 +775,28 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return portFilter.acceptsCoolantRole() && isCoolant;
     }
 
+    /** EXTRACT: chemical waste from fuel recipe {@code output} selectors (datapack JSON). */
+    private boolean acceptsChemicalOutputForCapability(@Nullable Object chemicalStack) {
+        if (!FuelLoader.matchesAnyChemicalFuelOutput(chemicalStack)) {
+            return false;
+        }
+        return portFilter.acceptsFuelRole() || portFilter.acceptsCoolantRole();
+    }
+
+    /**
+     * EJECT drains input fuel/coolant; EXTRACT drains fuel JSON {@code output} (waste). INSERT is fill-only.
+     */
+    private boolean acceptsChemicalDrainForCapability(@Nullable Object chemicalStack) {
+        if (MekChemicalHelper.isEmpty(chemicalStack)) {
+            return true;
+        }
+        return switch (portMode) {
+            case EJECT -> acceptsChemicalForCapability(chemicalStack);
+            case EXTRACT -> acceptsChemicalOutputForCapability(chemicalStack);
+            default -> false;
+        };
+    }
+
     @Nullable
     private Object wrapFilteredChemicalHandler(@Nullable Object inner) {
         if (inner == null) return null;
@@ -766,10 +821,15 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                                 && !acceptsChemicalForCapability(stack)) {
                             return false;
                         }
-                    } else if (!allowChemicalDrain()) {
+                    } else if (allowChemicalDrain()) {
+                        Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                        if (stack != null && !MekChemicalHelper.isEmpty(stack)
+                                && !acceptsChemicalDrainForCapability(stack)) {
+                            return false;
+                        }
+                    } else {
                         return false;
                     }
-                    // EXTRACT/EJECT drain: no per-gas whitelist; type comes from fuel JSON output / tank contents.
                 }
                 if ("extractChemical".equals(name) && !allowChemicalDrain()) {
                     Class<?> stackClass = Class.forName("mekanism.api.chemical.ChemicalStack");

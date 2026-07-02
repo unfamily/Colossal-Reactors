@@ -13,6 +13,8 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.reactor.ResourcePortOutputRouter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -20,6 +22,8 @@ import java.util.List;
  * Fuel/waste I/O routed by {@link FuelDefinition#inputMedium()} and {@link FuelDefinition#outputMedium()}.
  */
 public final class FuelIo {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FuelIo.class);
 
     private FuelIo() {}
 
@@ -270,47 +274,51 @@ public final class FuelIo {
             float wasteUnits,
             FuelDefinition def) {
         if (!MekChemicalHelper.isLoaded()) {
+            LOGGER.warn("[CR-waste] Mekanism not loaded — skipping chemical waste push for {}", wasteBufferId);
             return;
         }
         String wasteSelector = def.output();
         if (wasteSelector == null || !MaterialSelector.isChemicalPrefix(wasteSelector)) {
-            return;
-        }
-        ResourceLocation chemId = ResourceLocation.tryParse(wasteSelector.substring(1));
-        if (chemId == null) {
+            LOGGER.warn("[CR-waste] output selector '{}' is not a chemical selector for fuel {} — skipping", wasteSelector, def.fuelId());
             return;
         }
         int wasteMb = def.wasteEjectAmountFromWasteUnits(wasteUnits);
         if (wasteMb <= 0) {
+            LOGGER.debug("[CR-waste] wasteUnits={} not enough for one produce={} batch (unitsPerWaste={}) — skipping {}",
+                    wasteUnits, def.produce(), def.unitsPerWaste(), wasteBufferId);
             return;
         }
-        long portSpaceMb = ResourcePortOutputRouter.availableFuelGasSpace(extractPorts);
+        Object template = MekChemicalHelper.createStackFromSelector(wasteSelector, 1);
+        if (template == null) {
+            LOGGER.warn("[CR-waste] createStackFromSelector('{}') returned null — check Mekanism registry for {}", wasteSelector, wasteBufferId);
+            return;
+        }
+        long portSpaceMb = ResourcePortOutputRouter.availableFuelGasSpace(extractPorts, template);
         if (portSpaceMb <= 0) {
+            LOGGER.debug("[CR-waste] no EXTRACT port has space for chemical '{}' (ports={}) — wasteUnits={} pending",
+                    MekChemicalHelper.getTypeRegistryName(template), extractPorts.size(), wasteUnits);
             return;
         }
-        wasteMb = (int) Math.min(wasteMb, portSpaceMb);
-        if (wasteMb <= 0) {
-            return;
-        }
-        Object stack = MekChemicalHelper.createStack(chemId, wasteMb);
+        int exportMb = (int) Math.min(wasteMb, portSpaceMb);
+        Object stack = MekChemicalHelper.createStackFromSelector(wasteSelector, exportMb);
         if (stack == null) {
+            LOGGER.warn("[CR-waste] createStackFromSelector('{}', {}) returned null — skipping", wasteSelector, exportMb);
             return;
         }
         int left = ResourcePortOutputRouter.pushFuelGas(extractPorts, stack);
-        if (left >= wasteMb) {
+        int exportedMb = exportMb - left;
+        if (exportedMb <= 0) {
+            LOGGER.warn("[CR-waste] pushFuelGas accepted 0 mB out of {} (ports={}) — check port gas-tank capacity and medium flags",
+                    exportMb, extractPorts.size());
             return;
         }
-        int exportedMb = wasteMb - left;
+        LOGGER.debug("[CR-waste] pushed {} mB of '{}' to EXTRACT ports; consuming {} waste units from buffer '{}'",
+                exportedMb, wasteSelector, def.wasteUnitsCostForOutputAmount(exportedMb), wasteBufferId);
         float wasteUnitsCost = def.wasteUnitsCostForOutputAmount(exportedMb);
-        float consumedUnits = controller.consumeWasteUnits(wasteBufferId, wasteUnitsCost);
-        int actualMb = def.wasteEjectAmountFromWasteUnits(consumedUnits);
-        if (actualMb <= 0) {
-            controller.addWasteUnits(wasteBufferId, consumedUnits);
-            return;
-        }
-        int refundMb = exportedMb - actualMb;
-        if (refundMb > 0) {
-            controller.addWasteUnits(wasteBufferId, def.wasteUnitsCostForOutputAmount(refundMb));
+        float consumed = controller.consumeWasteUnits(wasteBufferId, wasteUnitsCost);
+        if (consumed + 0.001f < wasteUnitsCost) {
+            LOGGER.warn("[CR-waste] consumeWasteUnits returned {} instead of {} for buffer '{}' — waste accounting mismatch",
+                    consumed, wasteUnitsCost, wasteBufferId);
         }
     }
 

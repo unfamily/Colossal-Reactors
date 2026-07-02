@@ -103,6 +103,9 @@ public final class ResourcePortOutputRouter {
             if (!port.isAllowGas() || port.isAllowLiquid()) {
                 continue;
             }
+            if (!port.canAcceptChemicalFromReactor(chemicalStack)) {
+                continue;
+            }
             Object copy = MekChemicalHelper.copyStack(chemicalStack, remaining);
             if (copy == null) {
                 continue;
@@ -199,7 +202,19 @@ public final class ResourcePortOutputRouter {
         return space;
     }
 
-    /** Free mB on EXTRACT gas ports that accept fuel waste (fuel or coolant filter role). */
+    /** Free mB on EXTRACT gas ports that can accept this chemical (empty tank or same type). */
+    public static long availableFuelGasSpace(List<ResourcePortBlockEntity> ports, @Nullable Object chemicalStack) {
+        long space = 0;
+        for (ResourcePortBlockEntity port : ports) {
+            if (!port.canAcceptChemicalFromReactor(chemicalStack)) {
+                continue;
+            }
+            space += port.getGasSpaceMb();
+        }
+        return space;
+    }
+
+    /** Free mB on EXTRACT gas ports with any tank space (legacy / coolant checks). */
     public static long availableFuelGasSpace(List<ResourcePortBlockEntity> ports) {
         long space = 0;
         for (ResourcePortBlockEntity port : ports) {
