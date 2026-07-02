@@ -180,6 +180,19 @@ public class FuelLoader {
                 return def;
             }
         }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (def.outputMedium() != FuelMedium.CHEMICAL) {
+                continue;
+            }
+            String output = def.output();
+            if (output == null || !MaterialSelector.isChemicalPrefix(output)) {
+                continue;
+            }
+            Identifier outId = Identifier.tryParse(output.substring(1));
+            if (wasteBufferId.equals(outId)) {
+                return def;
+            }
+        }
         FuelDefinition byKey = DEFINITIONS.get(wasteBufferId);
         if (byKey != null) {
             return byKey;
@@ -264,6 +277,23 @@ public class FuelLoader {
             }
         }
         return null;
+    }
+
+    /** True when the Mek chemical matches any loaded fuel recipe's chemical {@code output} (waste). */
+    public static boolean matchesAnyChemicalFuelOutput(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return false;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (def.outputMedium() != FuelMedium.CHEMICAL) {
+                continue;
+            }
+            String output = def.output();
+            if (output != null && MaterialSelector.matchesChemical(chemicalStack, output)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable

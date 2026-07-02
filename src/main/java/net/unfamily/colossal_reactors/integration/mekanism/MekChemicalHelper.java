@@ -91,7 +91,7 @@ public final class MekChemicalHelper {
             Method create = tankClass.getMethod("createAllValid", long.class, listenerClass);
             return create.invoke(null, capacityMb, null);
         } catch (Throwable t) {
-            LOGGER.debug("Could not create Mek all-valid chemical tank: {}", t.getMessage());
+            LOGGER.warn("Could not create Mek all-valid chemical tank (capacity={}): {}", capacityMb, t.toString());
             return null;
         }
     }
@@ -296,6 +296,10 @@ public final class MekChemicalHelper {
             long wanted = getAmount(stack);
             return (int) Math.min(wanted - remaining, Integer.MAX_VALUE);
         } catch (Throwable e) {
+            LOGGER.warn("MekChemicalHelper.fill failed (handler={}, stack={}, simulate={}): {}",
+                    handler == null ? "null" : handler.getClass().getSimpleName(),
+                    getTypeRegistryName(stack),
+                    simulate, e.toString());
             return 0;
         }
     }
@@ -356,6 +360,39 @@ public final class MekChemicalHelper {
             LOGGER.debug("createStack failed for {}: {}", chemicalId, t.getMessage());
             return null;
         }
+    }
+
+    /** Builds a stack from a datapack selector ({@code %namespace:id} or tag). */
+    @Nullable
+    public static Object createStackFromSelector(@Nullable String selector, long amount) {
+        if (!isLoaded() || selector == null || selector.isBlank() || amount <= 0) {
+            return null;
+        }
+        if (MaterialSelector.isChemicalPrefix(selector)) {
+            Identifier id = Identifier.tryParse(selector.substring(1));
+            if (id != null) {
+                Object stack = createStack(id, amount);
+                if (stack != null) {
+                    return stack;
+                }
+            }
+            List<Object> fromTag = stacksForSelector(selector);
+            if (!fromTag.isEmpty()) {
+                return copyStack(fromTag.get(0), amount);
+            }
+            return null;
+        }
+        Identifier id = Identifier.tryParse(selector);
+        return id != null ? createStack(id, amount) : null;
+    }
+
+    public static boolean chemicalsMatch(@Nullable Object a, @Nullable Object b) {
+        if (isEmpty(a) || isEmpty(b)) {
+            return false;
+        }
+        String na = getTypeRegistryName(a);
+        String nb = getTypeRegistryName(b);
+        return na != null && na.equals(nb);
     }
 
     /**
