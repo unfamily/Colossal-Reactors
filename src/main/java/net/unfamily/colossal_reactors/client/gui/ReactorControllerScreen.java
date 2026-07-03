@@ -168,7 +168,7 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
                 "gui.colossal_reactors.reactor_controller.waste_capacity.label",
                 Component.translatable("gui.colossal_reactors.reactor_controller.waste_capacity.value",
-                        GuiNumberFormat.format(wasteStored), wasteFillStr));
+                        GuiNumberFormat.format(wasteCap), wasteFillStr));
 
         int coolantCap = menu.getCoolantCapacityMb();
         int coolantStored = menu.getCoolantStoredMb();

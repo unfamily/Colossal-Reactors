@@ -2,13 +2,12 @@ package net.unfamily.colossal_reactors.coolant;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -25,7 +24,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Loads coolant definitions from datapack JSON: data/colossal_reactors/reactor_coolant/*.json.
@@ -55,15 +53,15 @@ public class CoolantLoader {
     private static final int DEFAULT_WATER_COLOR = 0xFF3498DB;
     private static final int DEFAULT_STEAM_COLOR = 0xFFE8F0F0;
 
-    private static final Map<Identifier, CoolantDefinition> DEFINITIONS = new HashMap<>();
+    private static final Map<ResourceLocation, CoolantDefinition> DEFINITIONS = new HashMap<>();
 
     /** Default coolant id for water. */
-    public static final Identifier WATER_COOLANT_ID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "water");
+    public static final ResourceLocation WATER_COOLANT_ID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "water");
 
     /**
      * Applies loaded datapack data: clears, registers internal defaults, then merges in loaded map.
      */
-    public static void applyLoaded(Map<Identifier, CoolantDefinition> loaded) {
+    public static void applyLoaded(Map<ResourceLocation, CoolantDefinition> loaded) {
         DEFINITIONS.clear();
         registerInternalDefaults();
         if (loaded != null) {
@@ -89,7 +87,7 @@ public class CoolantLoader {
             LOGGER.warn("Coolant entry in {}: missing 'coolant_id'", sourcePath);
             return null;
         }
-        Identifier coolantId = Identifier.tryParse(json.get(KEY_COOLANT_ID).getAsString());
+        ResourceLocation coolantId = ResourceLocation.tryParse(json.get(KEY_COOLANT_ID).getAsString());
         if (coolantId == null) {
             LOGGER.warn("Coolant entry in {}: invalid coolant_id", sourcePath);
             return null;
@@ -117,8 +115,7 @@ public class CoolantLoader {
         int fluidColor = parseColor(json, KEY_FLUID_COLOR, DEFAULT_WATER_COLOR);
         int outputColor = parseColor(json, KEY_OUTPUT_COLOR, DEFAULT_STEAM_COLOR);
         boolean overwritable = json.has(KEY_OVERWRITABLE) ? json.get(KEY_OVERWRITABLE).getAsBoolean() : defaultOverwritable;
-        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output,
-                outputs.isEmpty() ? null : List.copyOf(outputs), rfIncrement, mbDecrement, reduceRf, rfToCoolant, steamPerCoolant, overheating, fluidColor, outputColor, overwritable);
+        return new CoolantDefinition(coolantId, inputs.isEmpty() ? List.of(coolantId.toString()) : List.copyOf(inputs), output, outputs, rfIncrement, mbDecrement, reduceRf, rfToCoolant, steamPerCoolant, overheating, fluidColor, outputColor, overwritable);
     }
 
     /** Parses optional color from JSON: "fluid_color": "#3498db" or number. Returns ARGB (0 = use default). */
@@ -150,11 +147,11 @@ public class CoolantLoader {
         DEFINITIONS.put(def.coolantId(), def);
     }
 
-    public static CoolantDefinition get(Identifier coolantId) {
+    public static CoolantDefinition get(ResourceLocation coolantId) {
         return DEFINITIONS.get(coolantId);
     }
 
-    public static Map<Identifier, CoolantDefinition> getAll() {
+    public static Map<ResourceLocation, CoolantDefinition> getAll() {
         return new HashMap<>(DEFINITIONS);
     }
 
@@ -166,7 +163,7 @@ public class CoolantLoader {
                 .toList();
     }
 
-    public static List<Identifier> getVisibleCoolantIds() {
+    public static List<ResourceLocation> getVisibleCoolantIds() {
         return getVisibleDefinitions().stream().map(CoolantDefinition::coolantId).toList();
     }
 
@@ -179,7 +176,7 @@ public class CoolantLoader {
     @Nullable
     public static Fluid getFirstFluidFromTag(String outputSelector, net.minecraft.core.RegistryAccess registryAccess) {
         if (outputSelector == null || !outputSelector.startsWith("#")) return null;
-        Identifier tagId = Identifier.tryParse(outputSelector.substring(1));
+        ResourceLocation tagId = ResourceLocation.tryParse(outputSelector.substring(1));
         if (tagId == null) return null;
         var tagKey = TagKey.create(Registries.FLUID, tagId);
         return registryAccess.lookup(Registries.FLUID)
@@ -192,25 +189,17 @@ public class CoolantLoader {
     /** Returns the fluid to drain for this coolant (first fluid selector in inputs). Null if none. */
     @Nullable
     public static Fluid getFirstFluidFromDefinition(CoolantDefinition def, RegistryAccess registryAccess) {
-        if (def == null || def.inputs().isEmpty()) {
-            return null;
-        }
+        if (def == null || def.inputs().isEmpty()) return null;
         for (String input : def.inputs()) {
-            if (MaterialSelector.isChemicalPrefix(input)) {
-                continue;
-            }
+            if (MaterialSelector.isChemicalPrefix(input)) continue;
             if (input.startsWith("#")) {
                 Fluid f = getFirstFluidFromTag(input, registryAccess);
-                if (f != null && f != Fluids.EMPTY) {
-                    return f;
-                }
+                if (f != null && f != Fluids.EMPTY) return f;
             } else {
-                Identifier id = Identifier.tryParse(input);
+                ResourceLocation id = ResourceLocation.tryParse(input);
                 if (id != null) {
-                    Fluid f = BuiltInRegistries.FLUID.getValue(id);
-                    if (f != null && f != Fluids.EMPTY) {
-                        return f;
-                    }
+                    Fluid f = BuiltInRegistries.FLUID.get(id);
+                    if (f != null && f != Fluids.EMPTY) return f;
                 }
             }
         }
@@ -268,8 +257,8 @@ public class CoolantLoader {
         if (selector.startsWith("#")) {
             fluid = getFirstFluidFromTag(selector, registryAccess);
         } else {
-            Identifier id = Identifier.tryParse(selector);
-            fluid = id != null ? BuiltInRegistries.FLUID.getValue(id) : null;
+            ResourceLocation id = ResourceLocation.tryParse(selector);
+            fluid = id != null ? BuiltInRegistries.FLUID.get(id) : null;
         }
         if (fluid != null && fluid != Fluids.EMPTY) {
             return Component.translatable(fluid.getFluidType().getDescriptionId());
@@ -279,9 +268,7 @@ public class CoolantLoader {
 
     @Nullable
     public static CoolantDefinition getDefinitionForChemical(Object chemicalStack, RegistryAccess registryAccess) {
-        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
-            return null;
-        }
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) return null;
         for (CoolantDefinition def : DEFINITIONS.values()) {
             for (String input : def.inputs()) {
                 if (MaterialSelector.matchesChemical(chemicalStack, input.startsWith("%") ? input : "%" + input)) {
@@ -298,24 +285,91 @@ public class CoolantLoader {
     @Nullable
     public static CoolantDefinition getDefinitionForFluid(Fluid fluid, RegistryAccess registryAccess) {
         if (fluid == null || fluid == Fluids.EMPTY) return null;
-        Identifier fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
         for (CoolantDefinition def : DEFINITIONS.values()) {
             for (String input : def.inputs()) {
                 if (isInputExcluded(input)) continue;
                 if (input.startsWith("#")) {
-                    Identifier tagId = Identifier.tryParse(input.substring(1));
+                    ResourceLocation tagId = ResourceLocation.tryParse(input.substring(1));
                     if (tagId == null) continue;
                     TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
-                    Registry<Fluid> fluids = registryAccess.lookupOrThrow(Registries.FLUID);
-                    Optional<Holder.Reference<Fluid>> fluidRef = fluids.get(fluidId);
-                    if (fluidRef.isEmpty()) continue;
-                    boolean inTag = fluids.get(tagKey).map(tag -> tag.contains(fluidRef.get())).orElse(false);
+                    var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID).getHolder(ResourceKey.create(Registries.FLUID, fluidId)).orElse(null);
+                    if (fluidHolder == null) continue;
+                    boolean inTag = registryAccess.lookup(Registries.FLUID)
+                            .flatMap(l -> l.get(tagKey))
+                            .map(holders -> holders.contains(fluidHolder))
+                            .orElse(false);
                     if (inTag) return def;
-                } else if (net.unfamily.colossal_reactors.util.FluidInputMatcher.matchesFluid(fluid, input)) {
+                } else if (MaterialSelector.matchesFluid(fluid, input)) {
                     return def;
                 }
             }
         }
         return null;
+    }
+
+    /** True when the fluid matches any loaded coolant recipe's liquid/gas exhaust output. */
+    public static boolean matchesAnyCoolantLiquidOutput(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return false;
+        }
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String selector : def.outputs()) {
+                if (MaterialSelector.isChemicalPrefix(selector)) {
+                    continue;
+                }
+                if (matchesFluidOutputSelector(fluid, selector, registryAccess)) {
+                    return true;
+                }
+            }
+            String legacy = def.output();
+            if (legacy != null && !legacy.isBlank() && !MaterialSelector.isChemicalPrefix(legacy)
+                    && matchesFluidOutputSelector(fluid, legacy, registryAccess)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when the Mek chemical matches any loaded coolant recipe's gas exhaust output. */
+    public static boolean matchesAnyCoolantGasOutput(@Nullable Object chemicalStack, RegistryAccess registryAccess) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return false;
+        }
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String selector : def.outputs()) {
+                if (selector != null && MaterialSelector.isChemicalPrefix(selector)
+                        && MaterialSelector.matchesChemical(chemicalStack, selector)) {
+                    return true;
+                }
+            }
+            String gasSel = def.gasOutputSelector();
+            if (gasSel != null && MaterialSelector.matchesChemical(chemicalStack, gasSel)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesFluidOutputSelector(Fluid fluid, String selector, RegistryAccess registryAccess) {
+        if (selector.startsWith("#")) {
+            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            if (tagId == null) {
+                return false;
+            }
+            ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+            var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID)
+                    .getHolder(ResourceKey.create(Registries.FLUID, fluidId))
+                    .orElse(null);
+            if (fluidHolder == null) {
+                return false;
+            }
+            TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+            return registryAccess.lookup(Registries.FLUID)
+                    .flatMap(l -> l.get(tagKey))
+                    .map(holders -> holders.contains(fluidHolder))
+                    .orElse(false);
+        }
+        return MaterialSelector.matchesFluid(fluid, selector);
     }
 }

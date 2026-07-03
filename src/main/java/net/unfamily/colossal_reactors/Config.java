@@ -34,6 +34,10 @@ public class Config {
             .comment("Does not enable radiation in Colossal Reactors reactors. Enable radiation management features (Radiation Scrubber, Radiation Cure). When true and Mekanism is installed, items and recipes appear in creative tab and are craftable. Default: false")
             .define("003_enable_radiation_management", false);
 
+    public static final ModConfigSpec.ConfigValue<Boolean> POWER_PORT_OP_DEBUG = BUILDER
+            .comment("Log high-conduction power port OP push details (Brandon's Core / Draconic). Default: false")
+            .define("006_power_port_op_debug", false);
+
     static {
         BUILDER.pop();
     }
@@ -260,82 +264,6 @@ public class Config {
 
     static {
         BUILDER.pop(); // melter
-    }
-
-    // ========== ports ==========
-    static {
-        BUILDER.comment("Port block settings").push("ports");
-    }
-
-    // --- ports.resource ---
-    static {
-        BUILDER.comment("Resource Port").push("resource");
-    }
-
-    public static final ModConfigSpec.IntValue RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
-            .comment("Minimum fluid tank capacity in mB for resource ports; also used when scaling is disabled. Default: 16000")
-            .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, Integer.MAX_VALUE);
-    public static final ModConfigSpec.BooleanValue SCALE_PORT_TANK_WITH_MULTIBLOCK = BUILDER
-            .comment("When true, resource port tank capacity scales from estimated multiblock fluid/gas demand on rebuild.")
-            .define("001_scalePortTankWithMultiblock", true);
-    public static final ModConfigSpec.IntValue PORT_DEMAND_MULTIPLIER = BUILDER
-            .comment("Scaled port tank capacity = max(resourcePortTankCapacityMb, demandMbPerTick * this value). Default: 10")
-            .defineInRange("002_portDemandMultiplier", 10, 1, 100);
-
-    static {
-        BUILDER.pop();
-    }
-
-    // --- ports.power ---
-    static {
-        BUILDER.comment("Power Port").push("power");
-    }
-
-    public static final ModConfigSpec.IntValue POWER_PORT_CAPACITY = BUILDER
-            .comment("Standard power port buffer capacity in RF (int). Default: max int")
-            .defineInRange("000_powerPortCapacity", Integer.MAX_VALUE, 1000, Integer.MAX_VALUE);
-    public static final ModConfigSpec.IntValue POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("Standard power port max extraction per tick (RF/t). Default: max int")
-            .defineInRange("001_powerPortMaxExtract", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
-
-    public static final ModConfigSpec.LongValue HIGH_COND_POWER_PORT_CAPACITY = BUILDER
-            .comment("High-conduction power port buffer capacity in RF (long). Default: 1000000000")
-            .defineInRange("100_highCondPowerPortCapacity", 1_000_000_000L, 1000L, Long.MAX_VALUE);
-    public static final ModConfigSpec.LongValue HIGH_COND_POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("High-conduction power port max extraction per tick (RF/t). Default: 1000000000")
-            .defineInRange("101_highCondPowerPortMaxExtract", 1_000_000_000L, 1L, Long.MAX_VALUE);
-
-    static {
-        BUILDER.pop();
-    }
-
-    // --- ports.turbine ---
-    static {
-        BUILDER.comment("Turbine ports").push("turbine");
-    }
-
-    public static final ModConfigSpec.IntValue TURBINE_RESOURCE_PORT_TANK_CAPACITY_MB = BUILDER
-            .comment("Turbine resource port fluid tank capacity in mB. Default: 16000")
-            .defineInRange("000_resourcePortTankCapacityMb", 16000, 1000, Integer.MAX_VALUE);
-    public static final ModConfigSpec.IntValue TURBINE_POWER_PORT_CAPACITY = BUILDER
-            .comment("Turbine power port buffer capacity in RF. Default: max int")
-            .defineInRange("000_powerPortCapacity", Integer.MAX_VALUE, 1000, Integer.MAX_VALUE);
-    public static final ModConfigSpec.IntValue TURBINE_POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("Turbine power port max extraction per tick (RF/t). Default: max int")
-            .defineInRange("001_powerPortMaxExtract", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
-    public static final ModConfigSpec.LongValue TURBINE_HIGH_COND_POWER_PORT_CAPACITY = BUILDER
-            .comment("Turbine high-conduction power port capacity in RF. Default: 1000000000")
-            .defineInRange("100_highCondPowerPortCapacity", 1_000_000_000L, 1000L, Long.MAX_VALUE);
-    public static final ModConfigSpec.LongValue TURBINE_HIGH_COND_POWER_PORT_MAX_EXTRACT = BUILDER
-            .comment("Turbine high-conduction power port max extraction per tick. Default: 1000000000")
-            .defineInRange("101_highCondPowerPortMaxExtract", 1_000_000_000L, 1L, Long.MAX_VALUE);
-
-    static {
-        BUILDER.pop();
-    }
-
-    static {
-        BUILDER.pop(); // ports
     }
 
     // ========== radiation_scrubber ==========

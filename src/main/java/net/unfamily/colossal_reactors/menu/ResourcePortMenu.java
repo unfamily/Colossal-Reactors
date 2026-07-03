@@ -35,8 +35,12 @@ public class ResourcePortMenu extends AbstractContainerMenu {
     private static final int DATA_GAS_CAPACITY = 11;
     private static final int DATA_PORT_FILTER = 29;
     private static final int DATA_IS_TURBINE = 30;
-    /** Must match {@link ResourcePortBlockEntity} ContainerData slot count. */
-    public static final int DATA_COUNT = 31;
+    private static final int DATA_FLUID_AMOUNT_HI = 31;
+    private static final int DATA_FLUID_CAPACITY_HI = 32;
+    private static final int DATA_GAS_AMOUNT_HI = 33;
+    private static final int DATA_GAS_CAPACITY_HI = 34;
+    /** Must match {@link ResourcePortBlockEntity} fluid data slot count. */
+    public static final int DATA_COUNT = 35;
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData fluidData;
@@ -62,6 +66,7 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         addPortSlots(blockEntity, playerInventory);
     }
 
+    /** Server: opened from block entity with live container data. */
     public ResourcePortMenu(int containerId, Inventory playerInventory, ResourcePortBlockEntity blockEntity,
                             ContainerData fluidData) {
         super(ModMenuTypes.RESOURCE_PORT_MENU.get(), containerId);
@@ -76,7 +81,7 @@ public class ResourcePortMenu extends AbstractContainerMenu {
     private void addPortSlots(@Nullable ResourcePortBlockEntity port, Inventory playerInventory) {
         if (showItemSlot()) {
             if (port != null) {
-                addSlot(new SlotItemHandler(port.getItemStackHandler(), 0, ResourcePortGuiLayout.ITEM_SLOT_X,
+                addSlot(new SlotItemHandler(port.getItemHandler(), 0, ResourcePortGuiLayout.ITEM_SLOT_X,
                         ResourcePortGuiLayout.ITEM_SLOT_Y));
             } else {
                 addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0,
@@ -98,6 +103,7 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         return blockEntity;
     }
 
+    /** Block pos for C2S packets: server BE, or synced indices 4–6 on client ({@link ReactorBuilderMenu#getBlockPos()}). */
     public BlockPos getBlockPos() {
         if (blockEntity != null) {
             return blockEntity.getBlockPos();
@@ -107,6 +113,19 @@ public class ResourcePortMenu extends AbstractContainerMenu {
 
     public BlockPos getSyncedBlockPos() {
         return new BlockPos(fluidData.get(4), fluidData.get(5), fluidData.get(6));
+    }
+
+    public ContainerData getFluidData() {
+        return fluidData;
+    }
+
+    public boolean isTurbinePort() {
+        return turbinePort || fluidData.get(DATA_IS_TURBINE) != 0;
+    }
+
+    /** Turbine ports have no item slot in the GUI. */
+    public boolean showItemSlot() {
+        return !turbinePort;
     }
 
     @Override
@@ -151,8 +170,16 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         return fluidData.get(0);
     }
 
+    public long getFluidAmountLong() {
+        return combineLong(fluidData.get(0), fluidData.get(DATA_FLUID_AMOUNT_HI));
+    }
+
     public int getFluidCapacity() {
         return fluidData.get(1);
+    }
+
+    public long getFluidCapacityLong() {
+        return combineLong(fluidData.get(1), fluidData.get(DATA_FLUID_CAPACITY_HI));
     }
 
     public int getFluidId() {
@@ -179,8 +206,20 @@ public class ResourcePortMenu extends AbstractContainerMenu {
         return fluidData.get(DATA_GAS_AMOUNT);
     }
 
+    public long getGasAmountLong() {
+        return combineLong(fluidData.get(DATA_GAS_AMOUNT), fluidData.get(DATA_GAS_AMOUNT_HI));
+    }
+
     public int getGasCapacity() {
         return fluidData.get(DATA_GAS_CAPACITY);
+    }
+
+    public long getGasCapacityLong() {
+        return combineLong(fluidData.get(DATA_GAS_CAPACITY), fluidData.get(DATA_GAS_CAPACITY_HI));
+    }
+
+    private static long combineLong(int low, int high) {
+        return (high & 0xFFFFFFFFL) << 32 | (low & 0xFFFFFFFFL);
     }
 
     /** Mek gas type id packed in ContainerData (indices 12 + 4 chars per int). */
@@ -196,15 +235,6 @@ public class ResourcePortMenu extends AbstractContainerMenu {
             }
         }
         return sb.toString();
-    }
-
-    public boolean isTurbinePort() {
-        return turbinePort || fluidData.get(DATA_IS_TURBINE) != 0;
-    }
-
-    /** Turbine ports have no item slot in the GUI. */
-    public boolean showItemSlot() {
-        return !turbinePort;
     }
 
     public PortFilter getPortFilter() {

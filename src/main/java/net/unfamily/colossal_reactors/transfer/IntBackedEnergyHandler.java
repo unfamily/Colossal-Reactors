@@ -16,9 +16,9 @@ public class IntBackedEnergyHandler implements EnergyHandler, ValueIOSerializabl
     private static final String TAG_ENERGY = "energy";
 
     protected int energy;
-    protected final int capacity;
-    protected final int maxInsert;
-    protected final int maxExtract;
+    protected int capacity;
+    protected int maxInsert;
+    protected int maxExtract;
 
     private final EnergyJournal energyJournal = new EnergyJournal();
     private final Runnable onChange;
@@ -71,6 +71,16 @@ public class IntBackedEnergyHandler implements EnergyHandler, ValueIOSerializabl
 
     public void setEnergy(int amount) {
         energy = Math.max(0, Math.min(capacity, amount));
+    }
+
+    public void resize(int newCapacity, int newMaxInsert, int newMaxExtract) {
+        if (newCapacity < 0 || newMaxInsert < 0 || newMaxExtract < 0) {
+            throw new IllegalArgumentException("Energy handler arguments must be non-negative");
+        }
+        capacity = newCapacity;
+        maxInsert = newMaxInsert;
+        maxExtract = newMaxExtract;
+        energy = Math.max(0, Math.min(capacity, energy));
     }
 
     public int getEnergyStored() {

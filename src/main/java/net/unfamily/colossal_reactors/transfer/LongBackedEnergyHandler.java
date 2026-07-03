@@ -119,6 +119,16 @@ public class LongBackedEnergyHandler implements EnergyHandler, ValueIOSerializab
         return extracted;
     }
 
+    public void resize(long newCapacity, long newMaxInsert, long newMaxExtract) {
+        if (newCapacity < 0 || newMaxInsert < 0 || newMaxExtract < 0) {
+            throw new IllegalArgumentException("Energy handler arguments must be non-negative");
+        }
+        capacity = newCapacity;
+        maxInsert = newMaxInsert;
+        maxExtract = newMaxExtract;
+        energy = Math.max(0L, Math.min(capacity, energy));
+    }
+
     protected void onEnergyChangedDirect(long previousAmount) {
         onChange.run();
     }

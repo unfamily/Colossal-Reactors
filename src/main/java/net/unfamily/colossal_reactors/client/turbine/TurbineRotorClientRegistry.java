@@ -430,7 +430,7 @@ public final class TurbineRotorClientRegistry {
         return false;
     }
 
-    /** True when a valid assembled turbine is drawn by the BER (static world blocks stay hidden). */
+    /** Valid assembled turbine: hide static rod/blade blocks; BER draws the rotor. */
     private static boolean shouldHideStaticBlocks(ClientEntry entry) {
         return entry.hasRenderableGeometry() && entry.visibility == VisibilityState.ACTIVE;
     }
@@ -562,7 +562,9 @@ public final class TurbineRotorClientRegistry {
             Level level,
             BlockState ctrlState,
             boolean force) {
-        if (!force && controller.getCachedResult().valid()) {
+        TurbineValidation.Result cached = controller.getCachedResult();
+        boolean needsFullReport = !cached.valid() || cached.report().growthAxis() == null;
+        if (!force && !needsFullReport) {
             return true;
         }
         return refreshClientValidationCache(controller, level, ctrlState);

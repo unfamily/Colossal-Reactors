@@ -20,6 +20,7 @@ import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -68,6 +69,17 @@ public final class JeiIngredientsHelper {
             }
         }
         return list;
+    }
+
+    public static void partitionSelectors(List<String> selectors, List<String> fluidOrItem, List<String> chemical) {
+        for (String selector : selectors) {
+            if (selector == null || selector.isBlank()) continue;
+            if (MaterialSelector.isChemicalPrefix(selector)) {
+                chemical.add(selector);
+            } else {
+                fluidOrItem.add(selector);
+            }
+        }
     }
 
     public static void addChemicalSlot(

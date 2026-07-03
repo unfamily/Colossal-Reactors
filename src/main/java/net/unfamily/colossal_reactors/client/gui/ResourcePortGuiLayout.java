@@ -2,7 +2,8 @@ package net.unfamily.colossal_reactors.client.gui;
 
 /**
  * Shared layout constants for resource port and heating coil GUIs ({@code resource_port.png}, 176×176).
- * Tank fill areas: gas (11,21)–(22,74), liquid (37,21)–(48,74). Full draw rect (no code inset for frame).
+ * Tank fill areas on {@code resource_port.png}: gas (11,21)–(22,74), liquid (37,21)–(48,74).
+ * Coordinates are the full gas/liquid draw rect (frame border is outside, not inset in code).
  */
 public final class ResourcePortGuiLayout {
 
@@ -19,6 +20,7 @@ public final class ResourcePortGuiLayout {
 
     public static final int GAS_BAR_X = GAS_LEFT;
     public static final int GAS_BAR_Y = GAS_TOP;
+    /** Top-left of liquid tank fill (12×54). */
     public static final int LIQUID_BAR_X = 37;
     public static final int LIQUID_BAR_Y = 21;
     public static final int BAR_FILL_W = GAS_WIDTH;
@@ -27,6 +29,7 @@ public final class ResourcePortGuiLayout {
     public static final int ITEM_SLOT_X = 63;
     public static final int ITEM_SLOT_Y = 39;
     public static final int ITEM_SLOT_SIZE = 18;
+    /** Gap between item slot and toggle column. */
     public static final int TOGGLE_SLOT_GAP = 10;
 
     public static final int DUMP_W = 14;
@@ -42,6 +45,7 @@ public final class ResourcePortGuiLayout {
     public static final int CLOSE_X = GUI_WIDTH - CLOSE_SIZE - 5;
     public static final int CLOSE_Y = 5;
 
+    /** Four stacked buttons on the right (mode + solid / liquid / gas). */
     public static final int TOGGLE_BTN_W = 58;
     public static final int TOGGLE_BTN_H = 16;
     public static final int TOGGLE_GAP = 3;
@@ -60,7 +64,10 @@ public final class ResourcePortGuiLayout {
     /** Toggle column row 3: Gas medium. On turbine ports, drawn one step up (row 2 Y). */
     public static final int TOGGLE_ROW_GAS = 3;
 
+    /** GUI background fill when masking hidden gas area (no Mek). */
     public static final int MASK_COLOR = 0xFFC6C6C6;
+
+    /** Extra pixels per side so the gas tank frame is fully covered when Mek is absent. */
     public static final int MASK_INSET = 1;
 
     /** Right edge of liquid tank frame (+{@link #MASK_INSET} over fill rect). */
@@ -82,6 +89,13 @@ public final class ResourcePortGuiLayout {
     public static final int FILTER_BTN_W = 2 * Math.min(FILTER_MAX_HALF_W_FROM_LIQUID, FILTER_MAX_HALF_W_FROM_TOGGLE);
     public static final int FILTER_X = FILTER_SLOT_CENTER_X - FILTER_BTN_W / 2;
     public static final int FILTER_Y = ITEM_SLOT_Y + ITEM_SLOT_SIZE + FILTER_GAP_BELOW_SLOT;
+
+    public static int barFillPixels(long amount, long capacity, int barHeight) {
+        if (capacity <= 0 || amount <= 0) {
+            return 0;
+        }
+        return (int) Math.min(barHeight, amount * barHeight / capacity);
+    }
 
     private ResourcePortGuiLayout() {}
 
@@ -141,7 +155,7 @@ public final class ResourcePortGuiLayout {
     }
 
     /** Covers the item slot frame on turbine ports (18×18 + inset border). */
-    public static void fillItemSlotMask(net.minecraft.client.gui.GuiGraphicsExtractor g, int guiX, int guiY) {
+    public static void fillItemSlotMask(net.minecraft.client.gui.GuiGraphics g, int guiX, int guiY) {
         int sx = guiX + ITEM_SLOT_X - MASK_INSET;
         int sy = guiY + ITEM_SLOT_Y - MASK_INSET;
         g.fill(sx, sy, sx + ITEM_SLOT_SIZE + 2 * MASK_INSET, sy + ITEM_SLOT_SIZE + 2 * MASK_INSET, MASK_COLOR);

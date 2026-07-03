@@ -1,8 +1,8 @@
 package net.unfamily.colossal_reactors.integration.mekanism;
 
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.Nullable;
@@ -52,14 +52,14 @@ public final class MekChemicalHelper {
         return null;
     }
 
-    public static boolean chemicalTagExists(Identifier tagId) {
+    public static boolean chemicalTagExists(ResourceLocation tagId) {
         Object registry = chemicalRegistry();
         if (registry == null) return false;
         try {
             ResourceKey<?> registryName = chemicalRegistryNameKey();
             if (registryName == null) return false;
             Class<?> tagKeyClass = Class.forName("net.minecraft.tags.TagKey");
-            Object tagKey = tagKeyClass.getMethod("create", ResourceKey.class, Identifier.class)
+            Object tagKey = tagKeyClass.getMethod("create", ResourceKey.class, ResourceLocation.class)
                     .invoke(null, registryName, tagId);
             Object opt = registry.getClass().getMethod("getTag", tagKeyClass).invoke(registry, tagKey);
             if (opt instanceof Optional<?> optional && optional.isPresent()) {
@@ -163,7 +163,7 @@ public final class MekChemicalHelper {
         if (!isLoaded() || registryName == null || registryName.isBlank()) {
             return false;
         }
-        Identifier id = Identifier.tryParse(registryName);
+        ResourceLocation id = ResourceLocation.tryParse(registryName);
         if (id == null) {
             return false;
         }
@@ -220,6 +220,24 @@ public final class MekChemicalHelper {
             return (int) Math.min(cap, Integer.MAX_VALUE);
         } catch (Throwable e) {
             return 0;
+        }
+    }
+
+    public static long getTankAmountLong(Object handler) {
+        try {
+            Object stack = handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, 0);
+            return Math.max(0L, getAmount(stack));
+        } catch (Throwable e) {
+            return 0L;
+        }
+    }
+
+    public static long getTankCapacityLong(Object handler) {
+        try {
+            return Math.max(0L, ((Number) handler.getClass().getMethod("getChemicalTankCapacity", int.class)
+                    .invoke(handler, 0)).longValue());
+        } catch (Throwable e) {
+            return 0L;
         }
     }
 
@@ -346,7 +364,7 @@ public final class MekChemicalHelper {
     public static final long JEI_DISPLAY_AMOUNT_MB = 1000L;
 
     @Nullable
-    public static Object createStack(Identifier chemicalId, long amount) {
+    public static Object createStack(ResourceLocation chemicalId, long amount) {
         if (!isLoaded() || amount <= 0) return null;
         Object registry = chemicalRegistry();
         if (registry == null) return null;
@@ -369,7 +387,7 @@ public final class MekChemicalHelper {
             return null;
         }
         if (MaterialSelector.isChemicalPrefix(selector)) {
-            Identifier id = Identifier.tryParse(selector.substring(1));
+            ResourceLocation id = ResourceLocation.tryParse(selector.substring(1));
             if (id != null) {
                 Object stack = createStack(id, amount);
                 if (stack != null) {
@@ -382,7 +400,7 @@ public final class MekChemicalHelper {
             }
             return null;
         }
-        Identifier id = Identifier.tryParse(selector);
+        ResourceLocation id = ResourceLocation.tryParse(selector);
         return id != null ? createStack(id, amount) : null;
     }
 
@@ -402,7 +420,7 @@ public final class MekChemicalHelper {
         if (!isLoaded() || selector == null || !selector.startsWith("%")) {
             return List.of();
         }
-        Identifier id = Identifier.tryParse(selector.substring(1));
+        ResourceLocation id = ResourceLocation.tryParse(selector.substring(1));
         if (id == null) return List.of();
         Object single = createStack(id, JEI_DISPLAY_AMOUNT_MB);
         if (single != null && !isEmpty(single)) {
@@ -411,7 +429,7 @@ public final class MekChemicalHelper {
         return stacksInChemicalTag(id, JEI_DISPLAY_AMOUNT_MB);
     }
 
-    private static List<Object> stacksInChemicalTag(Identifier tagId, long amountMb) {
+    private static List<Object> stacksInChemicalTag(ResourceLocation tagId, long amountMb) {
         List<Object> out = new ArrayList<>();
         Object registry = chemicalRegistry();
         if (registry == null) return out;
@@ -419,7 +437,7 @@ public final class MekChemicalHelper {
             ResourceKey<?> registryName = chemicalRegistryNameKey();
             if (registryName == null) return out;
             Class<?> tagKeyClass = Class.forName("net.minecraft.tags.TagKey");
-            Object tagKey = tagKeyClass.getMethod("create", ResourceKey.class, Identifier.class)
+            Object tagKey = tagKeyClass.getMethod("create", ResourceKey.class, ResourceLocation.class)
                     .invoke(null, registryName, tagId);
             Object opt = registry.getClass().getMethod("getTag", tagKeyClass).invoke(registry, tagKey);
             if (!(opt instanceof Optional<?> optional) || optional.isEmpty()) {
@@ -450,12 +468,12 @@ public final class MekChemicalHelper {
     }
 
     @Nullable
-    private static Object resolveHolder(Object registry, Identifier id) {
+    private static Object resolveHolder(Object registry, ResourceLocation id) {
         try {
             ResourceKey<?> registryName = chemicalRegistryNameKey();
             if (registryName != null) {
                 Class<?> resourceKeyClass = Class.forName("net.minecraft.resources.ResourceKey");
-                Object key = resourceKeyClass.getMethod("create", ResourceKey.class, Identifier.class)
+                Object key = resourceKeyClass.getMethod("create", ResourceKey.class, ResourceLocation.class)
                         .invoke(null, registryName, id);
                 Object opt = registry.getClass().getMethod("getHolder", resourceKeyClass).invoke(registry, key);
                 if (opt instanceof Optional<?> optional && optional.isPresent()) {
@@ -467,9 +485,9 @@ public final class MekChemicalHelper {
         try {
             Object chemical = null;
             try {
-                chemical = registry.getClass().getMethod("getValue", Identifier.class).invoke(registry, id);
+                chemical = registry.getClass().getMethod("getValue", ResourceLocation.class).invoke(registry, id);
             } catch (NoSuchMethodException e) {
-                chemical = registry.getClass().getMethod("get", Identifier.class).invoke(registry, id);
+                chemical = registry.getClass().getMethod("get", ResourceLocation.class).invoke(registry, id);
             }
             if (chemical == null) return null;
             return registry.getClass().getMethod("wrapAsHolder", chemical.getClass()).invoke(registry, chemical);
@@ -484,16 +502,16 @@ public final class MekChemicalHelper {
         if (name == null) return false;
         if (selector.startsWith("%")) {
             String rest = selector.substring(1);
-            Identifier id = Identifier.tryParse(rest);
+            ResourceLocation id = ResourceLocation.tryParse(rest);
             if (id == null) return false;
             if (name.equals(id.toString())) return true;
             return matchesChemicalTag(chemicalStack, id);
         }
-        Identifier id = Identifier.tryParse(selector);
+        ResourceLocation id = ResourceLocation.tryParse(selector);
         return id != null && name.equals(id.toString());
     }
 
-    private static boolean matchesChemicalTag(Object chemicalStack, Identifier tagId) {
+    private static boolean matchesChemicalTag(Object chemicalStack, ResourceLocation tagId) {
         try {
             Object chemical = chemicalStack.getClass().getMethod("getChemical").invoke(chemicalStack);
             if (chemical == null) return false;
@@ -509,6 +527,7 @@ public final class MekChemicalHelper {
         return false;
     }
 
+    /** True when Mekanism global radiation is enabled (same gate as {@code IRadiationManager#dumpRadiation}). */
     public static boolean isMekRadiationEnabled() {
         if (!isLoaded()) {
             return false;
@@ -523,6 +542,10 @@ public final class MekChemicalHelper {
         }
     }
 
+    /**
+     * Releases radioactive gas into the world at {@code pos}, like Mek {@code TileEntityMekanism#blockRemoved}
+     * and the Radioactive Waste Barrel. When {@code clearRadioactive} is true, emptied tanks are cleared.
+     */
     public static void dumpRadiationFromHandler(Level level, BlockPos pos, @Nullable Object chemicalHandler,
                                                 boolean clearRadioactive) {
         if (level == null || level.isClientSide() || chemicalHandler == null || !isLoaded()) {
@@ -550,7 +573,7 @@ public final class MekChemicalHelper {
             return true;
         } catch (Throwable e) {
             try {
-                Object empty = createStack(Identifier.fromNamespaceAndPath("mekanism", "empty"), 0);
+                Object empty = createStack(ResourceLocation.fromNamespaceAndPath("mekanism", "empty"), 0);
                 if (empty != null) {
                     handler.getClass().getMethod("setChemicalInTank", int.class, empty.getClass()).invoke(handler, 0, empty);
                     return true;
