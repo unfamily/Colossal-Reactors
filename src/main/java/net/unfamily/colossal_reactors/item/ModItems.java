@@ -30,13 +30,16 @@ public class ModItems {
     public static final DeferredItem<BlockItem> REACTOR_ROD = ITEMS.register("reactor_rod",
             () -> new BlockItem(ModBlocks.REACTOR_ROD.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.register("power_port",
-            () -> new BlockItem(ModBlocks.POWER_PORT.get(), new Item.Properties()));
+            () -> new ScalingPortBlockItem(ModBlocks.POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.REACTOR_POWER_INT));
     public static final DeferredItem<BlockItem> HIGH_COND_POWER_PORT = ITEMS.register("high_cond_power_port",
-            () -> new BlockItem(ModBlocks.HIGH_COND_POWER_PORT.get(), new Item.Properties()));
+            () -> new ScalingPortBlockItem(ModBlocks.HIGH_COND_POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.REACTOR_POWER_LONG));
     public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.register("redstone_port",
             () -> new BlockItem(ModBlocks.REDSTONE_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.register("resource_port",
-            () -> new BlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties()));
+            () -> new ScalingPortBlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.REACTOR_RESOURCE));
     public static final DeferredItem<BlockItem> MELTER = ITEMS.register("melter",
             () -> new BlockItem(ModBlocks.MELTER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> RADIATION_SCRUBBER = ITEMS.register("radiation_scrubber",
@@ -52,13 +55,16 @@ public class ModItems {
     public static final DeferredItem<BlockItem> TURBINE_CONTROLLER = ITEMS.register("turbine_controller",
             () -> new BlockItem(ModBlocks.TURBINE_CONTROLLER.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_POWER_PORT = ITEMS.register("turbine_power_port",
-            () -> new BlockItem(ModBlocks.TURBINE_POWER_PORT.get(), new Item.Properties()));
+            () -> new ScalingPortBlockItem(ModBlocks.TURBINE_POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.TURBINE_POWER_INT));
     public static final DeferredItem<BlockItem> TURBINE_HIGH_COND_POWER_PORT = ITEMS.register("turbine_high_cond_power_port",
-            () -> new BlockItem(ModBlocks.TURBINE_HIGH_COND_POWER_PORT.get(), new Item.Properties()));
+            () -> new ScalingPortBlockItem(ModBlocks.TURBINE_HIGH_COND_POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.TURBINE_POWER_LONG));
     public static final DeferredItem<BlockItem> TURBINE_REDSTONE_PORT = ITEMS.register("turbine_redstone_port",
             () -> new BlockItem(ModBlocks.TURBINE_REDSTONE_PORT.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.register("turbine_resource_port",
-            () -> new BlockItem(ModBlocks.TURBINE_RESOURCE_PORT.get(), new Item.Properties()));
+            () -> new ScalingPortBlockItem(ModBlocks.TURBINE_RESOURCE_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.TURBINE_RESOURCE));
     public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.register("turbine_builder",
             () -> new BlockItem(ModBlocks.TURBINE_BUILDER.get(), new Item.Properties()));
     public static final DeferredItem<TurbineRodItem> TURBINE_ROD = ITEMS.register("turbine_rod",

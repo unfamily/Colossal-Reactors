@@ -30,6 +30,16 @@ The **High Conduction** variant is for **very large** turbines that produce enor
 
 Craft it from a **Turbine Power Port** plus high-tier parts—check **JEI**.
 
+## Automatic capacity scaling
+
+When the turbine **re-validates**, every **power port** resizes its RF buffer from estimated turbine output:
+
+- Target size is about **estimated RF/t × 10**, never below **10,000 RF**.
+- **Turbine Power Port** caps at **2.1B RF**.
+- **High Conduction** variant caps at **9.22×10¹⁸ RF** (64-bit buffer).
+
+Capacity grows immediately when output rises; it shrinks only if stored energy still fits the new target.
+
 ## Both variants
 
 - Place on a **casing face** with the inside toward the turbine interior.

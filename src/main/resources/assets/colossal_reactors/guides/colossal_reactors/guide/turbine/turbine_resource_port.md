@@ -27,3 +27,7 @@ Attach a **Turbine Resource Port** to the casing to move **steam** (and other fl
 - Pipes and tanks connect on the **outside**; the **inside** face must point into the turbine.
 
 Pipe steam from your [fission reactor](../multiblock/multiblock-index.md) (or any steam source) into this port. How much the turbine can eat depends on your blades—see [Steam, RF, and coils](turbine_generation_and_coils.md).
+
+## Automatic capacity scaling
+
+When the turbine **re-validates**, the port’s fluid tank resizes from estimated **steam mB/t × 10**, with a **16,000 mB** floor and **no fixed upper limit**. Capacity grows immediately when demand increases and shrinks only if stored steam still fits the smaller size.
