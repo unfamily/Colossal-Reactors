@@ -11,6 +11,7 @@ import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 
 import org.jetbrains.annotations.Nullable;
@@ -20,29 +21,42 @@ import java.util.List;
 /**
  * Routes reactor/turbine production to EXTRACT ports by medium, port role (fuel vs coolant), and toggles.
  * Coolant exhaust uses {@link #pushFluid}/{@link #pushGas}; fuel waste uses {@link #pushFuelFluid}/{@link #pushFuelGas}.
+ * No cross-role fallback — waste and exhaust stay on their dedicated port roles.
  */
 public final class ResourcePortOutputRouter {
 
     private ResourcePortOutputRouter() {}
 
     /** Coolant liquid output (steam, etc.) — ports with coolant role and liquid medium only. */
-    public static int pushFluid(List<ResourcePortBlockEntity> ports, FluidStack stack) {
-        return pushFluidToRole(ports, stack, false);
+    public static int pushFluid(List<ResourcePortBlockEntity> ports, FluidStack stack, RegistryAccess registryAccess) {
+        return pushFluidToRole(ports, stack, false, registryAccess);
     }
 
-    /** Fuel/fluid waste — fuel-role ports first, then coolant-role ports for the remainder. */
-    public static int pushFuelFluid(List<ResourcePortBlockEntity> ports, FluidStack stack) {
-        int left = pushFluidToRole(ports, stack, true);
-        if (left > 0) {
-            left = pushFluidToRole(ports, new FluidStack(stack.getFluid(), left), false);
-        }
-        return left;
+    /** Fuel/fluid waste — fuel-role ports only. */
+    public static int pushFuelFluid(List<ResourcePortBlockEntity> ports, FluidStack stack, RegistryAccess registryAccess) {
+        return pushFluidToRole(ports, stack, true, registryAccess);
     }
 
-    private static int pushFluidToRole(List<ResourcePortBlockEntity> ports, FluidStack stack, boolean fuelRole) {
+    private static int pushFluidToRole(
+            List<ResourcePortBlockEntity> ports,
+            FluidStack stack,
+            boolean fuelRole,
+            RegistryAccess registryAccess) {
         if (stack.isEmpty()) {
             return stack.getAmount();
         }
+        Fluid fluid = stack.getFluid();
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return stack.getAmount();
+        }
+        if (fuelRole) {
+            if (!FuelLoader.matchesAnyFluidFuelOutput(fluid, registryAccess)) {
+                return stack.getAmount();
+            }
+        } else if (!CoolantLoader.matchesAnyCoolantLiquidOutput(fluid, registryAccess)) {
+            return stack.getAmount();
+        }
+
         int remaining = stack.getAmount();
         for (ResourcePortBlockEntity port : ports) {
             if (remaining <= 0) {
@@ -64,31 +78,34 @@ public final class ResourcePortOutputRouter {
     }
 
     /** Coolant gas output — ports with coolant role and gas medium only. */
-    public static int pushGas(List<ResourcePortBlockEntity> ports, Object chemicalStack) {
-        return pushGasToRole(ports, chemicalStack, false);
+    public static int pushGas(List<ResourcePortBlockEntity> ports, Object chemicalStack, RegistryAccess registryAccess) {
+        return pushGasToRole(ports, chemicalStack, false, registryAccess);
     }
 
-    /**
-     * Fuel chemical waste (e.g. Mek nuclear waste). Tries fuel-role gas ports first, then coolant-role gas ports.
-     */
-    public static int pushFuelGas(List<ResourcePortBlockEntity> ports, Object chemicalStack) {
+    /** Fuel chemical waste (e.g. Mek nuclear waste). Fuel-role gas ports only. */
+    public static int pushFuelGas(List<ResourcePortBlockEntity> ports, Object chemicalStack, RegistryAccess registryAccess) {
         if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
             return (int) MekChemicalHelper.getAmount(chemicalStack);
         }
-        int left = pushGasToRole(ports, chemicalStack, true);
-        if (left > 0) {
-            Object remainder = MekChemicalHelper.copyStack(chemicalStack, left);
-            if (remainder != null) {
-                left = pushGasToRole(ports, remainder, false);
+        return pushGasToRole(ports, chemicalStack, true, registryAccess);
+    }
+
+    private static int pushGasToRole(
+            List<ResourcePortBlockEntity> ports,
+            Object chemicalStack,
+            boolean fuelRole,
+            RegistryAccess registryAccess) {
+        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return (int) MekChemicalHelper.getAmount(chemicalStack);
+        }
+        if (fuelRole) {
+            if (!FuelLoader.matchesAnyChemicalFuelOutput(chemicalStack)) {
+                return (int) MekChemicalHelper.getAmount(chemicalStack);
             }
-        }
-        return left;
-    }
-
-    private static int pushGasToRole(List<ResourcePortBlockEntity> ports, Object chemicalStack, boolean fuelRole) {
-        if (!MekChemicalHelper.isLoaded() || chemicalStack == null || MekChemicalHelper.isEmpty(chemicalStack)) {
+        } else if (!CoolantLoader.matchesAnyCoolantGasOutput(chemicalStack, registryAccess)) {
             return (int) MekChemicalHelper.getAmount(chemicalStack);
         }
+
         long remaining = MekChemicalHelper.getAmount(chemicalStack);
         for (ResourcePortBlockEntity port : ports) {
             if (remaining <= 0) {
@@ -142,8 +159,8 @@ public final class ResourcePortOutputRouter {
         return remaining;
     }
 
-    public static int availableFluidSpace(List<ResourcePortBlockEntity> ports) {
-        int space = 0;
+    public static long availableFluidSpace(List<ResourcePortBlockEntity> ports) {
+        long space = 0L;
         for (ResourcePortBlockEntity port : ports) {
             if (port.getPortMode() != PortMode.EXTRACT) {
                 continue;
@@ -154,7 +171,7 @@ public final class ResourcePortOutputRouter {
             if (!port.canAcceptFluidFromReactor()) {
                 continue;
             }
-            space += port.getFluidTank().getCapacity() - port.getFluidTank().getFluidAmount();
+            space += Math.max(0L, port.getFluidCapacityMbLong() - port.getFluidAmountMbLong());
         }
         return space;
     }
@@ -186,7 +203,7 @@ public final class ResourcePortOutputRouter {
     }
 
     public static long availableGasSpace(List<ResourcePortBlockEntity> ports) {
-        long space = 0;
+        long space = 0L;
         for (ResourcePortBlockEntity port : ports) {
             if (port.getPortMode() != PortMode.EXTRACT) {
                 continue;
@@ -204,8 +221,14 @@ public final class ResourcePortOutputRouter {
 
     /** Free mB on EXTRACT gas ports that can accept this chemical (empty tank or same type). */
     public static long availableFuelGasSpace(List<ResourcePortBlockEntity> ports, @Nullable Object chemicalStack) {
-        long space = 0;
+        long space = 0L;
         for (ResourcePortBlockEntity port : ports) {
+            if (port.getPortMode() != PortMode.EXTRACT) {
+                continue;
+            }
+            if (!port.getPortFilter().acceptsFuelRole()) {
+                continue;
+            }
             if (!port.canAcceptChemicalFromReactor(chemicalStack)) {
                 continue;
             }
@@ -216,7 +239,7 @@ public final class ResourcePortOutputRouter {
 
     /** Free mB on EXTRACT gas ports with any tank space (legacy / coolant checks). */
     public static long availableFuelGasSpace(List<ResourcePortBlockEntity> ports) {
-        long space = 0;
+        long space = 0L;
         for (ResourcePortBlockEntity port : ports) {
             if (port.getPortMode() != PortMode.EXTRACT) {
                 continue;
@@ -224,7 +247,7 @@ public final class ResourcePortOutputRouter {
             if (!port.isAllowGas() || port.isAllowLiquid()) {
                 continue;
             }
-            if (!port.getPortFilter().acceptsFuelRole() && !port.getPortFilter().acceptsCoolantRole()) {
+            if (!port.getPortFilter().acceptsFuelRole()) {
                 continue;
             }
             if (!port.canAcceptGasFromReactor()) {
@@ -238,14 +261,14 @@ public final class ResourcePortOutputRouter {
     /**
      * Free mB on EXTRACT ports for this coolant's configured outputs (max of liquid and/or gas paths).
      */
-    public static int availableCoolantOutputSpaceMb(
+    public static long availableCoolantOutputSpaceMb(
             List<ResourcePortBlockEntity> extractPorts,
             @Nullable CoolantDefinition coolantDef,
             RegistryAccess registryAccess) {
         if (extractPorts.isEmpty() || coolantDef == null) {
-            return 0;
+            return 0L;
         }
-        int space = 0;
+        long space = 0L;
         String liquidSel = coolantDef.liquidOutputSelector();
         if (liquidSel != null && !liquidSel.isBlank()) {
             Fluid fluid = liquidSel.startsWith("#")
@@ -257,7 +280,7 @@ public final class ResourcePortOutputRouter {
         }
         String gasSel = coolantDef.gasOutputSelector();
         if (gasSel != null && MekChemicalHelper.isLoaded()) {
-            space = Math.max(space, (int) Math.min(Integer.MAX_VALUE, availableGasSpace(extractPorts)));
+            space = Math.max(space, availableGasSpace(extractPorts));
         }
         return space;
     }

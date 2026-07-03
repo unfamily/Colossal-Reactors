@@ -338,30 +338,32 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     }
 
     private void renderLiquidBar(GuiGraphics g, int guiX, int guiY) {
-        int amount = menu.getFluidAmount();
-        int capacity = menu.getFluidCapacity();
+        long amount = menu.getFluidAmountLong();
+        long capacity = menu.getFluidCapacityLong();
         int fluidId = menu.getFluidId();
         if (capacity <= 0 || amount <= 0 || fluidId < 0) return;
         Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
         if (fluid == null || fluid == Fluids.EMPTY) return;
-        int fillPx = (ResourcePortGuiLayout.BAR_FILL_H * amount) / capacity;
+        int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
         if (fillPx <= 0) return;
         int fillTop = ResourcePortGuiLayout.liquidBarFillBottom(guiY) - fillPx;
-        FluidRenderHelper.drawFluidInTank(g, new FluidStack(fluid, amount),
+        int stackAmount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
+        FluidRenderHelper.drawFluidInTank(g, new FluidStack(fluid, stackAmount),
                 ResourcePortGuiLayout.liquidBarFillLeft(guiX), fillTop,
                 ResourcePortGuiLayout.BAR_FILL_W, fillPx);
     }
 
     private void renderGasBar(GuiGraphics g, int guiX, int guiY) {
-        int amount = menu.getGasAmount();
-        int capacity = menu.getGasCapacity();
+        long amount = menu.getGasAmountLong();
+        long capacity = menu.getGasCapacityLong();
         if (capacity <= 0 || amount <= 0) return;
-        int fillPx = (ResourcePortGuiLayout.BAR_FILL_H * amount) / capacity;
+        int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
         if (fillPx <= 0) return;
         int outerLeft = ResourcePortGuiLayout.gasBarFillLeft(guiX);
         int outerTop = ResourcePortGuiLayout.gasBarFillTop(guiY);
         String gasName = menu.getGasRegistryName();
-        if (!GasTankRenderHelper.drawGasInTank(g, gasName, amount, outerLeft, outerTop,
+        int stackAmount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
+        if (!GasTankRenderHelper.drawGasInTank(g, gasName, stackAmount, outerLeft, outerTop,
                 ResourcePortGuiLayout.BAR_FILL_W, ResourcePortGuiLayout.BAR_FILL_H, fillPx)) {
             int fillTop = ResourcePortGuiLayout.gasBarFillBottom(guiY) - fillPx;
             g.fill(outerLeft, fillTop, outerLeft + ResourcePortGuiLayout.BAR_FILL_W,
@@ -397,7 +399,8 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) return;
         List<FormattedCharSequence> lines = new ArrayList<>();
         lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.liquid",
-                menu.getFluidAmount(), menu.getFluidCapacity()).getVisualOrderText());
+                GuiNumberFormat.format(menu.getFluidAmountLong()),
+                GuiNumberFormat.format(menu.getFluidCapacityLong())).getVisualOrderText());
         int fluidId = menu.getFluidId();
         if (fluidId >= 0) {
             Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
@@ -415,7 +418,8 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) return;
         List<FormattedCharSequence> lines = new ArrayList<>();
         lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.gas",
-                menu.getGasAmount(), menu.getGasCapacity()).getVisualOrderText());
+                GuiNumberFormat.format(menu.getGasAmountLong()),
+                GuiNumberFormat.format(menu.getGasCapacityLong())).getVisualOrderText());
         String gasName = menu.getGasRegistryName();
         Component name = GasTankRenderHelper.getGasDisplayName(gasName);
         if (name != null) lines.add(name.getVisualOrderText());

@@ -3,7 +3,7 @@ package net.unfamily.colossal_reactors.blockentity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
-import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
 
 public class TurbineResourcePortBlockEntity extends ResourcePortBlockEntity {
 
@@ -17,8 +17,8 @@ public class TurbineResourcePortBlockEntity extends ResourcePortBlockEntity {
     }
 
     @Override
-    protected int tankCapacityMb() {
-        return Config.TURBINE_RESOURCE_PORT_TANK_CAPACITY_MB.get();
+    protected long tankCapacityMb() {
+        return PortScalingConstants.MIN_FLUID_TANK_MB;
     }
 
     @Override

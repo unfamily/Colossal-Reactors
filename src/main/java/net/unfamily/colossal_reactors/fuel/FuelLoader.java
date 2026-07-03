@@ -286,6 +286,23 @@ public class FuelLoader {
         return null;
     }
 
+    /** True when the fluid matches any loaded fuel recipe's fluid {@code output} (waste). */
+    public static boolean matchesAnyFluidFuelOutput(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return false;
+        }
+        for (FuelDefinition def : DEFINITIONS.values()) {
+            if (def.outputMedium() != FuelMedium.FLUID) {
+                continue;
+            }
+            String output = def.output();
+            if (output != null && MaterialSelector.matchesFluid(fluid, output)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** True when the Mek chemical matches any loaded fuel recipe's chemical {@code output} (waste). */
     public static boolean matchesAnyChemicalFuelOutput(@Nullable Object chemicalStack) {
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {

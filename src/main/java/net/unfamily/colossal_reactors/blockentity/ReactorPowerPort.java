@@ -10,4 +10,16 @@ public interface ReactorPowerPort {
      * @return amount actually accepted
      */
     long receiveEnergyFromReactor(long maxAmount);
+
+    long getStoredEnergyLong();
+
+    long getMaxEnergyLong();
+
+    default long availableSpaceLong() {
+        return Math.max(0L, getMaxEnergyLong() - getStoredEnergyLong());
+    }
+
+    default boolean canAcceptMoreFromReactor() {
+        return availableSpaceLong() > 0L;
+    }
 }

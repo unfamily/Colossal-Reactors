@@ -10,4 +10,16 @@ public interface TurbinePowerPort {
      * @return amount actually accepted
      */
     long receiveEnergyFromTurbine(long maxAmount);
+
+    long getStoredEnergyLong();
+
+    long getMaxEnergyLong();
+
+    default long availableSpaceLong() {
+        return Math.max(0L, getMaxEnergyLong() - getStoredEnergyLong());
+    }
+
+    default boolean canAcceptMoreFromTurbine() {
+        return availableSpaceLong() > 0L;
+    }
 }

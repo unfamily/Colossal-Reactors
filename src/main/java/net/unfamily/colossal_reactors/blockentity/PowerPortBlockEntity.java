@@ -8,7 +8,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.multiblock.PortCapacityPolicy;
+import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
 import net.unfamily.colossal_reactors.transfer.IntBackedForgeEnergyStorage;
 
 /**
@@ -18,15 +19,31 @@ public class PowerPortBlockEntity extends BlockEntity implements ReactorPowerPor
 
     private static final String TAG_ENERGY = "Energy";
 
-    private final int maxExtractPerTick;
-    private final IntBackedForgeEnergyStorage energyStorage;
+    private int maxExtractPerTick;
+    private IntBackedForgeEnergyStorage energyStorage;
 
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
-        int capacity = Config.POWER_PORT_CAPACITY.get();
-        int maxExtractCfg = Config.POWER_PORT_MAX_EXTRACT.get();
-        this.maxExtractPerTick = Math.min(capacity, maxExtractCfg);
-        this.energyStorage = new IntBackedForgeEnergyStorage(capacity, 0, capacity, 0);
+        applyEnergyCapacity((int) PortScalingConstants.MIN_ENERGY_BUFFER_RF);
+    }
+
+    public void applyEnergyCapacity(int targetCapacity) {
+        int cap = (int) Math.min(PortScalingConstants.INT_ENERGY_CAP,
+                Math.max(PortScalingConstants.MIN_ENERGY_BUFFER_RF, targetCapacity));
+        if (energyStorage != null) {
+            cap = (int) PortCapacityPolicy.resolveEnergyCapacity(cap,
+                    energyStorage.getMaxEnergyStored(), energyStorage.getEnergyStored());
+        }
+        if (energyStorage != null && energyStorage.getMaxEnergyStored() == cap && maxExtractPerTick == cap) {
+            return;
+        }
+        maxExtractPerTick = cap;
+        if (energyStorage == null) {
+            energyStorage = new IntBackedForgeEnergyStorage(cap, cap, cap, 0);
+        } else {
+            energyStorage.resize(cap, cap, cap);
+        }
+        setChanged();
     }
 
     public void tick() {
@@ -52,6 +69,16 @@ public class PowerPortBlockEntity extends BlockEntity implements ReactorPowerPor
 
     public IEnergyStorage getEnergyStorageForCapability() {
         return new OutputOnlyEnergyWrapper(energyStorage);
+    }
+
+    @Override
+    public long getStoredEnergyLong() {
+        return energyStorage.getEnergyStored();
+    }
+
+    @Override
+    public long getMaxEnergyLong() {
+        return energyStorage.getMaxEnergyStored();
     }
 
     @Override

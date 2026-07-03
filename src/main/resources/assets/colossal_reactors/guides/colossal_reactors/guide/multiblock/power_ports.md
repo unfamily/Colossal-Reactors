@@ -26,7 +26,7 @@ The standard **Reactor Power Port** is enough for most modpacks and typical RF r
 
 ## Reactor High Conduction Power Port
 
-The **Reactor High Conduction Power Port** is for very large reactors that produce enormous RF per tick. It stores and moves much higher amounts of energy (tunable in mod settings) and works better with mods that support huge power transfer (for example Draconic Evolution or Flux Networks when installed).
+The **Reactor High Conduction Power Port** is for very large reactors that produce enormous RF per tick. It stores and moves much higher amounts of energy and scales automatically with multiblock output on rebuild. Works best with mods that support huge power transfer (for example Draconic Evolution or Flux Networks when installed).
 
 Craft it from a **Reactor Power Port** plus high-tier materials—check **JEI** for your pack.
 

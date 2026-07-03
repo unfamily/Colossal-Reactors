@@ -68,7 +68,7 @@ public final class FuelIo {
             switch (def.outputMedium()) {
                 case ITEM -> pushItemWaste(controller, extractPorts, entry.id(), entry.units(), def, registryAccess);
                 case FLUID -> pushFluidWaste(controller, extractPorts, entry.id(), entry.units(), def, registryAccess);
-                case CHEMICAL -> pushChemicalWaste(controller, extractPorts, entry.id(), entry.units(), def);
+                case CHEMICAL -> pushChemicalWaste(controller, extractPorts, entry.id(), entry.units(), def, registryAccess);
             }
         }
     }
@@ -249,7 +249,7 @@ public final class FuelIo {
         if (fluid == null || fluid == Fluids.EMPTY) {
             return;
         }
-        int left = ResourcePortOutputRouter.pushFuelFluid(extractPorts, new FluidStack(fluid, wasteMb));
+        int left = ResourcePortOutputRouter.pushFuelFluid(extractPorts, new FluidStack(fluid, wasteMb), registryAccess);
         if (left >= wasteMb) {
             return;
         }
@@ -272,7 +272,8 @@ public final class FuelIo {
             List<ResourcePortBlockEntity> extractPorts,
             ResourceLocation wasteBufferId,
             float wasteUnits,
-            FuelDefinition def) {
+            FuelDefinition def,
+            RegistryAccess registryAccess) {
         if (!MekChemicalHelper.isLoaded()) {
             LOGGER.warn("[CR-waste] Mekanism not loaded — skipping chemical waste push for {}", wasteBufferId);
             return;
@@ -305,7 +306,7 @@ public final class FuelIo {
             LOGGER.warn("[CR-waste] createStackFromSelector('{}', {}) returned null — skipping", wasteSelector, exportMb);
             return;
         }
-        int left = ResourcePortOutputRouter.pushFuelGas(extractPorts, stack);
+        int left = ResourcePortOutputRouter.pushFuelGas(extractPorts, stack, registryAccess);
         int exportedMb = exportMb - left;
         if (exportedMb <= 0) {
             LOGGER.warn("[CR-waste] pushFuelGas accepted 0 mB out of {} (ports={}) — check port gas-tank capacity and medium flags",

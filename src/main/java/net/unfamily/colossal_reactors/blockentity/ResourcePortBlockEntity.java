@@ -21,15 +21,19 @@ import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
-import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.multiblock.PortCapacityPolicy;
+import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
+import net.unfamily.colossal_reactors.transfer.LongBackedFluidTank;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -53,8 +57,16 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final String TAG_PORT_FILTER = "PortFilter";
     private static final int SLOT_SIZE = 1;
 
-    protected int tankCapacityMb() {
-        return Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
+    protected long tankCapacityMb() {
+        return PortScalingConstants.MIN_FLUID_TANK_MB;
+    }
+
+    private static int lowLong(long value) {
+        return (int) value;
+    }
+
+    private static int highLong(long value) {
+        return (int) (value >>> 32);
     }
 
     private static final int DATA_MODE = 3;
@@ -71,7 +83,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     private static final int DATA_GAS_TYPE_INTS = 16;
     private static final int DATA_PORT_FILTER = DATA_GAS_TYPE_START + DATA_GAS_TYPE_INTS;
     private static final int DATA_IS_TURBINE = DATA_PORT_FILTER + 1;
-    private static final int DATA_COUNT = DATA_IS_TURBINE + 1;
+    private static final int DATA_FLUID_AMOUNT_HI = DATA_IS_TURBINE + 1;
+    private static final int DATA_FLUID_CAPACITY_HI = DATA_FLUID_AMOUNT_HI + 1;
+    private static final int DATA_GAS_AMOUNT_HI = DATA_FLUID_CAPACITY_HI + 1;
+    private static final int DATA_GAS_CAPACITY_HI = DATA_GAS_AMOUNT_HI + 1;
+    private static final int DATA_COUNT = DATA_GAS_CAPACITY_HI + 1;
 
     private final ItemStackHandler itemHandler = new ItemStackHandler(SLOT_SIZE) {
         @Override
@@ -80,12 +96,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     };
 
-    private final FluidTank fluidTank = new FluidTank(tankCapacityMb()) {
-        @Override
-        protected void onContentsChanged() {
-            setChanged();
-        }
-    };
+    private final LongBackedFluidTank fluidTank = new LongBackedFluidTank(tankCapacityMb(), this::setChanged);
 
     private PortMode portMode = PortMode.INSERT;
     private PortFilter portFilter = PortFilter.BOTH;
@@ -98,8 +109,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         @Override
         public int get(int index) {
             return switch (index) {
-                case 0 -> fluidTank.getFluidAmount();
-                case 1 -> fluidTank.getCapacity();
+                case 0 -> lowLong(fluidTank.getFluidAmountLong());
+                case 1 -> lowLong(fluidTank.getCapacityLong());
                 case 2 -> fluidTank.getFluid().isEmpty()
                         ? -1
                         : BuiltInRegistries.FLUID.getId(fluidTank.getFluid().getFluid());
@@ -110,10 +121,14 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 case DATA_ALLOW_SOLID -> mediumFlags.isAllowSolid() ? 1 : 0;
                 case DATA_ALLOW_LIQUID -> mediumFlags.isAllowLiquid() ? 1 : 0;
                 case DATA_ALLOW_GAS -> mediumFlags.isAllowGas() ? 1 : 0;
-                case DATA_GAS_AMOUNT -> getGasAmountMb();
-                case DATA_GAS_CAPACITY -> getGasCapacityMb();
+                case DATA_GAS_AMOUNT -> lowLong(getGasAmountMbLong());
+                case DATA_GAS_CAPACITY -> lowLong(getGasCapacityMbLong());
                 case DATA_PORT_FILTER -> portFilter.getId();
                 case DATA_IS_TURBINE -> isTurbineResourcePort() ? 1 : 0;
+                case DATA_FLUID_AMOUNT_HI -> highLong(fluidTank.getFluidAmountLong());
+                case DATA_FLUID_CAPACITY_HI -> highLong(fluidTank.getCapacityLong());
+                case DATA_GAS_AMOUNT_HI -> highLong(getGasAmountMbLong());
+                case DATA_GAS_CAPACITY_HI -> highLong(getGasCapacityMbLong());
                 default -> {
                     if (index == DATA_GAS_TYPE_LENGTH) {
                         String name = getGasTypeRegistryName();
@@ -141,7 +156,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 if (value <= 0) {
                     fluidTank.setFluid(FluidStack.EMPTY);
                 } else if (!current.isEmpty()) {
-                    fluidTank.setFluid(new FluidStack(current.getFluid(), Math.min(value, fluidTank.getCapacity())));
+                    long cap = fluidTank.getCapacityLong();
+                    fluidTank.setFluid(new FluidStack(current.getFluid(), (int) Math.min(value, cap)));
                 }
             }
         }
@@ -176,11 +192,19 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public int getFluidAmountMb() {
-        return fluidTank.getFluidAmount();
+        return (int) Math.min(fluidTank.getFluidAmountLong(), Integer.MAX_VALUE);
+    }
+
+    public long getFluidAmountMbLong() {
+        return fluidTank.getFluidAmountLong();
     }
 
     public int getFluidCapacityMb() {
-        return fluidTank.getCapacity();
+        return (int) Math.min(fluidTank.getCapacityLong(), Integer.MAX_VALUE);
+    }
+
+    public long getFluidCapacityMbLong() {
+        return fluidTank.getCapacityLong();
     }
 
     /**
@@ -201,13 +225,21 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public int receiveFluidFromReactor(FluidStack stack) {
         if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return 0;
         if (!mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()) return 0;
-        return fluidTank.fill(stack, IFluidHandler.FluidAction.EXECUTE);
+        if (!acceptsReactorFluidPush(stack)) return 0;
+        long filled = fluidTank.fillLong(stack, false);
+        return filled > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) filled;
     }
 
     /** Push Mek gas into port (EXTRACT/EJECT, gas toggle on). Returns mB accepted. */
     public int receiveGasFromReactor(Object chemicalStack) {
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) return 0;
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return 0;
+        if (!acceptsReactorGasPush(chemicalStack)) {
+            LOGGER.debug("[CR-port] receiveGasFromReactor: rejected push at {} (mode={} gas={} liq={} amountMb={} capMb={})",
+                    getBlockPos(), portMode, mediumFlags.isAllowGas(), mediumFlags.isAllowLiquid(),
+                    getGasAmountMb(), getGasCapacityMb());
+            return 0;
+        }
         if (!canAcceptChemicalFromReactor(chemicalStack)) {
             LOGGER.debug("[CR-port] receiveGasFromReactor: canAcceptChemicalFromReactor=false at {} (mode={} gas={} liq={} amountMb={} capMb={})",
                     getBlockPos(), portMode, mediumFlags.isAllowGas(), mediumFlags.isAllowLiquid(),
@@ -237,13 +269,13 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public boolean canAcceptFluidFromReactor() {
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
         if (!mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()) return false;
-        return fluidTank.getFluidAmount() < fluidTank.getCapacity();
+        return fluidTank.getFluidAmountLong() < fluidTank.getCapacityLong();
     }
 
     public boolean canAcceptGasFromReactor() {
         if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) return false;
         if (!mediumFlags.isAllowGas() || mediumFlags.isAllowLiquid()) return false;
-        return getGasAmountMb() < getGasCapacityMb();
+        return getGasAmountMbLong() < getGasCapacityMbLong();
     }
 
     /** True when the gas tank is empty or already holds the same Mek chemical (reactor push). */
@@ -262,7 +294,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public long getGasSpaceMb() {
-        return Math.max(0, (long) getGasCapacityMb() - getGasAmountMb());
+        return Math.max(0L, getGasCapacityMbLong() - getGasAmountMbLong());
     }
 
     /**
@@ -274,7 +306,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (portMode != PortMode.INSERT) return 0;
         FluidStack inTank = fluidTank.getFluid();
         if (inTank.isEmpty() || inTank.getFluid() != fluid) return 0;
-        int drain = Math.min(amountMb, inTank.getAmount());
+        int drain = (int) Math.min(amountMb, inTank.getAmount());
         if (drain <= 0) return 0;
         fluidTank.drain(drain, IFluidHandler.FluidAction.EXECUTE);
         setChanged();
@@ -305,7 +337,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         IFluidHandler blockHandler = getFluidHandler();
         FluidStack inItem = itemHandler.getFluidInTank(0);
         if (!inItem.isEmpty()) {
-            // Item has fluid: try to fill block (allowed in INSERT mode)
+            if (portMode != PortMode.INSERT || !mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()
+                    || !acceptsFluidForCapability(inItem)) {
+                return false;
+            }
             if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
                 int filled = blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.EXECUTE);
                 if (filled > 0) {
@@ -315,7 +350,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 }
             }
         } else {
-            // Item empty: try to drain block to item (allowed in EXTRACT/EJECT mode)
+            if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) {
+                return false;
+            }
             FluidStack inBlock = blockHandler.getFluidInTank(0);
             if (!inBlock.isEmpty() && itemHandler.isFluidValid(0, inBlock)) {
                 int capacity = itemHandler.getTankCapacity(0);
@@ -354,7 +391,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     public Object getChemicalHandler() {
         if (!MekChemicalHelper.isLoaded()) return null;
         if (chemicalHandler == null) {
-            int cap = tankCapacityMb();
+            long cap = tankCapacityMb();
             Object tank = MekChemicalHelper.createBasicTank(cap);
             if (tank == null) {
                 LOGGER.warn("[CR-port] createBasicTank({}) returned null at {} — Mek chemical tank unavailable", cap, getBlockPos());
@@ -365,13 +402,21 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public int getGasAmountMb() {
+        return (int) Math.min(getGasAmountMbLong(), Integer.MAX_VALUE);
+    }
+
+    public long getGasAmountMbLong() {
         Object h = getChemicalHandler();
-        return h != null ? MekChemicalHelper.getTankAmount(h) : 0;
+        return h != null ? MekChemicalHelper.getTankAmountLong(h) : 0L;
     }
 
     public int getGasCapacityMb() {
+        return (int) Math.min(getGasCapacityMbLong(), Integer.MAX_VALUE);
+    }
+
+    public long getGasCapacityMbLong() {
         Object h = getChemicalHandler();
-        return h != null ? MekChemicalHelper.getTankCapacity(h) : 0;
+        return h != null ? MekChemicalHelper.getTankCapacityLong(h) : 0L;
     }
 
     @Nullable
@@ -422,45 +467,53 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return ok;
     }
 
-    public FluidTank getFluidTank() {
+    public LongBackedFluidTank getFluidTank() {
         return fluidTank;
     }
 
-    /** Server: resize fluid and Mek gas tanks (clamps existing contents). */
-    public void applyTankCapacityMb(int capacityMb) {
-        if (capacityMb <= 0 || level == null || level.isClientSide()) {
+    /** Server: resize fluid and Mek gas tanks with deferred shrink when buffer exceeds target. */
+    public void applyTankCapacity(long targetMb) {
+        if (targetMb <= 0 || level == null || level.isClientSide()) {
             return;
         }
-        if (fluidTank.getCapacity() != capacityMb) {
-            fluidTank.setCapacity(capacityMb);
-            if (fluidTank.getFluidAmount() > capacityMb) {
-                FluidStack stack = fluidTank.getFluid();
-                fluidTank.setFluid(new FluidStack(stack.getFluid(), capacityMb));
-            }
+        long resolvedFluid = PortCapacityPolicy.resolveFluidCapacity(targetMb,
+                fluidTank.getCapacityLong(), fluidTank.getFluidAmountLong());
+        if (fluidTank.getCapacityLong() != resolvedFluid) {
+            fluidTank.resize(resolvedFluid);
             setChanged();
         }
         if (MekChemicalHelper.isLoaded()) {
-            int currentCap = getGasCapacityMb();
-            if (currentCap != capacityMb) {
-                Object savedStack = null;
-                Object existing = getChemicalHandler();
-                if (existing != null) {
-                    try {
-                        Object inTank = existing.getClass().getMethod("getChemicalInTank", int.class).invoke(existing, 0);
-                        if (!MekChemicalHelper.isEmpty(inTank)) {
-                            savedStack = inTank;
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                }
-                chemicalHandler = MekChemicalHelper.createBasicTank(capacityMb);
-                if (chemicalHandler != null) {
-                    chemicalHandler = MekChemicalHelper.wrapAsHandler(chemicalHandler);
-                    if (savedStack != null) {
-                        MekChemicalHelper.fill(chemicalHandler, savedStack, false);
-                    }
-                }
+            long resolvedGas = PortCapacityPolicy.resolveFluidCapacity(targetMb,
+                    getGasCapacityMbLong(), getGasAmountMbLong());
+            if (getGasCapacityMbLong() != resolvedGas) {
+                resizeGasTankMb(resolvedGas);
                 setChanged();
+            }
+        }
+    }
+
+    /** @see #applyTankCapacity(long) */
+    public void applyTankCapacityMb(int capacityMb) {
+        applyTankCapacity(capacityMb);
+    }
+
+    private void resizeGasTankMb(long capacityMb) {
+        Object savedStack = null;
+        Object existing = getChemicalHandler();
+        if (existing != null) {
+            try {
+                Object inTank = existing.getClass().getMethod("getChemicalInTank", int.class).invoke(existing, 0);
+                if (!MekChemicalHelper.isEmpty(inTank)) {
+                    savedStack = inTank;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        chemicalHandler = MekChemicalHelper.createBasicTank(capacityMb);
+        if (chemicalHandler != null) {
+            chemicalHandler = MekChemicalHelper.wrapAsHandler(chemicalHandler);
+            if (savedStack != null) {
+                MekChemicalHelper.fill(chemicalHandler, savedStack, false);
             }
         }
     }
@@ -526,6 +579,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
         this.portFilter = filter;
+        PortMediumFlags synced = PortMediumFlags.fromLegacyFilter(filter);
+        mediumFlags.setAllowSolid(synced.isAllowSolid());
+        mediumFlags.setAllowLiquid(synced.isAllowLiquid());
+        mediumFlags.setAllowGas(synced.isAllowGas());
         setChanged();
     }
 
@@ -578,11 +635,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         tag.putInt(TAG_PORT_MODE, portMode.getId());
         tag.putInt(TAG_PORT_FILTER, portFilter.getId());
         mediumFlags.writeToNbt(tag);
-        FluidStack stack = fluidTank.getFluid();
-        if (!stack.isEmpty()) {
-            CompoundTag fluidTag = new CompoundTag();
-            fluidTag.putString(TAG_FLUID_ID, BuiltInRegistries.FLUID.getKey(stack.getFluid()).toString());
-            fluidTag.putInt(TAG_FLUID_AMOUNT, stack.getAmount());
+        CompoundTag fluidTag = new CompoundTag();
+        fluidTank.writeToNbt(fluidTag, registries);
+        if (!fluidTank.getFluid().isEmpty()) {
             tag.put(TAG_FLUID, fluidTag);
         }
     }
@@ -601,10 +656,14 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         fluidTank.setFluid(FluidStack.EMPTY);
         if (tag.contains(TAG_FLUID)) {
             CompoundTag fluidTag = tag.getCompound(TAG_FLUID);
-            Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidTag.getString(TAG_FLUID_ID)));
-            int amount = fluidTag.getInt(TAG_FLUID_AMOUNT);
-            if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
-                fluidTank.setFluid(new FluidStack(fluid, amount));
+            if (fluidTag.contains("AmountL") || fluidTag.contains("CapacityL")) {
+                fluidTank.readFromNbt(fluidTag, registries);
+            } else if (fluidTag.contains(TAG_FLUID_ID)) {
+                Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidTag.getString(TAG_FLUID_ID)));
+                int amount = fluidTag.getInt(TAG_FLUID_AMOUNT);
+                if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
+                    fluidTank.setFluid(new FluidStack(fluid, amount));
+                }
             }
         }
     }
@@ -677,8 +736,12 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
      * Fluid handler exposed to capability (hoppers/pipes). INSERT: allow fill. EXTRACT/EJECT: allow drain only.
      */
     private final class FilteredFluidHandler implements IFluidHandler {
+        private boolean allowLiquidFill() {
+            return portMode == PortMode.INSERT && mediumFlags.isAllowLiquid() && !mediumFlags.isAllowGas();
+        }
+
         private boolean allowFill() {
-            return portMode == PortMode.INSERT;
+            return allowLiquidFill();
         }
 
         private boolean allowDrain() {
@@ -733,8 +796,37 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    private boolean acceptsItemForCapability(ItemStack stack) {
+    private boolean acceptsReactorFluidPush(FluidStack stack) {
         if (stack.isEmpty() || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        Fluid fluid = stack.getFluid();
+        if (FuelLoader.matchesAnyFluidFuelOutput(fluid, registries)) {
+            return portFilter.acceptsFuelRole();
+        }
+        if (CoolantLoader.matchesAnyCoolantLiquidOutput(fluid, registries)) {
+            return portFilter.acceptsCoolantRole();
+        }
+        return false;
+    }
+
+    private boolean acceptsReactorGasPush(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack) || level == null) {
+            return false;
+        }
+        RegistryAccess registries = level.registryAccess();
+        if (FuelLoader.matchesAnyChemicalFuelOutput(chemicalStack)) {
+            return portFilter.acceptsFuelRole();
+        }
+        if (CoolantLoader.matchesAnyCoolantGasOutput(chemicalStack, registries)) {
+            return portFilter.acceptsCoolantRole();
+        }
+        return false;
+    }
+
+    private boolean acceptsItemForCapability(ItemStack stack) {
+        if (isTurbineResourcePort() || stack.isEmpty() || level == null) {
             return false;
         }
         RegistryAccess registries = level.registryAccess();
@@ -754,6 +846,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (fluid == null || fluid == Fluids.EMPTY) {
             return false;
         }
+        if (isTurbineResourcePort()) {
+            return acceptsTurbineFluidInput(fluid, registries);
+        }
         boolean isFuel = FuelLoader.getDefinitionForFluid(fluid, registries) != null;
         boolean isCoolant = CoolantLoader.getDefinitionForFluid(fluid, registries) != null;
         if (portFilter.acceptsFuelRole() && isFuel) {
@@ -762,9 +857,37 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return portFilter.acceptsCoolantRole() && isCoolant;
     }
 
+    private boolean acceptsTurbineFluidInput(Fluid fluid, RegistryAccess registries) {
+        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
+        if (gen == null) {
+            return false;
+        }
+        return MaterialSelector.matchesAnyFluidInput(fluid, gen.inputs());
+    }
+
+    private boolean acceptsTurbineChemicalInput(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return false;
+        }
+        TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
+        if (gen == null) {
+            return false;
+        }
+        for (String input : gen.inputs()) {
+            if (input != null && MaterialSelector.isChemicalPrefix(input)
+                    && MaterialSelector.matchesChemical(chemicalStack, input)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean acceptsChemicalForCapability(@Nullable Object chemicalStack) {
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack) || level == null) {
             return false;
+        }
+        if (isTurbineResourcePort()) {
+            return acceptsTurbineChemicalInput(chemicalStack);
         }
         RegistryAccess registries = level.registryAccess();
         boolean isFuel = FuelLoader.getDefinitionForChemical(chemicalStack) != null;
@@ -780,7 +903,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (!FuelLoader.matchesAnyChemicalFuelOutput(chemicalStack)) {
             return false;
         }
-        return portFilter.acceptsFuelRole() || portFilter.acceptsCoolantRole();
+        return portFilter.acceptsFuelRole();
     }
 
     /**

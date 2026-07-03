@@ -5,23 +5,30 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.material.Fluids;
-import net.unfamily.colossal_reactors.Config;
-import net.unfamily.colossal_reactors.blockentity.PortFilter;
-import net.unfamily.colossal_reactors.blockentity.PortMode;
+import net.unfamily.colossal_reactors.blockentity.HighCondPowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.PowerPortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ReactorControllerBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineControllerBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineHighCondPowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbinePowerPortBlockEntity;
+import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.blockentity.PortFilter;
+import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.fuel.FuelMedium;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
+import net.unfamily.colossal_reactors.reactor.ReactorSimulation;
 import net.unfamily.colossal_reactors.reactor.ReactorValidation;
+import net.unfamily.colossal_reactors.turbine.TurbineValidation;
 
 /**
- * Resizes resource port fluid/gas tanks from estimated per-tick demand (× {@link Config#PORT_DEMAND_MULTIPLIER}),
- * floored at the config default tank capacity.
+ * Resizes resource and power port capacities from estimated per-tick demand
+ * (× {@link PortScalingConstants#DEMAND_MULTIPLIER}), floored at internal minimums.
  */
 public final class MultiblockPortScaling {
 
@@ -31,41 +38,40 @@ public final class MultiblockPortScaling {
             int fuelMbPerTick,
             int coolantMbPerTick,
             int wasteMbPerTick,
-            int exhaustMbPerTick
+            int exhaustMbPerTick,
+            long rfPerTick
     ) {}
 
     public static void scaleReactorPorts(ServerLevel level, ReactorControllerBlockEntity controller) {
-        if (!Config.SCALE_PORT_TANK_WITH_MULTIBLOCK.get()) {
-            return;
-        }
         ReactorValidation.Result result = controller.getCachedResult();
         if (result == null || !result.valid()) {
             return;
         }
-        int minMb = Config.RESOURCE_PORT_TANK_CAPACITY_MB.get();
-        int multiplier = Config.PORT_DEMAND_MULTIPLIER.get();
         ReactorDemandEstimate estimate = estimateReactorDemand(level, controller, result);
-        applyReactorPorts(level, controller.getCachedResourcePortPositions(), minMb, multiplier, estimate);
+        applyReactorPorts(level, controller.getCachedResourcePortPositions(),
+                PortScalingConstants.MIN_FLUID_TANK_MB, PortScalingConstants.DEMAND_MULTIPLIER, estimate);
+        long targetRf = scaledTargetRf(PortScalingConstants.MIN_ENERGY_BUFFER_RF, estimate.rfPerTick());
+        applyReactorPowerPorts(level, controller.getCachedPowerPortPositions(), targetRf);
     }
 
     public static void scaleTurbinePorts(ServerLevel level, TurbineControllerBlockEntity controller) {
-        if (!Config.SCALE_PORT_TANK_WITH_MULTIBLOCK.get()) {
-            return;
-        }
-        int minMb = Config.TURBINE_RESOURCE_PORT_TANK_CAPACITY_MB.get();
-        int multiplier = Config.PORT_DEMAND_MULTIPLIER.get();
         int steamPerTick = Math.max(1, controller.getCachedSteamConsumeMbPerTick());
-        int target = scaledTargetMb(minMb, steamPerTick, multiplier);
+        int target = (int) Math.min(Integer.MAX_VALUE, scaledTargetMb(PortScalingConstants.MIN_FLUID_TANK_MB, steamPerTick, PortScalingConstants.DEMAND_MULTIPLIER));
         applyUniformPorts(level, controller.getCachedResourcePortPositions(), target);
+
+        long rfPerTick = 1L;
+        TurbineValidation.Result turbineResult = controller.getCachedResult();
+        if (turbineResult != null && turbineResult.valid()) {
+            rfPerTick = Math.max(1L, (long) Math.min(Long.MAX_VALUE, turbineResult.estimatedRfPerTick()));
+        }
+        long targetRf = scaledTargetRf(PortScalingConstants.MIN_ENERGY_BUFFER_RF, rfPerTick);
+        applyTurbinePowerPorts(level, controller.getCachedPowerPortPositions(), targetRf);
     }
 
     public static int estimateReactorCoolantMoveBudgetMb(
             ReactorControllerBlockEntity controller,
             RegistryAccess registryAccess
     ) {
-        if (!Config.SCALE_PORT_TANK_WITH_MULTIBLOCK.get()) {
-            return 4000;
-        }
         ReactorValidation.Result result = controller.getCachedResult();
         if (result == null || !result.valid()) {
             return 4000;
@@ -96,7 +102,7 @@ public final class MultiblockPortScaling {
             PortFilter filter = port.getPortFilter();
             PortMode mode = port.getPortMode();
             int demand = demandMbForPort(mode, filter, estimate);
-            port.applyTankCapacityMb(scaledTargetMb(minMb, demand, multiplier));
+            port.applyTankCapacity(scaledTargetMb(minMb, demand, multiplier));
         }
     }
 
@@ -107,9 +113,49 @@ public final class MultiblockPortScaling {
         for (long packed : portPositions) {
             BlockEntity be = level.getBlockEntity(BlockPos.of(packed));
             if (be instanceof ResourcePortBlockEntity port) {
-                port.applyTankCapacityMb(targetMb);
+                port.applyTankCapacity(targetMb);
             }
         }
+    }
+
+    private static void applyReactorPowerPorts(ServerLevel level, long[] portPositions, long targetRf) {
+        if (portPositions == null) {
+            return;
+        }
+        for (long packed : portPositions) {
+            BlockEntity be = level.getBlockEntity(BlockPos.of(packed));
+            if (be instanceof PowerPortBlockEntity port) {
+                int cap = (int) Math.min(PortScalingConstants.INT_ENERGY_CAP, targetRf);
+                port.applyEnergyCapacity(cap);
+            } else if (be instanceof HighCondPowerPortBlockEntity port) {
+                port.applyEnergyCapacity(targetRf);
+            }
+        }
+    }
+
+    private static void applyTurbinePowerPorts(ServerLevel level, long[] portPositions, long targetRf) {
+        if (portPositions == null) {
+            return;
+        }
+        for (long packed : portPositions) {
+            BlockEntity be = level.getBlockEntity(BlockPos.of(packed));
+            if (be instanceof TurbinePowerPortBlockEntity port) {
+                int cap = (int) Math.min(PortScalingConstants.INT_ENERGY_CAP, targetRf);
+                port.applyEnergyCapacity(cap);
+            } else if (be instanceof TurbineHighCondPowerPortBlockEntity port) {
+                port.applyEnergyCapacity(targetRf);
+            }
+        }
+    }
+
+    private static long scaledTargetRf(long minRf, long demandRfPerTick) {
+        long scaled;
+        try {
+            scaled = Math.multiplyExact(demandRfPerTick, PortScalingConstants.DEMAND_MULTIPLIER);
+        } catch (ArithmeticException ignored) {
+            scaled = PortScalingConstants.LONG_ENERGY_CAP;
+        }
+        return Math.min(PortScalingConstants.LONG_ENERGY_CAP, Math.max(minRf, scaled));
     }
 
     private static int demandMbForPort(PortMode mode, PortFilter filter, ReactorDemandEstimate estimate) {
@@ -130,12 +176,9 @@ public final class MultiblockPortScaling {
         };
     }
 
-    private static int scaledTargetMb(int configDefaultMb, int demandMbPerTick, int multiplier) {
-        long scaled = (long) demandMbPerTick * multiplier;
-        if (scaled > Integer.MAX_VALUE) {
-            scaled = Integer.MAX_VALUE;
-        }
-        return (int) Math.max(configDefaultMb, scaled);
+    private static long scaledTargetMb(int configDefaultMb, long demandMbPerTick, int multiplier) {
+        long scaled = demandMbPerTick * multiplier;
+        return Math.max(configDefaultMb, scaled);
     }
 
     static ReactorDemandEstimate estimateReactorDemand(
@@ -146,7 +189,7 @@ public final class MultiblockPortScaling {
         RegistryAccess registryAccess = level.registryAccess();
         int rodCount = controller.getCachedRodPositions() != null ? controller.getCachedRodPositions().length : 0;
         if (rodCount <= 0) {
-            return new ReactorDemandEstimate(0, 0, 0, 0);
+            return new ReactorDemandEstimate(0, 0, 0, 0, 0L);
         }
 
         double effectiveRodCount = controller.getCachedEffectiveRodCount();
@@ -155,46 +198,34 @@ public final class MultiblockPortScaling {
         }
 
         double[] base = effectiveBaseFromControllerFuel(controller);
-        double baseRf = base[0];
         double baseFuelUnitsPerTick = base[1];
 
         CoolantDefinition coolantDef = controller.getCoolantDefinition(registryAccess);
         if (coolantDef == null) {
             coolantDef = CoolantLoader.get(CoolantLoader.WATER_COOLANT_ID);
         }
-        double rfMultiplier = coolantDef != null ? coolantDef.rfMultiplier() : 1.0;
         double mbMultiplier = coolantDef != null && coolantDef.mbMultiplier() > 0 ? coolantDef.mbMultiplier() : 1.0;
 
         ReactorControllerBlockEntity.HeatSinkStaticCache cache = controller.getCachedHeatSinkStaticCache();
         double heatSinkFuelMult = 1.0;
-        double heatSinkEnergyMult = 1.0;
         int countAdj = 0;
         int countNon = 0;
-        double sumEnergyAdj = 0.0;
         if (cache != null) {
             double wAdj = Config.HEAT_SINK_ADJACENT_WEIGHT.get();
             double wNon = Config.HEAT_SINK_NON_ADJACENT_WEIGHT.get();
             var rodM = HeatSinkLoader.getModifiersForFluidOrDefault(Fluids.EMPTY, registryAccess);
             double sumFuelRod = cache.countRod() * rodM.fuelMultiplier();
-            double sumEnergyRod = cache.countRod() * rodM.energyMultiplier();
             double totalWeightedFuel = sumFuelRod + cache.sumFuelAdj() * wAdj + cache.sumFuelNon() * wNon;
-            double totalWeightedEnergy = sumEnergyRod + cache.sumEnergyAdj() * wAdj + cache.sumEnergyNon() * wNon;
             double totalWeight = cache.countRod() + cache.countAdj() * wAdj + cache.countNon() * wNon;
             if (totalWeight > 0) {
                 heatSinkFuelMult = Math.max(0.1, totalWeightedFuel / totalWeight);
-                heatSinkEnergyMult = Math.max(0.1, totalWeightedEnergy / totalWeight);
             }
             countAdj = cache.countAdj();
             countNon = cache.countNon();
-            sumEnergyAdj = cache.sumEnergyAdj();
         }
 
-        double rfEfficiency = 1.0 - Config.RF_EFFICIENCY_LOSS.get();
         double fuelEfficiency = Config.FUEL_EFFICIENCY_LOSS.get();
-        double productionMult = Config.PRODUCTION_MULTIPLIER.get();
         double consumptionMult = Config.CONSUMPTION_MULTIPLIER.get();
-        double energyRodFactor = rodEnergyScaling(effectiveRodCount);
-
         double decayRods = Math.max(0.0, Config.CONSUMPTION_CURVE_DECAY_RODS.get());
         double curveStrength = (decayRods <= 0) ? 1.0 : decayRods / (effectiveRodCount + decayRods);
         double curveStrengthAdjusted = 0.4 + 0.50 * curveStrength;
@@ -208,33 +239,23 @@ public final class MultiblockPortScaling {
         }
         fuelConsumptionRate = Math.max(fuelConsumptionRate, Config.MIN_FUEL_UNITS_PER_TICK.get());
 
-        double rfProduced;
-        if (countAdj + countNon > 0 && effectiveRodCount > 0) {
-            double adjEnergyAvg = countAdj > 0 ? sumEnergyAdj / countAdj : 1.0;
-            double adjCoverage = Math.min(1.0, (double) countAdj / Math.max(1.0, rodCount));
-            double heatSinkRfFactor = adjEnergyAvg * adjCoverage;
-            rfProduced = baseRf * productionMult * rfEfficiency * energyRodFactor * heatSinkRfFactor * rfMultiplier
-                    * Math.max(0.1, Config.HEAT_SINK_RF_MULTIPLIER.get());
-        } else {
-            rfProduced = baseRf * productionMult * rfEfficiency * energyRodFactor * rfMultiplier * heatSinkEnergyMult;
-        }
-        rfProduced = Math.max(rfProduced, Config.MIN_RF_PER_TICK.get());
-
         boolean waterMode = coolantDef != null
                 && (coolantDef.reduceRfProduction() || CoolantLoader.WATER_COOLANT_ID.equals(coolantDef.coolantId()));
 
         int coolantMbPerTick = 0;
         int exhaustMbPerTick = 0;
         if (waterMode && coolantDef != null) {
-            coolantMbPerTick = (int) Math.ceil(rfProduced * coolantDef.rfToCoolantFactor());
+            double rfForFluid = ReactorSimulation.computeExpectedRfPerTick(level, controller, result);
+            coolantMbPerTick = (int) Math.ceil(rfForFluid * coolantDef.rfToCoolantFactor());
             exhaustMbPerTick = (int) Math.ceil(coolantMbPerTick * coolantDef.steamPerCoolant());
         }
 
         FuelDefinition primaryFuel = primaryFuelDefinition(controller);
         int fuelMbPerTick = fluidFuelMbPerTick(primaryFuel, (float) fuelConsumptionRate);
         int wasteMbPerTick = fluidWasteMbPerTick(primaryFuel, (float) fuelConsumptionRate);
+        long rfPerTick = ReactorSimulation.computeExpectedRfPerTick(level, controller, result);
 
-        return new ReactorDemandEstimate(fuelMbPerTick, coolantMbPerTick, wasteMbPerTick, exhaustMbPerTick);
+        return new ReactorDemandEstimate(fuelMbPerTick, coolantMbPerTick, wasteMbPerTick, exhaustMbPerTick, rfPerTick);
     }
 
     private static FuelDefinition primaryFuelDefinition(ReactorControllerBlockEntity controller) {
@@ -286,20 +307,6 @@ public final class MultiblockPortScaling {
             return new double[] { 200.0, 0.03 };
         }
         return new double[] { sumRf / totalUnits, sumFuel / totalUnits };
-    }
-
-    private static double rodEnergyScaling(double effectiveRodCount) {
-        double n = Math.max(0.0, effectiveRodCount);
-        int mode = Config.ROD_ENERGY_SCALING_MODE.get();
-        if (mode == 2) {
-            double k = Math.max(1.0, Config.ROD_ENERGY_SCALING_SATURATION_K.get());
-            return n / (1.0 + (n / k));
-        }
-        if (mode == 1) {
-            double exp = Config.ROD_ENERGY_SCALING_EXPONENT.get();
-            return Math.pow(n, exp);
-        }
-        return n * (Math.log(n + 1.0) / 2.3);
     }
 
     private static double rodFuelScaling(double effectiveRodCount) {

@@ -9,9 +9,9 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 public class LongBackedForgeEnergyStorage implements IEnergyStorage {
 
     private long energy;
-    private final long capacity;
-    private final long maxReceivePerOp;
-    private final long maxExtractPerOp;
+    private long capacity;
+    private long maxReceivePerOp;
+    private long maxExtractPerOp;
 
     public LongBackedForgeEnergyStorage(long capacity, long maxReceivePerOp, long maxExtractPerOp) {
         this(capacity, maxReceivePerOp, maxExtractPerOp, 0L);
@@ -91,6 +91,19 @@ public class LongBackedForgeEnergyStorage implements IEnergyStorage {
 
     public void setEnergy(long amount) {
         energy = Math.max(0L, Math.min(capacity, amount));
+    }
+
+    /**
+     * Resizes buffer and per-operation limits; clamps stored energy to the new capacity.
+     */
+    public void resize(long newCapacity, long newMaxReceive, long newMaxExtract) {
+        if (newCapacity < 0 || newMaxReceive < 0 || newMaxExtract < 0) {
+            throw new IllegalArgumentException("Energy storage arguments must be non-negative");
+        }
+        capacity = newCapacity;
+        maxReceivePerOp = newMaxReceive;
+        maxExtractPerOp = newMaxExtract;
+        energy = Math.max(0L, Math.min(capacity, energy));
     }
 
     /**

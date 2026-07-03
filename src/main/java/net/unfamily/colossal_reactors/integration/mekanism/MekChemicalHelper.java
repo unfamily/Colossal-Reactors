@@ -223,6 +223,24 @@ public final class MekChemicalHelper {
         }
     }
 
+    public static long getTankAmountLong(Object handler) {
+        try {
+            Object stack = handler.getClass().getMethod("getChemicalInTank", int.class).invoke(handler, 0);
+            return Math.max(0L, getAmount(stack));
+        } catch (Throwable e) {
+            return 0L;
+        }
+    }
+
+    public static long getTankCapacityLong(Object handler) {
+        try {
+            return Math.max(0L, ((Number) handler.getClass().getMethod("getChemicalTankCapacity", int.class)
+                    .invoke(handler, 0)).longValue());
+        } catch (Throwable e) {
+            return 0L;
+        }
+    }
+
     /**
      * Drains up to {@code amount} mB from a chemical handler tank, optionally filtered by chemical type.
      * Tries Mek 10.7+ {@code extractChemical(ChemicalStack, Action)} first, then legacy signatures.

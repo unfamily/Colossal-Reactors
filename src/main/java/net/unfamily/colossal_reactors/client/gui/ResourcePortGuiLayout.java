@@ -90,6 +90,13 @@ public final class ResourcePortGuiLayout {
     public static final int FILTER_X = FILTER_SLOT_CENTER_X - FILTER_BTN_W / 2;
     public static final int FILTER_Y = ITEM_SLOT_Y + ITEM_SLOT_SIZE + FILTER_GAP_BELOW_SLOT;
 
+    public static int barFillPixels(long amount, long capacity, int barHeight) {
+        if (capacity <= 0 || amount <= 0) {
+            return 0;
+        }
+        return (int) Math.min(barHeight, amount * barHeight / capacity);
+    }
+
     private ResourcePortGuiLayout() {}
 
     public static int toggleY(int row) {

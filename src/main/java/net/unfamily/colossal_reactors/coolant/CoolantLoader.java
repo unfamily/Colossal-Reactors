@@ -307,4 +307,69 @@ public class CoolantLoader {
         }
         return null;
     }
+
+    /** True when the fluid matches any loaded coolant recipe's liquid/gas exhaust output. */
+    public static boolean matchesAnyCoolantLiquidOutput(Fluid fluid, RegistryAccess registryAccess) {
+        if (fluid == null || fluid == Fluids.EMPTY) {
+            return false;
+        }
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String selector : def.outputs()) {
+                if (MaterialSelector.isChemicalPrefix(selector)) {
+                    continue;
+                }
+                if (matchesFluidOutputSelector(fluid, selector, registryAccess)) {
+                    return true;
+                }
+            }
+            String legacy = def.output();
+            if (legacy != null && !legacy.isBlank() && !MaterialSelector.isChemicalPrefix(legacy)
+                    && matchesFluidOutputSelector(fluid, legacy, registryAccess)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when the Mek chemical matches any loaded coolant recipe's gas exhaust output. */
+    public static boolean matchesAnyCoolantGasOutput(@Nullable Object chemicalStack, RegistryAccess registryAccess) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) {
+            return false;
+        }
+        for (CoolantDefinition def : DEFINITIONS.values()) {
+            for (String selector : def.outputs()) {
+                if (selector != null && MaterialSelector.isChemicalPrefix(selector)
+                        && MaterialSelector.matchesChemical(chemicalStack, selector)) {
+                    return true;
+                }
+            }
+            String gasSel = def.gasOutputSelector();
+            if (gasSel != null && MaterialSelector.matchesChemical(chemicalStack, gasSel)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesFluidOutputSelector(Fluid fluid, String selector, RegistryAccess registryAccess) {
+        if (selector.startsWith("#")) {
+            ResourceLocation tagId = ResourceLocation.tryParse(selector.substring(1));
+            if (tagId == null) {
+                return false;
+            }
+            ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+            var fluidHolder = registryAccess.registryOrThrow(Registries.FLUID)
+                    .getHolder(ResourceKey.create(Registries.FLUID, fluidId))
+                    .orElse(null);
+            if (fluidHolder == null) {
+                return false;
+            }
+            TagKey<Fluid> tagKey = TagKey.create(Registries.FLUID, tagId);
+            return registryAccess.lookup(Registries.FLUID)
+                    .flatMap(l -> l.get(tagKey))
+                    .map(holders -> holders.contains(fluidHolder))
+                    .orElse(false);
+        }
+        return MaterialSelector.matchesFluid(fluid, selector);
+    }
 }

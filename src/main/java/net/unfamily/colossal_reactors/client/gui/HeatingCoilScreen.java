@@ -121,7 +121,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
             if (capacity > 0 && amount > 0 && fluidId >= 0) {
                 Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
                 if (fluid != null && fluid != Fluids.EMPTY) {
-                    int fillPx = (ResourcePortGuiLayout.BAR_FILL_H * amount) / capacity;
+                    int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
                     if (fillPx > 0) {
                         FluidRenderHelper.drawFluidInTank(g, new FluidStack(fluid, amount),
                                 ResourcePortGuiLayout.liquidBarFillLeft(x),

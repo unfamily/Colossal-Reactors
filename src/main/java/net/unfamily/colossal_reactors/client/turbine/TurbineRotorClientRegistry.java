@@ -543,7 +543,9 @@ public final class TurbineRotorClientRegistry {
             Level level,
             BlockState ctrlState,
             boolean force) {
-        if (!force && controller.getCachedResult().valid()) {
+        TurbineValidation.Result cached = controller.getCachedResult();
+        boolean needsFullReport = !cached.valid() || cached.report().growthAxis() == null;
+        if (!force && !needsFullReport) {
             return true;
         }
         return refreshClientValidationCache(controller, level, ctrlState);

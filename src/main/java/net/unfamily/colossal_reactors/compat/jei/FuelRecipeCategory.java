@@ -28,7 +28,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
 
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel");
     private static final int WIDTH = 180;
-    private static final int HEIGHT = 76;
+    private static final int HEIGHT = 106;
 
     public static final RecipeType<FuelDefinition> RECIPE_TYPE = new RecipeType<>(UID, FuelDefinition.class);
 
@@ -117,6 +117,15 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
                 Component.translatable("jei.colossal_reactors.fuel.consume_factor",
                         formatConsumeFactor(recipe.baseFuelUnitsPerTick())),
                 margin, textY + lineHeight * 3, color, false);
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.fuel.units_per_fuel", recipe.unitsPerFuel()),
+                margin, textY + lineHeight * 4, color, false);
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.fuel.units_per_waste", recipe.unitsPerWaste()),
+                margin, textY + lineHeight * 5, color, false);
+        guiGraphics.drawString(font,
+                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste()),
+                margin, textY + lineHeight * 6, color, false);
     }
 
     private static String formatFuelPower(double power) {
