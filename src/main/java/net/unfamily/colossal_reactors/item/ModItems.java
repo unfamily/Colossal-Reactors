@@ -25,10 +25,16 @@ public class ModItems {
     public static final DeferredItem<BlockItem> REACTOR_CASING = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_CASING);
     public static final DeferredItem<BlockItem> REACTOR_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_CONTROLLER);
     public static final DeferredItem<BlockItem> REACTOR_ROD = ITEMS.registerSimpleBlockItem(ModBlocks.REACTOR_ROD);
-    public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.POWER_PORT);
-    public static final DeferredItem<BlockItem> HIGH_COND_POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.HIGH_COND_POWER_PORT);
+    public static final DeferredItem<BlockItem> POWER_PORT = ITEMS.register("power_port",
+            () -> new ScalingPortBlockItem(ModBlocks.POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.REACTOR_POWER_INT));
+    public static final DeferredItem<BlockItem> HIGH_COND_POWER_PORT = ITEMS.register("high_cond_power_port",
+            () -> new ScalingPortBlockItem(ModBlocks.HIGH_COND_POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.REACTOR_POWER_LONG));
     public static final DeferredItem<BlockItem> REDSTONE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_PORT);
-    public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.RESOURCE_PORT);
+    public static final DeferredItem<BlockItem> RESOURCE_PORT = ITEMS.register("resource_port",
+            () -> new ScalingPortBlockItem(ModBlocks.RESOURCE_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.REACTOR_RESOURCE));
     public static final DeferredItem<BlockItem> MELTER = ITEMS.registerSimpleBlockItem(ModBlocks.MELTER);
     public static final DeferredItem<BlockItem> RADIATION_SCRUBBER = ITEMS.registerSimpleBlockItem(ModBlocks.RADIATION_SCRUBBER);
     public static final DeferredItem<BlockItem> ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.ROD_CONTROLLER);
@@ -36,10 +42,16 @@ public class ModItems {
     public static final DeferredItem<BlockItem> TURBINE_CASING = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_CASING);
     public static final DeferredItem<BlockItem> TURBINE_GLASS = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_GLASS);
     public static final DeferredItem<BlockItem> TURBINE_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_CONTROLLER);
-    public static final DeferredItem<BlockItem> TURBINE_POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_POWER_PORT);
-    public static final DeferredItem<BlockItem> TURBINE_HIGH_COND_POWER_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_HIGH_COND_POWER_PORT);
+    public static final DeferredItem<BlockItem> TURBINE_POWER_PORT = ITEMS.register("turbine_power_port",
+            () -> new ScalingPortBlockItem(ModBlocks.TURBINE_POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.TURBINE_POWER_INT));
+    public static final DeferredItem<BlockItem> TURBINE_HIGH_COND_POWER_PORT = ITEMS.register("turbine_high_cond_power_port",
+            () -> new ScalingPortBlockItem(ModBlocks.TURBINE_HIGH_COND_POWER_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.TURBINE_POWER_LONG));
     public static final DeferredItem<BlockItem> TURBINE_REDSTONE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_REDSTONE_PORT);
-    public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_RESOURCE_PORT);
+    public static final DeferredItem<BlockItem> TURBINE_RESOURCE_PORT = ITEMS.register("turbine_resource_port",
+            () -> new ScalingPortBlockItem(ModBlocks.TURBINE_RESOURCE_PORT.get(), new Item.Properties(),
+                    ScalingPortBlockItem.Kind.TURBINE_RESOURCE));
     public static final DeferredItem<BlockItem> TURBINE_BUILDER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_BUILDER);
     public static final DeferredItem<TurbineRodItem> TURBINE_ROD = ITEMS.registerItem("turbine_rod",
             props -> new TurbineRodItem(ModBlocks.TURBINE_ROD.get(), props));

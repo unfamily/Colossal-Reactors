@@ -25,3 +25,13 @@ Attach a **Reactor Resource Port** to the reactor casing to move items and/or fl
 - **Fluid column**: hover for amount and fluid type. Use **D** under the tank to **dump** the port’s fluid storage when you need to empty it quickly.
 
 - **Item slot**: interact manually or connect automation on the outside face per your modpack’s pipe rules.
+
+## Automatic capacity scaling
+
+When the reactor **re-validates**, each **resource port** resizes its fluid and gas tanks (if Mekanism gas is enabled):
+
+- Target size is about **estimated mB/t for that port’s mode and filter × 10**, never below **16,000 mB** per tank.
+- There is **no fixed upper limit** on fluid/gas volume — buffers can grow with very large reactors.
+- Capacity **grows immediately** when demand increases. It **shrinks only** when stored fluid or gas still fits in the smaller target.
+
+Use the controller **reboot / re-validate** control after you change fuels, coolants, or port modes so tank sizes stay matched to throughput.

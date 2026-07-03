@@ -2,25 +2,26 @@ package net.unfamily.colossal_reactors.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil;
+import net.neoforged.neoforge.transfer.energy.LimitingEnergyHandler;
 import net.unfamily.colossal_reactors.multiblock.PortCapacityPolicy;
 import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
-import net.unfamily.colossal_reactors.transfer.IntBackedForgeEnergyStorage;
+import net.unfamily.colossal_reactors.transfer.IntBackedEnergyHandler;
 
 /**
  * Standard power port: {@code int} buffer and {@code int} RF/t extraction (Forge FE only).
  */
 public class PowerPortBlockEntity extends BlockEntity implements ReactorPowerPort {
 
-    private static final String TAG_ENERGY = "Energy";
-
     private int maxExtractPerTick;
-    private IntBackedForgeEnergyStorage energyStorage;
+    private IntBackedEnergyHandler core;
+    private EnergyHandler capabilityView;
 
     public PowerPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_PORT_BE.get(), pos, state);
@@ -30,113 +31,68 @@ public class PowerPortBlockEntity extends BlockEntity implements ReactorPowerPor
     public void applyEnergyCapacity(int targetCapacity) {
         int cap = (int) Math.min(PortScalingConstants.INT_ENERGY_CAP,
                 Math.max(PortScalingConstants.MIN_ENERGY_BUFFER_RF, targetCapacity));
-        if (energyStorage != null) {
-            cap = (int) PortCapacityPolicy.resolveEnergyCapacity(cap,
-                    energyStorage.getMaxEnergyStored(), energyStorage.getEnergyStored());
+        if (core != null) {
+            cap = (int) PortCapacityPolicy.resolveEnergyCapacity(cap, core.getCapacity(), core.getEnergyStored());
         }
-        if (energyStorage != null && energyStorage.getMaxEnergyStored() == cap && maxExtractPerTick == cap) {
+        if (core != null && core.getCapacity() == cap && maxExtractPerTick == cap) {
             return;
         }
         maxExtractPerTick = cap;
-        if (energyStorage == null) {
-            energyStorage = new IntBackedForgeEnergyStorage(cap, cap, cap, 0);
+        if (core == null) {
+            core = new IntBackedEnergyHandler(cap, 0, cap, 0, this::setChanged);
+            capabilityView = new LimitingEnergyHandler(core, 0, Integer.MAX_VALUE);
         } else {
-            energyStorage.resize(cap, cap, cap);
+            core.resize(cap, 0, cap);
         }
         setChanged();
     }
 
     public void tick() {
         if (level == null || level.isClientSide()) return;
-        int budget = Math.min(maxExtractPerTick, energyStorage.getEnergyStored());
+        int budget = Math.min(maxExtractPerTick, core.getEnergyStored());
         if (budget <= 0) return;
         for (Direction direction : Direction.values()) {
             if (budget <= 0) break;
             BlockPos neighborPos = worldPosition.relative(direction);
             Direction intoNeighbor = direction.getOpposite();
-            IEnergyStorage neighbor = level.getCapability(Capabilities.EnergyStorage.BLOCK, neighborPos, intoNeighbor);
-            if (neighbor != null && neighbor.canReceive()) {
-                int toSend = Math.min(budget, energyStorage.getEnergyStored());
-                int received = neighbor.receiveEnergy(toSend, false);
-                if (received > 0) {
-                    energyStorage.extractEnergy(received, false);
-                    budget -= received;
-                    setChanged();
-                }
+            EnergyHandler neighbor = level.getCapability(Capabilities.Energy.BLOCK, neighborPos, intoNeighbor);
+            if (neighbor == null) continue;
+            int moved = EnergyHandlerUtil.move(core, neighbor, budget, null);
+            if (moved > 0) {
+                budget -= moved;
+                setChanged();
             }
         }
     }
 
-    public IEnergyStorage getEnergyStorageForCapability() {
-        return new OutputOnlyEnergyWrapper(energyStorage);
+    public EnergyHandler getEnergyHandlerForCapability() {
+        return capabilityView;
     }
 
     @Override
     public long getStoredEnergyLong() {
-        return energyStorage.getEnergyStored();
+        return core.getEnergyStored();
     }
 
     @Override
     public long getMaxEnergyLong() {
-        return energyStorage.getMaxEnergyStored();
+        return core.getCapacity();
     }
 
     @Override
     public long receiveEnergyFromReactor(long maxAmount) {
-        long received = energyStorage.addEnergyFromReactor(maxAmount);
-        if (received > 0) {
-            setChanged();
-        }
-        return received;
+        return core.addEnergyFromReactor(maxAmount);
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putInt(TAG_ENERGY, energyStorage.getEnergyStored());
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        core.serialize(output);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        energyStorage.setEnergy(Math.max(0, Math.min(energyStorage.getMaxEnergyStored(), tag.getInt(TAG_ENERGY))));
-    }
-
-    private static final class OutputOnlyEnergyWrapper implements IEnergyStorage {
-        private final IntBackedForgeEnergyStorage delegate;
-
-        OutputOnlyEnergyWrapper(IntBackedForgeEnergyStorage delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public int receiveEnergy(int maxReceive, boolean simulate) {
-            return 0;
-        }
-
-        @Override
-        public int extractEnergy(int maxExtract, boolean simulate) {
-            return delegate.extractEnergy(maxExtract, simulate);
-        }
-
-        @Override
-        public int getEnergyStored() {
-            return delegate.getEnergyStored();
-        }
-
-        @Override
-        public int getMaxEnergyStored() {
-            return delegate.getMaxEnergyStored();
-        }
-
-        @Override
-        public boolean canExtract() {
-            return true;
-        }
-
-        @Override
-        public boolean canReceive() {
-            return false;
-        }
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        core.deserialize(input);
     }
 }

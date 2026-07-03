@@ -2,7 +2,7 @@ package net.unfamily.colossal_reactors.reactor;
 
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -190,7 +190,7 @@ public final class ResourcePortOutputRouter {
         if (liquidSel != null && !liquidSel.isBlank()) {
             Fluid fluid = liquidSel.startsWith("#")
                     ? CoolantLoader.getFirstFluidFromTag(liquidSel, registryAccess)
-                    : BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(liquidSel));
+                    : BuiltInRegistries.FLUID.getValue(Identifier.tryParse(liquidSel));
             if (fluid != null && fluid != Fluids.EMPTY && availableFluidSpace(extractPorts) > 0) {
                 return true;
             }
@@ -273,7 +273,7 @@ public final class ResourcePortOutputRouter {
         if (liquidSel != null && !liquidSel.isBlank()) {
             Fluid fluid = liquidSel.startsWith("#")
                     ? CoolantLoader.getFirstFluidFromTag(liquidSel, registryAccess)
-                    : BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(liquidSel));
+                    : BuiltInRegistries.FLUID.getValue(Identifier.tryParse(liquidSel));
             if (fluid != null && fluid != Fluids.EMPTY) {
                 space = Math.max(space, availableFluidSpace(extractPorts));
             }

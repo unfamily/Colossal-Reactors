@@ -1,8 +1,9 @@
 package net.unfamily.colossal_reactors.transfer;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.common.util.ValueIOSerializable;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import org.jetbrains.annotations.NotNull;
@@ -11,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
  * Single-tank fluid storage with {@code long} capacity and amount. {@link IFluidHandler} API remains {@code int}
  * per operation; values above {@link Integer#MAX_VALUE} are clamped per fill/drain call.
  */
-public class LongBackedFluidTank implements IFluidHandler {
+public class LongBackedFluidTank implements IFluidHandler, ValueIOSerializable {
 
     private static final String TAG_FLUID = "Fluid";
     private static final String TAG_AMOUNT = "Amount";
@@ -77,31 +78,26 @@ public class LongBackedFluidTank implements IFluidHandler {
         onChange.run();
     }
 
-    public void readFromNbt(CompoundTag tag, HolderLookup.Provider registries) {
-        fluid = FluidStack.EMPTY;
-        amountMb = 0L;
-        if (tag.contains(TAG_CAPACITY_LONG)) {
-            capacityMb = Math.max(0L, tag.getLong(TAG_CAPACITY_LONG));
-        }
-        if (tag.contains(TAG_FLUID)) {
-            FluidStack loaded = FluidStack.parseOptional(registries, tag.getCompound(TAG_FLUID));
-            if (!loaded.isEmpty() && loaded.getFluid() != Fluids.EMPTY) {
-                fluid = new FluidStack(loaded.getFluid(), 1);
-                if (tag.contains(TAG_AMOUNT_LONG)) {
-                    amountMb = Math.min(capacityMb, Math.max(0L, tag.getLong(TAG_AMOUNT_LONG)));
-                } else {
-                    amountMb = Math.min(capacityMb, Math.max(0L, tag.getInt(TAG_AMOUNT)));
-                }
-            }
+    @Override
+    public void serialize(ValueOutput output) {
+        output.putLong(TAG_CAPACITY_LONG, capacityMb);
+        if (!fluid.isEmpty() && amountMb > 0) {
+            output.putLong(TAG_AMOUNT_LONG, amountMb);
+            FluidStack save = new FluidStack(fluid.getFluid(), (int) Math.min(amountMb, Integer.MAX_VALUE));
+            output.store(TAG_FLUID, FluidStack.CODEC, save);
         }
     }
 
-    public void writeToNbt(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putLong(TAG_CAPACITY_LONG, capacityMb);
-        if (!fluid.isEmpty() && amountMb > 0) {
-            FluidStack save = new FluidStack(fluid.getFluid(), (int) Math.min(amountMb, Integer.MAX_VALUE));
-            tag.put(TAG_FLUID, save.saveOptional(registries));
-            tag.putLong(TAG_AMOUNT_LONG, amountMb);
+    @Override
+    public void deserialize(ValueInput input) {
+        capacityMb = Math.max(0L, input.getLongOr(TAG_CAPACITY_LONG, capacityMb));
+        fluid = FluidStack.EMPTY;
+        amountMb = 0L;
+        FluidStack loaded = input.read(TAG_FLUID, FluidStack.CODEC).orElse(FluidStack.EMPTY);
+        if (!loaded.isEmpty() && loaded.getFluid() != Fluids.EMPTY) {
+            fluid = new FluidStack(loaded.getFluid(), 1);
+            long fallback = Math.max(0L, loaded.getAmount());
+            amountMb = Math.min(capacityMb, Math.max(0L, input.getLongOr(TAG_AMOUNT_LONG, fallback)));
         }
     }
 

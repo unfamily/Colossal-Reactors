@@ -155,7 +155,7 @@ public final class ResourcePortGuiLayout {
     }
 
     /** Covers the item slot frame on turbine ports (18×18 + inset border). */
-    public static void fillItemSlotMask(net.minecraft.client.gui.GuiGraphics g, int guiX, int guiY) {
+    public static void fillItemSlotMask(net.minecraft.client.gui.GuiGraphicsExtractor g, int guiX, int guiY) {
         int sx = guiX + ITEM_SLOT_X - MASK_INSET;
         int sy = guiY + ITEM_SLOT_Y - MASK_INSET;
         g.fill(sx, sy, sx + ITEM_SLOT_SIZE + 2 * MASK_INSET, sy + ITEM_SLOT_SIZE + 2 * MASK_INSET, MASK_COLOR);

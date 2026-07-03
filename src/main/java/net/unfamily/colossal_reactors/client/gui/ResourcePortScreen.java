@@ -1,24 +1,23 @@
 package net.unfamily.colossal_reactors.client.gui;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.fluids.FluidType;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
@@ -35,7 +34,7 @@ import java.util.List;
 
 /**
  * Resource port GUI: four vertical buttons (mode + solid / liquid / gas), same click/packet pattern as
- * {@link ReactorBuilderScreen} (synced block pos from {@link ResourcePortMenu#getSyncedBlockPos()}).
+ * {@link ReactorBuilderScreen} ({@link ResourcePortMenu#getSyncedBlockPos()}).
  */
 public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu> {
 
@@ -45,8 +44,8 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     private static final int COLOR_GAS = 0xFF55FF;
     private static final int TOGGLE_COUNT = 4;
 
-    private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
+    private static final Identifier TEXTURE =
+            Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
 
     private final boolean mekLoaded = ModList.get().isLoaded("mekanism");
 
@@ -63,19 +62,19 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     private boolean lastGas;
 
     public ResourcePortScreen(ResourcePortMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        imageWidth = ResourcePortGuiLayout.GUI_WIDTH;
-        imageHeight = ResourcePortGuiLayout.GUI_HEIGHT;
+        super(menu, playerInventory, title, ResourcePortGuiLayout.GUI_WIDTH, ResourcePortGuiLayout.GUI_HEIGHT);
     }
 
     @Override
     protected void init() {
         super.init();
 
-        addRenderableWidget(Button.builder(Component.literal("\u2715"), b -> closeScreen())
-                .bounds(leftPos + ResourcePortGuiLayout.CLOSE_X, topPos + ResourcePortGuiLayout.CLOSE_Y,
-                        ResourcePortGuiLayout.CLOSE_SIZE, ResourcePortGuiLayout.CLOSE_SIZE)
-                .build());
+        addRenderableWidget(Button.builder(Component.literal("\u2715"), b -> {
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.closeContainer();
+            }
+        }).bounds(leftPos + ResourcePortGuiLayout.CLOSE_X, topPos + ResourcePortGuiLayout.CLOSE_Y,
+                ResourcePortGuiLayout.CLOSE_SIZE, ResourcePortGuiLayout.CLOSE_SIZE).build());
 
         int bx = leftPos + ResourcePortGuiLayout.TOGGLE_X;
         int bw = ResourcePortGuiLayout.TOGGLE_BTN_W;
@@ -95,15 +94,15 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         btnDumpLiquid = Button.builder(Component.literal("D"), b -> sendDump(FluidTankDumpPayload.TANK_FLUID))
                 .bounds(leftPos + ResourcePortGuiLayout.LIQUID_DUMP_X, topPos + ResourcePortGuiLayout.LIQUID_DUMP_Y,
                         ResourcePortGuiLayout.DUMP_W, ResourcePortGuiLayout.DUMP_H)
-                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")))
                 .build();
+        btnDumpLiquid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
         addRenderableWidget(btnDumpLiquid);
 
         btnDumpGas = Button.builder(Component.literal("D"), b -> sendDump(FluidTankDumpPayload.TANK_GAS))
                 .bounds(leftPos + ResourcePortGuiLayout.GAS_DUMP_X, topPos + ResourcePortGuiLayout.GAS_DUMP_Y,
                         ResourcePortGuiLayout.DUMP_W, ResourcePortGuiLayout.DUMP_H)
-                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.gas_dump.tooltip")))
                 .build();
+        btnDumpGas.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
         btnDumpGas.visible = mekLoaded;
         addRenderableWidget(btnDumpGas);
 
@@ -128,31 +127,30 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         if (pos.equals(BlockPos.ZERO)) {
             return;
         }
-        playClickSound();
         switch (row) {
             case 0 -> {
                 PortMode current = menu.getPortMode();
                 PortMode next = current == PortMode.INSERT ? PortMode.EXTRACT
                         : current == PortMode.EXTRACT ? PortMode.EJECT
                         : PortMode.INSERT;
-                PacketDistributor.sendToServer(new ResourcePortModePayload(pos, next.getId()));
+                ClientPacketDistributor.sendToServer(new ResourcePortModePayload(pos, next.getId()));
             }
             case 1 -> {
                 if (menu.isTurbinePort()) {
                     return;
                 }
                 boolean next = !menu.isAllowSolid();
-                PacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
+                ClientPacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
                         ResourcePortSettingsPayload.KIND_SOLID, next ? 1 : 0));
             }
             case 2 -> {
                 boolean next = !menu.isAllowLiquid();
-                PacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
+                ClientPacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
                         ResourcePortSettingsPayload.KIND_LIQUID, next ? 1 : 0));
             }
             case 3 -> {
                 boolean next = !menu.isAllowGas();
-                PacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
+                ClientPacketDistributor.sendToServer(new ResourcePortSettingsPayload(pos,
                         ResourcePortSettingsPayload.KIND_GAS, next ? 1 : 0));
             }
             default -> { }
@@ -173,11 +171,10 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         if (pos.equals(BlockPos.ZERO)) {
             return;
         }
-        playClickSound();
         PortFilter next = menu.getPortFilter() == PortFilter.ONLY_COOLANT_LIQUID
                 ? PortFilter.ONLY_SOLID_FUEL
                 : PortFilter.ONLY_COOLANT_LIQUID;
-        PacketDistributor.sendToServer(new ResourcePortFilterPayload(pos, next.getId()));
+        ClientPacketDistributor.sendToServer(new ResourcePortFilterPayload(pos, next.getId()));
     }
 
     private static Component filterLabel(PortFilter filter, PortMode mode) {
@@ -262,7 +259,6 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         return Component.translatable("gui.colossal_reactors.resource_port.toggle." + key);
     }
 
-    /** Mode row: bold white, never underlined. */
     private static void applyModeLabel(Button button, MutableComponent text) {
         if (button == null) return;
         button.setMessage(text.withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
@@ -270,7 +266,6 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         button.active = true;
     }
 
-    /** Medium rows: tinted label; underlined when active. */
     private static void applyMediumLabel(Button button, MutableComponent text, boolean active, int fgColor) {
         if (button == null) return;
         MutableComponent styled = text.copy();
@@ -290,8 +285,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
         if (tankType == FluidTankDumpPayload.TANK_GAS && menu.isGasDumpBlockedByRadioactivity()) {
             return;
         }
-        playClickSound();
-        PacketDistributor.sendToServer(new FluidTankDumpPayload(pos, tankType));
+        ClientPacketDistributor.sendToServer(new FluidTankDumpPayload(pos, tankType));
     }
 
     /** Only gas dump is gated: disabled when the tank holds radioactive Mek gas. Liquid dump is unchanged. */
@@ -306,123 +300,118 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
                 : Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
     }
 
-    private void playClickSound() {
-        if (minecraft != null && minecraft.getSoundManager() != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-        }
-    }
+    @Override
+    public void extractBackground(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY,
+                                  float partialTick) {
+        super.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, leftPos, topPos, 0.0F, 0.0F, imageWidth, imageHeight,
+                ResourcePortGuiLayout.GUI_WIDTH, ResourcePortGuiLayout.GUI_HEIGHT);
 
-    private void closeScreen() {
-        playClickSound();
-        if (minecraft != null && minecraft.player != null) {
-            minecraft.player.closeContainer();
+        if (!mekLoaded) {
+            guiGraphics.fill(ResourcePortGuiLayout.maskGasLeft(leftPos), ResourcePortGuiLayout.maskGasTop(topPos),
+                    ResourcePortGuiLayout.maskGasRight(leftPos), ResourcePortGuiLayout.maskGasBottom(topPos),
+                    ResourcePortGuiLayout.MASK_COLOR);
+        } else {
+            renderGasBar(guiGraphics, leftPos, topPos);
+        }
+
+        long amount = menu.getFluidAmountLong();
+        long capacity = menu.getFluidCapacityLong();
+        int fluidId = menu.getFluidId();
+        if (capacity > 0 && amount > 0 && fluidId >= 0) {
+            Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+            if (fluid != null && fluid != Fluids.EMPTY) {
+                int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
+                if (fillPx > 0) {
+                    int barLeft = ResourcePortGuiLayout.liquidBarFillLeft(leftPos);
+                    int barBottom = ResourcePortGuiLayout.liquidBarFillBottom(topPos);
+                    FluidRenderHelper.drawFluidInTank(guiGraphics, new FluidStack(fluid, (int) Math.min(amount, Integer.MAX_VALUE)),
+                            barLeft, barBottom - fillPx, ResourcePortGuiLayout.BAR_FILL_W, fillPx);
+                }
+            }
+        }
+        if (!menu.showItemSlot()) {
+            ResourcePortGuiLayout.fillItemSlotMask(guiGraphics, leftPos, topPos);
         }
     }
 
     @Override
-    protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        g.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight,
-                ResourcePortGuiLayout.GUI_WIDTH, ResourcePortGuiLayout.GUI_HEIGHT);
-
-        if (!mekLoaded) {
-            g.fill(ResourcePortGuiLayout.maskGasLeft(leftPos), ResourcePortGuiLayout.maskGasTop(topPos),
-                    ResourcePortGuiLayout.maskGasRight(leftPos), ResourcePortGuiLayout.maskGasBottom(topPos),
-                    ResourcePortGuiLayout.MASK_COLOR);
-        } else {
-            renderGasBar(g, leftPos, topPos);
-        }
-        renderLiquidBar(g, leftPos, topPos);
-        if (!menu.showItemSlot()) {
-            ResourcePortGuiLayout.fillItemSlotMask(g, leftPos, topPos);
-        }
+    protected void extractLabels(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        int titleW = font.width(title);
+        guiGraphics.text(font, title, (imageWidth - titleW) / 2, 6, GuiTextColors.TITLE, false);
     }
 
-    private void renderLiquidBar(GuiGraphics g, int guiX, int guiY) {
-        long amount = menu.getFluidAmountLong();
-        long capacity = menu.getFluidCapacityLong();
-        int fluidId = menu.getFluidId();
-        if (capacity <= 0 || amount <= 0 || fluidId < 0) return;
-        Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
-        if (fluid == null || fluid == Fluids.EMPTY) return;
-        int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
-        if (fillPx <= 0) return;
-        int fillTop = ResourcePortGuiLayout.liquidBarFillBottom(guiY) - fillPx;
-        int stackAmount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
-        FluidRenderHelper.drawFluidInTank(g, new FluidStack(fluid, stackAmount),
-                ResourcePortGuiLayout.liquidBarFillLeft(guiX), fillTop,
-                ResourcePortGuiLayout.BAR_FILL_W, fillPx);
+    @Override
+    public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY,
+                                   float partialTick) {
+        updateToggleButtonLabels();
+        updateDumpButtons();
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private void renderGasBar(GuiGraphics g, int guiX, int guiY) {
+    private void renderGasBar(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int guiX, int guiY) {
         long amount = menu.getGasAmountLong();
         long capacity = menu.getGasCapacityLong();
-        if (capacity <= 0 || amount <= 0) return;
+        if (capacity <= 0 || amount <= 0) {
+            return;
+        }
         int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
-        if (fillPx <= 0) return;
+        if (fillPx <= 0) {
+            return;
+        }
         int outerLeft = ResourcePortGuiLayout.gasBarFillLeft(guiX);
-        int outerTop = ResourcePortGuiLayout.gasBarFillTop(guiY);
-        String gasName = menu.getGasRegistryName();
-        int stackAmount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
-        if (!GasTankRenderHelper.drawGasInTank(g, gasName, stackAmount, outerLeft, outerTop,
-                ResourcePortGuiLayout.BAR_FILL_W, ResourcePortGuiLayout.BAR_FILL_H, fillPx)) {
-            int fillTop = ResourcePortGuiLayout.gasBarFillBottom(guiY) - fillPx;
-            g.fill(outerLeft, fillTop, outerLeft + ResourcePortGuiLayout.BAR_FILL_W,
+        int fillTop = ResourcePortGuiLayout.gasBarFillBottom(guiY) - fillPx;
+        GasTankRenderHelper.GasRenderInfo info =
+                GasTankRenderHelper.getGasRenderInfoFromRegistryName(menu.getGasRegistryName());
+        if (info != null && !info.isEmpty()) {
+            GasTankRenderHelper.drawGasInTank(guiGraphics, info, outerLeft, fillTop,
+                    ResourcePortGuiLayout.BAR_FILL_W, fillPx);
+        } else {
+            guiGraphics.fill(outerLeft, fillTop, outerLeft + ResourcePortGuiLayout.BAR_FILL_W,
                     ResourcePortGuiLayout.gasBarFillBottom(guiY), 0xFF88CCFF);
         }
     }
 
     @Override
-    protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
-        int titleW = font.width(title);
-        g.drawString(font, title, (imageWidth - titleW) / 2, 6, 0x404040, false);
-    }
-
-    @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        updateToggleButtonLabels();
-        updateDumpButtons();
-        super.render(g, mouseX, mouseY, partialTick);
-        renderTooltip(g, mouseX, mouseY);
-    }
-
-    @Override
-    protected void renderTooltip(GuiGraphics g, int mouseX, int mouseY) {
-        super.renderTooltip(g, mouseX, mouseY);
-        tooltipLiquid(g, mouseX, mouseY);
-        if (mekLoaded) tooltipGas(g, mouseX, mouseY);
-    }
-
-    private void tooltipLiquid(GuiGraphics g, int mouseX, int mouseY) {
+    protected void extractTooltip(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        super.extractTooltip(guiGraphics, mouseX, mouseY);
+        if (mekLoaded) {
+            tooltipGas(guiGraphics, mouseX, mouseY);
+        }
         int left = ResourcePortGuiLayout.liquidBarFillLeft(leftPos);
         int top = ResourcePortGuiLayout.liquidBarFillTop(topPos);
-        if (mouseX < left || mouseX >= left + ResourcePortGuiLayout.BAR_FILL_W
-                || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) return;
-        List<FormattedCharSequence> lines = new ArrayList<>();
-        lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.liquid",
-                GuiNumberFormat.format(menu.getFluidAmountLong()),
-                GuiNumberFormat.format(menu.getFluidCapacityLong())).getVisualOrderText());
-        int fluidId = menu.getFluidId();
-        if (fluidId >= 0) {
-            Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
-            if (fluid != null && fluid != Fluids.EMPTY) {
-                lines.add(Component.translatable(fluid.getFluidType().getDescriptionId()).getVisualOrderText());
+        if (mouseX >= left && mouseX < left + ResourcePortGuiLayout.BAR_FILL_W
+                && mouseY >= top && mouseY < top + ResourcePortGuiLayout.BAR_FILL_H) {
+            List<FormattedCharSequence> lines = new ArrayList<>();
+            lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.liquid",
+                    menu.getFluidAmount(), menu.getFluidCapacity()).getVisualOrderText());
+            int fluidId = menu.getFluidId();
+            if (fluidId >= 0) {
+                Fluid fluid = BuiltInRegistries.FLUID.byId(fluidId);
+                if (fluid != null && fluid != Fluids.EMPTY) {
+                    FluidType type = fluid.getFluidType();
+                    lines.add(Component.translatable(type.getDescriptionId()).getVisualOrderText());
+                }
             }
+            guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
         }
-        g.renderTooltip(font, lines, mouseX, mouseY);
     }
 
-    private void tooltipGas(GuiGraphics g, int mouseX, int mouseY) {
+    private void tooltipGas(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int left = ResourcePortGuiLayout.gasBarFillLeft(leftPos);
         int top = ResourcePortGuiLayout.gasBarFillTop(topPos);
         if (mouseX < left || mouseX >= left + ResourcePortGuiLayout.BAR_FILL_W
-                || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) return;
+                || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) {
+            return;
+        }
         List<FormattedCharSequence> lines = new ArrayList<>();
         lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.gas",
-                GuiNumberFormat.format(menu.getGasAmountLong()),
-                GuiNumberFormat.format(menu.getGasCapacityLong())).getVisualOrderText());
+                menu.getGasAmount(), menu.getGasCapacity()).getVisualOrderText());
         String gasName = menu.getGasRegistryName();
         Component name = GasTankRenderHelper.getGasDisplayName(gasName);
-        if (name != null) lines.add(name.getVisualOrderText());
-        g.renderTooltip(font, lines, mouseX, mouseY);
+        if (name != null) {
+            lines.add(name.getVisualOrderText());
+        }
+        guiGraphics.setTooltipForNextFrame(font, lines, mouseX, mouseY);
     }
 }

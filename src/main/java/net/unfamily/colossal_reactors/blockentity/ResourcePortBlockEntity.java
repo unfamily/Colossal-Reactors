@@ -3,9 +3,8 @@ package net.unfamily.colossal_reactors.blockentity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -24,9 +23,14 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.unfamily.iskalib.transfer.LegacyItemHandlerResourceHandler;
 import net.unfamily.colossal_reactors.multiblock.PortCapacityPolicy;
 import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
 import net.unfamily.colossal_reactors.transfer.LongBackedFluidTank;
+import net.unfamily.colossal_reactors.transfer.LegacyIFluidHandlerResourceHandler;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
@@ -34,6 +38,9 @@ import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
+import net.unfamily.colossal_reactors.util.FluidInputMatcher;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -104,6 +111,12 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     /** Mek chemical tank handler (lazy). */
     private Object chemicalHandler;
+
+    @Nullable
+    private ResourceHandler<ItemResource> cachedItemCapability;
+
+    @Nullable
+    private ResourceHandler<FluidResource> cachedFluidCapability;
 
     private final ContainerData fluidData = new ContainerData() {
         @Override
@@ -380,6 +393,20 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return new FilteredFluidHandler();
     }
 
+    public ResourceHandler<ItemResource> getItemResourceHandlerForCapability() {
+        if (cachedItemCapability == null) {
+            cachedItemCapability = LegacyItemHandlerResourceHandler.wrap(getItemHandlerForCapability());
+        }
+        return cachedItemCapability;
+    }
+
+    public ResourceHandler<FluidResource> getFluidResourceHandlerForCapability() {
+        if (cachedFluidCapability == null) {
+            cachedFluidCapability = LegacyIFluidHandlerResourceHandler.wrap(getFluidHandlerForCapability());
+        }
+        return cachedFluidCapability;
+    }
+
     /** Mek chemical handler for capability; null if Mek not loaded. */
     @Nullable
     public Object getChemicalHandlerForCapability() {
@@ -480,6 +507,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 fluidTank.getCapacityLong(), fluidTank.getFluidAmountLong());
         if (fluidTank.getCapacityLong() != resolvedFluid) {
             fluidTank.resize(resolvedFluid);
+            cachedFluidCapability = null;
             setChanged();
         }
         if (MekChemicalHelper.isLoaded()) {
@@ -629,55 +657,26 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
-        tag.putInt(TAG_PORT_MODE, portMode.getId());
-        tag.putInt(TAG_PORT_FILTER, portFilter.getId());
-        mediumFlags.writeToNbt(tag);
-        CompoundTag fluidTag = new CompoundTag();
-        fluidTank.writeToNbt(fluidTag, registries);
-        if (!fluidTank.getFluid().isEmpty()) {
-            tag.put(TAG_FLUID, fluidTag);
-        }
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        itemHandler.serialize(output);
+        fluidTank.serialize(output);
+        output.putInt(TAG_PORT_MODE, portMode.getId());
+        output.putInt(TAG_PORT_FILTER, portFilter.getId());
+        mediumFlags.write(output);
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
-        portMode = PortMode.fromId(tag.getInt(TAG_PORT_MODE));
-        if (tag.contains(TAG_PORT_FILTER)) {
-            portFilter = PortFilter.fromId(tag.getInt(TAG_PORT_FILTER));
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        itemHandler.deserialize(input);
+        fluidTank.deserialize(input);
+        portMode = PortMode.fromId(input.getIntOr(TAG_PORT_MODE, portMode.getId()));
+        int savedFilterId = input.getIntOr(TAG_PORT_FILTER, -1);
+        if (savedFilterId >= 0) {
+            portFilter = PortFilter.fromId(savedFilterId);
         }
-        if (tag.contains("PortAllowSolid")) {
-            mediumFlags.readFromNbt(tag);
-        }
-        fluidTank.setFluid(FluidStack.EMPTY);
-        if (tag.contains(TAG_FLUID)) {
-            CompoundTag fluidTag = tag.getCompound(TAG_FLUID);
-            if (fluidTag.contains("AmountL") || fluidTag.contains("CapacityL")) {
-                fluidTank.readFromNbt(fluidTag, registries);
-            } else if (fluidTag.contains(TAG_FLUID_ID)) {
-                Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidTag.getString(TAG_FLUID_ID)));
-                int amount = fluidTag.getInt(TAG_FLUID_AMOUNT);
-                if (fluid != null && fluid != Fluids.EMPTY && amount > 0) {
-                    fluidTank.setFluid(new FluidStack(fluid, amount));
-                }
-            }
-        }
-    }
-
-    @Override
-    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
-        saveAdditional(tag, registries);
-        return tag;
-    }
-
-    @Override
-    public void handleUpdateTag(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
-        loadAdditional(tag, registries);
+        mediumFlags.read(input);
     }
 
     /**
@@ -862,7 +861,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (gen == null) {
             return false;
         }
-        return MaterialSelector.matchesAnyFluidInput(fluid, gen.inputs());
+        return FluidInputMatcher.matchesAnyFluidInput(fluid, gen.inputs());
     }
 
     private boolean acceptsTurbineChemicalInput(@Nullable Object chemicalStack) {
