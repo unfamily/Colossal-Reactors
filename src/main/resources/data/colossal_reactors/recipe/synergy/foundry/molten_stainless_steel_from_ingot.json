@@ -2,7 +2,7 @@
   "type": "synergy:foundry",
   "fluid": {
     "amount": 90,
-    "id": "colossal_reactors:molten_stainless_steel_source"
+    "id": "colossal_reactors:molten_stainless_steel"
   },
   "input": {
     "tag": "c:ingots/stainless_steel"

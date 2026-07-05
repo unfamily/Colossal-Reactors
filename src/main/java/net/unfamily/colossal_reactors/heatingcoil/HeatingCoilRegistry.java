@@ -38,17 +38,30 @@ public final class HeatingCoilRegistry {
         if (builtinCoilIds != null) return builtinCoilIds;
         Map<ResourceLocation, HeatingCoilDefinition> merged = new LinkedHashMap<>();
         for (HeatingCoilDefinition def : parseBuiltinFile()) {
-            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
+            putSanitized(merged, def);
         }
         int jarCount = merged.size();
         for (var entry : HeatingCoilFilesystemLoader.loadFromGameDir().entrySet()) {
-            merged.put(entry.getKey(), DatapackSelectorValidator.sanitizeHeatingCoil(entry.getValue()));
+            putSanitized(merged, entry.getKey(), entry.getValue());
         }
         DEFINITIONS.putAll(merged);
         builtinCoilIds = List.copyOf(merged.keySet());
         LOGGER.info("Heating coils for block registration: {} (jar={}, external={})",
                 builtinCoilIds.size(), jarCount, merged.size() - jarCount);
         return new ArrayList<>(builtinCoilIds);
+    }
+
+    private static void putSanitized(Map<ResourceLocation, HeatingCoilDefinition> merged, HeatingCoilDefinition def) {
+        putSanitized(merged, def.id(), def);
+    }
+
+    private static void putSanitized(Map<ResourceLocation, HeatingCoilDefinition> merged, ResourceLocation id, HeatingCoilDefinition def) {
+        if (!DatapackSelectorValidator.registriesReady()) {
+            merged.put(id, def);
+            return;
+        }
+        HeatingCoilDefinition sanitized = DatapackSelectorValidator.sanitizeHeatingCoil(def);
+        merged.put(id, sanitized != null ? sanitized : def);
     }
 
     private static List<HeatingCoilDefinition> parseBuiltinFile() {

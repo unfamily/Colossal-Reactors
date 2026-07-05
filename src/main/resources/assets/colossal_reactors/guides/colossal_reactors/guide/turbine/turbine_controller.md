@@ -16,6 +16,8 @@ categories:
 
 **Right-click** the controller when the turbine is **built correctly** to open the main screen.
 
+New to multiblocks? Start with [Getting started](colossal_reactors:turbine/getting_started.md).
+
 ## Operation
 
 - **Start and stop** the turbine and watch **RF output**, **steam use**, and efficiency on screen.

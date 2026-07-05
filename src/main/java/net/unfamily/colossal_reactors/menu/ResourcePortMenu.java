@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
+import net.unfamily.colossal_reactors.blockentity.PortMedium;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
@@ -200,6 +201,16 @@ public class ResourcePortMenu extends AbstractContainerMenu {
 
     public boolean isAllowGas() {
         return fluidData.get(DATA_ALLOW_GAS) != 0;
+    }
+
+    public PortMedium getPortMedium() {
+        if (isAllowGas()) {
+            return PortMedium.GAS;
+        }
+        if (isAllowLiquid()) {
+            return PortMedium.LIQUID;
+        }
+        return PortMedium.SOLID;
     }
 
     public int getGasAmount() {

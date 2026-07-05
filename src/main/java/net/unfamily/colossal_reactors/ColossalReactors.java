@@ -165,6 +165,25 @@ public class ColossalReactors {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.RADIATION_SCRUBBER_BE.get(),
                 (be, direction) -> ((RadiationScrubberBlockEntity) be).getEnergyStorage());
         registerRadiationScrubberChemicalCapability(event);
+        registerHeatingCoilChemicalCapability(event);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void registerHeatingCoilChemicalCapability(RegisterCapabilitiesEvent event) {
+        try {
+            if (!ModList.get().isLoaded("mekanism")) return;
+            Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
+            Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
+            Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
+            event.registerBlockEntity(
+                    (BlockCapability<Object, Direction>) blockCap,
+                    ModBlockEntities.HEATING_COIL_BE.get(),
+                    (HeatingCoilBlockEntity be, Direction direction) -> be.allowsCapabilityOnSide(direction)
+                            ? be.getChemicalHandlerForCapability()
+                            : null);
+        } catch (Throwable t) {
+            LOGGER.debug("Could not register Heating Coil chemical capability: {}", t.getMessage());
+        }
     }
 
     @SuppressWarnings("unchecked")

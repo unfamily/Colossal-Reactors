@@ -1,20 +1,15 @@
 package net.unfamily.colossal_reactors.client;
 
-import guideme.Guide;
-import guideme.GuideItemSettings;
-import guideme.Guides;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.unfamily.colossal_reactors.ColossalReactors;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Registers the Colossal Reactors GuideME guide (client only). */
 public final class GuideMeRegistration {
-    private static final ResourceLocation GUIDE_ID =
-            ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "guide");
-    private static final AtomicBoolean REGISTERED = new AtomicBoolean(false);
+    private static final String IMPL_CLASS =
+            "net.unfamily.colossal_reactors.client.GuideMeRegistrationImpl";
 
     private GuideMeRegistration() {}
 
@@ -23,27 +18,25 @@ public final class GuideMeRegistration {
      * Must run before resource reload so pages are picked up on first load.
      */
     public static void register() {
-        if (!ModList.get().isLoaded("guideme")) {
-            return;
-        }
-        if (!REGISTERED.compareAndSet(false, true)) {
+        if (FMLEnvironment.dist != Dist.CLIENT || !ModList.get().isLoaded("guideme")) {
             return;
         }
         try {
-            Guide.builder(GUIDE_ID)
-                    .itemSettings(GuideItemSettings.DEFAULT)
-                    .build();
-            ColossalReactors.LOGGER.info("GuideME guide registered ({})", GUIDE_ID);
-        } catch (Exception e) {
+            Class.forName(IMPL_CLASS).getMethod("register").invoke(null);
+        } catch (ReflectiveOperationException e) {
             ColossalReactors.LOGGER.error("Failed to register GuideME guide", e);
-            REGISTERED.set(false);
         }
     }
 
     public static ItemStack createGuideItemStack() {
-        if (!ModList.get().isLoaded("guideme")) {
+        if (FMLEnvironment.dist != Dist.CLIENT || !ModList.get().isLoaded("guideme")) {
             return ItemStack.EMPTY;
         }
-        return Guides.createGuideItem(GUIDE_ID);
+        try {
+            return (ItemStack) Class.forName(IMPL_CLASS).getMethod("createGuideItemStack").invoke(null);
+        } catch (ReflectiveOperationException e) {
+            ColossalReactors.LOGGER.error("Failed to create GuideME guide item", e);
+            return ItemStack.EMPTY;
+        }
     }
 }

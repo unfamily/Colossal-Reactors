@@ -8,8 +8,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.unfamily.colossal_reactors.ColossalReactors;
@@ -44,7 +42,6 @@ public record ResourcePortFilterPayload(BlockPos pos, int filterId) implements C
             BlockEntity be = level.getBlockEntity(packet.pos());
             if (be instanceof ResourcePortBlockEntity port) {
                 port.setPortFilter(PortFilter.fromId(packet.filterId()));
-                level.playSound(null, packet.pos(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.3f, 1.0f);
             }
         });
     }

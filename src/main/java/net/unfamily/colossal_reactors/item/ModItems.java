@@ -164,6 +164,10 @@ public class ModItems {
     public static final DeferredItem<Item> STAINLESS_STEEL_INGOT = ITEMS.register("stainless_steel_ingot",
             () -> new Item(new Item.Properties()));
 
+    /** GuideME navigation icon only — not shown in creative tab. */
+    public static final DeferredItem<Item> GETTING_STARTED = ITEMS.register("getting_started",
+            () -> new Item(new Item.Properties()));
+
     static {
         for (ResourceLocation coilId : HeatingCoilRegistry.getBuiltinCoilIds()) {
             String path = coilId.getPath();

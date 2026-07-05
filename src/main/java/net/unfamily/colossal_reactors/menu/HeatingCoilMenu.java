@@ -41,7 +41,7 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     public HeatingCoilMenu(int containerId, Inventory playerInventory) {
         super(ModMenuTypes.HEATING_COIL_MENU.get(), containerId);
         this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(16);
+        this.data = new SimpleContainerData(37);
         this.menuBlockPos = null;
         addDataSlots(data);
         addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0,
@@ -110,4 +110,30 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     public boolean showChemicalInGui() { return data.get(15) != 0; }
 
     public int getRedstoneMode() { return data.get(14); }
+
+    public long getGasAmountLong() {
+        return combineLong(data.get(16), data.get(17));
+    }
+
+    public long getGasCapacityLong() {
+        return combineLong(data.get(18), data.get(19));
+    }
+
+    private static long combineLong(int low, int high) {
+        return (high & 0xFFFFFFFFL) << 32 | (low & 0xFFFFFFFFL);
+    }
+
+    @Nullable
+    public String getGasRegistryName() {
+        int len = data.get(20);
+        if (len <= 0) return null;
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < 16; i++) {
+            int packed = data.get(21 + i);
+            for (int j = 0; j < 4 && sb.length() < len; j++) {
+                sb.append((char) ((packed >> (j * 8)) & 0xFF));
+            }
+        }
+        return sb.toString();
+    }
 }

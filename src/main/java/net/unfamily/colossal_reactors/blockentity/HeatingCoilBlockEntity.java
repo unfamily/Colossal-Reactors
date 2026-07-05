@@ -36,8 +36,12 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
 import org.jetbrains.annotations.Nullable;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 
 /**
  * Heating coil block entity. Only front face accepts inputs (enforced in capability registration).
@@ -60,6 +64,17 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     private static final String TAG_REDSTONE_MODE = "RedstoneMode";
     private static final String TAG_LAST_REDSTONE = "LastRedstone";
     private static final String TAG_PULSE_ALLOWED = "PulseAllowed";
+    private static final String TAG_CHEMICAL = "Chemical";
+    private static final String TAG_CHEMICAL_AMOUNT = "ChemicalAmount";
+
+    private static final int DATA_GAS_AMOUNT = 16;
+    private static final int DATA_GAS_AMOUNT_HI = 17;
+    private static final int DATA_GAS_CAPACITY = 18;
+    private static final int DATA_GAS_CAPACITY_HI = 19;
+    private static final int DATA_GAS_TYPE_LENGTH = 20;
+    private static final int DATA_GAS_TYPE_START = 21;
+    private static final int DATA_GAS_TYPE_INTS = 16;
+    private static final int DATA_TOTAL = DATA_GAS_TYPE_START + DATA_GAS_TYPE_INTS;
 
     private int redstoneMode = RedstoneMode.NONE.getId();
     private boolean lastRedstoneSignal;
@@ -73,6 +88,8 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     };
     private final FluidTank fluidTank;
     private final HeatingCoilEnergyStorage energyStorage;
+    /** Lazy Mek chemical tank (IChemicalHandler). */
+    private Object chemicalHandler;
 
     /** Accumulated burn time (ticks) from burnable items; no dispersion. */
     private int burnableTicksAccumulated;
@@ -156,8 +173,30 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
                     case 13 -> hasItemRequirement() ? 1 : 0;
                     case 14 -> redstoneMode;
                     case 15 -> hasChemicalRequirement() ? 1 : 0;
-                    default -> 0;
+                    case DATA_GAS_AMOUNT -> lowLong(getGasAmountMbLong());
+                    case DATA_GAS_AMOUNT_HI -> highLong(getGasAmountMbLong());
+                    case DATA_GAS_CAPACITY -> lowLong(getGasCapacityMbLong());
+                    case DATA_GAS_CAPACITY_HI -> highLong(getGasCapacityMbLong());
+                    default -> packGasTypeName(index);
                 };
+            }
+
+            private int packGasTypeName(int index) {
+                if (index == DATA_GAS_TYPE_LENGTH) {
+                    String name = getGasTypeRegistryName();
+                    return name != null ? name.length() : 0;
+                }
+                if (index >= DATA_GAS_TYPE_START && index < DATA_TOTAL) {
+                    String name = getGasTypeRegistryName();
+                    if (name == null || name.isEmpty()) return 0;
+                    int base = (index - DATA_GAS_TYPE_START) * 4;
+                    int v = 0;
+                    for (int i = 0; i < 4 && base + i < name.length(); i++) {
+                        v |= (name.charAt(base + i) & 0xFF) << (i * 8);
+                    }
+                    return v;
+                }
+                return 0;
             }
 
             @Override
@@ -168,7 +207,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
             @Override
             public int getCount() {
-                return 16;
+                return DATA_TOTAL;
             }
         };
         if (def != null && !def.consume().isEmpty()) {
@@ -196,6 +235,25 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
             }
         }
         return max;
+    }
+
+    /** Max chemical activation across all consume options; 0 if none have chemical. */
+    private static int maxChemicalActivation(HeatingCoilDefinition def) {
+        int max = 0;
+        for (ConsumeOption opt : def.consume()) {
+            if (opt.chemical() != null && opt.chemical().activation() > max) {
+                max = opt.chemical().activation();
+            }
+        }
+        return max;
+    }
+
+    private static int lowLong(long value) {
+        return (int) (value & 0xFFFFFFFFL);
+    }
+
+    private static int highLong(long value) {
+        return (int) ((value >>> 32) & 0xFFFFFFFFL);
     }
 
     /** Max burnable activation across all consume options; 0 if none have burnable. */
@@ -329,6 +387,12 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         }
         if (opt.energy() != null) energyStorage.extractEnergy(opt.energy().activation(), false);
         if (opt.burnable() != null) burnableTicksAccumulated -= opt.burnable().activation();
+        if (opt.chemical() != null) {
+            Object handler = getChemicalHandler();
+            if (handler != null) {
+                MekChemicalHelper.extractFromTank(handler, 0, opt.chemical().activation(), null);
+            }
+        }
         setChanged();
     }
 
@@ -378,7 +442,19 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         if (opt.burnable() != null) {
             if (burnableTicksAccumulated < opt.burnable().activation()) return false;
         }
+        if (opt.chemical() != null) {
+            Object handler = getChemicalHandler();
+            if (handler == null) return false;
+            Object inTank = MekChemicalHelper.getChemicalInTank(handler, 0);
+            if (!chemicalMatchesRequirement(inTank, opt.chemical())) return false;
+            if (MekChemicalHelper.getAmount(inTank) < opt.chemical().activation()) return false;
+        }
         return true;
+    }
+
+    private boolean chemicalMatchesRequirement(@Nullable Object stack, ConsumeOption.ChemicalRequirement req) {
+        if (stack == null || MekChemicalHelper.isEmpty(stack)) return false;
+        return MekChemicalHelper.matchesSelector(stack, req.selector());
     }
 
     private boolean consumeSubstain(ConsumeOption opt) {
@@ -401,6 +477,13 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         if (opt.burnable() != null) {
             if (burnableTicksAccumulated < opt.burnable().substain()) return false;
         }
+        if (opt.chemical() != null) {
+            Object handler = getChemicalHandler();
+            if (handler == null) return false;
+            Object inTank = MekChemicalHelper.getChemicalInTank(handler, 0);
+            if (!chemicalMatchesRequirement(inTank, opt.chemical())) return false;
+            if (MekChemicalHelper.getAmount(inTank) < opt.chemical().substain()) return false;
+        }
         // All satisfied: consume all
         if (opt.fluid() != null) {
             fluidTank.drain(opt.fluid().substain(), IFluidHandler.FluidAction.EXECUTE);
@@ -416,6 +499,12 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         }
         if (opt.burnable() != null) {
             burnableTicksAccumulated -= opt.burnable().substain();
+        }
+        if (opt.chemical() != null) {
+            Object handler = getChemicalHandler();
+            if (handler != null) {
+                MekChemicalHelper.extractFromTank(handler, 0, opt.chemical().substain(), null);
+            }
         }
         setChanged();
         return true;
@@ -489,6 +578,97 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     public IFluidHandler getFluidHandler() {
         return fluidTank;
+    }
+
+    @Nullable
+    public Object getChemicalHandlerForCapability() {
+        if (!acceptsChemicalCapability()) return null;
+        return wrapFilteredChemicalHandler(getChemicalHandler());
+    }
+
+    @Nullable
+    public Object getChemicalHandler() {
+        if (!MekChemicalHelper.isLoaded()) return null;
+        if (chemicalHandler == null) {
+            HeatingCoilDefinition def = getDefinition();
+            long cap = def == null ? DEFAULT_TANK_MB : maxChemicalActivation(def);
+            if (cap <= 0) cap = DEFAULT_TANK_MB;
+            Object tank = MekChemicalHelper.createBasicTank(cap);
+            chemicalHandler = tank != null ? MekChemicalHelper.wrapAsHandler(tank) : null;
+        }
+        return chemicalHandler;
+    }
+
+    public long getGasAmountMbLong() {
+        Object handler = getChemicalHandler();
+        return handler != null ? MekChemicalHelper.getTankAmountLong(handler) : 0L;
+    }
+
+    public long getGasCapacityMbLong() {
+        Object handler = getChemicalHandler();
+        return handler != null ? MekChemicalHelper.getTankCapacityLong(handler) : 0L;
+    }
+
+    @Nullable
+    public String getGasTypeRegistryName() {
+        Object handler = getChemicalHandler();
+        if (handler == null) return null;
+        Object stack = MekChemicalHelper.getChemicalInTank(handler, 0);
+        return MekChemicalHelper.getTypeRegistryName(stack);
+    }
+
+    /** True if this coil accepts Mek chemical capability (pipes can connect). */
+    public boolean acceptsChemicalCapability() {
+        return hasChemicalRequirement() && MekChemicalHelper.isLoaded();
+    }
+
+    private boolean acceptsChemicalInput(@Nullable Object chemicalStack) {
+        if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) return false;
+        HeatingCoilDefinition def = getDefinition();
+        if (def == null) return false;
+        boolean matchesRequirement = false;
+        for (ConsumeOption opt : def.consume()) {
+            if (opt.chemical() != null && MekChemicalHelper.matchesSelector(chemicalStack, opt.chemical().selector())) {
+                matchesRequirement = true;
+                break;
+            }
+        }
+        if (!matchesRequirement) return false;
+        Object handler = getChemicalHandler();
+        if (handler == null) return false;
+        Object inTank = MekChemicalHelper.getChemicalInTank(handler, 0);
+        return MekChemicalHelper.isEmpty(inTank) || MekChemicalHelper.chemicalsMatch(inTank, chemicalStack);
+    }
+
+    @Nullable
+    private Object wrapFilteredChemicalHandler(@Nullable Object inner) {
+        if (inner == null) return null;
+        try {
+            Class<?> handlerClass = Class.forName("mekanism.api.chemical.IChemicalHandler");
+            InvocationHandler h = (proxy, method, args) -> {
+                String name = method.getName();
+                if ("insertChemical".equals(name) && args != null) {
+                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                    if (stack != null && !MekChemicalHelper.isEmpty(stack) && !acceptsChemicalInput(stack)) {
+                        return MekChemicalHelper.rejectedInsertReturn(args);
+                    }
+                }
+                if ("isChemicalValid".equals(name) && args != null) {
+                    Object stack = MekChemicalHelper.findChemicalStackInArgs(args);
+                    if (stack != null && !MekChemicalHelper.isEmpty(stack) && !acceptsChemicalInput(stack)) {
+                        return false;
+                    }
+                }
+                Object result = method.invoke(inner, args);
+                if ("insertChemical".equals(name) || "extractChemical".equals(name)) {
+                    setChanged();
+                }
+                return result;
+            };
+            return Proxy.newProxyInstance(handlerClass.getClassLoader(), new Class<?>[]{handlerClass}, h);
+        } catch (Throwable ignored) {
+            return inner;
+        }
     }
 
     /**
@@ -600,6 +780,17 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         tag.putInt(TAG_REDSTONE_MODE, redstoneMode);
         tag.putBoolean(TAG_LAST_REDSTONE, lastRedstoneSignal);
         tag.putBoolean(TAG_PULSE_ALLOWED, pulseAllowed);
+        if (MekChemicalHelper.isLoaded()) {
+            Object handler = getChemicalHandler();
+            if (handler != null) {
+                Object stack = MekChemicalHelper.getChemicalInTank(handler, 0);
+                String chemId = MekChemicalHelper.getTypeRegistryName(stack);
+                if (chemId != null) {
+                    tag.putString(TAG_CHEMICAL, chemId);
+                    tag.putLong(TAG_CHEMICAL_AMOUNT, MekChemicalHelper.getAmount(stack));
+                }
+            }
+        }
     }
 
     @Override
@@ -624,6 +815,17 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         redstoneMode = (m == RedstoneMode.PULSE ? RedstoneMode.NONE : m).getId();
         lastRedstoneSignal = tag.getBoolean(TAG_LAST_REDSTONE);
         pulseAllowed = tag.getBoolean(TAG_PULSE_ALLOWED);
+        if (tag.contains(TAG_CHEMICAL) && MekChemicalHelper.isLoaded()) {
+            ResourceLocation chemId = ResourceLocation.tryParse(tag.getString(TAG_CHEMICAL));
+            long amount = tag.getLong(TAG_CHEMICAL_AMOUNT);
+            if (chemId != null && amount > 0) {
+                Object stack = MekChemicalHelper.createStack(chemId, amount);
+                Object handler = getChemicalHandler();
+                if (stack != null && handler != null) {
+                    MekChemicalHelper.fill(handler, stack, false);
+                }
+            }
+        }
     }
 
     public ContainerData getData() {

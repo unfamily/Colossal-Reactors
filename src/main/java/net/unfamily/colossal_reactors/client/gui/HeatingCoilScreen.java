@@ -107,7 +107,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 ResourcePortGuiLayout.GUI_WIDTH, ResourcePortGuiLayout.GUI_HEIGHT);
 
         if (showGasBar()) {
-            // Gas tank rendering when coil has chemical + Mek (BE tank sync can be added later)
+            renderGasBar(g, x, y);
         } else {
             g.fill(ResourcePortGuiLayout.maskGasLeft(x), ResourcePortGuiLayout.maskGasTop(y),
                     ResourcePortGuiLayout.maskGasRight(x), ResourcePortGuiLayout.maskGasBottom(y),
@@ -157,6 +157,24 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 g.blit(ENERGY_BAR, energyBarX, energyY, 0, ENERGY_BAR_HEIGHT - energyHeight,
                         ENERGY_BAR_WIDTH, energyHeight, 16, 32);
             }
+        }
+    }
+
+    private void renderGasBar(GuiGraphics g, int guiX, int guiY) {
+        long amount = menu.getGasAmountLong();
+        long capacity = menu.getGasCapacityLong();
+        if (capacity <= 0 || amount <= 0) return;
+        int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
+        if (fillPx <= 0) return;
+        int outerLeft = ResourcePortGuiLayout.gasBarFillLeft(guiX);
+        int outerTop = ResourcePortGuiLayout.gasBarFillTop(guiY);
+        String gasName = menu.getGasRegistryName();
+        int stackAmount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
+        if (!GasTankRenderHelper.drawGasInTank(g, gasName, stackAmount, outerLeft, outerTop,
+                ResourcePortGuiLayout.BAR_FILL_W, ResourcePortGuiLayout.BAR_FILL_H, fillPx)) {
+            int fillTop = ResourcePortGuiLayout.gasBarFillBottom(guiY) - fillPx;
+            g.fill(outerLeft, fillTop, outerLeft + ResourcePortGuiLayout.BAR_FILL_W,
+                    ResourcePortGuiLayout.gasBarFillBottom(guiY), 0xFF88CCFF);
         }
     }
 
@@ -250,10 +268,26 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         g.renderTooltip(font, lines, mouseX, mouseY);
     }
 
+    private void tooltipGas(GuiGraphics g, int mouseX, int mouseY) {
+        int left = ResourcePortGuiLayout.gasBarFillLeft(leftPos);
+        int top = ResourcePortGuiLayout.gasBarFillTop(topPos);
+        if (mouseX < left || mouseX >= left + ResourcePortGuiLayout.BAR_FILL_W
+                || mouseY < top || mouseY >= top + ResourcePortGuiLayout.BAR_FILL_H) return;
+        List<FormattedCharSequence> lines = new ArrayList<>();
+        lines.add(Component.translatable("gui.colossal_reactors.resource_port.tank_tooltip.gas",
+                GuiNumberFormat.format(menu.getGasAmountLong()),
+                GuiNumberFormat.format(menu.getGasCapacityLong())).getVisualOrderText());
+        String gasName = menu.getGasRegistryName();
+        Component name = GasTankRenderHelper.getGasDisplayName(gasName);
+        if (name != null) lines.add(name.getVisualOrderText());
+        g.renderTooltip(font, lines, mouseX, mouseY);
+    }
+
     @Override
     protected void renderTooltip(GuiGraphics g, int mouseX, int mouseY) {
         super.renderTooltip(g, mouseX, mouseY);
         tooltipLiquid(g, mouseX, mouseY);
+        if (showGasBar()) tooltipGas(g, mouseX, mouseY);
         if (menu.showEnergyInGui()) {
             int ex = leftPos + ENERGY_BAR_X;
             int ey = topPos + ENERGY_BAR_Y;

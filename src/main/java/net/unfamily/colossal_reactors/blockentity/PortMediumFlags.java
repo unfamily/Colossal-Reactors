@@ -1,88 +1,84 @@
 package net.unfamily.colossal_reactors.blockentity;
 
-/**
- * Per-port medium toggles (row 2 of resource port GUI). Liquid and gas are mutually exclusive.
- */
+import net.minecraft.nbt.CompoundTag;
+
+/** Exclusive port medium persisted on the block entity. */
 public final class PortMediumFlags {
 
-    private boolean allowSolid = true;
-    private boolean allowLiquid = true;
-    private boolean allowGas;
+    public static final String KEY_MEDIUM = "PortMedium";
+    /** Legacy keys — read only. */
+    public static final String KEY_SOLID = "PortAllowSolid";
+    public static final String KEY_LIQUID = "PortAllowLiquid";
+    public static final String KEY_GAS = "PortAllowGas";
 
-    public PortMediumFlags() {}
+    private PortMedium medium = PortMedium.SOLID;
 
-    public PortMediumFlags(boolean allowSolid, boolean allowLiquid, boolean allowGas) {
-        this.allowSolid = allowSolid;
-        this.allowLiquid = allowLiquid;
-        this.allowGas = allowGas;
-        enforceLiquidXorGas();
+    public PortMedium getMedium() {
+        return medium;
     }
 
-    public static PortMediumFlags fromLegacyFilter(PortFilter filter) {
-        return switch (filter) {
-            case BOTH -> new PortMediumFlags(true, true, false);
-            case ONLY_SOLID_FUEL -> new PortMediumFlags(true, false, false);
-            case ONLY_COOLANT_LIQUID -> new PortMediumFlags(false, true, false);
-        };
+    public void setMedium(PortMedium medium) {
+        this.medium = medium != null ? medium : PortMedium.SOLID;
     }
 
-    public PortFilter toLegacyFilter() {
-        if (allowSolid && allowLiquid && !allowGas) return PortFilter.BOTH;
-        if (allowSolid && !allowLiquid && !allowGas) return PortFilter.ONLY_SOLID_FUEL;
-        if (!allowSolid && allowLiquid && !allowGas) return PortFilter.ONLY_COOLANT_LIQUID;
-        if (allowSolid && !allowLiquid && allowGas) return PortFilter.ONLY_SOLID_FUEL;
-        if (!allowSolid && !allowLiquid && allowGas) return PortFilter.ONLY_COOLANT_LIQUID;
-        return PortFilter.BOTH;
+    public void cycleReactor() {
+        cycleReactor(true);
+    }
+
+    public void cycleReactor(boolean gasAvailable) {
+        medium = medium.nextForReactor(gasAvailable);
+    }
+
+    public void cycleTurbine() {
+        cycleTurbine(true);
+    }
+
+    public void cycleTurbine(boolean gasAvailable) {
+        medium = medium.nextForTurbine(gasAvailable);
+    }
+
+    public void cycleReactorBack() {
+        cycleReactorBack(true);
+    }
+
+    public void cycleReactorBack(boolean gasAvailable) {
+        medium = medium.prevForReactor(gasAvailable);
+    }
+
+    public void cycleTurbineBack() {
+        cycleTurbineBack(true);
+    }
+
+    public void cycleTurbineBack(boolean gasAvailable) {
+        medium = medium.prevForTurbine(gasAvailable);
     }
 
     public boolean isAllowSolid() {
-        return allowSolid;
+        return medium.isSolid();
     }
 
     public boolean isAllowLiquid() {
-        return allowLiquid;
+        return medium.isLiquid();
     }
 
     public boolean isAllowGas() {
-        return allowGas;
+        return medium.isGas();
     }
 
-    public void setAllowSolid(boolean allowSolid) {
-        this.allowSolid = allowSolid;
+    public void writeToNbt(CompoundTag tag) {
+        tag.putInt(KEY_MEDIUM, medium.getId());
     }
 
-    public void setAllowLiquid(boolean allowLiquid) {
-        this.allowLiquid = allowLiquid;
-        if (allowLiquid && allowGas) {
-            allowGas = false;
+    public void readFromNbt(CompoundTag tag) {
+        if (tag.contains(KEY_MEDIUM)) {
+            medium = PortMedium.fromId(tag.getInt(KEY_MEDIUM));
+            return;
         }
-    }
-
-    public void setAllowGas(boolean allowGas) {
-        this.allowGas = allowGas;
-        if (allowGas && allowLiquid) {
-            allowLiquid = false;
-        }
-    }
-
-    public void enforceLiquidXorGas() {
-        if (allowLiquid && allowGas) {
-            allowGas = false;
-        }
-    }
-
-    public void writeToNbt(net.minecraft.nbt.CompoundTag tag) {
-        tag.putBoolean("PortAllowSolid", allowSolid);
-        tag.putBoolean("PortAllowLiquid", allowLiquid);
-        tag.putBoolean("PortAllowGas", allowGas);
-    }
-
-    public void readFromNbt(net.minecraft.nbt.CompoundTag tag) {
-        if (tag.contains("PortAllowSolid")) {
-            allowSolid = tag.getBoolean("PortAllowSolid");
-            allowLiquid = tag.getBoolean("PortAllowLiquid");
-            allowGas = tag.getBoolean("PortAllowGas");
-            enforceLiquidXorGas();
+        if (tag.contains(KEY_SOLID)) {
+            boolean allowSolid = tag.getBoolean(KEY_SOLID);
+            boolean allowLiquid = tag.getBoolean(KEY_LIQUID);
+            boolean allowGas = tag.getBoolean(KEY_GAS);
+            medium = PortMedium.fromLegacyBooleans(allowSolid, allowLiquid, allowGas);
         }
     }
 }

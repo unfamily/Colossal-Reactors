@@ -12,6 +12,8 @@ A **turbine** is a large multiblock that turns **steam** into **RF**. Build a sh
 
 Most players pipe steam from a Colossal Reactors **fission reactor** into the turbine and take RF out the power ports—a strong pairing for late-game power.
 
+**New here?** Read [Getting started](getting_started.md) first — **Complete example**, then **Setup 1** (standalone steam) or **Setup 2** (reactor coolant chain).
+
 ## Topics
 
 <SubPages icons={true} />

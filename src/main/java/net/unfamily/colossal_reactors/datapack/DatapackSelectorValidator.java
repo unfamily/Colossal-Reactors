@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelSubType;
@@ -40,6 +41,11 @@ public final class DatapackSelectorValidator {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatapackSelectorValidator.class);
 
     private DatapackSelectorValidator() {}
+
+    /** True when tag validation should use live server registries instead of bootstrap-only checks. */
+    public static boolean registriesReady() {
+        return ServerLifecycleHooks.getCurrentServer() != null;
+    }
 
     private static boolean validationEnabled() {
         return tagHasEntries(TagKey.create(Registries.ITEM, ResourceLocation.parse("minecraft:logs")), BuiltInRegistries.ITEM)
