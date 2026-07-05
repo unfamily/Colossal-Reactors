@@ -118,6 +118,9 @@ public class ModItems {
     public static final DeferredItem<Item> UNREFINED_STAINLESS_STEEL = ITEMS.registerSimpleItem("unrefined_stainless_steel");
     public static final DeferredItem<Item> STAINLESS_STEEL_INGOT = ITEMS.registerSimpleItem("stainless_steel_ingot");
 
+    /** GuideME navigation icon only — not shown in creative tab. */
+    public static final DeferredItem<Item> GETTING_STARTED = ITEMS.registerSimpleItem("getting_started");
+
     static {
         List<Identifier> coilIds = HeatingCoilRegistry.getBuiltinCoilIds();
         for (int i = 0; i < coilIds.size(); i++) {

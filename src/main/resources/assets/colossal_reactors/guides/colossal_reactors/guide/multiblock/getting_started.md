@@ -2,7 +2,7 @@
 navigation:
   parent: multiblock/multiblock-index.md
   title: Getting started
-  icon: reactor_casing
+  icon: getting_started
   position: 5
 item_ids:
   - colossal_reactors:reactor_casing
@@ -25,7 +25,7 @@ Build a closed reactor shell, then pick one of the two setups below. Rotate the 
 - **Floor and roof**: **Reactor Casing** (closed frame).
 - **Vertical corners**: **Reactor Casing** pillars at the four edges (y=1…5).
 - **West, east, and south walls**: **5×5 Reactor Glass** panel on each face (five rows × five columns between the corner pillars).
-- **Controller face** (north in the example): **no shell blocks** around the controller — only the **Reactor Controller** protruding outward as a **single block**, plus **ports** on that same face where needed (replacing what would be glass on the other walls).
+- **Controller face** (north in the example): the **Reactor Controller** protrudes outward as a **single block**; remaining cells on that face use **Reactor Glass** where no port is placed. **Ports replace glass** on that wall — same idea as on the other faces, not a bare open frame.
 - **Ports**: on the **same wall as the controller** — they can sit **anywhere** on that face (the example spreads them away from the controller on purpose).
 
 The [Reactor Builder](reactor_builder.md) places casing, glass (if in buffer), rods, and heat sinks — **not** the controller or ports.
@@ -41,7 +41,7 @@ The [Reactor Builder](reactor_builder.md) places casing, glass (if in buffer), r
 |------------------------------|-------|
 | Outside center (protruding alone) | [Reactor Controller](reactor_controller.md) |
 | Lower-left / lower-right (spread) | Resource Port ×2 |
-| Upper-left (spread) | Power Port |
+| Center column, one block below controller | Power Port |
 | West / east / south walls | **5×5** glass panels |
 
 Ports are **not** tied to the controller block — any cell on the controller face works. The scene places them **apart** so you can see that.
@@ -62,7 +62,7 @@ Use this when you only want **RF from the reactor** — no steam line, no turbin
 |------|------|--------|
 | Lower-left on controller face | **INSERT** | **Fuel only** |
 | Lower-right on controller face | **EXTRACT** | **Both** or solid-only |
-| Upper-left on controller face | Power Port | — (RF out) |
+| Center column, one block below controller | Power Port | — (RF out) |
 
 Manual play works too: skip the resource ports and load fuel by hand in the controller.
 
@@ -84,7 +84,7 @@ With enough conversion, reactor **RF/t may drop** while **steam** rises — that
 
 ## Checklist
 
-1. Closed shell: casing floor/roof, corner pillars, **5×5 glass** on three walls; controller face open except ports.
+1. Closed shell: casing floor/roof, corner pillars, **5×5 glass** on three walls; controller face uses **glass + ports** (controller outside alone).
 2. **One [Reactor Controller](reactor_controller.md)** on a side face, **alone** outside the shell.
 3. **Power port** (+ optional resource ports) on that **same** face.
 4. Pick **Setup 1** (empty coolant) or **Setup 2** (coolant loop + turbine).

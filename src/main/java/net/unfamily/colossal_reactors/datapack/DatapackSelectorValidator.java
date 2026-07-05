@@ -1,6 +1,5 @@
 package net.unfamily.colossal_reactors.datapack;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -14,6 +13,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
@@ -49,8 +50,7 @@ public final class DatapackSelectorValidator {
         if (server != null) {
             return true;
         }
-        Minecraft mc = Minecraft.getInstance();
-        return mc != null && mc.level != null;
+        return clientLevelRegistryAccess() != null;
     }
 
     /**
@@ -69,15 +69,34 @@ public final class DatapackSelectorValidator {
         if (server != null) {
             return server.registryAccess();
         }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc != null) {
-            if (mc.level != null) {
-                return mc.level.registryAccess();
+        return clientLevelRegistryAccess();
+    }
+
+    /**
+     * Client-only registry access without referencing {@code Minecraft} in this class file
+     * (dedicated server class loading would pull {@code IntegratedServer} otherwise).
+     */
+    @Nullable
+    private static RegistryAccess clientLevelRegistryAccess() {
+        if (FMLEnvironment.getDist() != Dist.CLIENT) {
+            return null;
+        }
+        try {
+            Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft");
+            Object mc = mcClass.getMethod("getInstance").invoke(null);
+            if (mc == null) {
+                return null;
             }
-            MinecraftServer sp = mc.getSingleplayerServer();
+            Object level = mcClass.getField("level").get(mc);
+            if (level != null) {
+                return (RegistryAccess) level.getClass().getMethod("registryAccess").invoke(level);
+            }
+            Object sp = mcClass.getMethod("getSingleplayerServer").invoke(mc);
             if (sp != null) {
-                return sp.registryAccess();
+                return (RegistryAccess) sp.getClass().getMethod("registryAccess").invoke(sp);
             }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Client classes unavailable or world not loaded yet.
         }
         return null;
     }

@@ -89,6 +89,10 @@ public final class HeatingCoilRegistry {
     }
 
     private static void putSanitized(Map<Identifier, HeatingCoilDefinition> merged, HeatingCoilDefinition def) {
+        if (!DatapackSelectorValidator.registriesReady()) {
+            merged.put(def.id(), def);
+            return;
+        }
         HeatingCoilDefinition sanitized = DatapackSelectorValidator.sanitizeHeatingCoil(def);
         merged.put(def.id(), sanitized != null ? sanitized : def);
     }

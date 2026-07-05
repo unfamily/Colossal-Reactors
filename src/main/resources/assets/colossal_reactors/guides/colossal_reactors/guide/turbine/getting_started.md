@@ -2,7 +2,7 @@
 navigation:
   parent: turbine/turbine-index.md
   title: Getting started
-  icon: turbine_casing
+  icon: getting_started
   position: 5
 item_ids:
   - colossal_reactors:turbine_casing
@@ -26,10 +26,10 @@ Build a closed turbine shell with a rotor and coils inside, then pick one of the
 - **Floor and roof**: **Turbine Casing** (closed frame).
 - **Vertical corners**: **Turbine Casing** pillars at the four edges (y=1…5).
 - **West, east, and south walls**: **5×5 Turbine Glass** panel on each face.
-- **Divider wall** at **rod-controller height** (y=2 in the example): **Turbine Casing** ring inside and **casing band** on the side walls — this row **cuts through** the 5×5 glass on those three faces.
-- **Controller face** (north in the example): **no shell blocks** around the controller — only the **Turbine Controller** protruding outward as a **single block**, plus **ports** anywhere on that same face (spread in the scene).
-- **Coil zone** (above the divider): **two layers** of coil blocks — **copper blocks** in the example.
-- **Rotor zone** (below the divider): rods, blades, and **Turbine Rod Controller** on the divider layer.
+- **Divider wall** at **rod-controller height** (y=3 in the example): **Turbine Casing** ring inside and **casing band** on the side walls — this row **cuts through** the 5×5 glass on those three faces.
+- **Controller face** (north in the example): the **Turbine Controller** protrudes outward as a **single block**; remaining cells on that face use **Turbine Glass** where no port is placed. **Ports replace glass** on that wall — same layout as the [reactor example](../multiblock/getting_started.md).
+- **Coil zone** (above the divider): **two layers** at the top of the interior (y=4–5 in the example) — **copper blocks** directly under the roof casing.
+- **Rotor zone** (below the divider): **two rod segments** (y=1–2) — **four blades** on the lower ring, **eight blades** in two rings on the upper segment; **Turbine Rod Controller** sits on the divider layer (y=3).
 
 The [Turbine Builder](turbine_builder.md) places the shell, rotor, and coils — **not** the controller or ports.
 
@@ -44,10 +44,23 @@ The [Turbine Builder](turbine_builder.md) places the shell, rotor, and coils —
 |------------------------------|-------|
 | Outside center (protruding alone) | [Turbine Controller](turbine_controller.md) |
 | Lower-left / lower-right (spread) | Turbine Resource Port ×2 |
-| Upper-right (spread) | Turbine Power Port |
+| Center column, one block below controller | Turbine Power Port |
 | West / east / south walls | **5×5** glass (split by divider at rod-controller height) |
 
-Like the reactor example: **two resource ports + one power port**, placed **away** from the controller so it is clear they can go anywhere on that face.
+Like the reactor example: **two resource ports + one power port** on the controller face (same positions as the reactor scene).
+
+## Efficiency — what affects RF output
+
+When the turbine is **formed correctly** and **running**, RF per tick follows:
+
+**RF/t** ≈ steam used × **RF per mB** × **coil strength** × **blade layout bonus**
+
+See [Steam, RF, and coils](turbine_generation_and_coils.md) for the full breakdown. In short:
+
+- **Steam supply** — capped by blade count and layout; more balanced rings → higher steam/tick.
+- **Coil blocks** — metal storage blocks in the **two upper interior layers** (copper, gold, netherite, …). Empty coil cells count as weak (~30% strength); check JEI for block values.
+- **Blade height bonus** — rings that grow taller toward the divider gain **+3%** per ascending layer with more blades; shrinking rings lose **−3%**. **Efficient** vs **Productive** layouts matter — see [Rods and blades](turbine_rod_and_blades.md).
+- **Valid formation** — shell, coils, rod controller, and ports must all validate before generation runs.
 
 ## Setup 1: Simple energy (standalone steam)
 
@@ -63,7 +76,7 @@ Use this when **steam already exists** (tanks, another mod, creative) and you on
 |------|------|------|
 | Lower-left on controller face | Resource Port — **INSERT** | Steam **in** |
 | Lower-right on controller face | Resource Port — **EXTRACT** | Water / exhaust **out** |
-| Upper-right on controller face | Power Port | RF **out** |
+| Center column, one block below controller | Power Port | RF **out** |
 
 Configure **two resource ports** in their GUIs — hover each button for tooltips ([full list](turbine_resource_port.md)). **Reboot** after changing port modes or rotor layout.
 
@@ -80,8 +93,8 @@ Match turbine size and blades to reactor steam output — see [Steam, RF, and co
 
 ## Checklist
 
-1. Closed shell: casing floor/roof, corner pillars, **5×5 glass** on three walls (divider cuts one row), controller face open except ports.
-2. Valid **rotor** below divider + **two coil layers** above (e.g. copper blocks).
+1. Closed shell: casing floor/roof, corner pillars, **5×5 glass** on three walls (divider at **y=3** cuts one row); controller face uses **glass + ports**.
+2. Valid **rotor** below divider: **two rod blocks** (y=1–2), **4 blades** on the lower ring, **8 blades** (two rings) on the upper segment + **two coil layers** at the top (y=4–5, e.g. copper blocks).
 3. **One [Turbine Controller](turbine_controller.md)** on a side face, **outside** the box alone.
 4. **Two resource ports + one power port** on the controller face (any positions on that face).
 5. Pick **Setup 1** (any steam source) or **Setup 2** (reactor coolant loop).
