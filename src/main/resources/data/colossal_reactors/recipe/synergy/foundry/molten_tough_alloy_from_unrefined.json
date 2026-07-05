@@ -2,7 +2,7 @@
   "type": "synergy:foundry",
   "fluid": {
     "amount": 90,
-    "id": "colossal_reactors:molten_tough_alloy_source"
+    "id": "colossal_reactors:molten_tough_alloy"
   },
   "input": {
     "item": "colossal_reactors:unrefined_tough_alloy"

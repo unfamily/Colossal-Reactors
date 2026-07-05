@@ -14,22 +14,30 @@ categories:
 
 <BlockImage id="reactor_controller" scale="4" />
 
-Open the controller by **right-clicking** the block when the multiblock is valid.
+Open the controller by **right-clicking** the block when it sits on a **side** face of the casing (not top or bottom), **replacing a casing block** on the outer frame with the screen facing **outward**.
+
+New to multiblocks? Start with [Getting started](colossal_reactors:multiblock/getting_started.md).
 
 ## Operation
 
-- **Start / stop** the reactor and monitor power output, fuel state, and related readouts.
+- **Validate / run** — first open runs validation; when valid the reactor can turn **ON** and show RF/tick, fuel, and coolant readouts.
+- **Fuel** — move fuel between your inventory and rod storage when slots are shown.
+- **Coolant fluid** — view level and fill/drain when controls are provided (optional for **RF-only** play with an empty coolant buffer).
+- **Reboot** — re-validates the structure and refreshes port tank sizes after you change the build or port settings.
 
-- **Manage fuel**: move fuel items between your inventory and the reactor’s fuel slots when the screen allows.
+## Stopping without breaking the multiblock
 
-- **Coolant fluid**: view level and fill or drain where controls are provided.
+Use a [Reactor Redstone Port](redstone_port.md) if you want external redstone to **hold off** or **stop** operation while the shell stays formed. **Without** a redstone port, the reactor runs whenever it is valid and **ON** (no redstone gate).
 
-- **Scram / safety**: use the controller’s controls to shut down or recover from unsafe states when shown.
+If **stability** readouts are enabled for your pack, they appear here — see [Reactor instability](reactor_instability.md).
 
-## Stopping the reactor without breaking it
+## Reactor valid but not producing?
 
-To **turn the reactor off cleanly** (without mining controller or casing), route **stop / disable** through a **Reactor Redstone Port**: configure it so an external redstone signal can **halt** or **hold off** operation while the multiblock stays formed. Exact modes depend on your version—check the [Reactor Redstone Port](redstone_port.md) page.
+| Check | |
+|-------|---|
+| Power port present and cabled? | RF needs a [Power Port](power_ports.md) with something accepting energy on the **outside**. |
+| RF-only mode? | Empty coolant buffer = no fluid required; water/steam mode needs coolant + extract path. |
+| Redstone port? | Reactor may stay **OFF** until the port’s mode + signal allow run. |
+| Waste backing up? | Add an **EXTRACT** [Resource Port](resource_port.md) or empty waste manually. |
 
-If extra **stability** readouts are enabled for your pack, they appear on this screen—see [Reactor instability](reactor_instability.md) when relevant.
-
-Tooltips and on-screen readouts explain current status; follow them while adjusting fuel, coolant fluid, heat-sink layout, or rods outside the controller screen.
+Tooltips and the status line on this screen explain the current state.

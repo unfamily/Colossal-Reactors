@@ -2,6 +2,7 @@ package net.unfamily.colossal_reactors.client.turbine;
 
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
@@ -10,7 +11,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 
-@EventBusSubscriber(modid = ColossalReactors.MODID)
+@EventBusSubscriber(modid = ColossalReactors.MODID, value = Dist.CLIENT)
 public final class TurbineRotorClientRegistration {
 
     private TurbineRotorClientRegistration() {}

@@ -3,7 +3,7 @@
   "energy": 5000,
   "fluid": {
     "amount": 90,
-    "id": "colossal_reactors:molten_tough_alloy_source"
+    "id": "colossal_reactors:molten_tough_alloy"
   },
   "input": {
     "count": 1,

@@ -4,7 +4,7 @@
   "energy": 500,
   "input_fluid": {
     "amount": 90,
-    "id": "colossal_reactors:molten_stainless_steel_source"
+    "id": "colossal_reactors:molten_stainless_steel"
   },
   "input_item": {
     "count": 1,

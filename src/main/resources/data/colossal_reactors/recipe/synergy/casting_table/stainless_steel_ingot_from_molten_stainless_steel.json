@@ -2,7 +2,7 @@
   "type": "synergy:casting_table",
   "fluid": {
     "amount": 90,
-    "id": "colossal_reactors:molten_stainless_steel_source"
+    "id": "colossal_reactors:molten_stainless_steel"
   },
   "input": {
     "item": "synergy:ingot_mold"

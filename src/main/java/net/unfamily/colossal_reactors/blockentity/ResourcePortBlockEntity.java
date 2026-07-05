@@ -607,11 +607,49 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
         this.portFilter = filter;
-        PortMediumFlags synced = PortMediumFlags.fromLegacyFilter(filter);
-        mediumFlags.setAllowSolid(synced.isAllowSolid());
-        mediumFlags.setAllowLiquid(synced.isAllowLiquid());
-        mediumFlags.setAllowGas(synced.isAllowGas());
         setChanged();
+    }
+
+    public PortMedium getPortMedium() {
+        return mediumFlags.getMedium();
+    }
+
+    public void setPortMedium(PortMedium medium) {
+        if (medium == null) {
+            return;
+        }
+        mediumFlags.setMedium(clampMedium(medium));
+        setChanged();
+    }
+
+    public void cyclePortMedium() {
+        boolean gasAvailable = MekChemicalHelper.isLoaded();
+        if (isTurbineResourcePort()) {
+            mediumFlags.cycleTurbine(gasAvailable);
+        } else {
+            mediumFlags.cycleReactor(gasAvailable);
+        }
+        setChanged();
+    }
+
+    public void cyclePortMediumBack() {
+        boolean gasAvailable = MekChemicalHelper.isLoaded();
+        if (isTurbineResourcePort()) {
+            mediumFlags.cycleTurbineBack(gasAvailable);
+        } else {
+            mediumFlags.cycleReactorBack(gasAvailable);
+        }
+        setChanged();
+    }
+
+    private PortMedium clampMedium(PortMedium medium) {
+        if (medium == PortMedium.GAS && !MekChemicalHelper.isLoaded()) {
+            return PortMedium.LIQUID;
+        }
+        if (isTurbineResourcePort() && medium == PortMedium.SOLID) {
+            return PortMedium.LIQUID;
+        }
+        return medium;
     }
 
     public boolean isAllowSolid() {
@@ -624,21 +662,6 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     public boolean isAllowGas() {
         return mediumFlags.isAllowGas();
-    }
-
-    public void setAllowSolid(boolean allow) {
-        mediumFlags.setAllowSolid(allow);
-        setChanged();
-    }
-
-    public void setAllowLiquid(boolean allow) {
-        mediumFlags.setAllowLiquid(allow);
-        setChanged();
-    }
-
-    public void setAllowGas(boolean allow) {
-        mediumFlags.setAllowGas(allow);
-        setChanged();
     }
 
     @Override
@@ -677,6 +700,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             portFilter = PortFilter.fromId(savedFilterId);
         }
         mediumFlags.read(input);
+        setPortMedium(getPortMedium());
     }
 
     /**

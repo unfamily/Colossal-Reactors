@@ -3,83 +3,81 @@ package net.unfamily.colossal_reactors.blockentity;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
-/**
- * Per-port medium toggles (row 2 of resource port GUI). Liquid and gas are mutually exclusive.
- */
+/** Exclusive port medium persisted on the block entity. */
 public final class PortMediumFlags {
 
+    public static final String KEY_MEDIUM = "PortMedium";
+    /** Legacy keys — read only. */
     public static final String KEY_SOLID = "PortAllowSolid";
     public static final String KEY_LIQUID = "PortAllowLiquid";
     public static final String KEY_GAS = "PortAllowGas";
 
-    private boolean allowSolid = true;
-    private boolean allowLiquid = true;
-    private boolean allowGas;
+    private PortMedium medium = PortMedium.SOLID;
 
-    public static PortMediumFlags fromLegacyFilter(PortFilter filter) {
-        return switch (filter) {
-            case BOTH -> new PortMediumFlags(true, true, false);
-            case ONLY_SOLID_FUEL -> new PortMediumFlags(true, false, false);
-            case ONLY_COOLANT_LIQUID -> new PortMediumFlags(false, true, false);
-        };
+    public PortMedium getMedium() {
+        return medium;
     }
 
-    public PortMediumFlags() {}
+    public void setMedium(PortMedium medium) {
+        this.medium = medium != null ? medium : PortMedium.SOLID;
+    }
 
-    public PortMediumFlags(boolean allowSolid, boolean allowLiquid, boolean allowGas) {
-        this.allowSolid = allowSolid;
-        this.allowLiquid = allowLiquid;
-        this.allowGas = allowGas;
-        enforceLiquidXorGas();
+    public void cycleReactor() {
+        cycleReactor(true);
+    }
+
+    public void cycleReactor(boolean gasAvailable) {
+        medium = medium.nextForReactor(gasAvailable);
+    }
+
+    public void cycleTurbine() {
+        cycleTurbine(true);
+    }
+
+    public void cycleTurbine(boolean gasAvailable) {
+        medium = medium.nextForTurbine(gasAvailable);
+    }
+
+    public void cycleReactorBack() {
+        cycleReactorBack(true);
+    }
+
+    public void cycleReactorBack(boolean gasAvailable) {
+        medium = medium.prevForReactor(gasAvailable);
+    }
+
+    public void cycleTurbineBack() {
+        cycleTurbineBack(true);
+    }
+
+    public void cycleTurbineBack(boolean gasAvailable) {
+        medium = medium.prevForTurbine(gasAvailable);
     }
 
     public boolean isAllowSolid() {
-        return allowSolid;
+        return medium.isSolid();
     }
 
     public boolean isAllowLiquid() {
-        return allowLiquid;
+        return medium.isLiquid();
     }
 
     public boolean isAllowGas() {
-        return allowGas;
-    }
-
-    public void setAllowSolid(boolean allowSolid) {
-        this.allowSolid = allowSolid;
-    }
-
-    public void setAllowLiquid(boolean allowLiquid) {
-        this.allowLiquid = allowLiquid;
-        if (allowLiquid && allowGas) allowGas = false;
-    }
-
-    public void setAllowGas(boolean allowGas) {
-        this.allowGas = allowGas;
-        if (allowGas && allowLiquid) allowLiquid = false;
-    }
-
-    public void enforceLiquidXorGas() {
-        if (allowLiquid && allowGas) allowGas = false;
-    }
-
-    public PortFilter toLegacyFilter() {
-        if (allowSolid && allowLiquid && !allowGas) return PortFilter.BOTH;
-        if (allowSolid && !allowLiquid && !allowGas) return PortFilter.ONLY_SOLID_FUEL;
-        if (!allowSolid && allowLiquid && !allowGas) return PortFilter.ONLY_COOLANT_LIQUID;
-        return PortFilter.BOTH;
+        return medium.isGas();
     }
 
     public void write(ValueOutput output) {
-        output.putBoolean(KEY_SOLID, allowSolid);
-        output.putBoolean(KEY_LIQUID, allowLiquid);
-        output.putBoolean(KEY_GAS, allowGas);
+        output.putInt(KEY_MEDIUM, medium.getId());
     }
 
     public void read(ValueInput input) {
-        allowSolid = input.getBooleanOr(KEY_SOLID, true);
-        allowLiquid = input.getBooleanOr(KEY_LIQUID, true);
-        allowGas = input.getBooleanOr(KEY_GAS, false);
-        enforceLiquidXorGas();
+        if (input.getInt(KEY_MEDIUM).isPresent()) {
+            medium = PortMedium.fromId(input.getIntOr(KEY_MEDIUM, PortMedium.SOLID.getId()));
+            return;
+        }
+        boolean allowSolid = input.getBooleanOr(KEY_SOLID, true);
+        boolean allowLiquid = input.getBooleanOr(KEY_LIQUID, true);
+        boolean allowGas = input.getBooleanOr(KEY_GAS, false);
+        medium = PortMedium.fromLegacyBooleans(allowSolid, allowLiquid, allowGas);
     }
 }
