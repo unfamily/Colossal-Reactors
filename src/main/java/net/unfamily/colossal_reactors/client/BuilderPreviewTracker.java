@@ -13,6 +13,7 @@ import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.block.TurbineBuilderBlock;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
+import net.unfamily.colossal_reactors.preview.BuilderPreviewMarkerLogic;
 import net.unfamily.iskalib.client.marker.MarkRenderer;
 
 import java.util.ArrayList;
@@ -37,12 +38,12 @@ public final class BuilderPreviewTracker {
     /** Self-heal marker display from layer cache (no server round-trip). */
     private static final int PERIODIC_RECONCILE_INTERVAL_TICKS = 40;
 
-    /** Wrong block overlay (must match server preview payloads). */
-    private static final int COLOR_OCCUPIED = 0xE0FF0000;
-    private static final int COLOR_ROD = 0xE0FFFF00;
-    private static final int COLOR_ROD_CONTROLLER = 0xE0FFFFFF;
-    private static final int COLOR_FRAME_EDGE = 0x80FF00FF;
-    private static final int COLOR_CLOSURE_DECK = 0xE070D8FF;
+    /** Wrong block overlay (must match {@link BuilderPreviewMarkerLogic}). */
+    private static final int COLOR_OCCUPIED = BuilderPreviewMarkerLogic.COLOR_OCCUPIED;
+    private static final int COLOR_ROD = BuilderPreviewMarkerLogic.COLOR_ROD;
+    private static final int COLOR_ROD_CONTROLLER = BuilderPreviewMarkerLogic.COLOR_ROD_CONTROLLER;
+    private static final int COLOR_FRAME_EDGE = BuilderPreviewMarkerLogic.COLOR_FRAME_EDGE;
+    private static final int COLOR_CLOSURE_DECK = BuilderPreviewMarkerLogic.COLOR_CLOSURE_DECK;
 
     /** Baseline marker priority when multiple layers exist (occupied handled separately). */
     private static final int[] BASELINE_COLOR_PRIORITY = {
@@ -143,7 +144,6 @@ public final class BuilderPreviewTracker {
         }
         BlockPos key = builderOrigin.immutable();
         clearMarkersForBuilder(key);
-        pruneStaleOccupiedMarkers(level, key);
         reconcileMarkersForBuilder(key);
         seedWorldHash(level, key);
         noteRefreshRequested(key);
@@ -181,7 +181,6 @@ public final class BuilderPreviewTracker {
             if (volume == null || !volume.contains(center)) {
                 continue;
             }
-            pruneStaleOccupiedMarkers(level, builder);
             reconcileMarkersForBuilder(builder);
             lastWorldStateHashByBuilder.put(builder, computeOccupiedBlocksHash(level, volume));
         }
@@ -245,7 +244,6 @@ public final class BuilderPreviewTracker {
             int hash = computeOccupiedBlocksHash(level, volume);
             Integer last = lastWorldStateHashByBuilder.get(builder);
             if (last != null && last != hash) {
-                pruneStaleOccupiedMarkers(level, builder);
                 reconcileMarkersForBuilder(builder);
                 lastWorldStateHashByBuilder.put(builder, hash);
                 if (refreshCooldownByBuilder.containsKey(builder)) {
@@ -278,7 +276,6 @@ public final class BuilderPreviewTracker {
         }
         lastPeriodicReconcileGameTime = gameTime;
         for (BlockPos builder : List.copyOf(activePreviews)) {
-            pruneStaleOccupiedMarkers(level, builder);
             reconcileMarkersForBuilder(builder);
         }
     }
@@ -305,29 +302,33 @@ public final class BuilderPreviewTracker {
         MarkRenderer.getInstance().clearBillboardMarkersForOwner(owner);
     }
 
-    private static void pruneStaleOccupiedMarkers(Level level, BlockPos owner) {
-        Map<BlockPos, Set<Integer>> layers = markerLayersByOwner.get(owner);
-        if (layers == null || layers.isEmpty()) {
-            return;
-        }
-        for (Map.Entry<BlockPos, Set<Integer>> entry : layers.entrySet()) {
-            Set<Integer> colors = entry.getValue();
-            if (!colors.contains(COLOR_OCCUPIED)) {
-                continue;
-            }
-            BlockState state = level.getBlockState(entry.getKey());
-            if (state.isAir() || state.canBeReplaced()) {
-                colors.remove(COLOR_OCCUPIED);
-            }
-        }
-    }
-
     private static void reconcileMarkersForBuilder(BlockPos owner) {
         Level level = Minecraft.getInstance().level;
-        if (level != null) {
-            pruneStaleOccupiedMarkers(level, owner);
+        if (level == null) {
+            return;
         }
+        refreshLayerCacheFromWorld(level, owner);
         refreshAllMarkersForOwner(owner, BUILDER_PREVIEW_DURATION_TICKS);
+    }
+
+    /** Rebuild marker layer cache from live world state (same rules as server preview). */
+    private static void refreshLayerCacheFromWorld(Level level, BlockPos owner) {
+        BlockEntity be = level.getBlockEntity(owner);
+        if (be == null) {
+            return;
+        }
+        Map<BlockPos, Set<Integer>> fresh = new ConcurrentHashMap<>();
+        BuilderPreviewMarkerLogic.MarkerSink sink = (worldPos, color) -> fresh
+                .computeIfAbsent(worldPos.immutable(), k -> ConcurrentHashMap.newKeySet())
+                .add(color);
+        if (be instanceof ReactorBuilderBlockEntity reactor) {
+            BuilderPreviewMarkerLogic.forEachReactorMarker(level, reactor, owner, sink);
+        } else if (be instanceof TurbineBuilderBlockEntity turbine) {
+            BuilderPreviewMarkerLogic.forEachTurbineMarker(level, turbine, owner, sink);
+        } else {
+            return;
+        }
+        markerLayersByOwner.put(owner, fresh);
     }
 
     private static void syncResolvedMarker(BlockPos owner, BlockPos worldPos, int durationTicks) {
