@@ -366,10 +366,13 @@ public final class DatapackSelectorValidator {
         ConsumeOption.ChemicalRequirement chemical = opt.chemical();
         if (chemical != null) {
             String selector = chemical.selector();
-            if (!MaterialSelector.isChemicalPrefix(selector) || !isResolvableChemicalSelector(selector)) {
-                LOGGER.debug("Dropped unresolved heating coil chemical selector: {}", selector);
+            if (!MaterialSelector.isChemicalPrefix(selector)) {
+                LOGGER.debug("Dropped heating coil chemical: invalid selector {}", selector);
+                chemical = null;
+            } else if (!MekChemicalHelper.isGasSupportEnabled()) {
                 chemical = null;
             }
+            // Keep valid % selectors when gas support is enabled; Mek may not be loaded yet at reload time.
         }
         ConsumeOption.ItemRequirement item = opt.item();
         if (item != null) {

@@ -66,7 +66,9 @@ public record FluidTankDumpPayload(BlockPos pos, byte tankType) implements Custo
             } else if (be instanceof MelterBlockEntity melter) {
                 emptied = melter.dumpFluidTankContents();
             } else if (be instanceof HeatingCoilBlockEntity coil) {
-                emptied = coil.dumpFluidTankContents();
+                emptied = packet.tankType() == TANK_GAS
+                        ? coil.dumpGasTankContents()
+                        : coil.dumpFluidTankContents();
             }
             if (emptied) {
                 level.playSound(null, packet.pos(), SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 0.25f, 1.0f);

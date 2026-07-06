@@ -10,7 +10,8 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
 
 /** S2C: add one preview marker at the given position (reactor/turbine footprint preview). */
-public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, int color, int durationTicks)
+public record ReactorPreviewMarkerPayload(
+        BlockPos builderOrigin, BlockPos pos, int color, int durationTicks, int footprintGeneration)
         implements CustomPacketPayload {
 
     public static final Type<ReactorPreviewMarkerPayload> TYPE = new Type<>(
@@ -25,6 +26,8 @@ public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, 
             ReactorPreviewMarkerPayload::color,
             net.minecraft.network.codec.ByteBufCodecs.INT,
             ReactorPreviewMarkerPayload::durationTicks,
+            net.minecraft.network.codec.ByteBufCodecs.VAR_INT,
+            ReactorPreviewMarkerPayload::footprintGeneration,
             ReactorPreviewMarkerPayload::new
     );
 
@@ -36,6 +39,10 @@ public record ReactorPreviewMarkerPayload(BlockPos builderOrigin, BlockPos pos, 
     public static void handle(ReactorPreviewMarkerPayload payload, IPayloadContext context) {
         context.enqueueWork(() ->
                 BuilderPreviewTracker.addMarker(
-                        payload.builderOrigin(), payload.pos(), payload.color(), payload.durationTicks()));
+                        payload.builderOrigin(),
+                        payload.pos(),
+                        payload.color(),
+                        payload.durationTicks(),
+                        payload.footprintGeneration()));
     }
 }

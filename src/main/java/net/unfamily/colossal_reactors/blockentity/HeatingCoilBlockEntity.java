@@ -74,7 +74,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     private static final int DATA_GAS_TYPE_LENGTH = 20;
     private static final int DATA_GAS_TYPE_START = 21;
     private static final int DATA_GAS_TYPE_INTS = 16;
-    private static final int DATA_TOTAL = DATA_GAS_TYPE_START + DATA_GAS_TYPE_INTS;
+    public static final int DATA_COUNT = DATA_GAS_TYPE_START + DATA_GAS_TYPE_INTS;
 
     private int redstoneMode = RedstoneMode.NONE.getId();
     private boolean lastRedstoneSignal;
@@ -105,7 +105,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     private final ContainerData data;
 
-    private boolean hasItemRequirement() {
+    public boolean hasItemRequirement() {
         HeatingCoilDefinition def = getDefinition();
         if (def == null) return false;
         for (ConsumeOption opt : def.consume()) {
@@ -186,7 +186,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
                     String name = getGasTypeRegistryName();
                     return name != null ? name.length() : 0;
                 }
-                if (index >= DATA_GAS_TYPE_START && index < DATA_TOTAL) {
+                if (index >= DATA_GAS_TYPE_START && index < DATA_COUNT) {
                     String name = getGasTypeRegistryName();
                     if (name == null || name.isEmpty()) return 0;
                     int base = (index - DATA_GAS_TYPE_START) * 4;
@@ -207,11 +207,14 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
             @Override
             public int getCount() {
-                return DATA_TOTAL;
+                return DATA_COUNT;
             }
         };
         if (def != null && !def.consume().isEmpty()) {
             ticksUntilSubstain = def.duration();
+        }
+        if (MekChemicalHelper.isLoaded() && hasChemicalRequirement()) {
+            getChemicalHandler();
         }
     }
 
@@ -606,7 +609,22 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     public long getGasCapacityMbLong() {
         Object handler = getChemicalHandler();
-        return handler != null ? MekChemicalHelper.getTankCapacityLong(handler) : 0L;
+        if (handler != null) {
+            long cap = MekChemicalHelper.getTankCapacityLong(handler);
+            if (cap > 0) {
+                return cap;
+            }
+        }
+        return getDeclaredGasCapacityMb();
+    }
+
+    private long getDeclaredGasCapacityMb() {
+        HeatingCoilDefinition def = getDefinition();
+        if (def == null || !hasChemicalRequirement()) {
+            return 0L;
+        }
+        long cap = maxChemicalActivation(def);
+        return cap > 0 ? cap : DEFAULT_TANK_MB;
     }
 
     @Nullable
@@ -683,6 +701,41 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         fluidTank.setFluid(FluidStack.EMPTY);
         setChanged();
         return true;
+    }
+
+    /** True when the gas tank holds a Mek chemical with {@code isRadioactive()} (dump disabled in GUI). */
+    public boolean isGasDumpBlockedByRadioactivity() {
+        if (!MekChemicalHelper.isLoaded() || !hasChemicalRequirement()) {
+            return false;
+        }
+        Object handler = getChemicalHandler();
+        return handler != null && MekChemicalHelper.isRadioactiveInTank(handler);
+    }
+
+    public boolean canDumpGasTankContents() {
+        if (level == null || level.isClientSide() || !MekChemicalHelper.isLoaded() || !hasChemicalRequirement()) {
+            return false;
+        }
+        Object handler = getChemicalHandler();
+        if (handler == null || MekChemicalHelper.getTankAmount(handler) <= 0) {
+            return false;
+        }
+        return !MekChemicalHelper.isRadioactiveInTank(handler);
+    }
+
+    public boolean dumpGasTankContents() {
+        if (!canDumpGasTankContents()) {
+            return false;
+        }
+        Object handler = getChemicalHandler();
+        if (handler == null) {
+            return false;
+        }
+        boolean ok = MekChemicalHelper.dumpTank(handler);
+        if (ok) {
+            setChanged();
+        }
+        return ok;
     }
 
     public IEnergyStorage getEnergyStorage() {

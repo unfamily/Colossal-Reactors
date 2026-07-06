@@ -151,7 +151,6 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
     public int getBuildProgressPercent() { return sizeData.get(13); }
     public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
-    public boolean isPreviewEnabled() { return sizeData.get(15) != 0; }
 
     @Override
     public boolean stillValid(Player player) {

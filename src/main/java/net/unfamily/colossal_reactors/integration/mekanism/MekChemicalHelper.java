@@ -21,10 +21,17 @@ public final class MekChemicalHelper {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MekChemicalHelper.class);
 
+    /** {@code true} on 1.21.1 — Mekanism gas/chemical integration is supported on this loader. */
+    public static final boolean GAS_SUPPORT_ENABLED = true;
+
     private MekChemicalHelper() {}
 
+    public static boolean isGasSupportEnabled() {
+        return GAS_SUPPORT_ENABLED;
+    }
+
     public static boolean isLoaded() {
-        return ModList.get().isLoaded("mekanism");
+        return GAS_SUPPORT_ENABLED && ModList.get().isLoaded("mekanism");
     }
 
     @Nullable

@@ -33,6 +33,7 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
 import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
+import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.blockentity.ReactorRodBlockEntity;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
@@ -188,6 +189,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     private Button buttonDown;
     private Button buttonPreview;
     private boolean previewButtonShowsHide;
+    private int lastPreviewSettingsHash;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block buttons: 0=Heat Sink, 1=Pattern, 2=PatternMode, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -238,7 +240,16 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.preview"), b -> togglePreview())
                 .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
                 .build();
-        buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip")));
+        buttonPreview.setTooltip(Tooltip.create(
+                Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip.line1")
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip.line2"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip.line3"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip.line4"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.reactor_builder.preview.tooltip.line5"))));
         addRenderableWidget(buttonPreview);
 
         buttonMarkInput = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.mark_input"), b -> onMarkInputPressed())
@@ -279,20 +290,40 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         addRenderableWidget(fuelCycleButton);
         simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
-        previewButtonShowsHide = menu.isPreviewEnabled();
+        previewButtonShowsHide = BuilderPreviewTracker.isPreviewActive(menu.getBlockPos());
         updatePreviewButtonLabel();
-        if (menu.isPreviewEnabled()) {
-            PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(menu.getBlockPos(), true, true));
-        }
+        lastPreviewSettingsHash = computePreviewSettingsHash();
     }
 
     @Override
     protected void containerTick() {
         super.containerTick();
-        if (viewMode == ViewMode.BUILDER && menu.isPreviewEnabled() != previewButtonShowsHide) {
-            previewButtonShowsHide = menu.isPreviewEnabled();
-            updatePreviewButtonLabel();
+        if (viewMode == ViewMode.BUILDER) {
+            updateButtonTooltips();
+            BlockPos builderPos = menu.getBlockPos();
+            if (BuilderPreviewTracker.isPreviewActive(builderPos)) {
+                int hash = computePreviewSettingsHash();
+                if (hash != lastPreviewSettingsHash) {
+                    lastPreviewSettingsHash = hash;
+                    BuilderPreviewTracker.noteRefreshRequested(builderPos);
+                    PacketDistributor.sendToServer(new ReactorPreviewPayload(builderPos));
+                }
+            } else {
+                lastPreviewSettingsHash = computePreviewSettingsHash();
+            }
         }
+    }
+
+    private int computePreviewSettingsHash() {
+        return java.util.Objects.hash(
+                menu.getSizeLeft(),
+                menu.getSizeRight(),
+                menu.getSizeH(),
+                menu.getSizeD(),
+                menu.getHeatSinkIndex(),
+                menu.isOpenTop(),
+                menu.getRodPattern(),
+                menu.getPatternMode());
     }
 
     private static List<ResourceLocation> getOrderedCoolantIds() {
@@ -999,11 +1030,21 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     private void togglePreview() {
         BlockPos builderPos = menu.getBlockPos();
-        boolean enabling = !menu.isPreviewEnabled();
-        BuilderPreviewTracker.clearForBuilder(builderPos);
-        PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, true));
+        boolean enabling = !BuilderPreviewTracker.isPreviewActive(builderPos);
+        if (enabling) {
+            BuilderPreviewTracker.setPreviewActive(builderPos, true);
+            BuilderPreviewTracker.clearMarkersForBuilder(builderPos);
+        } else {
+            BuilderPreviewTracker.setPreviewActive(builderPos, false);
+        }
         previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();
+        lastPreviewSettingsHash = computePreviewSettingsHash();
+        if (enabling) {
+            BuilderPreviewTracker.seedWorldHash(minecraft.level, builderPos);
+            BuilderPreviewTracker.noteRefreshRequested(builderPos);
+        }
+        PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, true));
     }
 
     private void updatePreviewButtonLabel() {

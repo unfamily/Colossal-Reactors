@@ -35,8 +35,7 @@ public class ModMenuTypes {
             MENUS.register("turbine_builder", () -> IMenuTypeExtension.create(TurbineBuilderMenu::new));
 
     public static final DeferredHolder<MenuType<?>, MenuType<HeatingCoilMenu>> HEATING_COIL_MENU =
-            MENUS.register("heating_coil", () ->
-                    new MenuType<>(HeatingCoilMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+            MENUS.register("heating_coil", () -> IMenuTypeExtension.create(HeatingCoilMenu::new));
 
     public static final DeferredHolder<MenuType<?>, MenuType<MelterMenu>> MELTER_MENU =
             MENUS.register("melter", () ->

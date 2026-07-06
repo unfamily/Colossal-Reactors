@@ -15,12 +15,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
-import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.HeatingCoilRedstoneModePayload;
@@ -56,10 +56,11 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
 
     private static final int SLOT_MASK_SIZE = 18;
 
-    private final boolean mekLoaded = ModList.get().isLoaded("mekanism");
+    private final boolean mekLoaded = MekChemicalHelper.isLoaded();
 
     private Button closeButton;
     private Button btnDumpLiquid;
+    private Button btnDumpGas;
     private int redstoneButtonScreenX;
     private int redstoneButtonScreenY;
 
@@ -69,8 +70,8 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         imageHeight = ResourcePortGuiLayout.GUI_HEIGHT;
     }
 
-    private boolean showGasBar() {
-        return mekLoaded && menu.showChemicalInGui();
+    private boolean showGasUi() {
+        return MekChemicalHelper.isLoaded() && menu.showChemicalInGui();
     }
 
     @Override
@@ -95,6 +96,13 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 .build();
         addRenderableWidget(btnDumpLiquid);
 
+        btnDumpGas = Button.builder(Component.literal("D"), b -> sendDump(FluidTankDumpPayload.TANK_GAS))
+                .bounds(leftPos + ResourcePortGuiLayout.GAS_DUMP_X, topPos + ResourcePortGuiLayout.GAS_DUMP_Y,
+                        ResourcePortGuiLayout.DUMP_W, ResourcePortGuiLayout.DUMP_H)
+                .tooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.gas_dump.tooltip")))
+                .build();
+        addRenderableWidget(btnDumpGas);
+
         redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
         redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
     }
@@ -106,7 +114,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         g.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight,
                 ResourcePortGuiLayout.GUI_WIDTH, ResourcePortGuiLayout.GUI_HEIGHT);
 
-        if (showGasBar()) {
+        if (showGasUi()) {
             renderGasBar(g, x, y);
         } else {
             g.fill(ResourcePortGuiLayout.maskGasLeft(x), ResourcePortGuiLayout.maskGasTop(y),
@@ -163,11 +171,15 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private void renderGasBar(GuiGraphics g, int guiX, int guiY) {
         long amount = menu.getGasAmountLong();
         long capacity = menu.getGasCapacityLong();
-        if (capacity <= 0 || amount <= 0) return;
+        if (capacity <= 0) {
+            return;
+        }
         int fillPx = ResourcePortGuiLayout.barFillPixels(amount, capacity, ResourcePortGuiLayout.BAR_FILL_H);
-        if (fillPx <= 0) return;
         int outerLeft = ResourcePortGuiLayout.gasBarFillLeft(guiX);
         int outerTop = ResourcePortGuiLayout.gasBarFillTop(guiY);
+        if (fillPx <= 0) {
+            return;
+        }
         String gasName = menu.getGasRegistryName();
         int stackAmount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
         if (!GasTankRenderHelper.drawGasInTank(g, gasName, stackAmount, outerLeft, outerTop,
@@ -184,11 +196,35 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         g.drawString(font, title, (imageWidth - titleW) / 2, 6, 0x404040, false);
     }
 
+    private void sendDump(byte tankType) {
+        if (menu.getBlockPos() == null) {
+            return;
+        }
+        if (tankType == FluidTankDumpPayload.TANK_GAS && menu.isGasDumpBlockedByRadioactivity()) {
+            return;
+        }
+        PacketDistributor.sendToServer(new FluidTankDumpPayload(menu.getBlockPos(), tankType));
+    }
+
+    private void updateDumpButtons() {
+        if (btnDumpGas != null) {
+            boolean radioactive = menu.isGasDumpBlockedByRadioactivity();
+            btnDumpGas.active = !radioactive;
+            btnDumpGas.setTooltip(Tooltip.create(radioactive
+                    ? Component.translatable("gui.colossal_reactors.gas_dump.tooltip.radioactive")
+                    : Component.translatable("gui.colossal_reactors.gas_dump.tooltip")));
+        }
+    }
+
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         if (btnDumpLiquid != null) {
             btnDumpLiquid.visible = menu.showFluidInGui();
         }
+        if (btnDumpGas != null) {
+            btnDumpGas.visible = showGasUi();
+        }
+        updateDumpButtons();
         super.render(g, mouseX, mouseY, partialTick);
         renderRedstoneButton(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
@@ -287,7 +323,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     protected void renderTooltip(GuiGraphics g, int mouseX, int mouseY) {
         super.renderTooltip(g, mouseX, mouseY);
         tooltipLiquid(g, mouseX, mouseY);
-        if (showGasBar()) tooltipGas(g, mouseX, mouseY);
+        if (showGasUi()) tooltipGas(g, mouseX, mouseY);
         if (menu.showEnergyInGui()) {
             int ex = leftPos + ENERGY_BAR_X;
             int ey = topPos + ENERGY_BAR_Y;

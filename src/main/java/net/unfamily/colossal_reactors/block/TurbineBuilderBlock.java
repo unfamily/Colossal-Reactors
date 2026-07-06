@@ -26,6 +26,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
+import net.unfamily.colossal_reactors.network.BuilderPreviewNetworking;
 
 /** Opens Turbine Builder GUI; 9x3 buffer and fluid tank for steam marking. */
 public class TurbineBuilderBlock extends BaseEntityBlock {
@@ -77,6 +78,9 @@ public class TurbineBuilderBlock extends BaseEntityBlock {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof TurbineBuilderBlockEntity builder) {
                 builder.dropAllContents();
+            }
+            if (!level.isClientSide()) {
+                BuilderPreviewNetworking.clearPreviewForAllPlayersInLevel(level, pos);
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);

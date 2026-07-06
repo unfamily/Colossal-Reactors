@@ -90,10 +90,10 @@ public final class HeatingCoilRegistry {
         }
         Map<ResourceLocation, HeatingCoilDefinition> merged = new HashMap<>();
         for (HeatingCoilDefinition def : parseBuiltinFile()) {
-            merged.put(def.id(), def);
+            putSanitized(merged, def);
         }
         for (HeatingCoilDefinition def : loaded.values()) {
-            merged.put(def.id(), DatapackSelectorValidator.sanitizeHeatingCoil(def));
+            putSanitized(merged, def);
         }
         DEFINITIONS.clear();
         DEFINITIONS.putAll(merged);

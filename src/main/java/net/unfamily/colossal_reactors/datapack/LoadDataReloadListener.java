@@ -12,6 +12,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,9 @@ public class LoadDataReloadListener implements PreparableReloadListener {
     private static final String LOAD_PATH = "load";
     private static final String TYPE_HEATING_COILS = "colossal_reactors:heating_coils";
     private static final String KEY_TYPE = "type";
+
+    @Nullable
+    private static Map<ResourceLocation, HeatingCoilDefinition> lastLoadedCoils;
 
     @Override
     public String getName() {
@@ -73,12 +77,20 @@ public class LoadDataReloadListener implements PreparableReloadListener {
             return coils;
         }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(coils -> {
             applyProfiler.push("Colossal Reactors apply load data");
+            lastLoadedCoils = coils;
             HeatingCoilRegistry.setFromReload(coils);
             applyProfiler.pop();
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Load data: {} heating coil definition(s)", coils.size());
             }
         }, applyExecutor);
+    }
+
+    /** Re-apply when client world is ready (registry tags bound). */
+    public static void refreshFromLastLoaded() {
+        if (lastLoadedCoils != null) {
+            HeatingCoilRegistry.setFromReload(lastLoadedCoils);
+        }
     }
 
     private static void processOne(ResourceLocation location, Resource resource,

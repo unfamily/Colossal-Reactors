@@ -22,7 +22,6 @@ import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
-import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
@@ -42,7 +41,7 @@ public final class JeiIngredientsHelper {
     private JeiIngredientsHelper() {}
 
     public static boolean jeiChemicalsAvailable() {
-        return ModList.get().isLoaded("mekanism") && ModList.get().isLoaded("jei");
+        return MekChemicalHelper.isLoaded() && MekChemicalHelper.isGasSupportEnabled();
     }
 
     /** Mek {@link mekanism.api.chemical.ChemicalStack} ingredient type ({@code MekanismJEI#TYPE_CHEMICAL}). */

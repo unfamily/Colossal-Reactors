@@ -81,7 +81,6 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final String TAG_BUILD_PROGRESS = "BuildProgress";
     private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
-    private static final String TAG_PREVIEW_ENABLED = "PreviewEnabled";
     private static final String TAG_PLACEMENT_AXIS = "PlacementAxis";
     private static final String TAG_MARK_INPUT_FILTERS = "MarkInputFilters";
     private static final int BUFFER_SLOTS = 9 * 3;
@@ -185,8 +184,6 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Last computed build progress (0-100). Kept visible after build completes/aborts until user stops or restarts. */
     private int buildProgressPercent = 0;
     private boolean buildProgressVisible = false;
-    private boolean previewEnabled = false;
-
     // Build progress cursors (NEXT position to process). These make building "forward-only" and avoid rescanning from start.
     private int buildStage = 0;
     private int buildFrameX = Integer.MIN_VALUE, buildFrameY = Integer.MIN_VALUE, buildFrameZ = Integer.MIN_VALUE;
@@ -256,14 +253,13 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
                 case 15 -> placementAxisIndex;
-                case 16 -> previewEnabled ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15 && index != 16) {
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) {
                 return;
             }
             switch (index) {
@@ -290,27 +286,15 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                         placementAxisIndex = value;
                     }
                 }
-                case 16 -> previewEnabled = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 17;
+            return 16;
         }
     };
-
-    public boolean isPreviewEnabled() {
-        return previewEnabled;
-    }
-
-    public void setPreviewEnabled(boolean enabled) {
-        if (previewEnabled != enabled) {
-            previewEnabled = enabled;
-            setChanged();
-        }
-    }
 
     public TurbineBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TURBINE_BUILDER_BE.get(), pos, state);
@@ -690,7 +674,6 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
         tag.putInt(TAG_BUILD_PROGRESS, buildProgressPercent);
         tag.putBoolean(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
-        tag.putBoolean(TAG_PREVIEW_ENABLED, previewEnabled);
         CompoundTag markTag = new CompoundTag();
         for (int i = 0; i < markInputFilters.size(); i++) {
             final int slot = i;
@@ -759,7 +742,6 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_INVALID_BLOCKS)) invalidBlocksDetected = tag.getBoolean(TAG_INVALID_BLOCKS);
         if (tag.contains(TAG_BUILD_PROGRESS)) buildProgressPercent = tag.getInt(TAG_BUILD_PROGRESS);
         if (tag.contains(TAG_BUILD_PROGRESS_VISIBLE)) buildProgressVisible = tag.getBoolean(TAG_BUILD_PROGRESS_VISIBLE);
-        if (tag.contains(TAG_PREVIEW_ENABLED)) previewEnabled = tag.getBoolean(TAG_PREVIEW_ENABLED);
         if (tag.contains(TAG_BUILD_STAGE)) buildStage = tag.getInt(TAG_BUILD_STAGE);
         if (tag.contains(TAG_BUILD_FRAME_X)) buildFrameX = tag.getInt(TAG_BUILD_FRAME_X);
         if (tag.contains(TAG_BUILD_FRAME_Y)) buildFrameY = tag.getInt(TAG_BUILD_FRAME_Y);

@@ -6,6 +6,7 @@ import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
+import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.minecraft.world.item.ItemStack;
@@ -54,21 +55,23 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
         registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
         registration.addRecipes(MelterHeatSourceRecipeCategory.RECIPE_TYPE, MelterHeatsLoader.getAll());
-
-        var coilRecipes = HeatingCoilRegistry.getAll().values().stream()
-                .flatMap(def -> {
-                    var opts = def.consume();
-                    if (opts == null || opts.isEmpty()) return java.util.stream.Stream.empty();
-                    return java.util.stream.IntStream.range(0, opts.size())
-                            .mapToObj(i -> new HeatingCoilJeiRecipe(def.id(), def.duration(), i, opts.get(i)));
-                })
-                .toList();
-        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, coilRecipes);
+        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, buildHeatingCoilJeiRecipes());
         registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getJeIDefinitions());
         registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE,
                 TurbineGenerationLoader.getJeIDefinitions().stream()
                         .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
                         .toList());
+    }
+
+    @Override
+    public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        JeiDatapackRecipeSync.onRuntimeAvailable(jeiRuntime);
+    }
+
+    public static java.util.List<HeatingCoilJeiRecipe> buildHeatingCoilJeiRecipes() {
+        return HeatingCoilRegistry.getAll().values().stream()
+                .flatMap(def -> HeatingCoilJeiRecipe.expand(def).stream())
+                .toList();
     }
 
     @Override

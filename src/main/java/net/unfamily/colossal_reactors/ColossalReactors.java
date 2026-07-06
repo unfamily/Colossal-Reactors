@@ -49,7 +49,7 @@ import net.unfamily.colossal_reactors.client.gui.RedstonePortScreen;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortScreen;
 import net.unfamily.colossal_reactors.client.gui.TurbineBuilderScreen;
 import net.unfamily.colossal_reactors.client.gui.TurbineControllerScreen;
-import net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager;
+import net.unfamily.colossal_reactors.client.ColossalReactorsClientEvents;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.data.ModConditions;
@@ -61,6 +61,7 @@ import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
 import net.unfamily.colossal_reactors.item.ModItems;
 import net.unfamily.colossal_reactors.menu.ModMenuTypes;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.network.BuilderPreviewServerEvents;
 import net.unfamily.colossal_reactors.world.ModBiomeModifiers;
 import net.unfamily.iskalib.client.marker.VanillaWorldMarkerClientHooks;
 import net.unfamily.iskalib.gas.GasRegistrationRegisters;
@@ -78,6 +79,7 @@ public class ColossalReactors {
     public ColossalReactors(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(ColossalReactorsClientEvents.class);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
@@ -171,7 +173,7 @@ public class ColossalReactors {
     @SuppressWarnings("unchecked")
     private static void registerHeatingCoilChemicalCapability(RegisterCapabilitiesEvent event) {
         try {
-            if (!ModList.get().isLoaded("mekanism")) return;
+            if (!net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper.isLoaded()) return;
             Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
             Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
             Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
@@ -179,6 +181,7 @@ public class ColossalReactors {
                     (BlockCapability<Object, Direction>) blockCap,
                     ModBlockEntities.HEATING_COIL_BE.get(),
                     (HeatingCoilBlockEntity be, Direction direction) -> be.allowsCapabilityOnSide(direction)
+                            && be.acceptsChemicalCapability()
                             ? be.getChemicalHandlerForCapability()
                             : null);
         } catch (Throwable t) {
@@ -226,6 +229,7 @@ public class ColossalReactors {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
+        NeoForge.EVENT_BUS.register(BuilderPreviewServerEvents.class);
         LOGGER.debug("Colossal Reactors common setup");
         LOGGER.info("Reactor validation debug (dev.001_reactor_validation_debug): {}", Config.REACTOR_VALIDATION_DEBUG.get());
         LOGGER.info("Reactor simulation debug (dev.002_reactor_simulation_debug): {}", Config.REACTOR_SIMULATION_DEBUG.get());
@@ -241,9 +245,6 @@ public class ColossalReactors {
     static class ClientModEvents {
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
-            NeoForge.EVENT_BUS.addListener(
-                    net.neoforged.neoforge.client.event.ClientTickEvent.Post.class,
-                    e -> TurbineRotorAnimationManager.clientTick());
             VanillaWorldMarkerClientHooks.registerIfNeeded(NeoForge.EVENT_BUS);
             event.enqueueWork(() -> {
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());

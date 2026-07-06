@@ -13,9 +13,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 
-/**
- * C2S: enable or disable footprint preview for one builder. Disabling clears only that builder's client markers.
- */
+/** C2S: enable or disable footprint preview for one builder (per-player client state). */
 public record BuilderPreviewTogglePayload(BlockPos builderPos, boolean enable, boolean reactorBuilder)
         implements CustomPacketPayload {
 
@@ -44,20 +42,15 @@ public record BuilderPreviewTogglePayload(BlockPos builderPos, boolean enable, b
             }
             BlockEntity be = player.serverLevel().getBlockEntity(packet.builderPos());
             if (packet.enable()) {
+                BuilderPreviewServerTracker.track(player, packet.builderPos(), packet.reactorBuilder());
                 if (packet.reactorBuilder() && be instanceof ReactorBuilderBlockEntity reactor) {
-                    reactor.setPreviewEnabled(true);
                     ReactorPreviewPayload.sendFootprint(player, reactor, packet.builderPos());
                 } else if (!packet.reactorBuilder() && be instanceof TurbineBuilderBlockEntity turbine) {
-                    turbine.setPreviewEnabled(true);
                     TurbinePreviewPayload.sendFootprint(player, turbine, packet.builderPos());
                 }
             } else {
-                if (be instanceof ReactorBuilderBlockEntity reactor) {
-                    reactor.setPreviewEnabled(false);
-                } else if (be instanceof TurbineBuilderBlockEntity turbine) {
-                    turbine.setPreviewEnabled(false);
-                }
-                PacketDistributor.sendToPlayer(player, new ClearPreviewForBuilderPayload(packet.builderPos()));
+                BuilderPreviewServerTracker.untrack(player, packet.builderPos());
+                PacketDistributor.sendToPlayer(player, new ClearPreviewForBuilderPayload(packet.builderPos(), true));
             }
         });
     }

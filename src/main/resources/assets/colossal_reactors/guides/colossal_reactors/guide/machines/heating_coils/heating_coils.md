@@ -23,6 +23,8 @@ Depending on the coil definition you may see:
 
 - **Fluid gauge** with tooltip; **D** clears the tank when fluid is enabled.
 
+- **Gas gauge** (Mekanism) with tooltip; **D** clears the chemical tank when the coil has a valid `chemical` consume option and Mekanism is installed.
+
 - **Energy bar** when the coil draws stored FE.
 
 - **Redstone mode** button (icon strip)—click to cycle behavior; hover reads the current mode.

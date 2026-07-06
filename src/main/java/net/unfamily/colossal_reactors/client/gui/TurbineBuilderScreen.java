@@ -34,6 +34,7 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
 import net.unfamily.colossal_reactors.network.BuilderPreviewTogglePayload;
+import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildMaterialCounter;
 import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
@@ -186,6 +187,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private Button buttonDown;
     private Button buttonPreview;
     private boolean previewButtonShowsHide;
+    private int lastPreviewSettingsHash;
     private Button buttonMarkInput;
     private Button buttonDumpFluid;
     /** Right block: 0=Coil, 1=Pattern, 2=Placement axis, 3=OpenTop, 4=Simulation, 5=Build/Stop. */
@@ -237,7 +239,18 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         buttonPreview = Button.builder(Component.translatable("gui.colossal_reactors.turbine_builder.preview"), b -> togglePreview())
                 .bounds(leftPos + PREVIEW_BUTTON_X, topPos + PREVIEW_BUTTON_Y, PREVIEW_BUTTON_W, BUTTON_H)
                 .build();
-        buttonPreview.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip")));
+        buttonPreview.setTooltip(Tooltip.create(
+                Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip.line1")
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip.line2"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip.line3"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip.line4"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip.line5"))
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("gui.colossal_reactors.turbine_builder.preview.tooltip.line6"))));
         addRenderableWidget(buttonPreview);
 
         buttonMarkInput = Button.builder(Component.translatable("gui.colossal_reactors.turbine_builder.mark_input"), b -> onMarkInputPressed())
@@ -275,20 +288,41 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         addRenderableWidget(steamGenerationButton);
         simulationScrollbar.createButtons(leftPos, topPos, this::addRenderableWidget, () -> {});
         updateWidgetVisibility();
-        previewButtonShowsHide = menu.isPreviewEnabled();
+        previewButtonShowsHide = BuilderPreviewTracker.isPreviewActive(menu.getBlockPos());
         updatePreviewButtonLabel();
-        if (menu.isPreviewEnabled()) {
-            PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(menu.getBlockPos(), true, false));
-        }
+        lastPreviewSettingsHash = computePreviewSettingsHash();
     }
 
     @Override
     protected void containerTick() {
         super.containerTick();
-        if (viewMode == ViewMode.BUILDER && menu.isPreviewEnabled() != previewButtonShowsHide) {
-            previewButtonShowsHide = menu.isPreviewEnabled();
-            updatePreviewButtonLabel();
+        if (viewMode == ViewMode.BUILDER) {
+            updateButtonTooltips();
+            BlockPos builderPos = menu.getBlockPos();
+            if (BuilderPreviewTracker.isPreviewActive(builderPos)) {
+                int hash = computePreviewSettingsHash();
+                if (hash != lastPreviewSettingsHash) {
+                    lastPreviewSettingsHash = hash;
+                    BuilderPreviewTracker.noteRefreshRequested(builderPos);
+                    PacketDistributor.sendToServer(new TurbinePreviewPayload(builderPos));
+                }
+            } else {
+                lastPreviewSettingsHash = computePreviewSettingsHash();
+            }
         }
+    }
+
+    private int computePreviewSettingsHash() {
+        return java.util.Objects.hash(
+                menu.getSizeLeft(),
+                menu.getSizeRight(),
+                menu.getSizeH(),
+                menu.getSizeD(),
+                menu.getSelectedCoilIndex(),
+                menu.getCoilLayerCount(),
+                menu.getRodPattern(),
+                menu.isOpenTop(),
+                menu.getPlacementAxisOrdinal());
     }
 
     private List<TurbineGenerationDefinition> getVisibleGenerations() {
@@ -937,11 +971,21 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
 
     private void togglePreview() {
         BlockPos builderPos = menu.getBlockPos();
-        boolean enabling = !menu.isPreviewEnabled();
-        BuilderPreviewTracker.clearForBuilder(builderPos);
-        PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, false));
+        boolean enabling = !BuilderPreviewTracker.isPreviewActive(builderPos);
+        if (enabling) {
+            BuilderPreviewTracker.setPreviewActive(builderPos, true);
+            BuilderPreviewTracker.clearMarkersForBuilder(builderPos);
+        } else {
+            BuilderPreviewTracker.setPreviewActive(builderPos, false);
+        }
         previewButtonShowsHide = enabling;
         updatePreviewButtonLabel();
+        lastPreviewSettingsHash = computePreviewSettingsHash();
+        if (enabling) {
+            BuilderPreviewTracker.seedWorldHash(minecraft.level, builderPos);
+            BuilderPreviewTracker.noteRefreshRequested(builderPos);
+        }
+        PacketDistributor.sendToServer(new BuilderPreviewTogglePayload(builderPos, enabling, false));
     }
 
     private void updatePreviewButtonLabel() {

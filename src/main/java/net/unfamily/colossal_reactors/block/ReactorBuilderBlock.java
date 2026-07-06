@@ -26,6 +26,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.unfamily.colossal_reactors.blockentity.ReactorBuilderBlockEntity;
+import net.unfamily.colossal_reactors.network.BuilderPreviewNetworking;
 
 /**
  * Directional block that opens the Reactor Builder GUI. Front face uses reactor_builder_front, sides use reactor_builder_side.
@@ -80,6 +81,9 @@ public class ReactorBuilderBlock extends BaseEntityBlock {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof ReactorBuilderBlockEntity builder) {
                 builder.dropAllContents();
+            }
+            if (!level.isClientSide()) {
+                BuilderPreviewNetworking.clearPreviewForAllPlayersInLevel(level, pos);
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
