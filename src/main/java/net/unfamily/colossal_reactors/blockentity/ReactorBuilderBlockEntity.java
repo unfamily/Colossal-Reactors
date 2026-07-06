@@ -84,7 +84,6 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_BUILD_HEAT_LZ = "BuildHeatLz";
     private static final String TAG_BUILD_PROGRESS = "BuildProgress";
     private static final String TAG_BUILD_PROGRESS_VISIBLE = "BuildProgressVisible";
-    private static final String TAG_PREVIEW_ENABLED = "PreviewEnabled";
     private static final String TAG_MARK_INPUT_FILTERS = "MarkInputFilters";
     private static final int BUFFER_SLOTS = 9 * 3;
 
@@ -203,7 +202,6 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     /** Last computed build progress (0-100). Kept visible after build completes/aborts until user stops or restarts. */
     private int buildProgressPercent = 0;
     private boolean buildProgressVisible = false;
-    private boolean previewEnabled = false;
 
     // Build progress cursors (NEXT position to process). These make building "forward-only" and avoid rescanning from start.
     private int buildStage = 0;
@@ -271,14 +269,13 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected ? 1 : 0;
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
-                case 15 -> previewEnabled ? 1 : 0;
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -298,27 +295,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected = value != 0;
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
-                case 15 -> previewEnabled = value != 0;
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 16;
+            return 15;
         }
     };
-
-    public boolean isPreviewEnabled() {
-        return previewEnabled;
-    }
-
-    public void setPreviewEnabled(boolean enabled) {
-        if (previewEnabled != enabled) {
-            previewEnabled = enabled;
-            setChanged();
-        }
-    }
 
     public ReactorBuilderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_BUILDER_BE.get(), pos, state);
@@ -646,7 +631,6 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         output.putInt(TAG_BUILD_HEAT_LZ, buildHeatLz);
         output.putInt(TAG_BUILD_PROGRESS, buildProgressPercent);
         output.putBoolean(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
-        output.putBoolean(TAG_PREVIEW_ENABLED, previewEnabled);
         ValueOutput markOut = output.child(TAG_MARK_INPUT_FILTERS);
         for (int i = 0; i < markInputFilters.size(); i++) {
             ItemStack filter = markInputFilters.get(i);
@@ -718,7 +702,6 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         buildHeatLz = input.getIntOr(TAG_BUILD_HEAT_LZ, buildHeatLz);
         buildProgressPercent = input.getIntOr(TAG_BUILD_PROGRESS, buildProgressPercent);
         buildProgressVisible = input.getBooleanOr(TAG_BUILD_PROGRESS_VISIBLE, buildProgressVisible);
-        previewEnabled = input.getBooleanOr(TAG_PREVIEW_ENABLED, previewEnabled);
         // Only reset mark-input when subtree is present (sync may omit empty child output).
         input.child(TAG_MARK_INPUT_FILTERS).ifPresent(markIn -> {
             for (int i = 0; i < markInputFilters.size(); i++) {

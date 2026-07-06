@@ -16,12 +16,12 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
-import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.PortFilter;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.blockentity.PortMedium;
 import net.unfamily.colossal_reactors.blockentity.PortMode;
 import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
@@ -45,7 +45,7 @@ public class ResourcePortScreen extends AbstractContainerScreen<ResourcePortMenu
     private static final Identifier TEXTURE =
             Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
 
-    private final boolean mekLoaded = ModList.get().isLoaded("mekanism");
+    private final boolean mekLoaded = MekChemicalHelper.isGasSupportEnabled();
 
     private Button btnMode;
     private Button btnMedium;

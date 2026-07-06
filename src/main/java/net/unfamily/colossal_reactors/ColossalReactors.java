@@ -16,6 +16,7 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -49,6 +50,7 @@ import net.unfamily.colossal_reactors.client.GuideMeRegistration;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.network.ModPayloads;
+import net.unfamily.colossal_reactors.network.BuilderPreviewServerEvents;
 import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.client.ColossalModelLoaders;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
@@ -173,6 +175,7 @@ public class ColossalReactors {
                         && ((HeatingCoilBlockEntity) be).acceptsEnergyCapability()
                         ? ((HeatingCoilBlockEntity) be).getEnergyHandlerForCapability()
                         : null);
+        registerHeatingCoilChemicalCapability(event);
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.MELTER_BE.get(),
                 (be, direction) -> ((net.unfamily.colossal_reactors.blockentity.MelterBlockEntity) be).getItemResourceHandlerForCapability());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.MELTER_BE.get(),
@@ -187,7 +190,7 @@ public class ColossalReactors {
     @SuppressWarnings("unchecked")
     private static void registerResourcePortChemicalCapabilities(RegisterCapabilitiesEvent event) {
         try {
-            if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) return;
+            if (!MekChemicalHelper.isLoaded()) return;
             Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
             Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
             Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
@@ -203,7 +206,7 @@ public class ColossalReactors {
     @SuppressWarnings("unchecked")
     private static void registerTurbineResourcePortChemicalCapabilities(RegisterCapabilitiesEvent event) {
         try {
-            if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) return;
+            if (!MekChemicalHelper.isLoaded()) return;
             Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
             Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
             Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
@@ -216,11 +219,30 @@ public class ColossalReactors {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private static void registerHeatingCoilChemicalCapability(RegisterCapabilitiesEvent event) {
+        try {
+            if (!MekChemicalHelper.isLoaded()) return;
+            Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
+            Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
+            Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
+            event.registerBlockEntity(
+                    (BlockCapability<Object, Direction>) blockCap,
+                    ModBlockEntities.HEATING_COIL_BE.get(),
+                    (HeatingCoilBlockEntity be, Direction direction) -> be.allowsCapabilityOnSide(direction)
+                            && be.acceptsChemicalCapability()
+                            ? be.getChemicalHandlerForCapability()
+                            : null);
+        } catch (Throwable t) {
+            LOGGER.debug("Could not register Heating Coil chemical capability: {}", t.getMessage());
+        }
+    }
+
     /** Registers Mekanism CHEMICAL block capability for Radiation Scrubber when Mekanism is loaded (reflection). */
     @SuppressWarnings("unchecked")
     private static void registerRadiationScrubberChemicalCapability(RegisterCapabilitiesEvent event) {
         try {
-            if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) return;
+            if (!MekChemicalHelper.isLoaded()) return;
             Class<?> capsClass = Class.forName("mekanism.common.capabilities.Capabilities");
             Object chemicalMulti = capsClass.getField("CHEMICAL").get(null);
             Object blockCap = chemicalMulti.getClass().getMethod("block").invoke(chemicalMulti);
@@ -234,6 +256,7 @@ public class ColossalReactors {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
+        NeoForge.EVENT_BUS.register(BuilderPreviewServerEvents.class);
         LOGGER.debug("Colossal Reactors common setup");
         LOGGER.info("Reactor validation debug (dev.001_reactor_validation_debug): {}", Config.REACTOR_VALIDATION_DEBUG.get());
         LOGGER.info("Reactor simulation debug (dev.002_reactor_simulation_debug): {}", Config.REACTOR_SIMULATION_DEBUG.get());

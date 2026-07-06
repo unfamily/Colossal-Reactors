@@ -22,6 +22,8 @@ import net.unfamily.colossal_reactors.fuel.FuelMedium;
 import net.unfamily.colossal_reactors.fuel.FuelSubType;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import net.unfamily.colossal_reactors.turbine.ElecCoilDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
@@ -153,6 +155,16 @@ public final class DatapackSelectorValidator {
             return fluidTagHasEntries(TagKey.create(Registries.FLUID, tagId));
         }
         return fluidExists(Identifier.tryParse(selector));
+    }
+
+    /** Mek gas/chemical: {@code %namespace:id} or {@code %mekanism:tag_name}. */
+    public static boolean isResolvableChemicalSelector(String selector) {
+        if (!MekChemicalHelper.isLoaded() || selector == null || !selector.startsWith("%")) return false;
+        String raw = selector.substring(1);
+        Identifier id = Identifier.tryParse(raw);
+        if (id == null) return false;
+        if (MekChemicalHelper.createStack(id, 1) != null) return true;
+        return MekChemicalHelper.chemicalTagExists(id);
     }
 
     /** Tag must have at least one member in game registry or built-in registry. */
@@ -437,6 +449,16 @@ public final class DatapackSelectorValidator {
                 fluid = null;
             }
         }
+        ConsumeOption.ChemicalRequirement chemical = opt.chemical();
+        if (chemical != null) {
+            String selector = chemical.selector();
+            if (!MaterialSelector.isChemicalPrefix(selector)) {
+                LOGGER.debug("Dropped heating coil chemical: invalid selector {}", selector);
+                chemical = null;
+            } else if (!MekChemicalHelper.isGasSupportEnabled()) {
+                chemical = null;
+            }
+        }
         ConsumeOption.ItemRequirement item = opt.item();
         if (item != null) {
             String selector = item.isTag() ? "#" + item.tagOrId() : item.tagOrId().toString();
@@ -445,10 +467,10 @@ public final class DatapackSelectorValidator {
                 item = null;
             }
         }
-        if (fluid == null && item == null && opt.energy() == null && opt.burnable() == null) {
+        if (fluid == null && chemical == null && item == null && opt.energy() == null && opt.burnable() == null) {
             return null;
         }
-        return new ConsumeOption(fluid, item, opt.energy(), opt.burnable());
+        return new ConsumeOption(fluid, chemical, item, opt.energy(), opt.burnable());
     }
 
     public static HeatingCoilDefinition sanitizeHeatingCoil(HeatingCoilDefinition def) {
@@ -459,9 +481,6 @@ public final class DatapackSelectorValidator {
             if (sanitized != null && !sanitized.isEmpty()) {
                 consume.add(sanitized);
             }
-        }
-        if (consume.isEmpty() && def.consume() != null && !def.consume().isEmpty()) {
-            return def;
         }
         return new HeatingCoilDefinition(def.id(), def.duration(), consume, def.allSides(),
                 def.noItem(), def.noFluid(), def.noEnergy());

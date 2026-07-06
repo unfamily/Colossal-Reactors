@@ -144,12 +144,14 @@ public class ModPayloads {
     }
 
     /** S2C: footprint preview marker owned by a builder block. */
-    public static void sendPreviewMarker(ServerPlayer player, BlockPos builderOrigin, BlockPos pos, int color, int durationTicks) {
-        PacketDistributor.sendToPlayer(player, new ReactorPreviewMarkerPayload(builderOrigin, pos, color, durationTicks));
+    public static void sendPreviewMarker(
+            ServerPlayer player, BlockPos builderOrigin, BlockPos pos, int color, int durationTicks, int footprintGeneration) {
+        PacketDistributor.sendToPlayer(player,
+                new ReactorPreviewMarkerPayload(builderOrigin, pos, color, durationTicks, footprintGeneration));
     }
 
     /** S2C: ephemeral marker (validation hints) not tied to a builder. */
     public static void sendEphemeralPreviewMarker(ServerPlayer player, BlockPos pos, int color, int durationTicks) {
-        sendPreviewMarker(player, BlockPos.ZERO, pos, color, durationTicks);
+        sendPreviewMarker(player, BlockPos.ZERO, pos, color, durationTicks, 0);
     }
 }

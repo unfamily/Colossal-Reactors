@@ -1,10 +1,19 @@
 package net.unfamily.colossal_reactors.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.minecraft.core.BlockPos;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.event.level.BlockEvent;
+import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
+import net.unfamily.colossal_reactors.block.TurbineBuilderBlock;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager;
+import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
+import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
 import net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
@@ -26,6 +35,18 @@ public final class ColossalReactorsClientEvents {
         if (!reappliedReactorDataForLevel && mc.level != null) {
             reappliedReactorDataForLevel = true;
             refreshDatapackForWorld();
+        }
+        if (mc.level != null) {
+            BuilderPreviewTracker.tickPeriodicReconcile(mc.level);
+            for (BlockPos builderPos : BuilderPreviewTracker.pollBuildersNeedingWorldRefresh(mc.level)) {
+                BuilderPreviewTracker.onFootprintRefreshRequested(mc.level, builderPos);
+                var state = mc.level.getBlockState(builderPos);
+                if (state.getBlock() instanceof ReactorBuilderBlock) {
+                    ClientPacketDistributor.sendToServer(new ReactorPreviewPayload(builderPos));
+                } else if (state.getBlock() instanceof TurbineBuilderBlock) {
+                    ClientPacketDistributor.sendToServer(new TurbinePreviewPayload(builderPos));
+                }
+            }
         }
     }
 
@@ -49,8 +70,23 @@ public final class ColossalReactorsClientEvents {
 
     @SubscribeEvent
     public static void onClientPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof net.minecraft.client.player.LocalPlayer) {
+        if (event.getEntity() instanceof LocalPlayer) {
+            BuilderPreviewTracker.clearAll();
             reappliedReactorDataForLevel = false;
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        if (event.getLevel() instanceof Level level) {
+            BuilderPreviewTracker.onBlockInPreviewChanged(level, event.getPos());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getLevel() instanceof Level level) {
+            BuilderPreviewTracker.onBlockInPreviewChanged(level, event.getPos());
         }
     }
 }

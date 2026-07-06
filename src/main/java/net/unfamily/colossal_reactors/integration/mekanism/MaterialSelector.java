@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.integration.mekanism;
 
-import net.neoforged.fml.ModList;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -16,7 +16,7 @@ public final class MaterialSelector {
 
     /** Mek chemical stack match (reflection). */
     public static boolean matchesChemical(@Nullable Object chemicalStack, String selector) {
-        if (!ModList.get().isLoaded("mekanism")) {
+        if (!MekChemicalHelper.isLoaded()) {
             return false;
         }
         return MekChemicalHelper.matchesSelector(chemicalStack, selector);

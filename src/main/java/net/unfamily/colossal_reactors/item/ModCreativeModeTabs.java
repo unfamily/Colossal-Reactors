@@ -10,6 +10,7 @@ import net.neoforged.fml.ModList;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.item.ModMekItems;
 
 public class ModCreativeModeTabs {
@@ -47,10 +48,10 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.TURBINE_RESOURCE_PORT.get());
                                 if (ModList.get().isLoaded("mekanism")) {
                                     ModMekItems.addToCreative(output);
-                                    if (Config.ENABLE_RADIATION_MANAGEMENT.get()) {
-                                        output.accept(ModItems.RADIATION_SCRUBBER.get());
-                                        output.accept(ModItems.RADIATION_CURE.get());
-                                    }
+                                }
+                                if (MekChemicalHelper.isLoaded() && Config.ENABLE_RADIATION_MANAGEMENT.get()) {
+                                    output.accept(ModItems.RADIATION_SCRUBBER.get());
+                                    output.accept(ModItems.RADIATION_CURE.get());
                                 }
                                 for (var item : ModItems.HEATING_COIL_OFF_ITEMS) output.accept(item.get());
                                 output.accept(ModItems.URANIUM_ORE.get());

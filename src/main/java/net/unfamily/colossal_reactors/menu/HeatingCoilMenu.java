@@ -1,6 +1,7 @@
 package net.unfamily.colossal_reactors.menu;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -9,49 +10,70 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import net.unfamily.colossal_reactors.block.HeatingCoilBlock;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
+import net.unfamily.colossal_reactors.client.gui.ResourcePortGuiLayout;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 
 import javax.annotation.Nullable;
 
 /**
- * Menu for heating coil GUI (port-style). Slot (37, 39), player rows at y=94/112/130, hotbar y=152 (aligned with Resource Port).
+ * Menu for heating coil GUI (port-style layout, no mode toggles).
+ * Client opens via {@link net.neoforged.neoforge.common.extensions.IMenuTypeExtension} with block pos sync.
  */
 public class HeatingCoilMenu extends AbstractContainerMenu {
 
     private final ContainerLevelAccess levelAccess;
     private final ContainerData data;
-    /** Block pos when opened from a block entity (server-side); used to close GUI on state change. */
+    @Nullable
+    private final HeatingCoilBlockEntity blockEntity;
     @Nullable
     private final BlockPos menuBlockPos;
 
+    /** Client: block pos from open packet. */
+    public HeatingCoilMenu(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
+        this(containerId, playerInventory, buf.readBlockPos());
+    }
+
+    private HeatingCoilMenu(int containerId, Inventory playerInventory, BlockPos pos) {
+        super(ModMenuTypes.HEATING_COIL_MENU.get(), containerId);
+        Level level = playerInventory.player.level();
+        BlockEntity entity = level.getBlockEntity(pos);
+        this.blockEntity = entity instanceof HeatingCoilBlockEntity coil ? coil : null;
+        this.menuBlockPos = pos;
+        this.levelAccess = ContainerLevelAccess.create(level, pos);
+        this.data = new SimpleContainerData(HeatingCoilBlockEntity.DATA_COUNT);
+        addDataSlots(data);
+        addCoilSlots(blockEntity);
+        addPlayerSlots(playerInventory);
+    }
+
+    /** Server: opened from block entity with live container data. */
     public HeatingCoilMenu(int containerId, Inventory playerInventory, HeatingCoilBlockEntity blockEntity, ContainerData data) {
         super(ModMenuTypes.HEATING_COIL_MENU.get(), containerId);
+        this.blockEntity = blockEntity;
+        this.menuBlockPos = blockEntity.getBlockPos();
         this.levelAccess = ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos());
         this.data = data;
-        this.menuBlockPos = blockEntity.getBlockPos();
         addDataSlots(data);
-        addSlot(new SlotItemHandler(blockEntity.getItemHandler(), 0, 37, 39));
+        addCoilSlots(blockEntity);
         addPlayerSlots(playerInventory);
     }
 
-    public HeatingCoilMenu(int containerId, Inventory playerInventory) {
-        super(ModMenuTypes.HEATING_COIL_MENU.get(), containerId);
-        this.levelAccess = ContainerLevelAccess.NULL;
-        this.data = new SimpleContainerData(15);
-        this.menuBlockPos = null;
-        addDataSlots(data);
-        addSlot(new SlotItemHandler(new net.neoforged.neoforge.items.ItemStackHandler(1), 0, 37, 39));
-        addPlayerSlots(playerInventory);
+    private void addCoilSlots(@Nullable HeatingCoilBlockEntity coil) {
+        if (coil != null && coil.hasItemRequirement()) {
+            addSlot(new SlotItemHandler(coil.getItemHandler(), 0,
+                    ResourcePortGuiLayout.ITEM_SLOT_X, ResourcePortGuiLayout.ITEM_SLOT_Y));
+        }
     }
 
-    /** True if this menu is for the given block pos (used to close it when coil state changes). */
     public boolean isForPosition(BlockPos pos) {
         return menuBlockPos != null && menuBlockPos.equals(pos);
     }
 
-    /** Block pos when opened from block entity (server), or from synced data (client). Used for redstone payload. */
     @Nullable
     public BlockPos getBlockPos() {
         if (menuBlockPos != null) return menuBlockPos;
@@ -84,13 +106,31 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack stackInSlot = slot.getItem();
             stack = stackInSlot.copy();
-            if (index == 0) {
-                if (!moveItemStackTo(stackInSlot, 1, 37, true)) return ItemStack.EMPTY;
-            } else if (showItemInGui() && !moveItemStackTo(stackInSlot, 0, 1, false)) return ItemStack.EMPTY;
-            if (stackInSlot.isEmpty()) slot.set(ItemStack.EMPTY);
-            else slot.setChanged();
+            if (showItemSlot()) {
+                if (index == 0) {
+                    if (!moveItemStackTo(stackInSlot, 1, 37, true)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else if (!moveItemStackTo(stackInSlot, 0, 1, false)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (!moveItemStackTo(stackInSlot, 0, 36, true)) {
+                return ItemStack.EMPTY;
+            }
+            if (stackInSlot.isEmpty()) {
+                slot.set(ItemStack.EMPTY);
+            } else {
+                slot.setChanged();
+            }
         }
         return stack;
+    }
+
+    public boolean showItemSlot() {
+        if (data.get(13) != 0) {
+            return true;
+        }
+        return blockEntity != null && blockEntity.hasItemRequirement();
     }
 
     public int getFluidAmount() { return data.get(0); }
@@ -101,7 +141,49 @@ public class HeatingCoilMenu extends AbstractContainerMenu {
     public int getBurnableTicks() { return data.get(5); }
     public boolean showFluidInGui() { return data.get(11) != 0; }
     public boolean showEnergyInGui() { return data.get(12) != 0; }
-    public boolean showItemInGui() { return data.get(13) != 0; }
-
+    public boolean showItemInGui() { return showItemSlot(); }
+    public boolean showChemicalInGui() {
+        if (data.get(15) != 0) {
+            return true;
+        }
+        return blockEntity != null && blockEntity.hasChemicalRequirement();
+    }
     public int getRedstoneMode() { return data.get(14); }
+
+    public long getGasAmountLong() {
+        return combineLong(data.get(16), data.get(17));
+    }
+
+    public long getGasCapacityLong() {
+        long synced = combineLong(data.get(18), data.get(19));
+        if (synced > 0) {
+            return synced;
+        }
+        return blockEntity != null ? blockEntity.getGasCapacityMbLong() : 0L;
+    }
+
+    private static long combineLong(int low, int high) {
+        return (high & 0xFFFFFFFFL) << 32 | (low & 0xFFFFFFFFL);
+    }
+
+    public boolean isGasDumpBlockedByRadioactivity() {
+        if (!MekChemicalHelper.isLoaded() || getGasAmountLong() <= 0) {
+            return false;
+        }
+        return MekChemicalHelper.isRadioactiveGasId(getGasRegistryName());
+    }
+
+    @Nullable
+    public String getGasRegistryName() {
+        int len = data.get(20);
+        if (len <= 0) return null;
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < 16; i++) {
+            int packed = data.get(21 + i);
+            for (int j = 0; j < 4 && sb.length() < len; j++) {
+                sb.append((char) ((packed >> (j * 8)) & 0xFF));
+            }
+        }
+        return sb.toString();
+    }
 }

@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.fml.ModList;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -332,7 +332,7 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
 
     public static void tick(Level level, BlockPos pos, BlockState state, RadiationScrubberBlockEntity be) {
         if (level.isClientSide()) return;
-        if (!ModList.get().isLoaded("mekanism")) return;
+        if (!MekChemicalHelper.isLoaded()) return;
         be.serverTick(level, pos);
     }
 

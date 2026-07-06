@@ -22,6 +22,7 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -706,7 +707,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     /**
      * Item handler exposed to capability (hoppers/pipes). INSERT: allow insert. EXTRACT/EJECT: allow extract only.
      */
-    private final class FilteredItemHandler implements IItemHandler {
+    private final class FilteredItemHandler implements IItemHandlerModifiable {
         private boolean allowInsert() {
             return portMode == PortMode.INSERT;
         }
@@ -752,6 +753,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
             return allowInsert() && acceptsItemForCapability(stack) && itemHandler.isItemValid(slot, stack);
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @NotNull ItemStack stack) {
+            itemHandler.setStackInSlot(slot, stack);
         }
     }
 

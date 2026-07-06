@@ -18,6 +18,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -25,6 +27,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -105,6 +108,20 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
             }
         }
 
+        if (opt.chemical() != null && MekChemicalHelper.isGasSupportEnabled() && JeiIngredientsHelper.jeiChemicalsAvailable()) {
+            ConsumeOption.ChemicalRequirement chemReq = opt.chemical();
+            List<Object> chemStacks = MekChemicalHelper.stacksForSelector(chemReq.selector());
+            if (!chemStacks.isEmpty()) {
+                var chemType = JeiIngredientsHelper.getMekChemicalIngredientType();
+                if (chemType != null) {
+                    int x = getInputSlotX(slotIdx++);
+                    builder.addSlot(RecipeIngredientRole.INPUT, x + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
+                            JeiHeatingCoilBackgroundDrawable.IN_Y + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_Y)
+                            .addIngredients(chemType, chemStacks);
+                }
+            }
+        }
+
         if (opt.item() != null) {
             ConsumeOption.ItemRequirement itemReq = opt.item();
             List<ItemStack> items = resolveItemSelector(itemReq, registryAccess);
@@ -117,11 +134,13 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
         }
 
         if (opt.burnable() != null) {
-            List<ItemStack> burnables = List.of(new ItemStack(Items.COAL), new ItemStack(Items.CHARCOAL));
-            int x = getInputSlotX(slotIdx++);
-            builder.addSlot(RecipeIngredientRole.INPUT, x + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
-                    JeiHeatingCoilBackgroundDrawable.IN_Y + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_Y)
-                    .addItemStacks(burnables);
+            List<ItemStack> burnables = resolveSmeltingFuelStacks(level);
+            if (!burnables.isEmpty()) {
+                int x = getInputSlotX(slotIdx++);
+                builder.addSlot(RecipeIngredientRole.INPUT, x + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
+                        JeiHeatingCoilBackgroundDrawable.IN_Y + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_Y)
+                        .addItemStacks(burnables);
+            }
         }
 
         if (onBlock != null) {
@@ -159,6 +178,15 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
             guiGraphics.text(font,
                     Component.translatable("jei.colossal_reactors.coil.substain", fluidReq.substain() + " mB"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+        }
+        if (opt.chemical() != null && MekChemicalHelper.isGasSupportEnabled() && JeiIngredientsHelper.jeiChemicalsAvailable()) {
+            ConsumeOption.ChemicalRequirement chemReq = opt.chemical();
+            guiGraphics.text(font,
+                    Component.translatable("jei.colossal_reactors.coil.activate", chemReq.activation() + " mB"),
+                    margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
+            guiGraphics.text(font,
+                    Component.translatable("jei.colossal_reactors.coil.substain", chemReq.substain() + " mB"),
                     margin, textY + (line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT), color, false);
         }
         if (opt.item() != null) {
@@ -226,6 +254,21 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
                 out.add(new FluidStack(fluid, FLUID_DISPLAY_AMOUNT_MB));
             }
         }
+        return out;
+    }
+
+    /** All items valid as smelting fuel (same rules as vanilla furnace / heating coil burnable slot). */
+    private static List<ItemStack> resolveSmeltingFuelStacks(Level level) {
+        List<ItemStack> out = new ArrayList<>();
+        var fuelValues = level.fuelValues();
+        level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ITEM).listElements().forEach(holder -> {
+            Item item = holder.value();
+            if (item == Items.AIR) return;
+            ItemStack stack = new ItemStack(item);
+            if (stack.getBurnTime(RecipeType.SMELTING, fuelValues) > 0) {
+                out.add(stack);
+            }
+        });
         return out;
     }
 }

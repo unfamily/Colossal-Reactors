@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.block;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -23,6 +24,7 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.unfamily.colossal_reactors.blockentity.TurbineBuilderBlockEntity;
 import net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions;
+import net.unfamily.colossal_reactors.network.BuilderPreviewNetworking;
 
 /** Opens Turbine Builder GUI; 9x3 buffer and fluid tank for steam marking. */
 public class TurbineBuilderBlock extends BaseEntityBlock {
@@ -87,5 +89,11 @@ public class TurbineBuilderBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;
+    }
+
+    @Override
+    protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
+        BuilderPreviewNetworking.clearPreviewForAllPlayersInLevel(level, pos);
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 }

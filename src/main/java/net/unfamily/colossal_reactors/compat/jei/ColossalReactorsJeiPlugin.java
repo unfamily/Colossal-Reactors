@@ -60,14 +60,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     public static java.util.List<HeatingCoilJeiRecipe> buildHeatingCoilJeiRecipes() {
         return HeatingCoilRegistry.getAll().values().stream()
-                .flatMap(def -> {
-                    var opts = def.consume();
-                    if (opts == null || opts.isEmpty()) {
-                        return java.util.stream.Stream.empty();
-                    }
-                    return java.util.stream.IntStream.range(0, opts.size())
-                            .mapToObj(i -> new HeatingCoilJeiRecipe(def.id(), def.duration(), i, opts.get(i)));
-                })
+                .flatMap(def -> HeatingCoilJeiRecipe.expand(def).stream())
                 .toList();
     }
 

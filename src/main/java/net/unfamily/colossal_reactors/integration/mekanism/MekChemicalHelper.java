@@ -16,15 +16,25 @@ import java.util.Optional;
 
 /**
  * Reflection bridge to Mekanism chemicals when the mod is loaded (optional dependency).
+ * <p>
+ * Gas/chemical integration is disabled on NeoForge 26.x ({@link #GAS_SUPPORT_ENABLED}) until Mekanism
+ * ships for that loader; avoids reflection crashes if someone installs an incompatible Mek build.
  */
 public final class MekChemicalHelper {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MekChemicalHelper.class);
 
+    /** {@code false} on 26.x — enable when Mekanism for this loader is supported. */
+    public static final boolean GAS_SUPPORT_ENABLED = false;
+
     private MekChemicalHelper() {}
 
+    public static boolean isGasSupportEnabled() {
+        return GAS_SUPPORT_ENABLED;
+    }
+
     public static boolean isLoaded() {
-        return ModList.get().isLoaded("mekanism");
+        return GAS_SUPPORT_ENABLED && ModList.get().isLoaded("mekanism");
     }
 
     @Nullable

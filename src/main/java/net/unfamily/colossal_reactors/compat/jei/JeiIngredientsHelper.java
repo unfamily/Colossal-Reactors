@@ -20,6 +20,7 @@ import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import net.neoforged.fml.ModList;
@@ -41,7 +42,7 @@ public final class JeiIngredientsHelper {
     private JeiIngredientsHelper() {}
 
     public static boolean jeiChemicalsAvailable() {
-        return ModList.get().isLoaded("mekanism") && ModList.get().isLoaded("jei");
+        return MekChemicalHelper.isLoaded() && MekChemicalHelper.isGasSupportEnabled();
     }
 
     @SuppressWarnings("unchecked")

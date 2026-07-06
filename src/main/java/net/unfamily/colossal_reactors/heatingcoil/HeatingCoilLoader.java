@@ -30,6 +30,7 @@ public final class HeatingCoilLoader {
     private static final String KEY_DURATION = "duration";
     private static final String KEY_CONSUME = "consume";
     private static final String KEY_FLUID = "fluid";
+    private static final String KEY_CHEMICAL = "chemical";
     private static final String KEY_ITEM = "item";
     private static final String KEY_ENERGY = "energy";
     private static final String KEY_BURNABLE = "burnable";
@@ -108,11 +109,24 @@ public final class HeatingCoilLoader {
     @Nullable
     private static ConsumeOption parseConsumeOption(JsonObject json, String source) {
         ConsumeOption.FluidRequirement fluid = parseFluid(json.get(KEY_FLUID), source);
+        ConsumeOption.ChemicalRequirement chemical = parseChemical(json.get(KEY_CHEMICAL), source);
         ConsumeOption.ItemRequirement item = parseItem(json.get(KEY_ITEM), source);
         ConsumeOption.EnergyRequirement energy = parseEnergy(json.get(KEY_ENERGY), source);
         ConsumeOption.BurnableRequirement burnable = parseBurnable(json.get(KEY_BURNABLE), source);
-        if (fluid == null && item == null && energy == null && burnable == null) return null;
-        return new ConsumeOption(fluid, item, energy, burnable);
+        if (fluid == null && chemical == null && item == null && energy == null && burnable == null) return null;
+        return new ConsumeOption(fluid, chemical, item, energy, burnable);
+    }
+
+    @Nullable
+    private static ConsumeOption.ChemicalRequirement parseChemical(JsonElement el, String source) {
+        if (el == null || !el.isJsonObject()) return null;
+        JsonObject o = el.getAsJsonObject();
+        if (!o.has("id")) return null;
+        String idStr = o.get("id").getAsString();
+        if (idStr.isBlank()) return null;
+        int activation = o.has(KEY_ACTIVATION) ? o.get(KEY_ACTIVATION).getAsInt() : 0;
+        int substain = o.has(KEY_SUBSTAIN) ? o.get(KEY_SUBSTAIN).getAsInt() : 0;
+        return new ConsumeOption.ChemicalRequirement(idStr, activation, substain);
     }
 
     @Nullable

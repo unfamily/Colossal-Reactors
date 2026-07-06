@@ -21,7 +21,6 @@ import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.TurbineResourcePortBlockEntity;
 import net.unfamily.colossal_reactors.client.gui.ResourcePortGuiLayout;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
-import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -254,7 +253,7 @@ public class ResourcePortMenu extends AbstractContainerMenu {
 
     /** True when the gas dump button must stay disabled (radioactive Mek gas in the tank). */
     public boolean isGasDumpBlockedByRadioactivity() {
-        if (!ModList.get().isLoaded("mekanism") || getGasAmount() <= 0) {
+        if (!MekChemicalHelper.isLoaded() || getGasAmount() <= 0) {
             return false;
         }
         return MekChemicalHelper.isRadioactiveGasId(getGasRegistryName());

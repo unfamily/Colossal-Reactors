@@ -12,16 +12,20 @@ import java.util.List;
  */
 public record ConsumeOption(
         @Nullable FluidRequirement fluid,
+        @Nullable ChemicalRequirement chemical,
         @Nullable ItemRequirement item,
         @Nullable EnergyRequirement energy,
         @Nullable BurnableRequirement burnable
 ) {
     public boolean isEmpty() {
-        return fluid == null && item == null && energy == null && burnable == null;
+        return fluid == null && chemical == null && item == null && energy == null && burnable == null;
     }
 
     /** tagOrId: fluid id or tag (when isTag true, e.g. #c:water). */
     public record FluidRequirement(Identifier tagOrId, boolean isTag, int activation, int substain) {}
+
+    /** selector: Mek chemical id with {@code %} prefix (e.g. {@code %mekanism:steam}). */
+    public record ChemicalRequirement(String selector, int activation, int substain) {}
     /** tagOrId: item id or tag (when isTag true, e.g. #c:ingots/uranium). */
     public record ItemRequirement(Identifier tagOrId, boolean isTag, int activation, int substain) {}
     public record EnergyRequirement(int activation, int substain) {}

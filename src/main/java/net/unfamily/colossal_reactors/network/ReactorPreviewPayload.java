@@ -53,18 +53,20 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             }
             BlockEntity be = player.level().getBlockEntity(packet.pos());
             if (be instanceof ReactorBuilderBlockEntity builder) {
-                builder.setPreviewEnabled(true);
                 sendFootprint(player, builder, packet.pos());
             }
         });
     }
 
     public static void sendFootprint(ServerPlayer player, ReactorBuilderBlockEntity builder, BlockPos builderPos) {
+        BuilderPreviewServerTracker.track(player, builderPos, true);
         ServerLevel level = (ServerLevel) player.level();
         var state = level.getBlockState(builderPos);
         if (!(state.getBlock() instanceof ReactorBuilderBlock)) {
             return;
         }
+        int footprintGeneration = BuilderPreviewServerTracker.nextFootprintGeneration(builderPos);
+        BuilderPreviewNetworking.clearClientPreview(player, builderPos, footprintGeneration);
         var facing = state.getValue(ReactorBuilderBlock.FACING);
 
         var aabb = ReactorBuilderBlockEntity.getReactorVolumeAABB(
@@ -108,7 +110,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                         int ry = ly - 1; // rod space Y 0..rh-1
                         int rz = lz - insetXZ;
                         if (RodPatternLogic.isRodForPreview(rx, ry, rz, rw, rh, rd, pattern, expansionRodAtCenter)) {
-                            ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(minX + lx, minY + ly, minZ + lz), colorRod, durationTicks);
+                            ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(minX + lx, minY + ly, minZ + lz), colorRod, durationTicks, footprintGeneration);
                         }
                     }
                 }
@@ -119,7 +121,7 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
             for (int rx = 0; rx < rw; rx++) {
                 for (int rz = 0; rz < rd; rz++) {
                     if (RodPatternLogic.isRodColumnForPreview(rx, rz, rw, rd, pattern, expansionRodAtCenter)) {
-                        ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(minX + insetXZ + rx, rodControllerY, minZ + insetXZ + rz), colorRodController, durationTicks);
+                        ModPayloads.sendPreviewMarker(player, builderPos, new BlockPos(minX + insetXZ + rx, rodControllerY, minZ + insetXZ + rz), colorRodController, durationTicks, footprintGeneration);
                     }
                 }
             }
@@ -139,14 +141,14 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                             boolean validFrame = ReactorValidation.isShellBlock(blockState)
                                     || (blockState.is(ModBlocks.ROD_CONTROLLER.get()) && y == maxY && isRodControllerPosition(x, z, minX, minZ, maxY, insetXZ, rw, rd, pattern, expansionRodAtCenter));
                             if (hasBlock && !validFrame) {
-                                ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
+                                ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks, footprintGeneration);
                             } else {
                                 // Purple only on the frame outline (12 edges), not on every face
                                 boolean onEdge = ((x == minX || x == maxX) && (y == minY || y == maxY))
                                         || ((x == minX || x == maxX) && (z == minZ || z == maxZ))
                                         || ((y == minY || y == maxY) && (z == minZ || z == maxZ));
                                 if (onEdge) {
-                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorFree, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorFree, durationTicks, footprintGeneration);
                                 }
                             }
                         } else {
@@ -154,11 +156,11 @@ public record ReactorPreviewPayload(BlockPos pos) implements CustomPacketPayload
                                     && RodPatternLogic.isRodForPreview(lx - insetXZ, ly - 1, lz - insetXZ, rw, rh, rd, pattern, expansionRodAtCenter);
                             if (isRodPos) {
                                 if (hasBlock && !blockState.is(ModBlocks.REACTOR_ROD.get())) {
-                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks, footprintGeneration);
                                 }
                             } else {
                                 if (hasBlock && !HeatSinkLoader.isHeatSinkBlock(blockState, registryAccess)) {
-                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks);
+                                    ModPayloads.sendPreviewMarker(player, builderPos, pos, colorOccupied, durationTicks, footprintGeneration);
                                 }
                             }
                         }

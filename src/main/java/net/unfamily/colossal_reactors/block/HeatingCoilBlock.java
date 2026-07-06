@@ -28,7 +28,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Heating coil block: 6-direction placement (front faces player, like Hellfire Igniter).
- * Only the front face accepts items/fluids/energy. Off and On are separate block types per coil id.
+ * Capability sides are controlled by {@code all_sides} in the heating coil datapack definition.
  */
 public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
 

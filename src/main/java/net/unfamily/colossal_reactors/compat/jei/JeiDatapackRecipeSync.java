@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * JEI registers before datapack entries are resolved with a live level.
- * Fills melter and turbine categories after world load. Never uses {@code hideRecipes}.
+ * Fills melter, turbine, and heating coil categories after world load.
  */
 public final class JeiDatapackRecipeSync {
 
@@ -46,6 +46,8 @@ public final class JeiDatapackRecipeSync {
                 TurbineGenerationLoader.getVisibleDefinitions().stream()
                         .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
                         .toList());
+        addIfFewerThanExpected(recipeManager, HeatingCoilRecipeCategory.RECIPE_TYPE,
+                ColossalReactorsJeiPlugin.buildHeatingCoilJeiRecipes());
     }
 
     private static <T> void addIfFewerThanExpected(IRecipeManager recipeManager, IRecipeType<T> recipeType, List<T> recipes) {
