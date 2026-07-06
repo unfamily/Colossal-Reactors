@@ -159,7 +159,7 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
 
         guiGraphics.text(font, Component.literal("+"), JeiHeatingCoilBackgroundDrawable.PLUS_X, JeiHeatingCoilBackgroundDrawable.PLUS_Y, color, false);
         if (recipe.option().energy() != null) {
-            guiGraphics.text(font, Component.literal("RF"), JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
+            guiGraphics.text(font, Component.literal("+ RF"), JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
         }
 
         int textY = JeiHeatingCoilBackgroundDrawable.TEXT_Y;
