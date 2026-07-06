@@ -9,6 +9,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.block.TurbineBuilderBlock;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager;
@@ -77,7 +78,7 @@ public final class ColossalReactorsClientEvents {
     }
 
     @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+    public static void onBlockBreak(BreakBlockEvent event) {
         if (event.getLevel() instanceof Level level) {
             BuilderPreviewTracker.onBlockInPreviewChanged(level, event.getPos());
         }

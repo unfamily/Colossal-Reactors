@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 /** Pushes builder footprint preview refresh when blocks inside an active preview volume change. */
 public final class BuilderPreviewServerEvents {
@@ -12,7 +13,7 @@ public final class BuilderPreviewServerEvents {
     private BuilderPreviewServerEvents() {}
 
     @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+    public static void onBlockBreak(BreakBlockEvent event) {
         if (event.getLevel() instanceof ServerLevel level) {
             BuilderPreviewServerTracker.onFootprintBlockChanged(level, event.getPos());
         }
