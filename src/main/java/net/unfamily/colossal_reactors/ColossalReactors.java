@@ -79,7 +79,6 @@ public class ColossalReactors {
     public ColossalReactors(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
         NeoForge.EVENT_BUS.register(this);
-        NeoForge.EVENT_BUS.register(ColossalReactorsClientEvents.class);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
@@ -245,8 +244,9 @@ public class ColossalReactors {
     static class ClientModEvents {
         @SubscribeEvent
         static void onClientSetup(FMLClientSetupEvent event) {
-            VanillaWorldMarkerClientHooks.registerIfNeeded(NeoForge.EVENT_BUS);
             event.enqueueWork(() -> {
+                NeoForge.EVENT_BUS.register(ColossalReactorsClientEvents.class);
+                VanillaWorldMarkerClientHooks.registerIfNeeded(NeoForge.EVENT_BUS);
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.TURBINE_GLASS.get(), RenderType.translucent());
                 ItemBlockRenderTypes.setRenderLayer(ModBlocks.REACTOR_ROD.get(), RenderType.cutout());
