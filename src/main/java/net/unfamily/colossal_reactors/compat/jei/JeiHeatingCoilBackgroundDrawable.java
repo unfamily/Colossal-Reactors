@@ -25,7 +25,7 @@ public class JeiHeatingCoilBackgroundDrawable implements IDrawable {
     public static final int IN3_X = 72;
     public static final int IN_Y = 0;
 
-    public static final int RF_X = 94;
+    public static final int RF_X = 86;
     public static final int RF_Y = 5;
 
     public static final int ARROW_X = 118;

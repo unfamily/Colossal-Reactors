@@ -152,10 +152,10 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
         var font = Minecraft.getInstance().font;
         int color = 0xFF404040;
 
-        // First row markers: '+' always; 'RF' only if energy requirement exists
+        // First row markers: '+' always; '+ RF' only if energy requirement exists
         guiGraphics.drawString(font, "+", JeiHeatingCoilBackgroundDrawable.PLUS_X, JeiHeatingCoilBackgroundDrawable.PLUS_Y, color, false);
         if (recipe.option().energy() != null) {
-            guiGraphics.drawString(font, "RF", JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
+            guiGraphics.drawString(font, "+ RF", JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
         }
 
         int textY = JeiHeatingCoilBackgroundDrawable.TEXT_Y;
