@@ -44,7 +44,6 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
         } else {
             core.resize(cap, 0L, cap);
         }
-        opOutput = null;
         setChanged();
     }
 
@@ -109,7 +108,7 @@ public class TurbineHighCondPowerPortBlockEntity extends BlockEntity implements 
             return null;
         }
         if (opOutput == null) {
-            opOutput = BrandonScoreIntegration.createOpStorage(core, maxExtractPerTick);
+            opOutput = BrandonScoreIntegration.createOpStorage(core);
         }
         return opOutput;
     }

@@ -19,6 +19,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Optional Brandon's Core OP integration via reflection so core classes load without BC on the classpath.
+ * <p>
+ * OP / Draconic integration is disabled on NeoForge 26.x ({@link #OP_SUPPORT_ENABLED}) until Brandon's Core
+ * and Draconic Evolution ship for that loader; avoids capability crashes if someone installs an incompatible build.
  */
 public final class BrandonScoreIntegration {
 
@@ -27,10 +30,17 @@ public final class BrandonScoreIntegration {
             "net.unfamily.colossal_reactors.integration.brandonscore.HighCondPowerPortOpStorage";
     private static final String CAPABILITY_OP_CLASS = "com.brandon3055.brandonscore.capability.CapabilityOP";
 
+    /** {@code false} on 26.x — enable when Brandon's Core / Draconic for this loader is supported. */
+    public static final boolean OP_SUPPORT_ENABLED = false;
+
     private BrandonScoreIntegration() {}
 
+    public static boolean isOpSupportEnabled() {
+        return OP_SUPPORT_ENABLED;
+    }
+
     public static boolean isBrandonScoreLoaded() {
-        return ModList.get().isLoaded("brandonscore");
+        return OP_SUPPORT_ENABLED && ModList.get().isLoaded("brandonscore");
     }
 
     public static void registerHighCondPowerPortCapabilities(RegisterCapabilitiesEvent event) {
@@ -48,7 +58,7 @@ public final class BrandonScoreIntegration {
             RegisterCapabilitiesEvent event,
             DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> beType,
             OpProvider<T> provider) {
-        if (!ModList.get().isLoaded("brandonscore")) {
+        if (!isBrandonScoreLoaded()) {
             return;
         }
         try {
@@ -61,14 +71,13 @@ public final class BrandonScoreIntegration {
         }
     }
 
-    public static Object createOpStorage(LongBackedEnergyHandler storage, long maxExtractPerTick) {
-        if (!ModList.get().isLoaded("brandonscore")) {
+    public static Object createOpStorage(LongBackedEnergyHandler storage) {
+        if (!isBrandonScoreLoaded()) {
             return null;
         }
         try {
             Class<?> cls = Class.forName(OP_STORAGE_CLASS);
-            return cls.getConstructor(LongBackedEnergyHandler.class, long.class)
-                    .newInstance(storage, maxExtractPerTick);
+            return cls.getConstructor(LongBackedEnergyHandler.class).newInstance(storage);
         } catch (Throwable t) {
             logOpDebug("Failed to create OP storage adapter: {}", t.toString());
             return null;

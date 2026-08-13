@@ -244,6 +244,17 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return filled > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) filled;
     }
 
+    /**
+     * Turbine condensate (generation JSON output, e.g. water). EXTRACT/EJECT liquid ports only;
+     * does not use reactor fuel/coolant filters.
+     */
+    public int receiveFluidFromTurbine(FluidStack stack) {
+        if (stack.isEmpty() || (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT)) return 0;
+        if (!mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()) return 0;
+        long filled = fluidTank.fillLong(stack, false);
+        return filled > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) filled;
+    }
+
     /** Push Mek gas into port (EXTRACT/EJECT, gas toggle on). Returns mB accepted. */
     public int receiveGasFromReactor(Object chemicalStack) {
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) return 0;

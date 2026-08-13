@@ -132,6 +132,8 @@ dependencies {
     implementation "curse.maven:jei-238222:7920926"
     // iska_lib: NeoForge 26.x only — do not add to Colossal Reactors 1.21.1
     implementation files('libs/iska_lib-1.8.0.0.0.jar')
+    // compileOnly Brandon's Core: needed to compile HighCondPowerPortOpStorage. Runtime OP is gated
+    // by BrandonScoreIntegration.OP_SUPPORT_ENABLED (false until BC/Draconic exists for 26.x).
     compileOnly "curse.maven:brandons-core-231382:7130990"
     // implementation "curse.maven:iskanderts-library-1516512:7947419"
 

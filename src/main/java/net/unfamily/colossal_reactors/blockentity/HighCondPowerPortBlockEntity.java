@@ -48,7 +48,6 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
         } else {
             core.resize(cap, 0L, cap);
         }
-        opOutput = null;
         setChanged();
     }
 
@@ -117,7 +116,7 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
             return null;
         }
         if (opOutput == null) {
-            opOutput = BrandonScoreIntegration.createOpStorage(core, maxExtractPerTick);
+            opOutput = BrandonScoreIntegration.createOpStorage(core);
         }
         return opOutput;
     }

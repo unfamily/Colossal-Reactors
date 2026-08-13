@@ -47,6 +47,10 @@ public class LongBackedEnergyHandler implements EnergyHandler, ValueIOSerializab
         return capacity;
     }
 
+    public long getMaxExtract() {
+        return maxExtract;
+    }
+
     @Override
     public int insert(int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonNegative(amount);
