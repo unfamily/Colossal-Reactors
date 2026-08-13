@@ -31,6 +31,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.unfamily.colossal_reactors.block.TurbineControllerBlock;
 import net.unfamily.colossal_reactors.block.TurbineVisualState;
+import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
 import net.unfamily.colossal_reactors.menu.TurbineControllerMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineFiller;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
@@ -196,9 +197,29 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, cap));
     }
 
-    /** One-tick condensate slot when generation defines a liquid output; not scaled per blade. */
+    /**
+     * Condensate (liquid water) buffer when generation defines a liquid output.
+     * Sized to several ticks of steam demand so EXTRACT lag does not hard-stop production.
+     */
     public int getOutputReturnCapacityMb() {
-        return cachedOutputReturnBuffer ? getCachedSteamConsumeMbPerTick() : 0;
+        if (!cachedOutputReturnBuffer) {
+            return 0;
+        }
+        int oneTick = getCachedSteamConsumeMbPerTick();
+        if (oneTick <= 0) {
+            return 0;
+        }
+        long scaled = (long) oneTick * PortScalingConstants.DEMAND_MULTIPLIER;
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(oneTick, scaled));
+    }
+
+    /** Free condensate space in mB; {@link Integer#MAX_VALUE} when no condensate buffer is required. */
+    public int getOutputReturnFreeMb() {
+        int cap = getOutputReturnCapacityMb();
+        if (cap <= 0) {
+            return Integer.MAX_VALUE;
+        }
+        return Math.max(0, cap - getTotalOutputReturnMb());
     }
 
     public int getTotalFluidBufferCapacityMb() {

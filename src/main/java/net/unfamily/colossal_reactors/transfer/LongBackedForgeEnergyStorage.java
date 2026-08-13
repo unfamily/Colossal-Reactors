@@ -89,6 +89,10 @@ public class LongBackedForgeEnergyStorage implements IEnergyStorage {
         return capacity;
     }
 
+    public long getMaxExtractPerOp() {
+        return maxExtractPerOp;
+    }
+
     public void setEnergy(long amount) {
         energy = Math.max(0L, Math.min(capacity, amount));
     }

@@ -125,20 +125,27 @@ public final class TurbineSimulation {
 
         double steamDemand = result.maxSteamMbPerTick();
         int steamConsumed = 0;
-        boolean outputBufferFull = controller.isOutputReturnBufferFull();
-        if (!outputBufferFull && steamDemand > 0 && !steamInputs.isEmpty()) {
+
+        pushOutputReturnToFluidPorts(level, controller, resourcePortPositions);
+
+        boolean hasEnergySpace = hasPowerPortSpace(level, powerPortPositions);
+        int freeCondensate = controller.getOutputReturnFreeMb();
+        boolean outputBufferFull = freeCondensate == 0;
+        if (hasEnergySpace && !outputBufferFull && steamDemand > 0 && !steamInputs.isEmpty()) {
             int wanted = (int) Math.ceil(steamDemand);
-            steamConsumed = controller.consumeSteamInputMatching(steamInputs, wanted);
-            if (steamConsumed > 0 && outputFluid != null && outputFluid != Fluids.EMPTY) {
-                int added = controller.addOutputReturn(outputFluid, steamConsumed);
-                if (added < steamConsumed) {
-                    steamConsumed = added;
-                    outputBufferFull = controller.isOutputReturnBufferFull();
+            if (outputFluid != null && outputFluid != Fluids.EMPTY) {
+                wanted = Math.min(wanted, freeCondensate);
+            }
+            if (wanted > 0) {
+                steamConsumed = controller.consumeSteamInputMatching(steamInputs, wanted);
+                if (steamConsumed > 0 && outputFluid != null && outputFluid != Fluids.EMPTY) {
+                    int added = controller.addOutputReturn(outputFluid, steamConsumed);
+                    if (added < steamConsumed) {
+                        steamConsumed = added;
+                    }
                 }
             }
         }
-
-        pushOutputReturnToFluidPorts(level, controller, resourcePortPositions);
 
         double rfScale = steamDemand > 0 ? Math.min(1.0, steamConsumed / steamDemand) : 0.0;
         long rfTarget = (long) Math.min(Long.MAX_VALUE, result.estimatedRfPerTick() * rfScale);
@@ -155,8 +162,21 @@ public final class TurbineSimulation {
             }
         }
 
-        boolean producingEnergy = rfPushed > 0 && !outputBufferFull;
+        boolean producingEnergy = rfPushed > 0;
         controller.setRuntimeStats(rfPushed, steamConsumed, producingEnergy, gateOpen);
+    }
+
+    private static boolean hasPowerPortSpace(ServerLevel level, long[] powerPortPositions) {
+        if (powerPortPositions == null || powerPortPositions.length == 0) {
+            return false;
+        }
+        for (long packed : powerPortPositions) {
+            if (level.getBlockEntity(BlockPos.of(packed)) instanceof TurbinePowerPort port
+                    && port.canAcceptMoreFromTurbine()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Pushes {@code output} fluid from generation JSON (e.g. water) to EXTRACT or EJECT resource ports. */
@@ -177,7 +197,7 @@ public final class TurbineSimulation {
                 if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) continue;
                 PortMode mode = port.getPortMode();
                 if (mode != PortMode.EXTRACT && mode != PortMode.EJECT) continue;
-                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
+                int filled = port.receiveFluidFromTurbine(new FluidStack(fluid, remaining));
                 remaining -= filled;
             }
             if (remaining > 0) {
@@ -262,7 +282,7 @@ public final class TurbineSimulation {
                 if (!(level.getBlockEntity(BlockPos.of(p)) instanceof ResourcePortBlockEntity port)) continue;
                 PortMode mode = port.getPortMode();
                 if (mode != PortMode.EXTRACT && mode != PortMode.EJECT) continue;
-                int filled = port.receiveFluidFromReactor(new FluidStack(fluid, remaining));
+                int filled = port.receiveFluidFromTurbine(new FluidStack(fluid, remaining));
                 remaining -= filled;
                 moved += filled;
             }

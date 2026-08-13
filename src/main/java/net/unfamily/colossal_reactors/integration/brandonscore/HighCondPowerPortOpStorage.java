@@ -6,21 +6,20 @@ import net.unfamily.colossal_reactors.transfer.LongBackedForgeEnergyStorage;
 /**
  * Output-only {@link IOPStorage} for high-conduction power ports (Brandon's Core OP / Draconic).
  * 1 OP equals 1 FE; uses long transfers when neighbors support {@link IOPStorage}.
+ * Extract limit follows live storage after {@code resize()}.
  */
 public final class HighCondPowerPortOpStorage implements IOPStorage {
 
     private final LongBackedForgeEnergyStorage storage;
-    private final long maxExtractPerTick;
 
-    public HighCondPowerPortOpStorage(LongBackedForgeEnergyStorage storage, long maxExtractPerTick) {
+    public HighCondPowerPortOpStorage(LongBackedForgeEnergyStorage storage) {
         this.storage = storage;
-        this.maxExtractPerTick = maxExtractPerTick;
     }
 
     @Override
     public long extractOP(long maxExtract, boolean simulate) {
         if (!canExtract() || maxExtract <= 0) return 0L;
-        long limit = Math.min(maxExtract, Math.min(maxExtractPerTick, storage.getEnergyStoredLong()));
+        long limit = Math.min(maxExtract, Math.min(storage.getMaxExtractPerOp(), storage.getEnergyStoredLong()));
         return storage.extractEnergyLong(limit, simulate);
     }
 
@@ -52,7 +51,7 @@ public final class HighCondPowerPortOpStorage implements IOPStorage {
 
     @Override
     public boolean canExtract() {
-        return maxExtractPerTick > 0;
+        return storage.getMaxExtractPerOp() > 0;
     }
 
     @Override

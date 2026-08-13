@@ -17,7 +17,7 @@ import net.unfamily.colossal_reactors.transfer.LongBackedForgeEnergyStorage;
 
 /**
  * High-conduction power port: {@code long} buffer and transfer rates.
- * With Brandon's Core / Draconic: OP auto-push and OP capability only.
+ * With Brandon's Core / Draconic: same {@code IOPStorage} instance is exposed as OP and FE (1 OP = 1 FE).
  * Without BC: Forge FE auto-push and FE capability.
  */
 public class HighCondPowerPortBlockEntity extends BlockEntity implements ReactorPowerPort {
@@ -50,7 +50,6 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
         } else {
             energyStorage.resize(cap, cap, cap);
         }
-        opOutput = null;
         setChanged();
     }
 
@@ -113,7 +112,8 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
 
     public IEnergyStorage getEnergyStorageForCapability() {
         if (BrandonScoreIntegration.isBrandonScoreLoaded()) {
-            return null;
+            Object op = getOpStorageForCapability();
+            return op instanceof IEnergyStorage storage ? storage : null;
         }
         return new OutputOnlyEnergyWrapper(energyStorage);
     }
@@ -124,7 +124,7 @@ public class HighCondPowerPortBlockEntity extends BlockEntity implements Reactor
             return null;
         }
         if (opOutput == null) {
-            opOutput = BrandonScoreIntegration.createOpStorage(energyStorage, maxExtractPerTick);
+            opOutput = BrandonScoreIntegration.createOpStorage(energyStorage);
         }
         return opOutput;
     }

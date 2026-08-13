@@ -61,14 +61,13 @@ public final class BrandonScoreIntegration {
         }
     }
 
-    public static Object createOpStorage(LongBackedForgeEnergyStorage storage, long maxExtractPerTick) {
+    public static Object createOpStorage(LongBackedForgeEnergyStorage storage) {
         if (!ModList.get().isLoaded("brandonscore")) {
             return null;
         }
         try {
             Class<?> cls = Class.forName(OP_STORAGE_CLASS);
-            return cls.getConstructor(LongBackedForgeEnergyStorage.class, long.class)
-                    .newInstance(storage, maxExtractPerTick);
+            return cls.getConstructor(LongBackedForgeEnergyStorage.class).newInstance(storage);
         } catch (Throwable t) {
             logOpDebug("Failed to create OP storage adapter: {}", t.toString());
             return null;
