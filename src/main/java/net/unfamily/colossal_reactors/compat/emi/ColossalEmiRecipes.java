@@ -12,16 +12,20 @@ import me.shedaniel.rei.api.client.gui.compat.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.compat.HeatingCoilViewerHelper;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
+import net.unfamily.colossal_reactors.compat.jei.ElecCoilJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.HeatSinkJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.MelterHeatJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.MelterJeiRecipe;
+import net.unfamily.colossal_reactors.compat.RecipeViewerHeatingCoilLayout;
+import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.compat.jei.CoolantJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.HeatingCoilJeiRecipe;
-import net.unfamily.colossal_reactors.compat.jei.JeiHeatingCoilBackgroundDrawable;
 import net.unfamily.colossal_reactors.compat.jei.JeiIngredientsHelper;
 import net.unfamily.colossal_reactors.compat.jei.JeiMedium;
-import net.unfamily.colossal_reactors.compat.jei.JeiRecipeBackgroundDrawable;
 import net.unfamily.colossal_reactors.compat.jei.TurbineJeiRecipe;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
@@ -38,12 +42,16 @@ public final class ColossalEmiRecipes {
     private ColossalEmiRecipes() {}
 
     public static EmiRecipe coolant(CoolantJeiRecipe recipe) {
-        return new SimpleEmiRecipe(EmiCategories.COOLANT, recipe.jeiId(), 180, 62, true) {
+        Identifier id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(), "coolant", recipe.jeiId(), recipe.mediumCollisionSuffix());
+        return new SimpleEmiRecipe(
+                EmiCategories.COOLANT, id, 180, 62, true) {
             @Override
-            protected void addContent(WidgetHolder widgets) {
+            protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 if (recipe.medium() == JeiMedium.LIQUID) {
-                    addIn(EmiStackHelper.ingredientOfFluids(JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputSelectors(), reg)));
+                    addIn(EmiStackHelper.ingredientOfFluids(
+                            JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputSelectors(), reg)));
                     List<FluidStack> out = new ArrayList<>();
                     for (String sel : recipe.outputSelectors()) {
                         out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, reg));
@@ -59,15 +67,15 @@ public final class ColossalEmiRecipes {
             protected void drawText(GuiGraphics g) {
                 var def = recipe.definition();
                 var font = Minecraft.getInstance().font;
-                int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-                int line2 = textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
-                int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+                int textY = RecipeViewerLayout.TEXT_Y;
+                int line2 = textY + RecipeViewerLayout.TEXT_LINE_HEIGHT;
+                int margin = RecipeViewerLayout.TEXT_MARGIN;
                 int color = 0xFF404040;
                 String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(def.mbMultiplier(), def.steamPerCoolant());
                 g.drawString(font, Component.translatable("jei.colossal_reactors.consume_coolant", ratio[1]), margin, textY, color, false);
                 g.drawString(font, Component.translatable("jei.colossal_reactors.produce_exhaust_coolant", ratio[0]), margin, line2, color, false);
-                int line3 = line2 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
-                int line4 = line3 + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+                int line3 = line2 + RecipeViewerLayout.TEXT_LINE_HEIGHT;
+                int line4 = line3 + RecipeViewerLayout.TEXT_LINE_HEIGHT;
                 g.drawString(font, Component.translatable("jei.colossal_reactors.coolant.heat_reduction", fmt(def.overheatingMultiplier())), margin, line3, color, false);
                 Component rf = def.reduceRfProduction()
                         ? Component.translatable("jei.colossal_reactors.coolant.suppress_rf_steam")
@@ -77,11 +85,16 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe heatSink(HeatSinkDefinition recipe) {
-        Identifier id = Identifier.fromNamespaceAndPath("colossal_reactors", "heat_sink/" + Integer.toHexString(recipe.hashCode()));
+    public static EmiRecipe heatSink(HeatSinkJeiRecipe wrapper) {
+        HeatSinkDefinition recipe = wrapper.definition();
+        Identifier id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "heat_sink",
+                ViewerRecipeIds.fallbackId("heat_sink/" + Integer.toHexString(recipe.hashCode())),
+                null);
         return new SimpleEmiRecipe(EmiCategories.HEAT_SINK, id, 180, 54, false) {
             @Override
-            protected void addContent(WidgetHolder widgets) {
+            protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacks(recipe.validBlocks(), reg);
                 List<FluidStack> fluids = JeiIngredientsHelper.getLiquidFluidStacks(recipe.validLiquids(), reg);
@@ -95,9 +108,9 @@ public final class ColossalEmiRecipes {
             @Override
             protected void drawText(GuiGraphics g) {
                 var font = Minecraft.getInstance().font;
-                int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-                int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
-                int lh = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+                int textY = RecipeViewerLayout.TEXT_Y;
+                int margin = RecipeViewerLayout.TEXT_MARGIN;
+                int lh = RecipeViewerLayout.TEXT_LINE_HEIGHT;
                 int color = 0xFF404040;
                 g.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.fuel_reduction", fmt(recipe.fuelMultiplier())), margin, textY, color, false);
                 g.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", fmt(recipe.energyMultiplier())), margin, textY + lh, color, false);
@@ -106,11 +119,13 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe melter(MelterRecipe recipe) {
-        Identifier id = Identifier.fromNamespaceAndPath("colossal_reactors", "melter/" + recipe.inputId().getPath());
+    public static EmiRecipe melter(MelterJeiRecipe wrapper) {
+        MelterRecipe recipe = wrapper.definition();
+        Identifier id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(), "melter", ViewerRecipeIds.fallbackId("melter/" + recipe.inputId().getPath()), null);
         return new SimpleEmiRecipe(EmiCategories.MELTER, id, 180, 78, true) {
             @Override
-            protected void addContent(WidgetHolder widgets) {
+            protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 List<ItemStack> inputs = MelterRecipeCategoryHelper.resolveInputs(recipe, reg);
                 addIn(EmiStackHelper.ingredientOf(inputs));
@@ -123,9 +138,9 @@ public final class ColossalEmiRecipes {
             @Override
             protected void drawText(GuiGraphics g) {
                 var font = Minecraft.getInstance().font;
-                int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-                int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
-                int lh = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+                int textY = RecipeViewerLayout.TEXT_Y;
+                int margin = RecipeViewerLayout.TEXT_MARGIN;
+                int lh = RecipeViewerLayout.TEXT_LINE_HEIGHT;
                 int color = 0xFF404040;
                 g.drawString(font, Component.translatable("jei.colossal_reactors.melter.amount", recipe.amountMb()), margin, textY, color, false);
                 g.drawString(font, Component.translatable("jei.colossal_reactors.melter.default_time", JeiIngredientsHelper.formatDefaultDuration(recipe.timeTicks())), margin, textY + lh, color, false);
@@ -136,11 +151,16 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe melterHeat(MelterHeatEntry entry) {
-        Identifier id = Identifier.fromNamespaceAndPath("colossal_reactors", "melter_heat/" + Integer.toHexString(entry.hashCode()));
+    public static EmiRecipe melterHeat(MelterHeatJeiRecipe wrapper) {
+        MelterHeatEntry entry = wrapper.definition();
+        Identifier id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "melter_heat",
+                ViewerRecipeIds.fallbackId("melter_heat/" + Integer.toHexString(entry.hashCode())),
+                Integer.toString(wrapper.entryIndex()));
         return new SimpleEmiRecipe(EmiCategories.MELTER_HEAT, id, 180, 52, false) {
             @Override
-            protected void addContent(WidgetHolder widgets) {
+            protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacksFromMelterEntry(entry, reg);
                 List<FluidStack> fluids = JeiIngredientsHelper.getFluidStacksFromMelterEntry(entry, reg);
@@ -154,20 +174,28 @@ public final class ColossalEmiRecipes {
             @Override
             protected void drawText(GuiGraphics g) {
                 var font = Minecraft.getInstance().font;
-                int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-                int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+                int textY = RecipeViewerLayout.TEXT_Y;
+                int margin = RecipeViewerLayout.TEXT_MARGIN;
                 int color = 0xFF404040;
                 String factorStr = entry.factor() == (long) entry.factor() ? String.valueOf((long) entry.factor()) : String.format("%.2f", entry.factor());
-                g.drawString(font, Component.translatable("jei.colossal_reactors.melter_heat.factor", factorStr), margin, textY, color, false);
+                g.drawString(font, Component.translatable("jei.colossal_reactors.melter_heat_source.factor", factorStr), margin, textY, color, false);
+                if (entry.notValid()) {
+                    g.drawString(font, Component.translatable("jei.colossal_reactors.melter_heat_source.not_valid"), margin, textY + RecipeViewerLayout.TEXT_LINE_HEIGHT, 0xFF808080, false);
+                }
             }
         };
     }
 
-    public static EmiRecipe elecCoil(ElecCoilDefinition recipe) {
-        Identifier id = Identifier.fromNamespaceAndPath("colossal_reactors", "elec_coil/" + Integer.toHexString(recipe.hashCode()));
+    public static EmiRecipe elecCoil(ElecCoilJeiRecipe wrapper) {
+        ElecCoilDefinition recipe = wrapper.definition();
+        Identifier id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "elec_coil",
+                ViewerRecipeIds.fallbackId("elec_coil/" + Integer.toHexString(recipe.hashCode())),
+                null);
         return new SimpleEmiRecipe(EmiCategories.ELEC_COIL, id, 180, 54, false) {
             @Override
-            protected void addContent(WidgetHolder widgets) {
+            protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 addIn(EmiStackHelper.ingredientOf(JeiIngredientsHelper.getElecCoilDisplayStacks(recipe.validBlocks(), reg)));
             }
@@ -175,23 +203,31 @@ public final class ColossalEmiRecipes {
             @Override
             protected void drawText(GuiGraphics g) {
                 var font = Minecraft.getInstance().font;
-                int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-                int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+                int textY = RecipeViewerLayout.TEXT_Y;
+                int margin = RecipeViewerLayout.TEXT_MARGIN;
                 int color = 0xFF404040;
                 g.drawString(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_coe", fmt(recipe.effCoe())), margin, textY, color, false);
-                g.drawString(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_max", fmt(recipe.effMax())), margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
+                g.drawString(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_max", fmt(recipe.effMax())), margin, textY + RecipeViewerLayout.TEXT_LINE_HEIGHT, color, false);
             }
         };
     }
 
     public static EmiRecipe turbineGeneration(TurbineJeiRecipe recipe) {
-        return new SimpleEmiRecipe(EmiCategories.TURBINE_GENERATION, recipe.jeiId(), 180, 54, true) {
+        Identifier id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(), "turbine_generation", recipe.jeiId(), recipe.mediumCollisionSuffix());
+        return new SimpleEmiRecipe(
+                EmiCategories.TURBINE_GENERATION,
+                id,
+                180,
+                54,
+                true) {
             @Override
-            protected void addContent(WidgetHolder widgets) {
+            protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 TurbineGenerationDefinition def = recipe.definition();
                 if (recipe.medium() == JeiMedium.LIQUID) {
-                    addIn(EmiStackHelper.ingredientOfFluids(JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputSelectors(), reg)));
+                    addIn(EmiStackHelper.ingredientOfFluids(
+                            JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputSelectors(), reg)));
                     List<FluidStack> out = new ArrayList<>();
                     for (String sel : recipe.outputSelectors()) {
                         out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, reg));
@@ -202,7 +238,17 @@ public final class ColossalEmiRecipes {
                     addOut(EmiStackHelper.ingredientOfFluids(out));
                 } else {
                     addIn(EmiStackHelper.ingredientOfChemicalSelectors(recipe.inputSelectors()));
-                    addOut(EmiStackHelper.ingredientOfChemicalSelectors(recipe.outputSelectors()));
+                    var chemOut = EmiStackHelper.ingredientOfChemicalSelectors(recipe.outputSelectors());
+                    if (!chemOut.isEmpty()) {
+                        addOut(chemOut);
+                    } else {
+                        // Same as JEI: chemical steam condensate defaults to liquid water output.
+                        String liquidOut = def.liquidOutputSelector();
+                        if (liquidOut != null && !liquidOut.isBlank()) {
+                            addOut(EmiStackHelper.ingredientOfFluids(
+                                    JeiIngredientsHelper.getOutputFluidStacks(liquidOut, reg)));
+                        }
+                    }
                 }
             }
 
@@ -210,18 +256,22 @@ public final class ColossalEmiRecipes {
             protected void drawText(GuiGraphics g) {
                 TurbineGenerationDefinition def = recipe.definition();
                 var font = Minecraft.getInstance().font;
-                int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+                int margin = RecipeViewerLayout.TEXT_MARGIN;
                 int color = 0xFF404040;
                 g.drawString(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket",
-                        TurbineGenerationLoader.formatRfPerSteamBucket(def.rfProduction())), margin, JeiRecipeBackgroundDrawable.TEXT_Y, color, false);
+                        TurbineGenerationLoader.formatRfPerSteamBucket(def.rfProduction())), margin, RecipeViewerLayout.TEXT_Y, color, false);
             }
         };
     }
 
     public static EmiRecipe heatingCoil(HeatingCoilJeiRecipe recipe) {
-        Identifier id = Identifier.fromNamespaceAndPath("colossal_reactors", "heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex());
+        Identifier id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(),
+                "heating_coil",
+                ViewerRecipeIds.fallbackId("heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex()),
+                Integer.toString(recipe.optionIndex()));
         return new EmiRecipe() {
-            private final EmiIngredient input = buildInputs(recipe);
+            private final List<EmiIngredient> inputs = buildInputs(recipe);
             private final EmiStack output = buildOutput(recipe);
 
             @Override
@@ -229,92 +279,244 @@ public final class ColossalEmiRecipes {
             @Override
             public Identifier getId() { return id; }
             @Override
-            public List<EmiIngredient> getInputs() { return List.of(input); }
+            public List<EmiIngredient> getInputs() { return inputs; }
             @Override
             public List<EmiStack> getOutputs() { return output.isEmpty() ? List.of() : List.of(output); }
             @Override
-            public int getDisplayWidth() { return 170; }
+            public int getDisplayWidth() { return RecipeViewerHeatingCoilLayout.WIDTH; }
             @Override
-            public int getDisplayHeight() { return 112; }
+            public int getDisplayHeight() { return RecipeViewerHeatingCoilLayout.HEIGHT; }
 
             @Override
             public void addWidgets(WidgetHolder widgets) {
-                JeiHeatingCoilBackgroundDrawable bg = new JeiHeatingCoilBackgroundDrawable(170, 112);
-                widgets.addDrawable(0, 0, 170, 112, (g, mx, my, d) -> bg.draw(g, 0, 0));
-                Block off = ModBlocks.getHeatingCoilBlock(recipe.coilId(), false);
-                if (off != null) {
-                    widgets.addSlot(EmiStack.of(off), JeiHeatingCoilBackgroundDrawable.OFF_X, JeiHeatingCoilBackgroundDrawable.OFF_Y);
+                widgets.addDrawable(
+                        0,
+                        0,
+                        RecipeViewerHeatingCoilLayout.WIDTH,
+                        RecipeViewerHeatingCoilLayout.HEIGHT,
+                        (g, mx, my, d) -> RecipeViewerHeatingCoilLayout.draw(g, 0, 0));
+                ItemStack off = HeatingCoilViewerHelper.coilStack(recipe.coilId(), false);
+                if (!off.isEmpty()) {
+                    widgets.addSlot(
+                            EmiStack.of(off),
+                            RecipeViewerHeatingCoilLayout.OFF_X,
+                            RecipeViewerHeatingCoilLayout.OFF_Y);
                 }
                 int slotIdx = 0;
                 ConsumeOption opt = recipe.option();
                 var reg = EmiStackHelper.registryOrThrow();
                 var level = Minecraft.getInstance().level;
                 if (opt.fluid() != null) {
-                    List<FluidStack> fluids = HeatingCoilEmiHelper.fluidStacks(opt.fluid(), reg);
-                    if (!fluids.isEmpty()) {
-                        widgets.addSlot(EmiStackHelper.ingredientOfFluids(fluids), slotX(slotIdx++), JeiHeatingCoilBackgroundDrawable.IN_Y);
+                    var ing = EmiStackHelper.ingredientOfFluids(HeatingCoilViewerHelper.fluidStacks(opt.fluid(), reg));
+                    if (!ing.isEmpty()) {
+                        widgets.addSlot(
+                                ing,
+                                RecipeViewerHeatingCoilLayout.inputSlotX(slotIdx++),
+                                RecipeViewerHeatingCoilLayout.IN_Y);
                     }
                 }
                 if (opt.chemical() != null && MekChemicalHelper.isGasSupportEnabled()) {
                     var chem = EmiStackHelper.ingredientOfChemicalSelectors(List.of(opt.chemical().selector()));
                     if (!chem.isEmpty()) {
-                        widgets.addSlot(chem, slotX(slotIdx++), JeiHeatingCoilBackgroundDrawable.IN_Y);
+                        widgets.addSlot(
+                                chem,
+                                RecipeViewerHeatingCoilLayout.inputSlotX(slotIdx++),
+                                RecipeViewerHeatingCoilLayout.IN_Y);
                     }
                 }
                 if (opt.item() != null) {
-                    var items = HeatingCoilEmiHelper.itemStacks(opt.item(), reg);
-                    if (!items.isEmpty()) {
-                        widgets.addSlot(EmiStackHelper.ingredientOf(items), slotX(slotIdx++), JeiHeatingCoilBackgroundDrawable.IN_Y);
+                    var ing = EmiStackHelper.ingredientOf(HeatingCoilViewerHelper.itemStacks(opt.item(), reg));
+                    if (!ing.isEmpty()) {
+                        widgets.addSlot(
+                                ing,
+                                RecipeViewerHeatingCoilLayout.inputSlotX(slotIdx++),
+                                RecipeViewerHeatingCoilLayout.IN_Y);
                     }
                 }
                 if (opt.burnable() != null && level != null) {
-                    var burn = HeatingCoilEmiHelper.burnables(level);
-                    if (!burn.isEmpty()) {
-                        widgets.addSlot(EmiStackHelper.ingredientOf(burn), slotX(slotIdx), JeiHeatingCoilBackgroundDrawable.IN_Y);
+                    var ing = EmiStackHelper.ingredientOf(HeatingCoilViewerHelper.burnables(level));
+                    if (!ing.isEmpty()) {
+                        widgets.addSlot(
+                                ing,
+                                RecipeViewerHeatingCoilLayout.inputSlotX(slotIdx),
+                                RecipeViewerHeatingCoilLayout.IN_Y);
                     }
                 }
-                Block on = ModBlocks.getHeatingCoilBlock(recipe.coilId(), true);
-                if (on != null) {
-                    widgets.addSlot(EmiStack.of(on), JeiHeatingCoilBackgroundDrawable.ON_X, JeiHeatingCoilBackgroundDrawable.ON_Y);
+                if (!output.isEmpty()) {
+                    widgets.addSlot(
+                            output,
+                            RecipeViewerHeatingCoilLayout.ON_X,
+                            RecipeViewerHeatingCoilLayout.ON_Y);
                 }
-                widgets.addDrawable(0, 0, 170, 112, (g, mx, my, d) -> drawCoilText(g, recipe));
+                widgets.addDrawable(
+                        0,
+                        0,
+                        RecipeViewerHeatingCoilLayout.WIDTH,
+                        RecipeViewerHeatingCoilLayout.HEIGHT,
+                        (g, mx, my, d) -> drawCoilText(g, recipe));
             }
 
-            private static int slotX(int idx) {
-                return switch (idx) {
-                    case 0 -> JeiHeatingCoilBackgroundDrawable.IN1_X;
-                    case 1 -> JeiHeatingCoilBackgroundDrawable.IN2_X;
-                    default -> JeiHeatingCoilBackgroundDrawable.IN3_X;
-                };
-            }
-
-            private static EmiIngredient buildInputs(HeatingCoilJeiRecipe recipe) {
-                return EmiStack.EMPTY;
+            private static List<EmiIngredient> buildInputs(HeatingCoilJeiRecipe recipe) {
+                List<EmiIngredient> list = new ArrayList<>();
+                ItemStack off = HeatingCoilViewerHelper.coilStack(recipe.coilId(), false);
+                if (!off.isEmpty()) {
+                    list.add(EmiStack.of(off));
+                }
+                ConsumeOption opt = recipe.option();
+                var reg = EmiStackHelper.registryOrThrow();
+                var level = Minecraft.getInstance().level;
+                if (opt.fluid() != null) {
+                    var ing = EmiStackHelper.ingredientOfFluids(HeatingCoilViewerHelper.fluidStacks(opt.fluid(), reg));
+                    if (!ing.isEmpty()) {
+                        list.add(ing);
+                    }
+                }
+                if (opt.chemical() != null && MekChemicalHelper.isGasSupportEnabled()) {
+                    var chem = EmiStackHelper.ingredientOfChemicalSelectors(List.of(opt.chemical().selector()));
+                    if (!chem.isEmpty()) {
+                        list.add(chem);
+                    }
+                }
+                if (opt.item() != null) {
+                    var ing = EmiStackHelper.ingredientOf(HeatingCoilViewerHelper.itemStacks(opt.item(), reg));
+                    if (!ing.isEmpty()) {
+                        list.add(ing);
+                    }
+                }
+                if (opt.burnable() != null && level != null) {
+                    var ing = EmiStackHelper.ingredientOf(HeatingCoilViewerHelper.burnables(level));
+                    if (!ing.isEmpty()) {
+                        list.add(ing);
+                    }
+                }
+                return List.copyOf(list);
             }
 
             private static EmiStack buildOutput(HeatingCoilJeiRecipe recipe) {
-                Block on = ModBlocks.getHeatingCoilBlock(recipe.coilId(), true);
-                return on == null ? EmiStack.EMPTY : EmiStack.of(on);
+                ItemStack on = HeatingCoilViewerHelper.coilStack(recipe.coilId(), true);
+                return on.isEmpty() ? EmiStack.EMPTY : EmiStack.of(on);
             }
 
             private static void drawCoilText(GuiGraphics g, HeatingCoilJeiRecipe recipe) {
                 var font = Minecraft.getInstance().font;
                 int color = 0xFF404040;
-                g.drawString(font, "+", JeiHeatingCoilBackgroundDrawable.PLUS_X, JeiHeatingCoilBackgroundDrawable.PLUS_Y, color, false);
+                g.drawString(
+                        font,
+                        "+",
+                        RecipeViewerHeatingCoilLayout.PLUS_X,
+                        RecipeViewerHeatingCoilLayout.PLUS_Y,
+                        color,
+                        false);
                 if (recipe.option().energy() != null) {
-                    g.drawString(font, "+ RF", JeiHeatingCoilBackgroundDrawable.RF_X, JeiHeatingCoilBackgroundDrawable.RF_Y, color, false);
+                    g.drawString(
+                            font,
+                            "+ RF",
+                            RecipeViewerHeatingCoilLayout.RF_X,
+                            RecipeViewerHeatingCoilLayout.RF_Y,
+                            color,
+                            false);
                 }
-                int textY = JeiHeatingCoilBackgroundDrawable.TEXT_Y;
-                int margin = JeiHeatingCoilBackgroundDrawable.TEXT_MARGIN;
+                int textY = RecipeViewerHeatingCoilLayout.TEXT_Y;
+                int margin = RecipeViewerHeatingCoilLayout.TEXT_MARGIN;
                 int line = 0;
-                g.drawString(font, Component.translatable("jei.colossal_reactors.coil.duration", recipe.durationTicks()),
-                        margin, textY + line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
+                int lineH = RecipeViewerHeatingCoilLayout.TEXT_LINE_HEIGHT;
+                g.drawString(
+                        font,
+                        Component.translatable("jei.colossal_reactors.coil.duration", recipe.durationTicks()),
+                        margin,
+                        textY + line++ * lineH,
+                        color,
+                        false);
                 ConsumeOption opt = recipe.option();
                 if (opt.fluid() != null) {
-                    g.drawString(font, Component.translatable("jei.colossal_reactors.coil.activate", opt.fluid().activation() + " mB"),
-                            margin, textY + line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
-                    g.drawString(font, Component.translatable("jei.colossal_reactors.coil.substain", opt.fluid().substain() + " mB"),
-                            margin, textY + line++ * JeiHeatingCoilBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.activate", opt.fluid().activation() + " mB"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.substain", opt.fluid().substain() + " mB"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                }
+                if (opt.chemical() != null && MekChemicalHelper.isGasSupportEnabled()) {
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.activate", opt.chemical().activation() + " mB"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.substain", opt.chemical().substain() + " mB"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                }
+                if (opt.item() != null) {
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.activate", opt.item().activation()),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.substain", opt.item().substain()),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                }
+                if (opt.burnable() != null) {
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.activate", opt.burnable().activation() + " t"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.substain", opt.burnable().substain() + " t"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                }
+                if (opt.energy() != null) {
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.activate", opt.energy().activation() + " RF"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
+                    g.drawString(
+                            font,
+                            Component.translatable(
+                                    "jei.colossal_reactors.coil.substain", opt.energy().substain() + " RF"),
+                            margin,
+                            textY + line++ * lineH,
+                            color,
+                            false);
                 }
             }
         };
@@ -330,21 +532,34 @@ public final class ColossalEmiRecipes {
         private final Identifier id;
         private final int w;
         private final int h;
-        private final boolean twoSlots;
+        /** When false, never draw an output slot (single-slot categories). */
+        private final boolean allowOutputSlot;
         private EmiIngredient input = EmiStack.EMPTY;
         private EmiIngredient output = EmiStack.EMPTY;
 
-        protected SimpleEmiRecipe(EmiRecipeCategory category, Identifier id, int w, int h, boolean twoSlots) {
+        protected SimpleEmiRecipe(EmiRecipeCategory category, Identifier id, int w, int h, boolean allowOutputSlot) {
             this.category = category;
             this.id = id;
             this.w = w;
             this.h = h;
-            this.twoSlots = twoSlots;
+            this.allowOutputSlot = allowOutputSlot;
+            // EMI indexes getInputs/getOutputs at register/bake time — must resolve before addWidgets.
+            resolveStacks();
         }
 
-        protected void addIn(EmiIngredient ing) { this.input = ing; }
-        protected void addOut(EmiIngredient ing) { this.output = ing; }
-        protected abstract void addContent(WidgetHolder widgets);
+        protected void addIn(EmiIngredient ing) {
+            if (ing != null && !ing.isEmpty()) {
+                this.input = ing;
+            }
+        }
+
+        protected void addOut(EmiIngredient ing) {
+            if (ing != null && !ing.isEmpty()) {
+                this.output = ing;
+            }
+        }
+
+        protected abstract void resolveStacks();
         protected abstract void drawText(GuiGraphics g);
 
         @Override
@@ -352,7 +567,7 @@ public final class ColossalEmiRecipes {
         @Override
         public Identifier getId() { return id; }
         @Override
-        public List<EmiIngredient> getInputs() { return List.of(input); }
+        public List<EmiIngredient> getInputs() { return input.isEmpty() ? List.of() : List.of(input); }
         @Override
         public List<EmiStack> getOutputs() {
             return output.isEmpty() ? List.of() : output.getEmiStacks();
@@ -364,12 +579,13 @@ public final class ColossalEmiRecipes {
 
         @Override
         public void addWidgets(WidgetHolder widgets) {
-            ColossalEmiRecipeLayout.addStandardBackground(widgets, w, h, twoSlots);
-            addContent(widgets);
-            if (!input.isEmpty()) {
+            boolean hasIn = !input.isEmpty();
+            boolean hasOut = allowOutputSlot && !output.isEmpty();
+            ColossalEmiRecipeLayout.addStandardBackground(widgets, w, h, hasIn, hasOut);
+            if (hasIn) {
                 widgets.addSlot(input, ColossalEmiRecipeLayout.inSlotX(), ColossalEmiRecipeLayout.inSlotY());
             }
-            if (twoSlots && !output.isEmpty()) {
+            if (hasOut) {
                 widgets.addSlot(output, ColossalEmiRecipeLayout.outSlotX(), ColossalEmiRecipeLayout.outSlotY());
             }
             ColossalEmiRecipeLayout.addTextDrawer(widgets, w, h, this::drawText);
@@ -380,9 +596,9 @@ public final class ColossalEmiRecipes {
         CoolantJeiRecipe r = recipe;
         var def = r.definition();
         var font = net.minecraft.client.Minecraft.getInstance().font;
-        int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int line2 = textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        int textY = RecipeViewerLayout.TEXT_Y;
+        int line2 = textY + RecipeViewerLayout.TEXT_LINE_HEIGHT;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
         int color = 0xFF404040;
         String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(def.mbMultiplier(), def.steamPerCoolant());
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.consume_coolant", ratio[1]), margin, textY, color, false);
@@ -391,9 +607,9 @@ public final class ColossalEmiRecipes {
 
     public static void drawHeatSink(GuiGraphics g, HeatSinkDefinition recipe) {
         var font = net.minecraft.client.Minecraft.getInstance().font;
-        int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
-        int lh = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+        int textY = RecipeViewerLayout.TEXT_Y;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
+        int lh = RecipeViewerLayout.TEXT_LINE_HEIGHT;
         int color = 0xFF404040;
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.heat_sink.fuel_reduction", fmt(recipe.fuelMultiplier())), margin, textY, color, false);
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", fmt(recipe.energyMultiplier())), margin, textY + lh, color, false);
@@ -402,9 +618,9 @@ public final class ColossalEmiRecipes {
 
     public static void drawMelter(GuiGraphics g, MelterRecipe recipe) {
         var font = net.minecraft.client.Minecraft.getInstance().font;
-        int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
-        int lh = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
+        int textY = RecipeViewerLayout.TEXT_Y;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
+        int lh = RecipeViewerLayout.TEXT_LINE_HEIGHT;
         int color = 0xFF404040;
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.melter.amount", recipe.amountMb()), margin, textY, color, false);
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.melter.default_time", JeiIngredientsHelper.formatDefaultDuration(recipe.timeTicks())), margin, textY + lh, color, false);
@@ -412,28 +628,31 @@ public final class ColossalEmiRecipes {
 
     public static void drawMelterHeat(GuiGraphics g, MelterHeatEntry entry) {
         var font = net.minecraft.client.Minecraft.getInstance().font;
-        int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        int textY = RecipeViewerLayout.TEXT_Y;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
         int color = 0xFF404040;
         String factorStr = entry.factor() == (long) entry.factor() ? String.valueOf((long) entry.factor()) : String.format("%.2f", entry.factor());
-        g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.melter_heat.factor", factorStr), margin, textY, color, false);
+        g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.melter_heat_source.factor", factorStr), margin, textY, color, false);
+        if (entry.notValid()) {
+            g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.melter_heat_source.not_valid"), margin, textY + RecipeViewerLayout.TEXT_LINE_HEIGHT, 0xFF808080, false);
+        }
     }
 
     public static void drawElecCoil(GuiGraphics g, ElecCoilDefinition recipe) {
         var font = net.minecraft.client.Minecraft.getInstance().font;
-        int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        int textY = RecipeViewerLayout.TEXT_Y;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
         int color = 0xFF404040;
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.elec_coil.eff_coe", fmt(recipe.effCoe())), margin, textY, color, false);
-        g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.elec_coil.eff_max", fmt(recipe.effMax())), margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
+        g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.elec_coil.eff_max", fmt(recipe.effMax())), margin, textY + RecipeViewerLayout.TEXT_LINE_HEIGHT, color, false);
     }
 
     public static void drawTurbine(GuiGraphics g, TurbineJeiRecipe recipe) {
         var def = recipe.definition();
         var font = net.minecraft.client.Minecraft.getInstance().font;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
         int color = 0xFF404040;
         g.drawString(font, net.minecraft.network.chat.Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket",
-                TurbineGenerationLoader.formatRfPerSteamBucket(def.rfProduction())), margin, JeiRecipeBackgroundDrawable.TEXT_Y, color, false);
+                TurbineGenerationLoader.formatRfPerSteamBucket(def.rfProduction())), margin, RecipeViewerLayout.TEXT_Y, color, false);
     }
 }

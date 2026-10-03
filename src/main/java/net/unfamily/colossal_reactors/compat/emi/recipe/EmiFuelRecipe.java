@@ -15,10 +15,11 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.compat.emi.ColossalEmiRecipeLayout;
 import net.unfamily.colossal_reactors.compat.emi.EmiCategories;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 import net.unfamily.colossal_reactors.compat.emi.EmiStackHelper;
-import net.unfamily.colossal_reactors.compat.jei.FuelRecipeCategory;
+import net.unfamily.colossal_reactors.compat.jei.FuelJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.JeiIngredientsHelper;
-import net.unfamily.colossal_reactors.compat.jei.JeiRecipeBackgroundDrawable;
+import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelMedium;
 
@@ -31,9 +32,10 @@ public final class EmiFuelRecipe implements EmiRecipe {
     private final EmiIngredient input;
     private final EmiStack output;
 
-    public EmiFuelRecipe(FuelDefinition recipe) {
-        this.recipe = recipe;
-        this.id = recipe.fuelId();
+    public EmiFuelRecipe(FuelJeiRecipe wrapper) {
+        this.recipe = wrapper.definition();
+        this.id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(), "fuel", wrapper.definition().fuelId(), null);
         var reg = EmiStackHelper.registryOrThrow();
         this.input = buildInput(recipe, reg);
         this.output = buildOutput(recipe, reg);
@@ -51,7 +53,7 @@ public final class EmiFuelRecipe implements EmiRecipe {
 
     @Override
     public List<EmiIngredient> getInputs() {
-        return List.of(input);
+        return input.isEmpty() ? List.of() : List.of(input);
     }
 
     @Override
@@ -71,9 +73,13 @@ public final class EmiFuelRecipe implements EmiRecipe {
 
     @Override
     public void addWidgets(WidgetHolder widgets) {
-        ColossalEmiRecipeLayout.addStandardBackground(widgets, W, H, true);
-        widgets.addSlot(input, ColossalEmiRecipeLayout.inSlotX(), ColossalEmiRecipeLayout.inSlotY());
-        if (!output.isEmpty()) {
+        boolean hasIn = !input.isEmpty();
+        boolean hasOut = !output.isEmpty();
+        ColossalEmiRecipeLayout.addStandardBackground(widgets, W, H, hasIn, hasOut);
+        if (hasIn) {
+            widgets.addSlot(input, ColossalEmiRecipeLayout.inSlotX(), ColossalEmiRecipeLayout.inSlotY());
+        }
+        if (hasOut) {
             widgets.addSlot(output, ColossalEmiRecipeLayout.outSlotX(), ColossalEmiRecipeLayout.outSlotY());
         }
         ColossalEmiRecipeLayout.addTextDrawer(widgets, W, H, this::drawTextForRei);
@@ -81,9 +87,9 @@ public final class EmiFuelRecipe implements EmiRecipe {
 
     public void drawTextForRei(GuiGraphics guiGraphics) {
         var font = Minecraft.getInstance().font;
-        int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
-        int lineHeight = JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT;
-        int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
+        int textY = RecipeViewerLayout.TEXT_Y;
+        int lineHeight = RecipeViewerLayout.TEXT_LINE_HEIGHT;
+        int margin = RecipeViewerLayout.TEXT_MARGIN;
         int color = 0xFF404040;
         int consume = recipe.consume();
         int produce = recipe.produce();

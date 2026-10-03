@@ -20,17 +20,18 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
+public class FuelRecipeCategory implements IRecipeCategory<FuelJeiRecipe> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel");
     private static final int WIDTH = 180;
     private static final int HEIGHT = 106;
 
-    public static final IRecipeType<FuelDefinition> RECIPE_TYPE = IRecipeType.create(UID, FuelDefinition.class);
+    public static final IRecipeType<FuelJeiRecipe> RECIPE_TYPE = IRecipeType.create(UID, FuelJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable icon;
@@ -41,7 +42,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
     }
 
     @Override
-    public IRecipeType<FuelDefinition> getRecipeType() {
+    public IRecipeType<FuelJeiRecipe> getRecipeType() {
         return RECIPE_TYPE;
     }
 
@@ -66,17 +67,18 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, FuelDefinition recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, FuelJeiRecipe recipe, IFocusGroup focuses) {
+        FuelDefinition def = recipe.definition();
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
         List<String> itemSelectors = new ArrayList<>();
         List<String> chemicalSelectors = new ArrayList<>();
-        JeiIngredientsHelper.partitionSelectors(recipe.inputs(), itemSelectors, chemicalSelectors);
+        JeiIngredientsHelper.partitionSelectors(def.inputs(), itemSelectors, chemicalSelectors);
 
         List<ItemStack> inputs = JeiIngredientsHelper.withCount(
-                JeiIngredientsHelper.getFuelInputStacks(itemSelectors, registryAccess), recipe.consume());
+                JeiIngredientsHelper.getFuelInputStacks(itemSelectors, registryAccess), def.consume());
         if (!inputs.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
@@ -85,13 +87,13 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT, JeiRecipeBackgroundDrawable.SLOT_IN_X,
                 JeiRecipeBackgroundDrawable.SLOT_IN_Y, chemicalSelectors);
 
-        String output = recipe.output();
+        String output = def.output();
         if (output != null && MaterialSelector.isChemicalPrefix(output)) {
             JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT, JeiRecipeBackgroundDrawable.SLOT_OUT_X,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_Y, List.of(output));
         } else {
             List<ItemStack> outputs = JeiIngredientsHelper.withCount(
-                    JeiIngredientsHelper.getWasteOutputStacks(output, registryAccess), recipe.produce());
+                    JeiIngredientsHelper.getWasteOutputStacks(output, registryAccess), def.produce());
             if (!outputs.isEmpty()) {
                 builder.addSlot(RecipeIngredientRole.OUTPUT,
                         JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
@@ -101,7 +103,8 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
     }
 
     @Override
-    public void draw(FuelDefinition recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+    public void draw(FuelJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+        FuelDefinition def = recipe.definition();
         background.draw(guiGraphics);
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
@@ -109,29 +112,29 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
 
-        int consume = recipe.consume();
-        int produce = recipe.produce();
+        int consume = def.consume();
+        int produce = def.produce();
         Component consumeFuel = Component.translatable("jei.colossal_reactors.consume_fuel", consume);
         Component produceWaste = Component.translatable("jei.colossal_reactors.produce_waste", produce);
         guiGraphics.text(font, consumeFuel, margin, textY, color, false);
         guiGraphics.text(font, produceWaste, margin, textY + lineHeight, color, false);
 
-        double fuelPower = recipe.baseRfPerTick() * Config.PRODUCTION_MULTIPLIER.get();
+        double fuelPower = def.baseRfPerTick() * Config.PRODUCTION_MULTIPLIER.get();
         guiGraphics.text(font,
                 Component.translatable("jei.colossal_reactors.fuel.power", formatFuelPower(fuelPower)),
                 margin, textY + lineHeight * 2, color, false);
         guiGraphics.text(font,
                 Component.translatable("jei.colossal_reactors.fuel.consume_factor",
-                        formatConsumeFactor(recipe.baseFuelUnitsPerTick())),
+                        formatConsumeFactor(def.baseFuelUnitsPerTick())),
                 margin, textY + lineHeight * 3, color, false);
         guiGraphics.text(font,
-                Component.translatable("jei.colossal_reactors.fuel.units_per_fuel", recipe.unitsPerFuel()),
+                Component.translatable("jei.colossal_reactors.fuel.units_per_fuel", def.unitsPerFuel()),
                 margin, textY + lineHeight * 4, color, false);
         guiGraphics.text(font,
-                Component.translatable("jei.colossal_reactors.fuel.units_per_waste", recipe.unitsPerWaste()),
+                Component.translatable("jei.colossal_reactors.fuel.units_per_waste", def.unitsPerWaste()),
                 margin, textY + lineHeight * 5, color, false);
         guiGraphics.text(font,
-                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste(), produce),
+                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", def.unitsPerWaste(), produce),
                 margin, textY + lineHeight * 6, color, false);
     }
 
@@ -162,5 +165,10 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
         return trimmed;
+    }
+
+    @Override
+    public @Nullable Identifier getRegistryName(FuelJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

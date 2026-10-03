@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.compat.jei;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
@@ -16,6 +17,7 @@ import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilLoader;
+import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
@@ -40,6 +42,7 @@ public final class JeiNativeRecipeBridge {
         return server != null ? server.getRecipeManager() : null;
     }
 
+    @SuppressWarnings("unchecked")
     private static List<RecipeHolder<ColossalJsonRecipe>> holders(RecipeType<ColossalJsonRecipe> type) {
         RecipeManager manager = recipeManager();
         if (manager == null) {
@@ -51,100 +54,120 @@ public final class JeiNativeRecipeBridge {
                 .toList();
     }
 
-    public static List<FuelDefinition> fuels() {
-        List<FuelDefinition> out = new ArrayList<>();
+    private static Identifier idOf(RecipeHolder<?> holder) {
+        return holder.id().identifier();
+    }
+
+    public static List<FuelJeiRecipe> fuels() {
+        List<FuelJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.FUEL.get())) {
-            FuelDefinition def = FuelLoader.parseEntry(holder.value().json(), holder.id().identifier().toString(), true);
+            Identifier id = idOf(holder);
+            FuelDefinition def = FuelLoader.parseEntry(holder.value().json(), id.toString(), true);
             if (def != null) {
-                out.add(def);
+                out.add(FuelJeiRecipe.of(def, id));
             }
         }
-        return out.isEmpty() ? FuelLoader.getVisibleDefinitions() : out;
+        return out.isEmpty() ? FuelJeiRecipe.wrapAll(FuelLoader.getVisibleDefinitions()) : out;
     }
 
     public static List<CoolantJeiRecipe> coolants() {
-        List<CoolantDefinition> defs = new ArrayList<>();
+        List<CoolantJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.COOLANT.get())) {
-            CoolantDefinition def = CoolantLoader.parseEntry(holder.value().json(), holder.id().identifier().toString(), true);
+            Identifier id = idOf(holder);
+            CoolantDefinition def = CoolantLoader.parseEntry(holder.value().json(), id.toString(), true);
             if (def != null) {
-                defs.add(def);
+                out.addAll(CoolantJeiRecipe.expand(def, id));
             }
         }
-        if (defs.isEmpty()) {
-            defs = CoolantLoader.getVisibleDefinitions();
+        if (out.isEmpty()) {
+            return CoolantLoader.getVisibleDefinitions().stream()
+                    .flatMap(def -> CoolantJeiRecipe.expand(def).stream())
+                    .toList();
         }
-        return defs.stream().flatMap(def -> CoolantJeiRecipe.expand(def).stream()).toList();
+        return out;
     }
 
-    public static List<HeatSinkDefinition> heatSinks() {
-        List<HeatSinkDefinition> out = new ArrayList<>();
+    public static List<HeatSinkJeiRecipe> heatSinks() {
+        List<HeatSinkJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.HEAT_SINKS.get())) {
-            HeatSinkDefinition def = HeatSinkLoader.parseEntry(holder.value().json(), holder.id().identifier().toString());
+            Identifier id = idOf(holder);
+            HeatSinkDefinition def = HeatSinkLoader.parseEntry(holder.value().json(), id.toString());
             if (def != null) {
-                out.add(def);
+                out.add(HeatSinkJeiRecipe.of(def, id));
             }
         }
-        return out.isEmpty() ? HeatSinkLoader.getAllDefinitions() : out;
+        return out.isEmpty() ? HeatSinkJeiRecipe.wrapAll(HeatSinkLoader.getAllDefinitions()) : out;
     }
 
-    public static List<MelterRecipe> melterRecipes() {
-        List<MelterRecipe> out = new ArrayList<>();
+    public static List<MelterJeiRecipe> melterRecipes() {
+        List<MelterJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.MELTER_RECIPES.get())) {
-            MelterRecipe r = MelterRecipesLoader.parseEntry(holder.value().json(), holder.id().identifier().toString());
+            Identifier id = idOf(holder);
+            MelterRecipe r = MelterRecipesLoader.parseEntry(holder.value().json(), id.toString());
             if (r != null) {
-                out.add(r);
+                out.add(MelterJeiRecipe.of(r, id));
             }
         }
-        return out.isEmpty() ? MelterRecipesLoader.getAll() : out;
+        return out.isEmpty() ? MelterJeiRecipe.wrapAll(MelterRecipesLoader.getAll()) : out;
     }
 
-    public static List<MelterHeatEntry> melterHeats() {
-        List<MelterHeatEntry> out = new ArrayList<>();
+    public static List<MelterHeatJeiRecipe> melterHeats() {
+        List<MelterHeatJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.MELTER_HEATS.get())) {
-            List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(holder.value().json(), holder.id().identifier().toString());
+            Identifier id = idOf(holder);
+            List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(holder.value().json(), id.toString());
             if (list != null) {
-                out.addAll(list);
+                for (int i = 0; i < list.size(); i++) {
+                    out.add(MelterHeatJeiRecipe.of(list.get(i), id, i));
+                }
             }
         }
-        return out.isEmpty() ? MelterHeatsLoader.getAll() : out;
+        return out.isEmpty() ? MelterHeatJeiRecipe.wrapAll(MelterHeatsLoader.getAll()) : out;
     }
 
-    public static List<ElecCoilDefinition> elecCoils() {
-        List<ElecCoilDefinition> out = new ArrayList<>();
+    public static List<ElecCoilJeiRecipe> elecCoils() {
+        List<ElecCoilJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.ELEC_COILS.get())) {
-            ElecCoilDefinition def = ElecCoilLoader.parseEntry(holder.value().json(), holder.id().identifier().toString());
+            Identifier id = idOf(holder);
+            ElecCoilDefinition def = ElecCoilLoader.parseEntry(holder.value().json(), id.toString());
             if (def != null) {
-                out.add(def);
+                out.add(ElecCoilJeiRecipe.of(def, id));
             }
         }
-        return out.isEmpty() ? ElecCoilLoader.getJeIDefinitions() : out;
+        return out.isEmpty() ? ElecCoilJeiRecipe.wrapAll(ElecCoilLoader.getJeIDefinitions()) : out;
     }
 
     public static List<TurbineJeiRecipe> turbineGeneration() {
-        List<TurbineGenerationDefinition> defs = new ArrayList<>();
+        List<TurbineJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.TURBINE_GENERATION.get())) {
+            Identifier id = idOf(holder);
             TurbineGenerationDefinition def =
-                    TurbineGenerationLoader.parseEntry(holder.value().json(), holder.id().identifier().toString(), true);
+                    TurbineGenerationLoader.parseEntry(holder.value().json(), id.toString(), true);
             if (def != null) {
-                defs.add(def);
+                out.addAll(TurbineJeiRecipe.expand(def, id));
             }
         }
-        if (defs.isEmpty()) {
-            defs = TurbineGenerationLoader.getJeIDefinitions();
+        if (out.isEmpty()) {
+            return TurbineGenerationLoader.getJeIDefinitions().stream()
+                    .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
+                    .toList();
         }
-        return defs.stream().flatMap(def -> TurbineJeiRecipe.expand(def).stream()).toList();
+        return out;
     }
 
     public static List<HeatingCoilJeiRecipe> heatingCoils() {
         List<HeatingCoilJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.HEATING_COILS.get())) {
-            for (HeatingCoilDefinition def :
-                    HeatingCoilLoader.parseFromRoot(holder.value().json(), holder.id().identifier().toString())) {
-                out.addAll(HeatingCoilJeiRecipe.expand(def));
+            Identifier id = idOf(holder);
+            for (HeatingCoilDefinition def : HeatingCoilLoader.parseFromRoot(holder.value().json(), id.toString())) {
+                out.addAll(HeatingCoilJeiRecipe.expand(def, id));
             }
         }
         if (out.isEmpty()) {
-            return ColossalReactorsJeiPlugin.buildHeatingCoilJeiRecipes();
+            return HeatingCoilRegistry.getAll().values().stream()
+                    .flatMap(def -> HeatingCoilJeiRecipe.expand(def).stream())
+                    .filter(Objects::nonNull)
+                    .toList();
         }
         return out.stream().filter(Objects::nonNull).toList();
     }

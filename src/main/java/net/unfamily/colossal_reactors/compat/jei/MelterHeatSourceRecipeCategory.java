@@ -20,16 +20,17 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.List;
 
-public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHeatEntry> {
+public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHeatJeiRecipe> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "melter_heat_source");
     private static final int WIDTH = 180;
     private static final int HEIGHT = 52;
 
-    public static final IRecipeType<MelterHeatEntry> RECIPE_TYPE = IRecipeType.create(UID, MelterHeatEntry.class);
+    public static final IRecipeType<MelterHeatJeiRecipe> RECIPE_TYPE = IRecipeType.create(UID, MelterHeatJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable icon;
@@ -40,7 +41,7 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
     }
 
     @Override
-    public IRecipeType<MelterHeatEntry> getRecipeType() {
+    public IRecipeType<MelterHeatJeiRecipe> getRecipeType() {
         return RECIPE_TYPE;
     }
 
@@ -65,7 +66,8 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, MelterHeatEntry recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, MelterHeatJeiRecipe recipe, IFocusGroup focuses) {
+        MelterHeatEntry def = recipe.definition();
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
@@ -73,8 +75,8 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
         int slotX = JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X;
         int slotY = JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y;
 
-        List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacksFromMelterEntry(recipe, registryAccess);
-        List<FluidStack> fluids = JeiIngredientsHelper.getFluidStacksFromMelterEntry(recipe, registryAccess);
+        List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacksFromMelterEntry(def, registryAccess);
+        List<FluidStack> fluids = JeiIngredientsHelper.getFluidStacksFromMelterEntry(def, registryAccess);
 
         if (!blocks.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT, slotX, slotY).addItemStacks(blocks);
@@ -86,16 +88,17 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
     }
 
     @Override
-    public void draw(MelterHeatEntry recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+    public void draw(MelterHeatJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphicsExtractor guiGraphics, double mouseX, double mouseY) {
+        MelterHeatEntry def = recipe.definition();
         background.draw(guiGraphics);
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
 
-        String factorStr = formatFactor(recipe.factor());
+        String factorStr = formatFactor(def.factor());
         guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter_heat_source.factor", factorStr), margin, textY, color, false);
-        if (recipe.notValid()) {
+        if (def.notValid()) {
             guiGraphics.text(font, Component.translatable("jei.colossal_reactors.melter_heat_source.not_valid"), margin, textY + 10, 0xFF808080, false);
         }
     }
@@ -104,5 +107,10 @@ public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHea
         if (value == (long) value) return String.valueOf((long) value);
         if (value < 0.01) return String.format("%.3f", value);
         return String.format("%.2f", value);
+    }
+
+    @Override
+    public @Nullable Identifier getRegistryName(MelterHeatJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

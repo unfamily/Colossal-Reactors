@@ -6,8 +6,8 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 
 /**
- * Holds the REI display registry and fills static displays after datapack/world ready.
- * Dynamic generators registered in {@link ColossalReiRecipeRegistrar} cover most lookups.
+ * Same role as {@link net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync}:
+ * REI often reloads before Colossal loaders / RecipeManager are ready; fill again in-world.
  */
 public final class ReiDatapackRecipeSync {
     private static DisplayRegistry registry;
@@ -20,12 +20,12 @@ public final class ReiDatapackRecipeSync {
     }
 
     public static void syncWhenWorldReady() {
-        if (FMLEnvironment.getDist() != Dist.CLIENT || registry == null) {
+        if (FMLEnvironment.dist != Dist.CLIENT || registry == null) {
             return;
         }
         if (Minecraft.getInstance().level == null) {
             return;
         }
-        ColossalReiRecipeRegistrar.fillMissing(registry);
+        ColossalReiRecipeRegistrar.registerAll(registry);
     }
 }

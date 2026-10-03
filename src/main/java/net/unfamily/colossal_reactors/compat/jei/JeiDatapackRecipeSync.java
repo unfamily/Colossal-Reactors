@@ -1,22 +1,17 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
+import java.util.List;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
-import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
-import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
-import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
-import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 /**
  * JEI registers before datapack entries are resolved with a live level.
- * Fills melter, turbine, and heating coil categories after world load.
+ * Fills categories after world load using native RecipeHolder ids when available.
  */
 public final class JeiDatapackRecipeSync {
 
@@ -39,18 +34,21 @@ public final class JeiDatapackRecipeSync {
             return;
         }
         IRecipeManager recipeManager = runtime.getRecipeManager();
-        addIfFewerThanExpected(recipeManager, MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
-        addIfFewerThanExpected(recipeManager, MelterHeatSourceRecipeCategory.RECIPE_TYPE, MelterHeatsLoader.getAll());
-        addIfFewerThanExpected(recipeManager, ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getVisibleDefinitions());
-        addIfFewerThanExpected(recipeManager, TurbineGenerationRecipeCategory.RECIPE_TYPE,
-                TurbineGenerationLoader.getVisibleDefinitions().stream()
-                        .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
-                        .toList());
-        addIfFewerThanExpected(recipeManager, HeatingCoilRecipeCategory.RECIPE_TYPE,
-                ColossalReactorsJeiPlugin.buildHeatingCoilJeiRecipes());
+        addIfFewerThanExpected(recipeManager, MelterRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.melterRecipes());
+        addIfFewerThanExpected(
+                recipeManager, MelterHeatSourceRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.melterHeats());
+        addIfFewerThanExpected(recipeManager, ElecCoilRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.elecCoils());
+        addIfFewerThanExpected(
+                recipeManager, TurbineGenerationRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.turbineGeneration());
+        addIfFewerThanExpected(
+                recipeManager, HeatingCoilRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatingCoils());
+        addIfFewerThanExpected(recipeManager, FuelRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.fuels());
+        addIfFewerThanExpected(recipeManager, CoolantRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.coolants());
+        addIfFewerThanExpected(recipeManager, HeatSinkRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatSinks());
     }
 
-    private static <T> void addIfFewerThanExpected(IRecipeManager recipeManager, IRecipeType<T> recipeType, List<T> recipes) {
+    private static <T> void addIfFewerThanExpected(
+            IRecipeManager recipeManager, IRecipeType<T> recipeType, List<T> recipes) {
         if (recipes.isEmpty()) {
             return;
         }

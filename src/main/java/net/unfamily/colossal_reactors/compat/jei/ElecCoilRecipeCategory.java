@@ -18,13 +18,14 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.turbine.ElecCoilDefinition;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.List;
 
-public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinition> {
+public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilJeiRecipe> {
 
     public static final Identifier UID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "elec_coil");
-    public static final IRecipeType<ElecCoilDefinition> RECIPE_TYPE = IRecipeType.create(UID, ElecCoilDefinition.class);
+    public static final IRecipeType<ElecCoilJeiRecipe> RECIPE_TYPE = IRecipeType.create(UID, ElecCoilJeiRecipe.class);
 
     private static final int WIDTH = 180;
     private static final int HEIGHT = 54;
@@ -38,7 +39,7 @@ public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinitio
     }
 
     @Override
-    public IRecipeType<ElecCoilDefinition> getRecipeType() { return RECIPE_TYPE; }
+    public IRecipeType<ElecCoilJeiRecipe> getRecipeType() { return RECIPE_TYPE; }
 
     @Override
     public int getWidth() { return WIDTH; }
@@ -55,12 +56,13 @@ public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinitio
     public @Nullable IDrawable getIcon() { return icon; }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, ElecCoilDefinition recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, ElecCoilJeiRecipe recipe, IFocusGroup focuses) {
+        ElecCoilDefinition def = recipe.definition();
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        List<ItemStack> blocks = JeiIngredientsHelper.getElecCoilDisplayStacks(recipe.validBlocks(), registryAccess);
+        List<ItemStack> blocks = JeiIngredientsHelper.getElecCoilDisplayStacks(def.validBlocks(), registryAccess);
         if (!blocks.isEmpty()) {
             int slotX = JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X;
             int slotY = JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y;
@@ -69,20 +71,26 @@ public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinitio
     }
 
     @Override
-    public void draw(ElecCoilDefinition recipe, IRecipeSlotsView view, GuiGraphicsExtractor g, double mouseX, double mouseY) {
+    public void draw(ElecCoilJeiRecipe recipe, IRecipeSlotsView view, GuiGraphicsExtractor g, double mouseX, double mouseY) {
+        ElecCoilDefinition def = recipe.definition();
         background.draw(g);
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
         int color = 0xFF404040;
-        g.text(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_coe", formatMultiplier(recipe.effCoe())),
+        g.text(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_coe", formatMultiplier(def.effCoe())),
                 margin, textY, color, false);
-        g.text(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_max", formatMultiplier(recipe.effMax())),
+        g.text(font, Component.translatable("jei.colossal_reactors.elec_coil.eff_max", formatMultiplier(def.effMax())),
                 margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, color, false);
     }
 
     private static String formatMultiplier(double value) {
         if (value == (long) value) return String.valueOf((long) value);
         return String.format("%.2f", value);
+    }
+
+    @Override
+    public @Nullable Identifier getRegistryName(ElecCoilJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }
