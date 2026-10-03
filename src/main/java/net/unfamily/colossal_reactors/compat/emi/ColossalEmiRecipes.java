@@ -15,6 +15,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.compat.HeatingCoilViewerHelper;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
+import net.unfamily.colossal_reactors.compat.jei.ElecCoilJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.HeatSinkJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.MelterHeatJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.MelterJeiRecipe;
 import net.unfamily.colossal_reactors.compat.RecipeViewerHeatingCoilLayout;
 import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.compat.jei.CoolantJeiRecipe;
@@ -37,8 +42,10 @@ public final class ColossalEmiRecipes {
     private ColossalEmiRecipes() {}
 
     public static EmiRecipe coolant(CoolantJeiRecipe recipe) {
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(), "coolant", recipe.jeiId(), recipe.mediumCollisionSuffix());
         return new SimpleEmiRecipe(
-                EmiCategories.COOLANT, EmiStackHelper.syntheticRecipeId("coolant", recipe.jeiId()), 180, 62, true) {
+                EmiCategories.COOLANT, id, 180, 62, true) {
             @Override
             protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
@@ -78,8 +85,13 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe heatSink(HeatSinkDefinition recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "/heat_sink/" + Integer.toHexString(recipe.hashCode()));
+    public static EmiRecipe heatSink(HeatSinkJeiRecipe wrapper) {
+        HeatSinkDefinition recipe = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "heat_sink",
+                ViewerRecipeIds.fallbackId("heat_sink/" + Integer.toHexString(recipe.hashCode())),
+                null);
         return new SimpleEmiRecipe(EmiCategories.HEAT_SINK, id, 180, 54, false) {
             @Override
             protected void resolveStacks() {
@@ -107,8 +119,10 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe melter(MelterRecipe recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "/melter/" + recipe.inputId().getPath());
+    public static EmiRecipe melter(MelterJeiRecipe wrapper) {
+        MelterRecipe recipe = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(), "melter", ViewerRecipeIds.fallbackId("melter/" + recipe.inputId().getPath()), null);
         return new SimpleEmiRecipe(EmiCategories.MELTER, id, 180, 78, true) {
             @Override
             protected void resolveStacks() {
@@ -137,8 +151,13 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe melterHeat(MelterHeatEntry entry) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "/melter_heat/" + Integer.toHexString(entry.hashCode()));
+    public static EmiRecipe melterHeat(MelterHeatJeiRecipe wrapper) {
+        MelterHeatEntry entry = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "melter_heat",
+                ViewerRecipeIds.fallbackId("melter_heat/" + Integer.toHexString(entry.hashCode())),
+                Integer.toString(wrapper.entryIndex()));
         return new SimpleEmiRecipe(EmiCategories.MELTER_HEAT, id, 180, 52, false) {
             @Override
             protected void resolveStacks() {
@@ -167,8 +186,13 @@ public final class ColossalEmiRecipes {
         };
     }
 
-    public static EmiRecipe elecCoil(ElecCoilDefinition recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "/elec_coil/" + Integer.toHexString(recipe.hashCode()));
+    public static EmiRecipe elecCoil(ElecCoilJeiRecipe wrapper) {
+        ElecCoilDefinition recipe = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "elec_coil",
+                ViewerRecipeIds.fallbackId("elec_coil/" + Integer.toHexString(recipe.hashCode())),
+                null);
         return new SimpleEmiRecipe(EmiCategories.ELEC_COIL, id, 180, 54, false) {
             @Override
             protected void resolveStacks() {
@@ -189,9 +213,11 @@ public final class ColossalEmiRecipes {
     }
 
     public static EmiRecipe turbineGeneration(TurbineJeiRecipe recipe) {
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(), "turbine_generation", recipe.jeiId(), recipe.mediumCollisionSuffix());
         return new SimpleEmiRecipe(
                 EmiCategories.TURBINE_GENERATION,
-                EmiStackHelper.syntheticRecipeId("turbine_generation", recipe.jeiId()),
+                id,
                 180,
                 54,
                 true) {
@@ -239,8 +265,11 @@ public final class ColossalEmiRecipes {
     }
 
     public static EmiRecipe heatingCoil(HeatingCoilJeiRecipe recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(
-                "colossal_reactors", "/heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex());
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(),
+                "heating_coil",
+                ViewerRecipeIds.fallbackId("heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex()),
+                Integer.toString(recipe.optionIndex()));
         return new EmiRecipe() {
             private final List<EmiIngredient> inputs = buildInputs(recipe);
             private final EmiStack output = buildOutput(recipe);

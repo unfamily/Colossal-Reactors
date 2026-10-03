@@ -20,6 +20,7 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,5 +124,10 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
             return String.valueOf((long) value);
         }
         return String.format("%.2f", value);
+    }
+
+    @Override
+    public @Nullable ResourceLocation getRegistryName(CoolantJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

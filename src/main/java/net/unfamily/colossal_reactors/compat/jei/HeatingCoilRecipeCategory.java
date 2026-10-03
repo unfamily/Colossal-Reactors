@@ -28,6 +28,7 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -264,6 +265,11 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
             }
         });
         return out;
+    }
+
+    @Override
+    public @Nullable ResourceLocation getRegistryName(HeatingCoilJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }
 

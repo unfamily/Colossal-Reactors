@@ -1,15 +1,13 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
-
 import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * One JEI entry for a heating coil: a specific consume option (alternative) for a coil definition.
@@ -18,10 +16,21 @@ public record HeatingCoilJeiRecipe(
         ResourceLocation coilId,
         int durationTicks,
         int optionIndex,
-        ConsumeOption option
+        ConsumeOption option,
+        @Nullable ResourceLocation recipeId
 ) {
 
+    public HeatingCoilJeiRecipe(
+            ResourceLocation coilId, int durationTicks, int optionIndex, ConsumeOption option) {
+        this(coilId, durationTicks, optionIndex, option, null);
+    }
+
     public static List<HeatingCoilJeiRecipe> expand(HeatingCoilDefinition def) {
+        return expand(def, null);
+    }
+
+    public static List<HeatingCoilJeiRecipe> expand(
+            HeatingCoilDefinition def, @Nullable ResourceLocation recipeId) {
         List<ConsumeOption> opts = def.consume();
         if (opts == null || opts.isEmpty()) {
             return List.of();
@@ -30,7 +39,7 @@ public record HeatingCoilJeiRecipe(
         for (int i = 0; i < opts.size(); i++) {
             ConsumeOption jeiOpt = sanitizeForJei(opts.get(i));
             if (jeiOpt != null && !jeiOpt.isEmpty()) {
-                out.add(new HeatingCoilJeiRecipe(def.id(), def.duration(), i, jeiOpt));
+                out.add(new HeatingCoilJeiRecipe(def.id(), def.duration(), i, jeiOpt, recipeId));
             }
         }
         return out;

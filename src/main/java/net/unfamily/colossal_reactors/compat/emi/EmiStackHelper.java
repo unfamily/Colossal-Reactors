@@ -20,13 +20,7 @@ public final class EmiStackHelper {
      * Group prefix avoids collisions when coolant/turbine/fuel share the same base path (e.g. water).
      */
     public static ResourceLocation syntheticRecipeId(String group, ResourceLocation id) {
-        String ns = id != null ? id.getNamespace() : ColossalReactors.MODID;
-        String base = id != null ? id.getPath() : "unknown";
-        while (base.startsWith("/")) {
-            base = base.substring(1);
-        }
-        String safeGroup = (group == null || group.isBlank()) ? "recipe" : group;
-        return ResourceLocation.fromNamespaceAndPath(ns, "/" + safeGroup + "/" + base);
+        return net.unfamily.colossal_reactors.compat.ViewerRecipeIds.syntheticRecipeId(group, id);
     }
 
     public static EmiIngredient ingredientOf(ItemStack stack) {

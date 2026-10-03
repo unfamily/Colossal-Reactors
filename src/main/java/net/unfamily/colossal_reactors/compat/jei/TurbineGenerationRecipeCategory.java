@@ -21,6 +21,7 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -113,5 +114,10 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJ
         g.drawString(font, Component.translatable("jei.colossal_reactors.turbine_generation.rf_per_bucket",
                         TurbineGenerationLoader.formatRfPerSteamBucket(def.rfProduction())),
                 margin, textY, color, false);
+    }
+
+    @Override
+    public @Nullable ResourceLocation getRegistryName(TurbineJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

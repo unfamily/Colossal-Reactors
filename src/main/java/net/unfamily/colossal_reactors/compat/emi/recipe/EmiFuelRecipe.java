@@ -15,7 +15,9 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.compat.emi.ColossalEmiRecipeLayout;
 import net.unfamily.colossal_reactors.compat.emi.EmiCategories;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 import net.unfamily.colossal_reactors.compat.emi.EmiStackHelper;
+import net.unfamily.colossal_reactors.compat.jei.FuelJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.JeiIngredientsHelper;
 import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
@@ -30,9 +32,10 @@ public final class EmiFuelRecipe implements EmiRecipe {
     private final EmiIngredient input;
     private final EmiStack output;
 
-    public EmiFuelRecipe(FuelDefinition recipe) {
-        this.recipe = recipe;
-        this.id = EmiStackHelper.syntheticRecipeId("fuel", recipe.fuelId());
+    public EmiFuelRecipe(FuelJeiRecipe wrapper) {
+        this.recipe = wrapper.definition();
+        this.id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(), "fuel", wrapper.definition().fuelId(), null);
         var reg = EmiStackHelper.registryOrThrow();
         this.input = buildInput(recipe, reg);
         this.output = buildOutput(recipe, reg);

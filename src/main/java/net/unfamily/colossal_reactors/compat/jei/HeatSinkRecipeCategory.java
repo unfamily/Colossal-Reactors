@@ -20,18 +20,19 @@ import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.List;
 import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
-public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinition> {
+public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkJeiRecipe> {
 
     public static final ResourceLocation UID = RecipeViewerIds.REACTOR_HEAT_SINK;
     private static final int WIDTH = 180;
     /** Slots + three text lines */
     private static final int HEIGHT = 54;
 
-    public static final RecipeType<HeatSinkDefinition> RECIPE_TYPE = new RecipeType<>(UID, HeatSinkDefinition.class);
+    public static final RecipeType<HeatSinkJeiRecipe> RECIPE_TYPE = new RecipeType<>(UID, HeatSinkJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable icon;
@@ -42,7 +43,7 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
     }
 
     @Override
-    public RecipeType<HeatSinkDefinition> getRecipeType() {
+    public RecipeType<HeatSinkJeiRecipe> getRecipeType() {
         return RECIPE_TYPE;
     }
 
@@ -62,7 +63,8 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, HeatSinkDefinition recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, HeatSinkJeiRecipe recipe, IFocusGroup focuses) {
+        HeatSinkDefinition def = recipe.definition();
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
@@ -70,8 +72,8 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
         int slotX = JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X;
         int slotY = JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y;
 
-        List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacks(recipe.validBlocks(), registryAccess);
-        List<FluidStack> liquidFluids = JeiIngredientsHelper.getLiquidFluidStacks(recipe.validLiquids(), registryAccess);
+        List<ItemStack> blocks = JeiIngredientsHelper.getBlockStacks(def.validBlocks(), registryAccess);
+        List<FluidStack> liquidFluids = JeiIngredientsHelper.getLiquidFluidStacks(def.validLiquids(), registryAccess);
 
         if (!blocks.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT, slotX, slotY).addItemStacks(blocks);
@@ -81,13 +83,14 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
     }
 
     @Override
-    public void draw(HeatSinkDefinition recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+    public void draw(HeatSinkJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+        HeatSinkDefinition def = recipe.definition();
         var font = Minecraft.getInstance().font;
-        String fuelMult = formatMultiplier(recipe.fuelMultiplier());
-        String energyMult = formatMultiplier(recipe.energyMultiplier());
+        String fuelMult = formatMultiplier(def.fuelMultiplier());
+        String energyMult = formatMultiplier(def.energyMultiplier());
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
-        String heatMult = formatMultiplier(recipe.overheatingMultiplier());
+        String heatMult = formatMultiplier(def.overheatingMultiplier());
         guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.fuel_reduction", fuelMult), margin, textY, 0xFF404040, false);
         guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.rf_increment", energyMult), margin, textY + JeiRecipeBackgroundDrawable.TEXT_LINE_HEIGHT, 0xFF404040, false);
         guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.heat_sink.heat_reduction", heatMult), margin,
@@ -97,5 +100,10 @@ public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinitio
     private static String formatMultiplier(double value) {
         if (value == (long) value) return String.valueOf((long) value);
         return String.format("%.2f", value);
+    }
+
+    @Override
+    public @Nullable ResourceLocation getRegistryName(HeatSinkJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

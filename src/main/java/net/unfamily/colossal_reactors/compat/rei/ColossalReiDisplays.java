@@ -19,6 +19,12 @@ import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.compat.HeatingCoilViewerHelper;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
+import net.unfamily.colossal_reactors.compat.jei.ElecCoilJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.FuelJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.HeatSinkJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.MelterHeatJeiRecipe;
+import net.unfamily.colossal_reactors.compat.jei.MelterJeiRecipe;
 import net.unfamily.colossal_reactors.compat.RecipeViewerHeatingCoilLayout;
 import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.compat.jei.CoolantJeiRecipe;
@@ -45,7 +51,8 @@ import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 public final class ColossalReiDisplays {
     private ColossalReiDisplays() {}
 
-    public static ColossalReiDisplay fuel(FuelDefinition recipe) {
+    public static ColossalReiDisplay fuel(FuelJeiRecipe wrapper) {
+        FuelDefinition recipe = wrapper.definition();
         if (recipe.inputMedium() == FuelMedium.CHEMICAL || recipe.outputMedium() == FuelMedium.CHEMICAL) {
             if (!ReiChemicalHelper.canShowChemicals()) {
                 return null;
@@ -69,7 +76,9 @@ public final class ColossalReiDisplays {
                         JeiIngredientsHelper.getWasteOutputStacks(output, access), recipe.produce()));
             }
         }
-        return display(ColossalReiCategories.FUEL, recipe.fuelId(), inputs, outputs, (g, ox, oy) -> drawFuel(g, ox, oy, recipe));
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(), "fuel", recipe.fuelId(), null);
+        return display(ColossalReiCategories.FUEL, id, inputs, outputs, (g, ox, oy) -> drawFuel(g, ox, oy, recipe));
     }
 
     public static ColossalReiDisplay coolant(CoolantJeiRecipe recipe) {
@@ -92,11 +101,18 @@ public final class ColossalReiDisplays {
                 ReiChemicalHelper.addChemicals(outputs, recipe.outputSelectors());
             }
         }
-        return display(ColossalReiCategories.COOLANT, recipe.jeiId(), inputs, outputs, (g, ox, oy) -> drawCoolant(g, ox, oy, recipe));
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(), "coolant", recipe.jeiId(), recipe.mediumCollisionSuffix());
+        return display(ColossalReiCategories.COOLANT, id, inputs, outputs, (g, ox, oy) -> drawCoolant(g, ox, oy, recipe));
     }
 
-    public static ColossalReiDisplay heatSink(HeatSinkDefinition recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "heat_sink/" + Integer.toHexString(recipe.hashCode()));
+    public static ColossalReiDisplay heatSink(HeatSinkJeiRecipe wrapper) {
+        HeatSinkDefinition recipe = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "heat_sink",
+                ViewerRecipeIds.fallbackId("heat_sink/" + Integer.toHexString(recipe.hashCode())),
+                null);
         RegistryAccess access = registryAccess();
         List<EntryIngredient> inputs = new ArrayList<>();
         if (access != null) {
@@ -111,8 +127,10 @@ public final class ColossalReiDisplays {
         return display(ColossalReiCategories.HEAT_SINK, id, inputs, List.of(), (g, ox, oy) -> drawHeatSink(g, ox, oy, recipe));
     }
 
-    public static ColossalReiDisplay melter(MelterRecipe recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "melter/" + recipe.inputId().getPath());
+    public static ColossalReiDisplay melter(MelterJeiRecipe wrapper) {
+        MelterRecipe recipe = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(), "melter", ViewerRecipeIds.fallbackId("melter/" + recipe.inputId().getPath()), null);
         RegistryAccess access = registryAccess();
         List<EntryIngredient> inputs = new ArrayList<>();
         List<EntryIngredient> outputs = new ArrayList<>();
@@ -126,8 +144,13 @@ public final class ColossalReiDisplays {
         return display(ColossalReiCategories.MELTER, id, inputs, outputs, (g, ox, oy) -> drawMelter(g, ox, oy, recipe));
     }
 
-    public static ColossalReiDisplay melterHeat(MelterHeatEntry entry) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "melter_heat/" + Integer.toHexString(entry.hashCode()));
+    public static ColossalReiDisplay melterHeat(MelterHeatJeiRecipe wrapper) {
+        MelterHeatEntry entry = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "melter_heat",
+                ViewerRecipeIds.fallbackId("melter_heat/" + Integer.toHexString(entry.hashCode())),
+                Integer.toString(wrapper.entryIndex()));
         RegistryAccess access = registryAccess();
         List<EntryIngredient> inputs = new ArrayList<>();
         if (access != null) {
@@ -147,8 +170,11 @@ public final class ColossalReiDisplays {
         if (onlyChemical && !ReiChemicalHelper.canShowChemicals()) {
             return null;
         }
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(
-                "colossal_reactors", "heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex());
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(),
+                "heating_coil",
+                ViewerRecipeIds.fallbackId("heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex()),
+                Integer.toString(recipe.optionIndex()));
         List<EntryIngredient> inputs = new ArrayList<>();
         List<EntryIngredient> outputs = new ArrayList<>();
         ItemStack off = HeatingCoilViewerHelper.coilStack(recipe.coilId(), false);
@@ -180,8 +206,13 @@ public final class ColossalReiDisplays {
         return display(ColossalReiCategories.HEATING_COIL, id, inputs, outputs, (g, ox, oy) -> drawHeatingCoil(g, ox, oy, recipe));
     }
 
-    public static ColossalReiDisplay elecCoil(ElecCoilDefinition recipe) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("colossal_reactors", "elec_coil/" + Integer.toHexString(recipe.hashCode()));
+    public static ColossalReiDisplay elecCoil(ElecCoilJeiRecipe wrapper) {
+        ElecCoilDefinition recipe = wrapper.definition();
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                wrapper.recipeId(),
+                "elec_coil",
+                ViewerRecipeIds.fallbackId("elec_coil/" + Integer.toHexString(recipe.hashCode())),
+                null);
         RegistryAccess access = registryAccess();
         List<EntryIngredient> inputs = new ArrayList<>();
         if (access != null) {
@@ -216,7 +247,9 @@ public final class ColossalReiDisplays {
                 }
             }
         }
-        return display(ColossalReiCategories.TURBINE, recipe.jeiId(), inputs, outputs, (g, ox, oy) -> drawTurbine(g, ox, oy, recipe));
+        ResourceLocation id = ViewerRecipeIds.displayLocation(
+                recipe.recipeId(), "turbine_generation", recipe.jeiId(), recipe.mediumCollisionSuffix());
+        return display(ColossalReiCategories.TURBINE, id, inputs, outputs, (g, ox, oy) -> drawTurbine(g, ox, oy, recipe));
     }
 
     private static ColossalReiDisplay display(

@@ -24,18 +24,19 @@ import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.melter.MelterRecipe;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 import org.jetbrains.annotations.Nullable;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.ArrayList;
 import java.util.List;
 import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
-public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
+public class MelterRecipeCategory implements IRecipeCategory<MelterJeiRecipe> {
 
     public static final ResourceLocation UID = RecipeViewerIds.MELTER;
     private static final int WIDTH = 180;
     private static final int HEIGHT = 78;
 
-    public static final RecipeType<MelterRecipe> RECIPE_TYPE = new RecipeType<>(UID, MelterRecipe.class);
+    public static final RecipeType<MelterJeiRecipe> RECIPE_TYPE = new RecipeType<>(UID, MelterJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable icon;
@@ -46,7 +47,7 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
     }
 
     @Override
-    public RecipeType<MelterRecipe> getRecipeType() {
+    public RecipeType<MelterJeiRecipe> getRecipeType() {
         return RECIPE_TYPE;
     }
 
@@ -66,12 +67,13 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, MelterRecipe recipe, IFocusGroup focuses) {
+    public void setRecipe(IRecipeLayoutBuilder builder, MelterJeiRecipe recipe, IFocusGroup focuses) {
+        MelterRecipe def = recipe.definition();
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        List<ItemStack> inputs = resolveItemSelector(recipe.inputId(), recipe.inputIsTag(), recipe.count(), registryAccess);
+        List<ItemStack> inputs = resolveItemSelector(def.inputId(), def.inputIsTag(), def.count(), registryAccess);
         if (!inputs.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
@@ -79,7 +81,7 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
             ).addItemStacks(inputs);
         }
 
-        var fluid = MelterRecipesLoader.getOutputFluid(recipe, registryAccess);
+        var fluid = MelterRecipesLoader.getOutputFluid(def, registryAccess);
         if (fluid != null && fluid != Fluids.EMPTY) {
             // Display as 1000 mB so JEI shows a full tank; real amount is in the text below
             FluidStack out = new FluidStack(fluid, 1000);
@@ -91,7 +93,8 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
     }
 
     @Override
-    public void draw(MelterRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+    public void draw(MelterJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+        MelterRecipe def = recipe.definition();
         var font = Minecraft.getInstance().font;
         int textY = JeiRecipeBackgroundDrawable.TEXT_Y;
         int margin = JeiRecipeBackgroundDrawable.TEXT_MARGIN;
@@ -99,11 +102,11 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
         int color = 0xFF404040;
 
         guiGraphics.drawString(font,
-                Component.translatable("jei.colossal_reactors.melter.amount", recipe.amountMb()),
+                Component.translatable("jei.colossal_reactors.melter.amount", def.amountMb()),
                 margin, textY, color, false);
         guiGraphics.drawString(font,
                 Component.translatable("jei.colossal_reactors.melter.default_time",
-                        JeiIngredientsHelper.formatDefaultDuration(recipe.timeTicks())),
+                        JeiIngredientsHelper.formatDefaultDuration(def.timeTicks())),
                 margin, textY + lineHeight, color, false);
         guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter.heat_required_1"), margin, textY + lineHeight * 2, color, false);
         guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.melter.heat_required_2"), margin, textY + lineHeight * 3, color, false);
@@ -127,6 +130,11 @@ public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
             }
         }
         return out;
+    }
+
+    @Override
+    public @Nullable ResourceLocation getRegistryName(MelterJeiRecipe recipe) {
+        return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }
 
