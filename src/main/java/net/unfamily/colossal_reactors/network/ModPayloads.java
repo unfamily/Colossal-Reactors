@@ -77,6 +77,11 @@ public class ModPayloads {
                 ReactorBuilderHeatSinkPayload::handle
         );
         registrar.playToServer(
+                ReactorBuilderSimSettingsPayload.TYPE,
+                ReactorBuilderSimSettingsPayload.STREAM_CODEC,
+                ReactorBuilderSimSettingsPayload::handle
+        );
+        registrar.playToServer(
                 ReactorBuilderOptionPayload.TYPE,
                 ReactorBuilderOptionPayload.STREAM_CODEC,
                 ReactorBuilderOptionPayload::handle
@@ -110,6 +115,11 @@ public class ModPayloads {
                 TurbineBuilderCoilPayload.TYPE,
                 TurbineBuilderCoilPayload.STREAM_CODEC,
                 TurbineBuilderCoilPayload::handle
+        );
+        registrar.playToServer(
+                TurbineBuilderSimSettingsPayload.TYPE,
+                TurbineBuilderSimSettingsPayload.STREAM_CODEC,
+                TurbineBuilderSimSettingsPayload::handle
         );
         registrar.playToServer(
                 TurbineBuilderOptionPayload.TYPE,

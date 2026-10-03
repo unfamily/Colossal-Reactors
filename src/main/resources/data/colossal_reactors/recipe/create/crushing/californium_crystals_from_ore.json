@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "create" }],
+  "type": "create:crushing",
+  "ingredients": [{ "tag": "c:ores/californium" }],
+  "results": [{ "id": "colossal_reactors:californium_crystals", "count": 8 }],
+  "processingTime": 350
+}

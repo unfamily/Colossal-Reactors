@@ -35,6 +35,7 @@ import net.unfamily.colossal_reactors.network.ReactorBuilderBuildPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderMarkInputPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderHeatSinkPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderOptionPayload;
+import net.unfamily.colossal_reactors.network.ReactorBuilderSimSettingsPayload;
 import net.unfamily.colossal_reactors.network.ReactorBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
@@ -168,10 +169,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     /** Builder / simulation view on the same screen (like Deep Drawer sub-views). */
     private ViewMode viewMode = ViewMode.BUILDER;
-    /** Index into ordered coolant list for simulation view (which coolant type is shown). */
-    private int simulationCoolantIndex = 0;
-    /** Index into ordered fuel list for simulation view (which fuel type is shown). Default uranium if present. */
-    private int simulationFuelIndex = 0;
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.left_click";
     private static final String TOOLTIP_RIGHT_CLICK = "gui.colossal_reactors.reactor_builder.tooltip.right_click";
@@ -290,7 +287,6 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
                 .bounds(coolantX, coolantY, COOLANT_BUTTON_W, COOLANT_BUTTON_H)
                 .build();
         addRenderableWidget(coolantCycleButton);
-        simulationFuelIndex = getUraniumIndex();
         fuelCycleButton = Button.builder(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_uranium"), b -> cycleSimulationFuel(true))
                 .bounds(fuelX, coolantY, FUEL_BUTTON_W, COOLANT_BUTTON_H)
                 .build();
@@ -319,6 +315,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             } else {
                 lastPreviewSettingsHash = computePreviewSettingsHash();
             }
+        } else {
+            updateCoolantButtonLabel();
+            updateFuelButtonLabel();
         }
     }
 
@@ -342,30 +341,15 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         return new ArrayList<>(FuelLoader.getVisibleFuelIds());
     }
 
-    /** Index of uranium in ordered fuel list, or 0 if not found / empty. */
-    private static int getUraniumIndex() {
-        List<Identifier> ids = getOrderedFuelIds();
-        if (ids.isEmpty()) return 0;
-        for (int i = 0; i < ids.size(); i++) {
-            if (ReactorRodBlockEntity.URANIUM_FUEL_ID.equals(ids.get(i))) return i;
-        }
-        return 0;
-    }
-
     /** Number of options: 0 = None, then one per coolant. */
     private static int getCoolantOptionCount() {
         return 1 + getOrderedCoolantIds().size();
     }
 
     private void cycleSimulationCoolant(boolean next) {
-        int options = getCoolantOptionCount();
-        if (options <= 1) return;
-        if (next) {
-            simulationCoolantIndex = (simulationCoolantIndex + 1) % options;
-        } else {
-            simulationCoolantIndex = simulationCoolantIndex <= 0 ? options - 1 : simulationCoolantIndex - 1;
-        }
-        updateCoolantButtonLabel();
+        if (menu.getBlockEntity() == null || getCoolantOptionCount() <= 1) return;
+        ClientPacketDistributor.sendToServer(new ReactorBuilderSimSettingsPayload(
+                menu.getBlockPos(), ReactorBuilderSimSettingsPayload.SETTING_COOLANT, next));
     }
 
     private void updateCoolantButtonLabel() {
@@ -374,6 +358,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         Component clickHint = Component.translatable("gui.colossal_reactors.reactor_builder.simulation.click_hint");
         // Index 0 = None (no coolant)
         MutableComponent coolantTitle = Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_label");
+        int simulationCoolantIndex = menu.getSimCoolantIndex();
         if (simulationCoolantIndex == 0) {
             coolantCycleButton.setMessage(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_none"));
             coolantCycleButton.setTooltip(Tooltip.create(coolantTitle.append(Component.literal("\n")).append(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.coolant_tooltip", "—", "—")).append(Component.literal("\n")).append(clickHint)));
@@ -414,14 +399,9 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
     }
 
     private void cycleSimulationFuel(boolean next) {
-        List<Identifier> ids = getOrderedFuelIds();
-        if (ids.isEmpty()) return;
-        if (next) {
-            simulationFuelIndex = (simulationFuelIndex + 1) % ids.size();
-        } else {
-            simulationFuelIndex = simulationFuelIndex <= 0 ? ids.size() - 1 : simulationFuelIndex - 1;
-        }
-        updateFuelButtonLabel();
+        if (menu.getBlockEntity() == null || getOrderedFuelIds().isEmpty()) return;
+        ClientPacketDistributor.sendToServer(new ReactorBuilderSimSettingsPayload(
+                menu.getBlockPos(), ReactorBuilderSimSettingsPayload.SETTING_FUEL, next));
     }
 
     private void updateFuelButtonLabel() {
@@ -434,7 +414,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
             fuelCycleButton.setTooltip(Tooltip.create(fuelTitle.append(Component.literal("\n")).append(Component.translatable("gui.colossal_reactors.reactor_builder.simulation.fuel_tooltip", "—", "—")).append(Component.literal("\n")).append(clickHint)));
             return;
         }
-        if (simulationFuelIndex >= ids.size()) simulationFuelIndex = 0;
+        int simulationFuelIndex = Math.min(menu.getSimFuelIndex(), ids.size() - 1);
         Identifier id = ids.get(simulationFuelIndex);
         var ra = minecraft != null && minecraft.level != null ? minecraft.level.registryAccess() : null;
         Component label = getFuelDisplayName(id, ra);
@@ -833,7 +813,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         y = ReactorPanelText.drawMetricRow(guiGraphics, font, SIM_PANEL_X, y, SIM_LINE_HEIGHT,
                 "gui.colossal_reactors.reactor_builder.simulation.ratio.label",
                 Component.translatable("gui.colossal_reactors.reactor_builder.simulation.ratio.value",
-                        String.format("%.4f", result.consumptionProductionRatio())));
+                        GuiNumberFormat.formatReactorRfPerFuel(result.rfPerTick(), result.fuelPerTickHundredths())));
         return y;
     }
 
@@ -886,6 +866,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
 
     /** Current coolant for simulation: null = None (index 0), else the selected definition. */
     private CoolantDefinition getSimulationCoolantDef() {
+        int simulationCoolantIndex = menu.getSimCoolantIndex();
         if (simulationCoolantIndex <= 0) return null;
         List<Identifier> ids = getOrderedCoolantIds();
         int idx = simulationCoolantIndex - 1;
@@ -905,7 +886,7 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         var ra = minecraft.level.registryAccess();
         CoolantDefinition coolantDef = getSimulationCoolantDef();
         List<Identifier> fuelIds = getOrderedFuelIds();
-        Identifier simulationFuelId = fuelIds.isEmpty() ? null : fuelIds.get(Math.min(simulationFuelIndex, fuelIds.size() - 1));
+        Identifier simulationFuelId = fuelIds.isEmpty() ? null : fuelIds.get(Math.min(menu.getSimFuelIndex(), fuelIds.size() - 1));
         // Same order as ReactorBuildLogic: entity.sizeLeft, entity.sizeRight, entity.sizeHeight, entity.sizeDepth (sizeData 0,1,2,3)
         int sizeLeft = menu.getSizeRight();
         int sizeRight = menu.getSizeLeft();

@@ -157,6 +157,10 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
                 "gui.colossal_reactors.turbine_controller.efficiency.label",
                 Component.translatable("gui.colossal_reactors.turbine_controller.efficiency.value",
                         String.format("%.2f", bladeEff)));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_controller.ratio.label",
+                Component.translatable("gui.colossal_reactors.turbine_controller.ratio.value",
+                        GuiNumberFormat.formatTurbineRfPerMb(rfPerTick, steamPerTick)));
 
         return y - contentStart;
     }
@@ -197,4 +201,5 @@ public class TurbineControllerScreen extends AbstractContainerScreen<TurbineCont
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
+
 }

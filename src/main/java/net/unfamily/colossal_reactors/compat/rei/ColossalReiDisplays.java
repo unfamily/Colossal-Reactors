@@ -49,10 +49,12 @@ public final class ColossalReiDisplays {
             List<String> itemSelectors = new ArrayList<>();
             List<String> chemicalSelectors = new ArrayList<>();
             JeiIngredientsHelper.partitionSelectors(recipe.inputs(), itemSelectors, chemicalSelectors);
-            addItems(inputs, JeiIngredientsHelper.getFuelInputStacks(itemSelectors, access));
+            addItems(inputs, JeiIngredientsHelper.withCount(
+                    JeiIngredientsHelper.getFuelInputStacks(itemSelectors, access), recipe.consume()));
             String output = recipe.output();
             if (output == null || !net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector.isChemicalPrefix(output)) {
-                addItems(outputs, JeiIngredientsHelper.getWasteOutputStacks(output, access));
+                addItems(outputs, JeiIngredientsHelper.withCount(
+                        JeiIngredientsHelper.getWasteOutputStacks(output, access), recipe.produce()));
             }
         }
         return display(ColossalReiCategories.FUEL, recipe.fuelId(), inputs, outputs, (g, ox, oy) -> drawFuel(g, ox, oy, recipe));
@@ -168,9 +170,8 @@ public final class ColossalReiDisplays {
         int color = 0xFF404040;
         int consume = recipe.consume();
         int produce = recipe.produce();
-        String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(consume, produce);
-        g.text(font, Component.translatable("jei.colossal_reactors.consume_fuel", ratio[1]), margin, textY, color, false);
-        g.text(font, Component.translatable("jei.colossal_reactors.produce_waste", ratio[0]), margin, textY + lineHeight, color, false);
+        g.text(font, Component.translatable("jei.colossal_reactors.consume_fuel", consume), margin, textY, color, false);
+        g.text(font, Component.translatable("jei.colossal_reactors.produce_waste", produce), margin, textY + lineHeight, color, false);
         double fuelPower = recipe.baseRfPerTick() * Config.PRODUCTION_MULTIPLIER.get();
         g.text(font, Component.translatable("jei.colossal_reactors.fuel.power", formatNumber(fuelPower)),
                 margin, textY + lineHeight * 2, color, false);
@@ -180,7 +181,7 @@ public final class ColossalReiDisplays {
                 margin, textY + lineHeight * 4, color, false);
         g.text(font, Component.translatable("jei.colossal_reactors.fuel.units_per_waste", recipe.unitsPerWaste()),
                 margin, textY + lineHeight * 5, color, false);
-        g.text(font, Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste()),
+        g.text(font, Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste(), produce),
                 margin, textY + lineHeight * 6, color, false);
     }
 

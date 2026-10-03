@@ -123,14 +123,6 @@ public class ModBlocks {
             p -> p.sound(SoundType.METAL).strength(2.0f).requiresCorrectToolForDrops());
 
     // Resource ores (stone + deepslate)
-    public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.registerBlock("uranium_ore",
-            Block::new,
-            p -> p.sound(SoundType.STONE).strength(3.0f, 3.0f).requiresCorrectToolForDrops());
-
-    public static final DeferredBlock<Block> DEEPSLATE_URANIUM_ORE = BLOCKS.registerBlock("deep_uranium_ore",
-            Block::new,
-            p -> p.sound(SoundType.DEEPSLATE).strength(4.5f, 3.0f).requiresCorrectToolForDrops());
-
     public static final DeferredBlock<Block> LEAD_ORE = BLOCKS.registerBlock("lead_ore",
             Block::new,
             p -> p.sound(SoundType.STONE).strength(3.0f, 3.0f).requiresCorrectToolForDrops());
@@ -155,15 +147,11 @@ public class ModBlocks {
             Block::new,
             p -> p.sound(SoundType.DEEPSLATE).strength(4.5f, 3.0f).requiresCorrectToolForDrops());
 
+    public static final DeferredBlock<Block> CALIFORNIUM_END_ORE = BLOCKS.registerBlock("californium_end_ore",
+            Block::new,
+            p -> p.sound(SoundType.STONE).strength(3.0f, 9.0f).requiresCorrectToolForDrops());
+
     // Storage and raw blocks
-    public static final DeferredBlock<Block> URANIUM_BLOCK = BLOCKS.registerBlock("uranium_block",
-            Block::new,
-            p -> p.sound(SoundType.METAL).strength(5.0f, 6.0f).requiresCorrectToolForDrops());
-
-    public static final DeferredBlock<Block> URANIUM_RAW_BLOCK = BLOCKS.registerBlock("uranium_raw_block",
-            Block::new,
-            p -> p.sound(SoundType.STONE).strength(5.0f, 6.0f).requiresCorrectToolForDrops());
-
     public static final DeferredBlock<Block> CHROMIUM_BLOCK = BLOCKS.registerBlock("chromium_block",
             Block::new,
             p -> p.sound(SoundType.METAL).strength(5.0f, 6.0f).requiresCorrectToolForDrops());

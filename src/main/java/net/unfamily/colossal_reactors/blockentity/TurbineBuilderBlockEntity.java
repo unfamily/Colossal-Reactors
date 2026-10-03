@@ -41,6 +41,7 @@ import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
 import net.unfamily.colossal_reactors.menu.TurbineBuilderMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineBuildLogic;
+import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.turbine.TurbinePlacementAxis;
 import net.unfamily.colossal_reactors.turbine.TurbineRodSpaceLayout;
 import org.jetbrains.annotations.Nullable;
@@ -63,6 +64,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_SIZE_D = "SizeD";
     private static final String TAG_SIZE_W = "SizeW";
     private static final String TAG_COIL_IDX = "CoilIdx";
+    private static final String TAG_SIM_GENERATION_IDX = "SimGenerationIdx";
     private static final String TAG_OPEN_TOP = "OpenTop";
     private static final String TAG_ROD_PATTERN = "RodPattern";
     private static final String TAG_PATTERN_MODE = "PatternMode";
@@ -177,6 +179,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int sizeDepth = 6;
     /** Heat sink option index for fill: 0 = Air, 1.. = ElecCoilLoader definition index. */
     private int selectedCoilIndex = 0;
+    /** Simulation steam-generation recipe index among visible definitions. */
+    private int simGenerationIndex = 0;
     /** When built: true = absolute top face open (no top casing); rod controller still placed. */
     private boolean openTop = false;
     private int coilLayerCount = net.unfamily.colossal_reactors.Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
@@ -260,13 +264,15 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
                 case 15 -> placementAxis.ordinal();
+                case 16 -> getSimGenerationIndex();
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) {
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11
+                    && index != 12 && index != 13 && index != 14 && index != 15 && index != 16) {
                 return;
             }
             switch (index) {
@@ -294,13 +300,14 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                         placementAxis = dirs[value];
                     }
                 }
+                case 16 -> simGenerationIndex = Math.max(0, value);
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 16;
+            return 17;
         }
     };
 
@@ -554,6 +561,25 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
+    public int getSimGenerationIndex() {
+        int count = TurbineGenerationLoader.getVisibleDefinitions().size();
+        if (count <= 0) return 0;
+        return Math.max(0, Math.min(count - 1, simGenerationIndex));
+    }
+
+    /** Cycle simulation steam-generation recipe among visible definitions. */
+    public void cycleSimGeneration(boolean next) {
+        int count = TurbineGenerationLoader.getVisibleDefinitions().size();
+        if (count <= 0) return;
+        int current = getSimGenerationIndex();
+        if (next) {
+            simGenerationIndex = (current + 1) % count;
+        } else {
+            simGenerationIndex = current <= 0 ? count - 1 : current - 1;
+        }
+        setChanged();
+    }
+
     /**
      * Returns the reactor volume AABB in world coordinates (block-aligned).
      * Reactor extends from one block behind the builder (opposite of facing), with left/right/up/depth from sizes.
@@ -666,6 +692,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         output.putInt(TAG_SIZE_H, sizeHeight);
         output.putInt(TAG_SIZE_D, sizeDepth);
         output.putInt(TAG_COIL_IDX, selectedCoilIndex);
+        output.putInt(TAG_SIM_GENERATION_IDX, getSimGenerationIndex());
         output.putInt("CoilLayerCount", coilLayerCount);
         output.putInt(TAG_ROD_PATTERN, rodPattern);
         output.putString(TAG_PLACEMENT_AXIS, placementAxis.getName());
@@ -738,6 +765,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         input.getInt(TAG_SIZE_H).ifPresent(v -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), v)));
         input.getInt(TAG_SIZE_D).ifPresent(v -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), v)));
         input.getInt(TAG_COIL_IDX).ifPresent(v -> selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, v)));
+        input.getInt(TAG_SIM_GENERATION_IDX).ifPresent(v -> simGenerationIndex = Math.max(0, v));
         input.getInt("CoilLayerCount").ifPresent(v -> coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, v)));
         clampCoilLayerCountToFit();
         input.getInt(TAG_ROD_PATTERN).ifPresent(v -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, v)));

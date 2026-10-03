@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "modern_industrialization" }
+  ],
+  "type": "modern_industrialization:macerator",
+  "duration": 200,
+  "eu": 2,
+  "item_inputs": [
+    { "amount": 1, "tag": "c:ores/californium" }
+  ],
+  "item_outputs": [
+    { "amount": 8, "item": "colossal_reactors:californium_crystals" }
+  ]
+}

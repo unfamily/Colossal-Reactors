@@ -67,23 +67,19 @@ public class ModItems {
             props -> props.useBlockDescriptionPrefix());
     public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.registerSimpleBlockItem(ModBlocks.TURBINE_ROD_CONTROLLER);
 
-    public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.registerSimpleItem("uranium_ingot");
     public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.registerSimpleItem("nuclear_waste");
     public static final DeferredItem<Item> CATALYST_BREEZIUM = ITEMS.registerSimpleItem("catalyst_breezium");
     public static final DeferredItem<Item> RADIATION_CURE = ITEMS.registerItem("radiation_cure", RadiationCureItem::new,
             p -> p.stacksTo(16));
 
     // Resource block items
-    public static final DeferredItem<BlockItem> URANIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_ORE);
-    public static final DeferredItem<BlockItem> DEEPSLATE_URANIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_URANIUM_ORE);
     public static final DeferredItem<BlockItem> LEAD_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.LEAD_ORE);
     public static final DeferredItem<BlockItem> DEEPSLATE_LEAD_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_LEAD_ORE);
     public static final DeferredItem<BlockItem> BORON_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.BORON_ORE);
     public static final DeferredItem<BlockItem> DEEPSLATE_BORON_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_BORON_ORE);
     public static final DeferredItem<BlockItem> CHROMIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.CHROMIUM_ORE);
     public static final DeferredItem<BlockItem> DEEPSLATE_CHROMIUM_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.DEEPSLATE_CHROMIUM_ORE);
-    public static final DeferredItem<BlockItem> URANIUM_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_BLOCK);
-    public static final DeferredItem<BlockItem> URANIUM_RAW_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.URANIUM_RAW_BLOCK);
+    public static final DeferredItem<BlockItem> CALIFORNIUM_END_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.CALIFORNIUM_END_ORE);
     public static final DeferredItem<BlockItem> LEAD_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.LEAD_BLOCK);
     public static final DeferredItem<BlockItem> RAW_LEAD_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.RAW_LEAD_BLOCK);
     public static final DeferredItem<BlockItem> BORON_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.BORON_BLOCK);
@@ -96,18 +92,18 @@ public class ModItems {
     public static final DeferredItem<BlockItem> STAINLESS_STEEL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.STAINLESS_STEEL_BLOCK);
 
     // Raw materials and ingots
-    public static final DeferredItem<Item> RAW_URANIUM = ITEMS.registerSimpleItem("raw_uranium");
     public static final DeferredItem<Item> LEAD_RAW = ITEMS.registerSimpleItem("lead_raw");
     public static final DeferredItem<Item> BORON_RAW = ITEMS.registerSimpleItem("boron_raw");
     public static final DeferredItem<Item> BORON_INGOT = ITEMS.registerSimpleItem("boron_ingot");
     public static final DeferredItem<Item> GRAPHITE_INGOT = ITEMS.registerSimpleItem("graphite_ingot");
     public static final DeferredItem<Item> AZURITE_INGOT = ITEMS.registerSimpleItem("azurite_ingot");
+    public static final DeferredItem<Item> CALIFORNIUM_CRYSTALS = ITEMS.registerSimpleItem("californium_crystals");
+    public static final DeferredItem<Item> RED_CAKE = ITEMS.registerSimpleItem("red_cake");
     public static final DeferredItem<Item> LEAD_INGOT = ITEMS.registerSimpleItem("lead_ingot");
     public static final DeferredItem<Item> TOUGH_ALLOY_INGOT = ITEMS.registerSimpleItem("tough_alloy_ingot");
     public static final DeferredItem<Item> UNREFINED_TOUGH_ALLOY = ITEMS.registerSimpleItem("unrefined_tough_alloy");
 
     // Dusts (for crusher/enriching integration)
-    public static final DeferredItem<Item> URANIUM_DUST = ITEMS.registerSimpleItem("uranium_dust");
     public static final DeferredItem<Item> LEAD_DUST = ITEMS.registerSimpleItem("lead_dust");
     public static final DeferredItem<Item> BORON_DUST = ITEMS.registerSimpleItem("boron_dust");
 

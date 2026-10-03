@@ -54,16 +54,13 @@ public class ModCreativeModeTabs {
                                     output.accept(ModItems.RADIATION_CURE.get());
                                 }
                                 for (var item : ModItems.HEATING_COIL_OFF_ITEMS) output.accept(item.get());
-                                output.accept(ModItems.URANIUM_ORE.get());
-                                output.accept(ModItems.DEEPSLATE_URANIUM_ORE.get());
                                 output.accept(ModItems.LEAD_ORE.get());
                                 output.accept(ModItems.DEEPSLATE_LEAD_ORE.get());
                                 output.accept(ModItems.BORON_ORE.get());
                                 output.accept(ModItems.DEEPSLATE_BORON_ORE.get());
                                 output.accept(ModItems.CHROMIUM_ORE.get());
                                 output.accept(ModItems.DEEPSLATE_CHROMIUM_ORE.get());
-                                output.accept(ModItems.URANIUM_BLOCK.get());
-                                output.accept(ModItems.URANIUM_RAW_BLOCK.get());
+                                output.accept(ModItems.CALIFORNIUM_END_ORE.get());
                                 output.accept(ModItems.LEAD_BLOCK.get());
                                 output.accept(ModItems.RAW_LEAD_BLOCK.get());
                                 output.accept(ModItems.BORON_BLOCK.get());
@@ -74,13 +71,13 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.CHROMIUM_BLOCK.get());
                                 output.accept(ModItems.CHROMIUM_RAW_BLOCK.get());
                                 output.accept(ModItems.STAINLESS_STEEL_BLOCK.get());
-                                output.accept(ModItems.RAW_URANIUM.get());
-                                output.accept(ModItems.URANIUM_INGOT.get());
                                 output.accept(ModItems.LEAD_RAW.get());
                                 output.accept(ModItems.BORON_RAW.get());
                                 output.accept(ModItems.BORON_INGOT.get());
                                 output.accept(ModItems.GRAPHITE_INGOT.get());
                                 output.accept(ModItems.AZURITE_INGOT.get());
+                                output.accept(ModItems.CALIFORNIUM_CRYSTALS.get());
+                                output.accept(ModItems.RED_CAKE.get());
                                 output.accept(ModItems.LEAD_INGOT.get());
                                 output.accept(ModItems.UNREFINED_TOUGH_ALLOY.get());
                                 output.accept(ModItems.TOUGH_ALLOY_INGOT.get());
@@ -89,7 +86,6 @@ public class ModCreativeModeTabs {
                                 output.accept(ModItems.CHROMIUM_DUST.get());
                                 output.accept(ModItems.UNREFINED_STAINLESS_STEEL.get());
                                 output.accept(ModItems.STAINLESS_STEEL_INGOT.get());
-                                output.accept(ModItems.URANIUM_DUST.get());
                                 output.accept(ModItems.LEAD_DUST.get());
                                 output.accept(ModItems.BORON_DUST.get());
                                 output.accept(ModItems.NUCLEAR_WASTE.get());

@@ -6,6 +6,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.unfamily.colossal_reactors.Config;
 import net.unfamily.colossal_reactors.item.ModItems;
@@ -71,15 +72,28 @@ public final class TurbineBladePlacement {
         return dirs;
     }
 
+    /**
+     * Safe {@link BlockGetter#getBlockState} for client section meshing.
+     * {@code RenderChunkRegion} only covers a 3x3 chunk window; long blade rings can walk outside and
+     * throw {@link ArrayIndexOutOfBoundsException}. Treat out-of-window as empty air.
+     */
+    public static BlockState safeGetBlockState(BlockGetter level, BlockPos pos) {
+        try {
+            return level.getBlockState(pos);
+        } catch (IndexOutOfBoundsException ignored) {
+            return Blocks.AIR.defaultBlockState();
+        }
+    }
+
     /** Blade count on one lateral axis from the rod outward (capped by config). */
     public static int depthAlong(BlockGetter level, BlockPos rodPos, Direction lateralDir) {
         Block blade = ModBlocks.TURBINE_BLADE.get();
         int depth = 0;
-        BlockPos pos = rodPos.relative(lateralDir);
+        BlockPos.MutableBlockPos pos = rodPos.mutable().move(lateralDir);
         int cap = maxRing();
-        while (depth < cap && level.getBlockState(pos).is(blade)) {
+        while (depth < cap && safeGetBlockState(level, pos).is(blade)) {
             depth++;
-            pos = pos.relative(lateralDir);
+            pos.move(lateralDir);
         }
         return depth;
     }
@@ -98,7 +112,7 @@ public final class TurbineBladePlacement {
         List<Direction> lateral = lateralDirections(rodAxis);
         for (int ring = 1; ring <= limit; ring++) {
             for (Direction dir : lateral) {
-                if (!level.getBlockState(rodPos.relative(dir, ring)).is(ModBlocks.TURBINE_BLADE.get())) {
+                if (!safeGetBlockState(level, rodPos.relative(dir, ring)).is(ModBlocks.TURBINE_BLADE.get())) {
                     return ring;
                 }
             }
@@ -120,7 +134,7 @@ public final class TurbineBladePlacement {
         List<Direction> missing = new ArrayList<>();
         int minDepth = Integer.MAX_VALUE;
         for (Direction dir : lateral) {
-            if (!level.getBlockState(rodPos.relative(dir, ring)).is(ModBlocks.TURBINE_BLADE.get())) {
+            if (!safeGetBlockState(level, rodPos.relative(dir, ring)).is(ModBlocks.TURBINE_BLADE.get())) {
                 missing.add(dir);
                 minDepth = Math.min(minDepth, depthAlong(level, rodPos, dir));
             }
@@ -161,11 +175,11 @@ public final class TurbineBladePlacement {
         Block blade = ModBlocks.TURBINE_BLADE.get();
         int scanCap = Math.max(maxRing(), 64);
         for (Direction dir : lateralDirections(rodAxis)) {
-            BlockPos pos = rodPos.relative(dir);
+            BlockPos.MutableBlockPos pos = rodPos.mutable().move(dir);
             int distance = 0;
-            while (distance < scanCap && level.getBlockState(pos).is(blade)) {
+            while (distance < scanCap && safeGetBlockState(level, pos).is(blade)) {
                 blades.add(pos.immutable());
-                pos = pos.relative(dir);
+                pos.move(dir);
                 distance++;
             }
         }
@@ -229,17 +243,17 @@ public final class TurbineBladePlacement {
             return Optional.empty();
         }
         Direction towardRod = bladeState.getValue(TurbineBladeBlock.FACING).getOpposite();
-        BlockPos scan = bladePos.relative(towardRod);
+        BlockPos.MutableBlockPos scan = bladePos.mutable().move(towardRod);
         int cap = maxRing() + 1;
         for (int step = 0; step <= cap; step++) {
-            BlockState at = level.getBlockState(scan);
+            BlockState at = safeGetBlockState(level, scan);
             if (at.is(ModBlocks.TURBINE_ROD.get())) {
-                return Optional.of(scan);
+                return Optional.of(scan.immutable());
             }
             if (!at.is(ModBlocks.TURBINE_BLADE.get())) {
                 return Optional.empty();
             }
-            scan = scan.relative(towardRod);
+            scan.move(towardRod);
         }
         return Optional.empty();
     }

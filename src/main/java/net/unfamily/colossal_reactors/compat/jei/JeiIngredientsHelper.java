@@ -181,6 +181,22 @@ public final class JeiIngredientsHelper {
         return selectorToItemStacks(output, registryAccess);
     }
 
+    /** Copies stacks with a fixed count (fuel consume / waste produce amounts for recipe viewers). */
+    public static List<ItemStack> withCount(List<ItemStack> stacks, int count) {
+        if (stacks == null || stacks.isEmpty()) {
+            return List.of();
+        }
+        int amount = Math.max(1, count);
+        List<ItemStack> out = new ArrayList<>(stacks.size());
+        for (ItemStack stack : stacks) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            out.add(stack.copyWithCount(amount));
+        }
+        return out;
+    }
+
     /** Display-only stack for {@code minecraft:air} heat sink entries (no block item in vanilla). */
     public static ItemStack heatSinkAirInteriorDisplayStack() {
         ItemStack stack = new ItemStack(Items.STRUCTURE_VOID);

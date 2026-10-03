@@ -4,7 +4,6 @@
   "values": [
     "#mekanism:clumps",
     "#c:clumps/boron",
-    "#c:clumps/chromium",
-    "#c:clumps/uranium"
+    "#c:clumps/chromium"
   ]
 }

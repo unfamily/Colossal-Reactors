@@ -38,6 +38,8 @@ import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.unfamily.colossal_reactors.transfer.LegacyIFluidHandlerResourceHandler;
 import net.unfamily.colossal_reactors.Config;
+import net.unfamily.colossal_reactors.coolant.CoolantLoader;
+import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.menu.ReactorBuilderMenu;
 import net.unfamily.colossal_reactors.reactor.ReactorBuildLogic;
@@ -62,6 +64,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_SIZE_D = "SizeD";
     private static final String TAG_SIZE_W = "SizeW";
     private static final String TAG_HEAT_SINK_IDX = "HeatSinkIdx";
+    private static final String TAG_SIM_COOLANT_IDX = "SimCoolantIdx";
+    private static final String TAG_SIM_FUEL_IDX = "SimFuelIdx";
     private static final String TAG_OPEN_TOP = "OpenTop";
     private static final String TAG_ROD_PATTERN = "RodPattern";
     private static final String TAG_PATTERN_MODE = "PatternMode";
@@ -189,6 +193,10 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int sizeDepth = 6;
     /** Heat sink option index for fill: 0 = Air, 1.. = HeatSinkLoader definition index. */
     private int selectedHeatSinkIndex = 0;
+    /** Simulation coolant option: 0 = None, then one per visible coolant. */
+    private int simCoolantIndex = 0;
+    /** Simulation fuel option index; -1 = default to uranium when available. */
+    private int simFuelIndex = -1;
     /** When built: true = top face open for manual edits, false = closed. */
     private boolean openTop = false;
     /** Rod column pattern: 0=DOTS, 1=CHECKERBOARD, 2=EXPANSION. */
@@ -269,13 +277,16 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected ? 1 : 0;
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
+                case 15 -> getSimCoolantIndex();
+                case 16 -> getSimFuelIndex();
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14) return;
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11
+                    && index != 12 && index != 13 && index != 14 && index != 15 && index != 16) return;
             switch (index) {
                 case 0 -> {
                     sizeLeft = Math.max(0, Math.min(getMaxWidth() - sizeRight, value));
@@ -295,13 +306,15 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 12 -> invalidBlocksDetected = value != 0;
                 case 13 -> buildProgressPercent = Math.max(0, Math.min(100, value));
                 case 14 -> buildProgressVisible = value != 0;
+                case 15 -> simCoolantIndex = Math.max(0, Math.min(simCoolantOptionCount() - 1, value));
+                case 16 -> simFuelIndex = Math.max(0, value);
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 15;
+            return 17;
         }
     };
 
@@ -501,6 +514,52 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
+    private static int simCoolantOptionCount() {
+        return 1 + CoolantLoader.getVisibleCoolantIds().size();
+    }
+
+    public int getSimCoolantIndex() {
+        return Math.max(0, Math.min(simCoolantOptionCount() - 1, simCoolantIndex));
+    }
+
+    public int getSimFuelIndex() {
+        List<Identifier> ids = FuelLoader.getVisibleFuelIds();
+        if (ids.isEmpty()) return 0;
+        if (simFuelIndex < 0) {
+            for (int i = 0; i < ids.size(); i++) {
+                if (ReactorRodBlockEntity.URANIUM_FUEL_ID.equals(ids.get(i))) return i;
+            }
+            return 0;
+        }
+        return Math.max(0, Math.min(ids.size() - 1, simFuelIndex));
+    }
+
+    /** Cycle simulation coolant: 0 = None, then visible coolants. */
+    public void cycleSimCoolant(boolean next) {
+        int options = simCoolantOptionCount();
+        if (options <= 1) return;
+        int current = getSimCoolantIndex();
+        if (next) {
+            simCoolantIndex = (current + 1) % options;
+        } else {
+            simCoolantIndex = current <= 0 ? options - 1 : current - 1;
+        }
+        setChanged();
+    }
+
+    /** Cycle simulation fuel among visible fuel definitions. */
+    public void cycleSimFuel(boolean next) {
+        List<Identifier> ids = FuelLoader.getVisibleFuelIds();
+        if (ids.isEmpty()) return;
+        int current = getSimFuelIndex();
+        if (next) {
+            simFuelIndex = (current + 1) % ids.size();
+        } else {
+            simFuelIndex = current <= 0 ? ids.size() - 1 : current - 1;
+        }
+        setChanged();
+    }
+
     /**
      * Returns the reactor volume AABB in world coordinates (block-aligned).
      * Reactor extends from one block behind the builder (opposite of facing), with left/right/up/depth from sizes.
@@ -609,6 +668,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         output.putInt(TAG_SIZE_H, sizeHeight);
         output.putInt(TAG_SIZE_D, sizeDepth);
         output.putInt(TAG_HEAT_SINK_IDX, selectedHeatSinkIndex);
+        output.putInt(TAG_SIM_COOLANT_IDX, getSimCoolantIndex());
+        output.putInt(TAG_SIM_FUEL_IDX, getSimFuelIndex());
         output.putBoolean(TAG_OPEN_TOP, openTop);
         output.putInt(TAG_ROD_PATTERN, rodPattern);
         output.putInt(TAG_PATTERN_MODE, patternMode);
@@ -680,6 +741,8 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         input.getInt(TAG_SIZE_H).ifPresent(v -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), v)));
         input.getInt(TAG_SIZE_D).ifPresent(v -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), v)));
         input.getInt(TAG_HEAT_SINK_IDX).ifPresent(v -> selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, v)));
+        input.getInt(TAG_SIM_COOLANT_IDX).ifPresent(v -> simCoolantIndex = Math.max(0, Math.min(simCoolantOptionCount() - 1, v)));
+        input.getInt(TAG_SIM_FUEL_IDX).ifPresent(v -> simFuelIndex = Math.max(0, v));
         openTop = input.getBooleanOr(TAG_OPEN_TOP, openTop);
         input.getInt(TAG_ROD_PATTERN).ifPresent(v -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, v)));
         input.getInt(TAG_PATTERN_MODE).ifPresent(v -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, v)));

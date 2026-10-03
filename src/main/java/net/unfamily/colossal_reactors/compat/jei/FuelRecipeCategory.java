@@ -75,7 +75,8 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
         List<String> chemicalSelectors = new ArrayList<>();
         JeiIngredientsHelper.partitionSelectors(recipe.inputs(), itemSelectors, chemicalSelectors);
 
-        List<ItemStack> inputs = JeiIngredientsHelper.getFuelInputStacks(itemSelectors, registryAccess);
+        List<ItemStack> inputs = JeiIngredientsHelper.withCount(
+                JeiIngredientsHelper.getFuelInputStacks(itemSelectors, registryAccess), recipe.consume());
         if (!inputs.isEmpty()) {
             builder.addSlot(RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
@@ -89,7 +90,8 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
             JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT, JeiRecipeBackgroundDrawable.SLOT_OUT_X,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_Y, List.of(output));
         } else {
-            List<ItemStack> outputs = JeiIngredientsHelper.getWasteOutputStacks(output, registryAccess);
+            List<ItemStack> outputs = JeiIngredientsHelper.withCount(
+                    JeiIngredientsHelper.getWasteOutputStacks(output, registryAccess), recipe.produce());
             if (!outputs.isEmpty()) {
                 builder.addSlot(RecipeIngredientRole.OUTPUT,
                         JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
@@ -109,9 +111,8 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
 
         int consume = recipe.consume();
         int produce = recipe.produce();
-        String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(consume, produce);
-        Component consumeFuel = Component.translatable("jei.colossal_reactors.consume_fuel", ratio[1]);
-        Component produceWaste = Component.translatable("jei.colossal_reactors.produce_waste", ratio[0]);
+        Component consumeFuel = Component.translatable("jei.colossal_reactors.consume_fuel", consume);
+        Component produceWaste = Component.translatable("jei.colossal_reactors.produce_waste", produce);
         guiGraphics.text(font, consumeFuel, margin, textY, color, false);
         guiGraphics.text(font, produceWaste, margin, textY + lineHeight, color, false);
 
@@ -130,7 +131,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
                 Component.translatable("jei.colossal_reactors.fuel.units_per_waste", recipe.unitsPerWaste()),
                 margin, textY + lineHeight * 5, color, false);
         guiGraphics.text(font,
-                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste()),
+                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste(), produce),
                 margin, textY + lineHeight * 6, color, false);
     }
 

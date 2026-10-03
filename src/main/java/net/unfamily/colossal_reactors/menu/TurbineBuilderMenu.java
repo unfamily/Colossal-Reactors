@@ -159,6 +159,8 @@ public class TurbineBuilderMenu extends AbstractContainerMenu {
     public int getBuildProgressPercent() { return sizeData.get(13); }
     public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
     public int getPlacementAxisOrdinal() { return sizeData.get(15); }
+    /** Simulation steam-generation recipe index (index 16). */
+    public int getSimGenerationIndex() { return sizeData.get(16); }
 
     @Override
     public boolean stillValid(Player player) {
