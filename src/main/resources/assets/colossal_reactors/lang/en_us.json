@@ -104,6 +104,7 @@
   "gui.colossal_reactors.radiation_scrubber.slot.modules.accepts": "Accepts Iskandert's Utilities Production Module",
   "gui.colossal_reactors.melter.tank_tooltip": "%s / %s mB",
   "gui.colossal_reactors.melter.tank_empty": "Empty",
+  "gui.colossal_reactors.melter.show_recipes": "Show Melter recipes",
   "gui.colossal_reactors.resource_port.mode.insert": "Insert",
   "gui.colossal_reactors.resource_port.mode.extract": "Extract",
   "gui.colossal_reactors.resource_port.mode.eject": "Eject",

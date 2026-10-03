@@ -128,6 +128,7 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
 
     @Override
     public @Nullable ResourceLocation getRegistryName(CoolantJeiRecipe recipe) {
+        // Bare RecipeManager / KubeJS id when present (shared with EMI/REI).
         return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

@@ -45,6 +45,7 @@ public record CoolantJeiRecipe(
         boolean gasOut = def.outputs().stream().anyMatch(MaterialSelector::isChemicalPrefix);
 
         List<CoolantJeiRecipe> out = new ArrayList<>();
+        // Same RecipeManager / KubeJS id on every medium card (no synthetic /gas ids).
         if (liquidIn) {
             out.add(new CoolantJeiRecipe(def, JeiMedium.LIQUID, recipeId));
         }

@@ -21,6 +21,7 @@ import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
+import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
@@ -146,7 +147,8 @@ public final class ColossalRecipeData {
                 recipes(recipeManager, ModColossalRecipes.HEATING_COILS.get())) {
             for (HeatingCoilDefinition def :
                     HeatingCoilLoader.parseFromRoot(wrapCoilsRoot(holder), SOURCE + "/" + holder.id())) {
-                coils.put(def.id(), def);
+                // RecipeManager has one entry per consume option; merge back into full coil defs.
+                coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
             }
         }
         // Retrocompat: datapack authors may still ship heating coils under data/*/load/
@@ -183,6 +185,15 @@ public final class ColossalRecipeData {
     private static List<RecipeHolder<ColossalJsonRecipe>> recipes(
             RecipeManager manager, RecipeType<ColossalJsonRecipe> type) {
         return List.copyOf(manager.getAllRecipesFor(type));
+    }
+
+    private static HeatingCoilDefinition mergeHeatingCoil(HeatingCoilDefinition a, HeatingCoilDefinition b) {
+        List<ConsumeOption> merged = new ArrayList<>(a.consume() != null ? a.consume() : List.of());
+        if (b.consume() != null) {
+            merged.addAll(b.consume());
+        }
+        return new HeatingCoilDefinition(
+                a.id(), a.duration(), List.copyOf(merged), a.allSides(), a.noItem(), a.noFluid(), a.noEnergy());
     }
 
     private static JsonObject wrapCoilsRoot(RecipeHolder<ColossalJsonRecipe> holder) {

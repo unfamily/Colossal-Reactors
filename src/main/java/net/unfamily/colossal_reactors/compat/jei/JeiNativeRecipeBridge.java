@@ -107,11 +107,14 @@ public final class JeiNativeRecipeBridge {
     public static List<MelterHeatJeiRecipe> melterHeats() {
         List<MelterHeatJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.MELTER_HEATS.get())) {
-            List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(holder.value().json(), holder.id().toString());
-            if (list != null) {
-                for (int i = 0; i < list.size(); i++) {
-                    out.add(MelterHeatJeiRecipe.of(list.get(i), holder.id(), i));
-                }
+            ResourceLocation holderId = holder.id();
+            List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(holder.value().json(), holderId.toString());
+            if (list == null || list.isEmpty()) {
+                continue;
+            }
+            // Always the RecipeManager / KubeJS id — never invent path_N that is not a holder key.
+            for (int i = 0; i < list.size(); i++) {
+                out.add(MelterHeatJeiRecipe.of(list.get(i), holderId, i));
             }
         }
         return out.isEmpty() ? MelterHeatJeiRecipe.wrapAll(MelterHeatsLoader.getAll()) : out;

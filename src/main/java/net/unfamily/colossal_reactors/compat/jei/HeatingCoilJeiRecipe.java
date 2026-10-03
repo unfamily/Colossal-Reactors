@@ -3,6 +3,7 @@ package net.unfamily.colossal_reactors.compat.jei;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
@@ -11,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * One JEI entry for a heating coil: a specific consume option (alternative) for a coil definition.
+ * Display / KubeJS ids match EMI/REI: {@code ns:heating_coils_<coilPath>_<optionIndex>}.
  */
 public record HeatingCoilJeiRecipe(
         ResourceLocation coilId,
@@ -39,7 +41,15 @@ public record HeatingCoilJeiRecipe(
         for (int i = 0; i < opts.size(); i++) {
             ConsumeOption jeiOpt = sanitizeForJei(opts.get(i));
             if (jeiOpt != null && !jeiOpt.isEmpty()) {
-                out.add(new HeatingCoilJeiRecipe(def.id(), def.duration(), i, jeiOpt, recipeId));
+                // One option per RecipeManager holder → keep holder id.
+                // Multiple options on one holder → same EMI/REI progressive ids for every viewer.
+                ResourceLocation cardId = opts.size() == 1
+                        ? recipeId
+                        : ViewerRecipeIds.heatingCoilDisplayLocation(null, def.id(), i);
+                if (cardId == null) {
+                    cardId = ViewerRecipeIds.heatingCoilDisplayLocation(null, def.id(), i);
+                }
+                out.add(new HeatingCoilJeiRecipe(def.id(), def.duration(), i, jeiOpt, cardId));
             }
         }
         return out;

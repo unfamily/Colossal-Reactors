@@ -2,8 +2,6 @@ package net.unfamily.colossal_reactors.compat.emi;
 
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiRecipe;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Supplier;
 import net.minecraft.resources.ResourceLocation;
 import net.unfamily.colossal_reactors.compat.emi.recipe.EmiFuelRecipe;
@@ -34,11 +32,10 @@ public final class ColossalEmiRecipeRegistrar {
     private static <T> int registerEach(
             EmiRegistry registry, String group, Supplier<Iterable<T>> source, RecipeFactory<T> factory) {
         int n = 0;
-        Set<ResourceLocation> seen = new HashSet<>();
         try {
             for (T value : source.get()) {
                 try {
-                    n += add(registry, factory.create(value), seen);
+                    n += add(registry, factory.create(value));
                 } catch (Throwable t) {
                     LOGGER.error("EMI Colossal recipe failed in group '{}'", group, t);
                 }
@@ -54,16 +51,13 @@ public final class ColossalEmiRecipeRegistrar {
         return n;
     }
 
-    private static int add(EmiRegistry registry, EmiRecipe recipe, Set<ResourceLocation> seen) {
+    private static int add(EmiRegistry registry, EmiRecipe recipe) {
         if (recipe == null) {
             return 0;
         }
         ResourceLocation id = recipe.getId();
-        if (id != null && !seen.add(id)) {
-            LOGGER.debug("EMI Colossal skip duplicate id: {}", id);
-            return 0;
-        }
         // Energy-only coils: catalysts + output, no consume inputs. Skip only totally empty cards.
+        // Duplicate datapack ids are intentional (coolant liquid/gas, coil options share one holder).
         boolean hasInputs = !recipe.getInputs().isEmpty();
         boolean hasCatalysts = !recipe.getCatalysts().isEmpty();
         boolean hasOutputs = !recipe.getOutputs().isEmpty();

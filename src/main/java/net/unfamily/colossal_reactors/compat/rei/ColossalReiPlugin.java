@@ -1,16 +1,19 @@
 package net.unfamily.colossal_reactors.compat.rei;
 
 import java.util.Set;
+import me.shedaniel.math.Rectangle;
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin;
 import me.shedaniel.rei.api.client.registry.category.CategoryRegistry;
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry;
 import me.shedaniel.rei.api.client.registry.entry.EntryRegistry;
+import me.shedaniel.rei.api.client.registry.screen.ScreenRegistry;
 import me.shedaniel.rei.api.common.display.DisplaySerializerRegistry;
 import me.shedaniel.rei.forge.REIPluginClient;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.unfamily.colossal_reactors.compat.RecipeViewerVisibility;
 
 @REIPluginClient
@@ -19,6 +22,19 @@ public class ColossalReiPlugin implements REIClientPlugin {
     @Override
     public void registerCategories(CategoryRegistry registry) {
         ColossalReiCategories.register(registry);
+    }
+
+    @Override
+    public void registerScreens(ScreenRegistry registry) {
+        registry.registerContainerClickArea(
+                new Rectangle(
+                        MelterScreen.getProgressBarX(),
+                        MelterScreen.getProgressBarY(),
+                        MelterScreen.getProgressBarWidth(),
+                        MelterScreen.getProgressBarHeight()),
+                MelterScreen.class,
+                ColossalReiCategories.MELTER,
+                ColossalReiCategories.MELTER_HEAT);
     }
 
     @Override

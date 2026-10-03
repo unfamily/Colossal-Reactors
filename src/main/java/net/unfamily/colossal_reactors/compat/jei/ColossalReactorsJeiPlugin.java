@@ -63,9 +63,15 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        // Click on Melter progress bar (77, 34, 24x16) opens JEI to Melter recipe category
-        registration.addRecipeClickArea(MelterScreen.class, MelterScreen.getProgressBarX(), MelterScreen.getProgressBarY(),
-                MelterScreen.getProgressBarWidth(), MelterScreen.getProgressBarHeight(), MelterRecipeCategory.RECIPE_TYPE);
+        // Click progress bar (always visible) → Melter melting + heat-source recipes
+        registration.addRecipeClickArea(
+                MelterScreen.class,
+                MelterScreen.getProgressBarX(),
+                MelterScreen.getProgressBarY(),
+                MelterScreen.getProgressBarWidth(),
+                MelterScreen.getProgressBarHeight(),
+                MelterRecipeCategory.RECIPE_TYPE,
+                MelterHeatSourceRecipeCategory.RECIPE_TYPE);
     }
 
     @Override
