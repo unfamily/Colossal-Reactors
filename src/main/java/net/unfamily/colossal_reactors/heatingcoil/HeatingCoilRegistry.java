@@ -18,33 +18,18 @@ import java.util.Map;
 
 /**
  * Registry of heating coil definitions by id. Builtin definitions loaded at init from mod jar;
- * datapack reload merges from data/&lt;namespace&gt;/load/*.json (later overrides).
+ * datapack reload merges from recipe + {@code data/<namespace>/load/} retrocompat (later overrides).
  */
 public final class HeatingCoilRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HeatingCoilRegistry.class);
-    private static final String BUILTIN_PATH = "data/colossal_reactors/load/heating_coils.json";
+    private static final String BUILTIN_PATH = "data/colossal_reactors/recipe/heating_coils.json";
+    private static final String BUILTIN_PATH_LEGACY = "data/colossal_reactors/load/heating_coils.json";
 
     private static final Map<Identifier, HeatingCoilDefinition> DEFINITIONS = new HashMap<>();
     private static List<Identifier> builtinCoilIds;
 
     private HeatingCoilRegistry() {}
-
-    /** Parses {@value #BUILTIN_PATH} from the mod jar (same content used at init and after reload merge). */
-    private static List<HeatingCoilDefinition> parseBuiltinFile() {
-        try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
-            if (stream == null) {
-                LOGGER.warn("Builtin heating coils not found: {}", BUILTIN_PATH);
-                return List.of();
-            }
-            try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                return HeatingCoilLoader.parse(reader, "builtin");
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load builtin heating coils: {}", e.getMessage());
-            return List.of();
-        }
-    }
 
     /**
      * Loads builtin heating_coils.json from the mod jar and caches coil ids for block registration.
@@ -67,10 +52,44 @@ public final class HeatingCoilRegistry {
         return new ArrayList<>(builtinCoilIds);
     }
 
+    private static void putSanitized(Map<Identifier, HeatingCoilDefinition> merged, HeatingCoilDefinition def) {
+        putSanitized(merged, def.id(), def);
+    }
+
+    private static void putSanitized(Map<Identifier, HeatingCoilDefinition> merged, Identifier id, HeatingCoilDefinition def) {
+        if (!DatapackSelectorValidator.registriesReady()) {
+            merged.put(id, def);
+            return;
+        }
+        HeatingCoilDefinition sanitized = DatapackSelectorValidator.sanitizeHeatingCoil(def);
+        merged.put(id, sanitized != null ? sanitized : def);
+    }
+
+    private static List<HeatingCoilDefinition> parseBuiltinFile() {
+        List<HeatingCoilDefinition> fromRecipe = parseBuiltinAt(BUILTIN_PATH);
+        if (!fromRecipe.isEmpty()) {
+            return fromRecipe;
+        }
+        return parseBuiltinAt(BUILTIN_PATH_LEGACY);
+    }
+
+    private static List<HeatingCoilDefinition> parseBuiltinAt(String path) {
+        try (var stream = ColossalReactors.class.getResourceAsStream("/" + path)) {
+            if (stream == null) {
+                return List.of();
+            }
+            try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                return HeatingCoilLoader.parse(reader, "builtin:" + path);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load builtin heating coils from {}: {}", path, e.getMessage());
+            return List.of();
+        }
+    }
+
     /**
-     * Applies datapack reload (called by LoadDataReloadListener).
-     * Builtin jar definitions are merged first, then {@code loaded} overrides per id — same id from datapack wins.
-     * This avoids losing flags like {@code all_sides} when reload aggregation omits or partially replaces entries.
+     * Replaces definitions from datapack reload (called by ColossalRecipeData and client refresh).
+     * Only applies when loaded is non-empty so we never wipe the registry (builtin stays if reload finds no files).
      */
     public static synchronized void setFromReload(Map<Identifier, HeatingCoilDefinition> loaded) {
         if (loaded == null || loaded.isEmpty()) {
@@ -86,15 +105,6 @@ public final class HeatingCoilRegistry {
         }
         DEFINITIONS.clear();
         DEFINITIONS.putAll(merged);
-    }
-
-    private static void putSanitized(Map<Identifier, HeatingCoilDefinition> merged, HeatingCoilDefinition def) {
-        if (!DatapackSelectorValidator.registriesReady()) {
-            merged.put(def.id(), def);
-            return;
-        }
-        HeatingCoilDefinition sanitized = DatapackSelectorValidator.sanitizeHeatingCoil(def);
-        merged.put(def.id(), sanitized != null ? sanitized : def);
     }
 
     @Nullable

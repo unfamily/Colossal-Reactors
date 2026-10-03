@@ -35,7 +35,6 @@ public class LoadDataReloadListener extends SimplePreparableReloadListener<Map<I
     private static final String LOAD_PATH = "load";
     private static final String TYPE_HEATING_COILS = "colossal_reactors:heating_coils";
     private static final String KEY_TYPE = "type";
-    private static final String BUILTIN_HEATING_COILS = "data/colossal_reactors/load/heating_coils.json";
 
     @Nullable
     private static Map<Identifier, HeatingCoilDefinition> lastLoadedCoils;
@@ -68,9 +67,6 @@ public class LoadDataReloadListener extends SimplePreparableReloadListener<Map<I
                 LOGGER.debug("Could not load builtin heating_coils.json: {}", e.getMessage());
             }
         }
-        if (coils.isEmpty()) {
-            loadBuiltinFromClasspath(coils);
-        }
         profiler.pop();
         return coils;
     }
@@ -79,42 +75,23 @@ public class LoadDataReloadListener extends SimplePreparableReloadListener<Map<I
     protected void apply(Map<Identifier, HeatingCoilDefinition> coils, ResourceManager resourceManager, ProfilerFiller profiler) {
         profiler.push("Colossal Reactors apply load data");
         lastLoadedCoils = coils;
-        HeatingCoilRegistry.setFromReload(coils);
         profiler.pop();
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Load data: {} heating coil definition(s)", coils.size());
+            LOGGER.info("Load data (retrocompat): {} heating coil definition(s)", coils.size());
         }
+    }
+
+    /** Returns coils collected from {@code data/<namespace>/load/} for merge in ColossalRecipeData. */
+    @Nullable
+    public static Map<Identifier, HeatingCoilDefinition> consumeLastLoaded() {
+        Map<Identifier, HeatingCoilDefinition> out = lastLoadedCoils;
+        return out == null ? Map.of() : out;
     }
 
     /** Re-apply when client world is ready (registry tags bound). */
     public static void refreshFromLastLoaded() {
-        if (lastLoadedCoils != null) {
+        if (lastLoadedCoils != null && !lastLoadedCoils.isEmpty()) {
             HeatingCoilRegistry.setFromReload(lastLoadedCoils);
-        }
-    }
-
-    private static void loadBuiltinFromClasspath(Map<Identifier, HeatingCoilDefinition> coils) {
-        try (var stream = ColossalReactors.class.getClassLoader().getResourceAsStream(BUILTIN_HEATING_COILS)) {
-            if (stream == null) {
-                LOGGER.warn("Builtin heating coils not found on classpath: {}", BUILTIN_HEATING_COILS);
-                return;
-            }
-            JsonObject root = GSON.fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), JsonObject.class);
-            if (root != null) {
-                processJsonRoot(root, "classpath:" + BUILTIN_HEATING_COILS, coils);
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load builtin {}: {}", BUILTIN_HEATING_COILS, e.getMessage());
-        }
-    }
-
-    private static void processJsonRoot(JsonObject root, String source, Map<Identifier, HeatingCoilDefinition> coils) {
-        if (!root.has(KEY_TYPE) || !TYPE_HEATING_COILS.equals(root.get(KEY_TYPE).getAsString())) {
-            return;
-        }
-        List<HeatingCoilDefinition> list = HeatingCoilLoader.parseFromRoot(root, source);
-        for (HeatingCoilDefinition def : list) {
-            coils.put(def.id(), def);
         }
     }
 

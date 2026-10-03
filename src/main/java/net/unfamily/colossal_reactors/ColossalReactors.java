@@ -47,8 +47,8 @@ import net.unfamily.colossal_reactors.blockentity.RadiationScrubberBlockEntity;
 import net.unfamily.colossal_reactors.client.ColossalClientSetup;
 import net.unfamily.colossal_reactors.client.ColossalReactorsClientEvents;
 import net.unfamily.colossal_reactors.client.GuideMeRegistration;
+import net.unfamily.colossal_reactors.crafting.ModColossalRecipes;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
-import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.network.ModPayloads;
 import net.unfamily.colossal_reactors.network.BuilderPreviewServerEvents;
 import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
@@ -64,7 +64,6 @@ public class ColossalReactors {
     /** Registered via {@link IskaLibGases} on {@link ModBlocks#BLOCKS} / {@link ModItems#ITEMS} / {@link ModFluids}. */
     public static RegisteredGas STEAM_GAS;
 
-    private static final Identifier REACTOR_DATA_RELOAD_ID = Identifier.fromNamespaceAndPath(MODID, "reactor_data");
     private static final Identifier LOAD_DATA_RELOAD_ID = Identifier.fromNamespaceAndPath(MODID, "load_data");
 
     public ColossalReactors(IEventBus modEventBus, ModContainer modContainer) {
@@ -98,6 +97,7 @@ public class ColossalReactors {
         net.unfamily.colossal_reactors.data.ModConditions.CONDITION_CODECS.register(modEventBus);
         net.unfamily.colossal_reactors.world.ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
+        ModColossalRecipes.register(modEventBus);
         modEventBus.addListener(this::registerCapabilities);
 
         // GuideME is client-only; ModList check is enough on dedicated servers.
@@ -117,15 +117,13 @@ public class ColossalReactors {
 
     }
 
-    /** Server / integrated server: fuel, coolant, melter JSON under data namespaces recipe paths; heating coils under load paths. */
+    /** Server / integrated server: native recipes via RecipeManager; {@code load/} for heating-coil retrocompat only. */
     private void onAddServerReloadListeners(AddServerReloadListenersEvent event) {
-        event.addListener(REACTOR_DATA_RELOAD_ID, new ReactorDataReloadListener());
         event.addListener(LOAD_DATA_RELOAD_ID, new LoadDataReloadListener());
     }
 
-    /** Client resource reload (JEI, previews): same listeners so datapack merges match single-player expectations. */
+    /** Client resource reload: heating coils under {@code load/} retrocompat paths. */
     private static void onAddClientReloadListeners(AddClientReloadListenersEvent event) {
-        event.addListener(REACTOR_DATA_RELOAD_ID, new ReactorDataReloadListener());
         event.addListener(LOAD_DATA_RELOAD_ID, new LoadDataReloadListener());
     }
 

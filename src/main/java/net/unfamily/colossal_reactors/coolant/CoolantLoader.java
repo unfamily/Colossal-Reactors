@@ -61,17 +61,18 @@ public class CoolantLoader {
     public static final Identifier WATER_COOLANT_ID = Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "water");
 
     /**
-     * Applies loaded datapack data: clears, registers internal defaults, then merges in loaded map.
+     * Applies loaded datapack data. Internal defaults only if datapack map is empty.
      */
     public static void applyLoaded(Map<Identifier, CoolantDefinition> loaded) {
         DEFINITIONS.clear();
-        registerInternalDefaults();
-        if (loaded != null) {
-            for (CoolantDefinition def : loaded.values()) {
-                CoolantDefinition sanitized = DatapackSelectorValidator.sanitizeCoolant(def);
-                if (sanitized != null) {
-                    processEntry(sanitized);
-                }
+        if (loaded == null || loaded.isEmpty()) {
+            registerInternalDefaults();
+            return;
+        }
+        for (CoolantDefinition def : loaded.values()) {
+            CoolantDefinition sanitized = DatapackSelectorValidator.sanitizeCoolant(def);
+            if (sanitized != null) {
+                processEntry(sanitized);
             }
         }
     }

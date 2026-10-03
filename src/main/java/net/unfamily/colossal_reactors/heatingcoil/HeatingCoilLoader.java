@@ -26,6 +26,7 @@ public final class HeatingCoilLoader {
     private static final String TYPE_HEATING_COILS = "colossal_reactors:heating_coils";
     private static final String KEY_TYPE = "type";
     private static final String KEY_COILS = "coils";
+    private static final String KEY_ENTRIES = "entries";
     private static final String KEY_ID = "id";
     private static final String KEY_DURATION = "duration";
     private static final String KEY_CONSUME = "consume";
@@ -62,16 +63,26 @@ public final class HeatingCoilLoader {
      */
     public static List<HeatingCoilDefinition> parseFromRoot(@Nullable JsonObject root, String source) {
         List<HeatingCoilDefinition> out = new ArrayList<>();
-        if (root == null || !root.has(KEY_TYPE) || !TYPE_HEATING_COILS.equals(root.get(KEY_TYPE).getAsString())) {
+        if (root == null) {
             return out;
         }
-        if (!root.has(KEY_COILS) || !root.get(KEY_COILS).isJsonArray()) {
+        boolean typed = root.has(KEY_TYPE) && TYPE_HEATING_COILS.equals(root.get(KEY_TYPE).getAsString());
+        JsonArray coils = null;
+        if (root.has(KEY_ENTRIES) && root.get(KEY_ENTRIES).isJsonArray()) {
+            coils = root.getAsJsonArray(KEY_ENTRIES);
+        } else if (root.has(KEY_COILS) && root.get(KEY_COILS).isJsonArray()) {
+            coils = root.getAsJsonArray(KEY_COILS);
+        }
+        if (coils != null && (typed || !root.has(KEY_TYPE))) {
+            for (JsonElement el : coils) {
+                if (!el.isJsonObject()) continue;
+                HeatingCoilDefinition def = parseOneCoil(el.getAsJsonObject(), source);
+                if (def != null) out.add(def);
+            }
             return out;
         }
-        JsonArray coils = root.getAsJsonArray(KEY_COILS);
-        for (JsonElement el : coils) {
-            if (!el.isJsonObject()) continue;
-            HeatingCoilDefinition def = parseOneCoil(el.getAsJsonObject(), source);
+        if (root.has(KEY_ID)) {
+            HeatingCoilDefinition def = parseOneCoil(root, source);
             if (def != null) out.add(def);
         }
         return out;

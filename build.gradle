@@ -36,6 +36,14 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
+    maven {
+        name = "Shedaniel"
+        url = "https://maven.shedaniel.me/"
+    }
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/"
+    }
 }
 
 base {
@@ -43,7 +51,11 @@ base {
 }
 
 // Optional integrations excluded when APIs drift (re-enable when fixed).
-sourceSets.main.java.exclude('net/unfamily/colossal_reactors/data/ColossalReactorsFusionModelProvider.java')
+sourceSets.main.java.exclude(
+        'net/unfamily/colossal_reactors/data/ColossalReactorsFusionModelProvider.java',
+        // No EMI on NeoForge 26; REI 26.x is unusable (@OnlyIn / broken) — JEI only.
+        'net/unfamily/colossal_reactors/compat/emi/**',
+        'net/unfamily/colossal_reactors/compat/rei/**')
 
 // Mojang ships Java 25 to end users in 26.1.2, so mods should target Java 25.
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
@@ -129,9 +141,9 @@ configurations {
 
 dependencies {
     // Only dependencies currently available for 26.1.2
-    implementation "curse.maven:jei-238222:7920926"
     // iska_lib: NeoForge 26.x only — do not add to Colossal Reactors 1.21.1
-    implementation files('libs/iska_lib-1.8.0.0.0.jar')
+    implementation files('libs/iska_lib-1.12.0.1.0.jar')
+    implementation "curse.maven:another-config-manager-1719301:9018481"
     // compileOnly Brandon's Core: needed to compile HighCondPowerPortOpStorage. Runtime OP is gated
     // by BrandonScoreIntegration.OP_SUPPORT_ENABLED (false until BC/Draconic exists for 26.x).
     compileOnly "curse.maven:brandons-core-231382:7130990"
@@ -142,6 +154,14 @@ dependencies {
         implementation "curse.maven:guideme-1173950:7929350"
     } else {
         compileOnly "curse.maven:guideme-1173950:7929350"
+    }
+
+    // Recipe viewers on 26.x: JEI only (REI broken / @OnlyIn; no EMI NeoForge artifact).
+    compileOnly "curse.maven:jei-238222:7920926"
+
+    def recipeViewer = (project.findProperty('runtime_recipe_viewer') ?: 'none').toString()
+    if (recipeViewer == 'jei') {
+        localRuntime "curse.maven:jei-238222:7920926"
     }
 }
 

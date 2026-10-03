@@ -17,7 +17,6 @@ import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
 import net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
-import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
 import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
@@ -60,7 +59,6 @@ public final class ColossalReactorsClientEvents {
     }
 
     private static void refreshDatapackForWorld() {
-        ReactorDataReloadListener.refreshFromLastLoaded();
         LoadDataReloadListener.refreshFromLastLoaded();
         MelterRecipesLoader.rebuild();
         MelterHeatsLoader.rebuild();

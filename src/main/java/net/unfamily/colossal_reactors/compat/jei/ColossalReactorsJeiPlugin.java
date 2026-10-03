@@ -41,16 +41,14 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        // Reactor data is loaded from datapacks via ReactorDataReloadListener (server and client).
-        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE,
-                CoolantLoader.getVisibleDefinitions().stream()
-                        .flatMap(def -> CoolantJeiRecipe.expand(def).stream())
-                        .toList());
-        registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getVisibleDefinitions());
-        registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
-        // Melter / turbine: filled after world load (JeiDatapackRecipeSync).
-
-        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, buildHeatingCoilJeiRecipes());
+        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.coolants());
+        registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.fuels());
+        registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatSinks());
+        registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.melterRecipes());
+        registration.addRecipes(MelterHeatSourceRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.melterHeats());
+        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatingCoils());
+        registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.elecCoils());
+        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.turbineGeneration());
     }
 
     @Override

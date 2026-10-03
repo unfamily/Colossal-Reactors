@@ -830,6 +830,10 @@ public class ReactorBuilderScreen extends AbstractContainerScreen<ReactorBuilder
         y = ReactorPanelText.drawMetricRow(guiGraphics, font, SIM_PANEL_X, y, SIM_LINE_HEIGHT,
                 "gui.colossal_reactors.reactor_controller.fuel_units.label",
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units.value", fuelStr));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, SIM_PANEL_X, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_builder.simulation.ratio.label",
+                Component.translatable("gui.colossal_reactors.reactor_builder.simulation.ratio.value",
+                        String.format("%.4f", result.consumptionProductionRatio())));
         return y;
     }
 

@@ -53,17 +53,18 @@ public class FuelLoader {
     private static final Map<Identifier, FuelDefinition> DEFINITIONS = new HashMap<>();
 
     /**
-     * Applies loaded datapack data: clears, registers internal defaults, then merges in loaded map (later overwrites by fuel_id).
+     * Applies loaded datapack data. Internal defaults only if datapack map is empty (no empty→builtin when recipes present).
      */
     public static void applyLoaded(Map<Identifier, FuelDefinition> loaded) {
         DEFINITIONS.clear();
-        registerInternalDefaults();
-        if (loaded != null) {
-            for (FuelDefinition def : loaded.values()) {
-                FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(def);
-                if (sanitized != null) {
-                    processEntry(sanitized);
-                }
+        if (loaded == null || loaded.isEmpty()) {
+            registerInternalDefaults();
+            return;
+        }
+        for (FuelDefinition def : loaded.values()) {
+            FuelDefinition sanitized = DatapackSelectorValidator.sanitizeFuel(def);
+            if (sanitized != null) {
+                processEntry(sanitized);
             }
         }
     }

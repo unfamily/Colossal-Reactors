@@ -1,0 +1,60 @@
+{
+  "type": "colossal_reactors:heating_coils",
+  "entries": [
+    {
+      "id": "colossal_reactors:heating_coil_resource",
+      "all_sides": true,
+      "no_energy": true,
+      "duration": 60,
+      "consume": [
+        {
+          "fluid": {
+            "id": "#c:steam",
+            "activation": 10000,
+            "substain": 100
+          }
+        },
+        {
+          "chemical": {
+            "id": "%mekanism:steam",
+            "activation": 10000,
+            "substain": 100
+          }
+        },
+        {
+          "item":{
+            "id": "#c:ingots/uranium",
+            "activation": 1,
+            "substain": 1
+          }
+        },
+        {
+          "fluid": {
+            "id": "#c:water",
+            "activation": 20000,
+            "substain": 200
+          },
+          "burnable": {
+            "activation": 20000,
+            "substain": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": "colossal_reactors:heating_coil_energy",
+      "all_sides": true,
+      "no_item": true,
+      "no_fluid": true,
+      "duration": 60,
+      "consume": [
+        {
+          "energy": {
+            "activation": 10000,
+            "substain": 100
+          }
+        }
+      ]
+    }
+  ]
+}
