@@ -11,15 +11,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
 import net.unfamily.colossal_reactors.menu.HeatingCoilMenu;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
@@ -38,10 +35,6 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/resource_port.png");
     private static final ResourceLocation ENERGY_BAR =
             ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "textures/gui/energy_bar.png");
-    private static final ResourceLocation MEDIUM_BUTTONS = ResourceLocation.fromNamespaceAndPath(
-            ColossalReactors.MODID, "textures/gui/medium_buttons.png");
-    private static final ResourceLocation REDSTONE_GUI = ResourceLocation.fromNamespaceAndPath(
-            ColossalReactors.MODID, "textures/gui/redstone_gui.png");
 
     private static final int ENERGY_BAR_WIDTH = 8;
     private static final int ENERGY_BAR_HEIGHT = 32;
@@ -49,10 +42,10 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private static final int ENERGY_BAR_Y = ResourcePortGuiLayout.LIQUID_BAR_Y
             + (ResourcePortGuiLayout.BAR_FILL_H - ENERGY_BAR_HEIGHT) / 2;
 
-    private static final int REDSTONE_BUTTON_SIZE = 16;
-    private static final int REDSTONE_BUTTON_X = ResourcePortGuiLayout.CLOSE_X - REDSTONE_BUTTON_SIZE - 4;
+    private static final int REDSTONE_BUTTON_X = ResourcePortGuiLayout.CLOSE_X - RedstoneGuiButtons.ICON_SIZE - 4;
     private static final int REDSTONE_BUTTON_Y = ResourcePortGuiLayout.ITEM_SLOT_Y
-            + (18 - REDSTONE_BUTTON_SIZE) / 2;
+            + (18 - RedstoneGuiButtons.ICON_SIZE) / 2;
+    private static final boolean ALLOW_PULSE = false;
 
     private static final int SLOT_MASK_SIZE = 18;
 
@@ -61,8 +54,7 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     private Button closeButton;
     private Button btnDumpLiquid;
     private Button btnDumpGas;
-    private int redstoneButtonScreenX;
-    private int redstoneButtonScreenY;
+    private ItemIconButton redstoneModeButton;
 
     public HeatingCoilScreen(HeatingCoilMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -103,8 +95,25 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
                 .build();
         addRenderableWidget(btnDumpGas);
 
-        redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
-        redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
+        redstoneModeButton = addRenderableWidget(RedstoneGuiButtons.button(
+                leftPos + REDSTONE_BUTTON_X,
+                topPos + REDSTONE_BUTTON_Y,
+                b -> cycleRedstone(true),
+                menu::getRedstoneMode,
+                ALLOW_PULSE));
+        RedstoneGuiButtons.refreshTooltip(redstoneModeButton, menu.getRedstoneMode(), ALLOW_PULSE);
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        RedstoneGuiButtons.refreshTooltip(redstoneModeButton, menu.getRedstoneMode(), ALLOW_PULSE);
+    }
+
+    private void cycleRedstone(boolean next) {
+        if (menu.getBlockPos() != null) {
+            PacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos(), next));
+        }
     }
 
     @Override
@@ -226,60 +235,13 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
         }
         updateDumpButtons();
         super.render(g, mouseX, mouseY, partialTick);
-        renderRedstoneButton(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
-    }
-
-    private void renderRedstoneButton(GuiGraphics g, int mouseX, int mouseY) {
-        boolean hovered = mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
-                && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE;
-        int textureY = hovered ? 16 : 0;
-        g.blit(MEDIUM_BUTTONS, redstoneButtonScreenX, redstoneButtonScreenY,
-                0, textureY, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, 96, 96);
-        int iconX = redstoneButtonScreenX + 2;
-        int iconY = redstoneButtonScreenY + 2;
-        int iconSize = 12;
-        int mode = menu.getRedstoneMode();
-        switch (mode) {
-            case 0 -> renderScaledItem(g, new ItemStack(Items.GUNPOWDER), iconX, iconY, iconSize);
-            case 1 -> renderScaledItem(g, new ItemStack(Items.REDSTONE), iconX, iconY, iconSize);
-            case 2 -> renderScaledTexture(g, REDSTONE_GUI, iconX, iconY, iconSize);
-            case 3 -> renderScaledItem(g, new ItemStack(Items.REPEATER), iconX, iconY, iconSize);
-            case 4 -> renderScaledItem(g, new ItemStack(Items.BARRIER), iconX, iconY, iconSize);
-            default -> renderScaledItem(g, new ItemStack(Items.REDSTONE), iconX, iconY, iconSize);
-        }
-        if (hovered) {
-            g.renderTooltip(font, RedstoneMode.fromId(mode).getDisplayName(), mouseX, mouseY);
-        }
-    }
-
-    private static void renderScaledItem(GuiGraphics g, ItemStack stack, int x, int y, int size) {
-        g.pose().pushPose();
-        float scale = size / 16.0f;
-        g.pose().translate(x, y, 0);
-        g.pose().scale(scale, scale, 1.0f);
-        g.renderItem(stack, 0, 0);
-        g.pose().popPose();
-    }
-
-    private static void renderScaledTexture(GuiGraphics g, ResourceLocation texture, int x, int y, int size) {
-        g.pose().pushPose();
-        float scale = size / 16.0f;
-        g.pose().translate(x, y, 0);
-        g.pose().scale(scale, scale, 1.0f);
-        g.blit(texture, 0, 0, 0, 0, 16, 16, 16, 16);
-        g.pose().popPose();
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if ((button == 0 || button == 1) && menu.getBlockPos() != null
-                && mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
-                && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
-            if (minecraft != null && minecraft.getSoundManager() != null) {
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            }
-            PacketDistributor.sendToServer(new HeatingCoilRedstoneModePayload(menu.getBlockPos(), button == 0));
+        if (button == 1 && redstoneModeButton != null && redstoneModeButton.isMouseOver(mouseX, mouseY)) {
+            cycleRedstone(false);
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);

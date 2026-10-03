@@ -15,12 +15,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
-import net.unfamily.colossal_reactors.client.gui.FluidRenderHelper;
 import net.unfamily.colossal_reactors.menu.MelterMenu;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.MelterRedstoneModePayload;
@@ -48,19 +44,15 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private static final int CLOSE_BUTTON_SIZE = 12;
     private static final int CLOSE_BUTTON_X = GUI_WIDTH - CLOSE_BUTTON_SIZE - 5;
 
-    private static final ResourceLocation MEDIUM_BUTTONS = ResourceLocation.fromNamespaceAndPath(
-            ColossalReactors.MODID, "textures/gui/medium_buttons.png");
-    private static final ResourceLocation REDSTONE_GUI = ResourceLocation.fromNamespaceAndPath(
-            ColossalReactors.MODID, "textures/gui/redstone_gui.png");
-    private static final int REDSTONE_BUTTON_SIZE = 16;
-    private static final int REDSTONE_BUTTON_X = CLOSE_BUTTON_X - REDSTONE_BUTTON_SIZE - 4;
+    private static final int REDSTONE_BUTTON_X = CLOSE_BUTTON_X - RedstoneGuiButtons.ICON_SIZE - 4;
+    private static final boolean ALLOW_PULSE = true;
 
     /** Input slot (44, 38) — +1 from border position */
     private static final int SLOT_X = 44;
     private static final int SLOT_Y = 38;
     private static final int SLOT_SIZE = 18;
     /** Redstone button Y: vertically centered with input item slot */
-    private static final int REDSTONE_BUTTON_Y = SLOT_Y + (SLOT_SIZE - REDSTONE_BUTTON_SIZE) / 2;
+    private static final int REDSTONE_BUTTON_Y = SLOT_Y + (SLOT_SIZE - RedstoneGuiButtons.ICON_SIZE) / 2;
 
     /** Tank at (117, 19) — 1px left and 1px up from previous */
     private static final int FLUID_BAR_X = 117;
@@ -92,8 +84,7 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
 
     private Button closeButton;
     private Button buttonDumpFluid;
-    private int redstoneButtonScreenX;
-    private int redstoneButtonScreenY;
+    private ItemIconButton redstoneModeButton;
 
     public MelterScreen(MelterMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -118,8 +109,23 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
                 .build();
         buttonDumpFluid.setTooltip(Tooltip.create(Component.translatable("gui.colossal_reactors.fluid_dump.tooltip")));
         addRenderableWidget(buttonDumpFluid);
-        redstoneButtonScreenX = leftPos + REDSTONE_BUTTON_X;
-        redstoneButtonScreenY = topPos + REDSTONE_BUTTON_Y;
+        redstoneModeButton = addRenderableWidget(RedstoneGuiButtons.button(
+                leftPos + REDSTONE_BUTTON_X,
+                topPos + REDSTONE_BUTTON_Y,
+                b -> cycleRedstone(true),
+                menu::getRedstoneMode,
+                ALLOW_PULSE));
+        RedstoneGuiButtons.refreshTooltip(redstoneModeButton, menu.getRedstoneMode(), ALLOW_PULSE);
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        RedstoneGuiButtons.refreshTooltip(redstoneModeButton, menu.getRedstoneMode(), ALLOW_PULSE);
+    }
+
+    private void cycleRedstone(boolean next) {
+        PacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos(), next));
     }
 
     @Override
@@ -168,59 +174,13 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
-        renderRedstoneButton(guiGraphics, mouseX, mouseY);
         this.renderTooltip(guiGraphics, mouseX, mouseY);
-    }
-
-    private void renderRedstoneButton(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        boolean isHovered = mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
-                && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE;
-        int textureY = isHovered ? 16 : 0;
-        guiGraphics.blit(MEDIUM_BUTTONS, redstoneButtonScreenX, redstoneButtonScreenY,
-                0, textureY, REDSTONE_BUTTON_SIZE, REDSTONE_BUTTON_SIZE, 96, 96);
-        int iconX = redstoneButtonScreenX + 2;
-        int iconY = redstoneButtonScreenY + 2;
-        int iconSize = 12;
-        int mode = menu.getRedstoneMode();
-        switch (mode) {
-            case 0 -> renderScaledItem(guiGraphics, new ItemStack(Items.GUNPOWDER), iconX, iconY, iconSize);
-            case 1 -> renderScaledItem(guiGraphics, new ItemStack(Items.REDSTONE), iconX, iconY, iconSize);
-            case 2 -> renderScaledTexture(guiGraphics, REDSTONE_GUI, iconX, iconY, iconSize);
-            case 3 -> renderScaledItem(guiGraphics, new ItemStack(Items.REPEATER), iconX, iconY, iconSize);
-            case 4 -> renderScaledItem(guiGraphics, new ItemStack(Items.BARRIER), iconX, iconY, iconSize);
-            default -> renderScaledItem(guiGraphics, new ItemStack(Items.REDSTONE), iconX, iconY, iconSize);
-        }
-        if (isHovered) {
-            guiGraphics.renderTooltip(font, RedstoneMode.fromId(mode).getDisplayName(), mouseX, mouseY);
-        }
-    }
-
-    private static void renderScaledItem(GuiGraphics guiGraphics, ItemStack stack, int x, int y, int size) {
-        guiGraphics.pose().pushPose();
-        float scale = size / 16.0f;
-        guiGraphics.pose().translate(x, y, 0);
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-        guiGraphics.renderItem(stack, 0, 0);
-        guiGraphics.pose().popPose();
-    }
-
-    private static void renderScaledTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int size) {
-        guiGraphics.pose().pushPose();
-        float scale = size / 16.0f;
-        guiGraphics.pose().translate(x, y, 0);
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-        guiGraphics.blit(texture, 0, 0, 0, 0, 16, 16, 16, 16);
-        guiGraphics.pose().popPose();
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if ((button == 0 || button == 1)
-                && mouseX >= redstoneButtonScreenX && mouseX < redstoneButtonScreenX + REDSTONE_BUTTON_SIZE
-                && mouseY >= redstoneButtonScreenY && mouseY < redstoneButtonScreenY + REDSTONE_BUTTON_SIZE) {
-            if (minecraft != null && minecraft.getSoundManager() != null)
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            PacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos(), button == 0));
+        if (button == 1 && redstoneModeButton != null && redstoneModeButton.isMouseOver(mouseX, mouseY)) {
+            cycleRedstone(false);
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);

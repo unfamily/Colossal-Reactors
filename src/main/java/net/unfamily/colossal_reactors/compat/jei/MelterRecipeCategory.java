@@ -27,10 +27,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class MelterRecipeCategory implements IRecipeCategory<MelterRecipe> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "melter");
+    public static final ResourceLocation UID = RecipeViewerIds.MELTER;
     private static final int WIDTH = 180;
     private static final int HEIGHT = 78;
 

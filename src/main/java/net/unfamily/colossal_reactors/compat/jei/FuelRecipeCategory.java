@@ -25,10 +25,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_fuel");
+    public static final ResourceLocation UID = RecipeViewerIds.REACTOR_FUEL;
     private static final int WIDTH = 180;
     private static final int HEIGHT = 106;
 
@@ -81,7 +82,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
                             .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
                 }
             }
-            case CHEMICAL -> JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
+            case CHEMICAL -> JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputs());
             case ITEM -> {
                 List<ItemStack> inputs = JeiIngredientsHelper.getFuelInputStacks(recipe.inputs(), registryAccess);
@@ -104,7 +105,7 @@ public class FuelRecipeCategory implements IRecipeCategory<FuelDefinition> {
                             .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
                 }
             }
-            case CHEMICAL -> JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
+            case CHEMICAL -> JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, List.of(output));
             case ITEM -> {
                 List<ItemStack> outputs = JeiIngredientsHelper.getWasteOutputStacks(output, registryAccess);

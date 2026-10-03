@@ -56,7 +56,10 @@ public final class TurbineGenerationLoader {
 
     private static void rebuildDefinitions() {
         DEFINITIONS.clear();
-        registerInternalDefaults();
+        if (rawDatapackGeneration.isEmpty()) {
+            registerInternalDefaults();
+            return;
+        }
         for (TurbineGenerationDefinition def : rawDatapackGeneration.values()) {
             TurbineGenerationDefinition sanitized = DatapackSelectorValidator.sanitizeTurbineGeneration(def);
             if (sanitized != null) {

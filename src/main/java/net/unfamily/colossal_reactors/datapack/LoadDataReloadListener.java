@@ -78,17 +78,26 @@ public class LoadDataReloadListener implements PreparableReloadListener {
         }, prepareExecutor).thenCompose(stage::wait).thenAcceptAsync(coils -> {
             applyProfiler.push("Colossal Reactors apply load data");
             lastLoadedCoils = coils;
-            HeatingCoilRegistry.setFromReload(coils);
+            // Registry apply is unified in ColossalRecipeData (recipe/ + load/ retrocompat).
             applyProfiler.pop();
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Load data: {} heating coil definition(s)", coils.size());
+                LOGGER.info("Load data (retrocompat): {} heating coil definition(s)", coils.size());
             }
         }, applyExecutor);
     }
 
+    /**
+     * Returns coils collected from load-path retrocompat datapacks and clears the cache so they are merged once.
+     */
+    @Nullable
+    public static Map<ResourceLocation, HeatingCoilDefinition> consumeLastLoaded() {
+        Map<ResourceLocation, HeatingCoilDefinition> out = lastLoadedCoils;
+        return out == null ? Map.of() : out;
+    }
+
     /** Re-apply when client world is ready (registry tags bound). */
     public static void refreshFromLastLoaded() {
-        if (lastLoadedCoils != null) {
+        if (lastLoadedCoils != null && !lastLoadedCoils.isEmpty()) {
             HeatingCoilRegistry.setFromReload(lastLoadedCoils);
         }
     }

@@ -12,14 +12,7 @@ import net.unfamily.colossal_reactors.client.gui.MelterScreen;
 import net.minecraft.world.item.ItemStack;
 import net.unfamily.colossal_reactors.block.ModBlocks;
 import net.unfamily.colossal_reactors.ColossalReactors;
-import net.unfamily.colossal_reactors.coolant.CoolantLoader;
-import net.unfamily.colossal_reactors.fuel.FuelLoader;
-import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
-import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
-import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
-import net.unfamily.colossal_reactors.melter.MelterHeatsLoader;
-import net.unfamily.colossal_reactors.melter.MelterRecipesLoader;
 
 @JeiPlugin
 public class ColossalReactorsJeiPlugin implements IModPlugin {
@@ -46,21 +39,15 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        // Reactor data is loaded from datapacks via ReactorDataReloadListener (server and client).
-        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE,
-                CoolantLoader.getVisibleDefinitions().stream()
-                        .flatMap(def -> CoolantJeiRecipe.expand(def).stream())
-                        .toList());
-        registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, FuelLoader.getVisibleDefinitions());
-        registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, HeatSinkLoader.getAllDefinitions());
-        registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, MelterRecipesLoader.getAll());
-        registration.addRecipes(MelterHeatSourceRecipeCategory.RECIPE_TYPE, MelterHeatsLoader.getAll());
-        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, buildHeatingCoilJeiRecipes());
-        registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, ElecCoilLoader.getJeIDefinitions());
-        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE,
-                TurbineGenerationLoader.getJeIDefinitions().stream()
-                        .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
-                        .toList());
+        // Prefer native RecipeHolder ids from RecipeManager; fall back to runtime loaders.
+        registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.coolants());
+        registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.fuels());
+        registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatSinks());
+        registration.addRecipes(MelterRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.melterRecipes());
+        registration.addRecipes(MelterHeatSourceRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.melterHeats());
+        registration.addRecipes(HeatingCoilRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatingCoils());
+        registration.addRecipes(ElecCoilRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.elecCoils());
+        registration.addRecipes(TurbineGenerationRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.turbineGeneration());
     }
 
     @Override
@@ -90,7 +77,9 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), MelterHeatSourceRecipeCategory.RECIPE_TYPE);
-        registration.addRecipeCatalyst(new ItemStack(ModBlocks.MELTER.get()), HeatingCoilRecipeCategory.RECIPE_TYPE);
+        for (var coil : net.unfamily.colossal_reactors.compat.HeatingCoilViewerHelper.offCoilStacks()) {
+            registration.addRecipeCatalyst(coil, HeatingCoilRecipeCategory.RECIPE_TYPE);
+        }
 
         ItemStack turbine = new ItemStack(ModBlocks.TURBINE_CONTROLLER.get());
         registration.addRecipeCatalyst(turbine, ElecCoilRecipeCategory.RECIPE_TYPE);

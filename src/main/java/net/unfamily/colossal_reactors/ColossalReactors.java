@@ -53,8 +53,8 @@ import net.unfamily.colossal_reactors.client.ColossalReactorsClientEvents;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorClientRegistration;
 import net.unfamily.colossal_reactors.data.ColossalReactorsFusionModelProvider;
 import net.unfamily.colossal_reactors.data.ModConditions;
+import net.unfamily.colossal_reactors.crafting.ModColossalRecipes;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
-import net.unfamily.colossal_reactors.datapack.ReactorDataReloadListener;
 import net.unfamily.colossal_reactors.fluid.ModFluids;
 import net.unfamily.colossal_reactors.integration.brandonscore.BrandonScoreIntegration;
 import net.unfamily.colossal_reactors.item.ModCreativeModeTabs;
@@ -107,6 +107,7 @@ public class ColossalReactors {
         ModConditions.CONDITION_CODECS.register(modEventBus);
         ModBiomeModifiers.BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
         ModCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
+        ModColossalRecipes.register(modEventBus);
         modEventBus.addListener(this::gatherData);
         modEventBus.addListener(this::registerCapabilities);
 
@@ -236,7 +237,8 @@ public class ColossalReactors {
 
     @SubscribeEvent
     public void onAddReloadListener(AddReloadListenerEvent event) {
-        event.addListener(new ReactorDataReloadListener());
+        // Native Colossal data recipes load via RecipeManager + ColossalRecipeData.
+        // Keep load/ scanner for heating-coil retrocompat only.
         event.addListener(new LoadDataReloadListener());
     }
 
@@ -261,7 +263,6 @@ public class ColossalReactors {
 
         @SubscribeEvent
         static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener(new ReactorDataReloadListener());
             event.registerReloadListener(new LoadDataReloadListener());
         }
 

@@ -32,7 +32,15 @@ public final class TurbineSimulation {
             double rfPerTick,
             double coilEfficiency,
             double bladeEfficiency
-    ) {}
+    ) {
+        /** Steam mB/t divided by RF/t (consumption / production). 0 if either side is zero. */
+        public double consumptionProductionRatio() {
+            if (rfPerTick <= 0 || steamMbPerTick <= 0) {
+                return 0.0;
+            }
+            return steamMbPerTick / rfPerTick;
+        }
+    }
 
     private TurbineSimulation() {}
 

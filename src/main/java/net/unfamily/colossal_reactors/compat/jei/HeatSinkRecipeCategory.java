@@ -22,10 +22,11 @@ import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class HeatSinkRecipeCategory implements IRecipeCategory<HeatSinkDefinition> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_heat_sink");
+    public static final ResourceLocation UID = RecipeViewerIds.REACTOR_HEAT_SINK;
     private static final int WIDTH = 180;
     /** Slots + three text lines */
     private static final int HEIGHT = 54;

@@ -23,7 +23,8 @@ import java.util.Map;
 public final class HeatingCoilRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HeatingCoilRegistry.class);
-    private static final String BUILTIN_PATH = "data/colossal_reactors/load/heating_coils.json";
+    private static final String BUILTIN_PATH = "data/colossal_reactors/recipe/heating_coils.json";
+    private static final String BUILTIN_PATH_LEGACY = "data/colossal_reactors/load/heating_coils.json";
 
     private static final Map<ResourceLocation, HeatingCoilDefinition> DEFINITIONS = new HashMap<>();
     private static List<ResourceLocation> builtinCoilIds;
@@ -65,16 +66,23 @@ public final class HeatingCoilRegistry {
     }
 
     private static List<HeatingCoilDefinition> parseBuiltinFile() {
-        try (var stream = ColossalReactors.class.getResourceAsStream("/" + BUILTIN_PATH)) {
+        List<HeatingCoilDefinition> fromRecipe = parseBuiltinAt(BUILTIN_PATH);
+        if (!fromRecipe.isEmpty()) {
+            return fromRecipe;
+        }
+        return parseBuiltinAt(BUILTIN_PATH_LEGACY);
+    }
+
+    private static List<HeatingCoilDefinition> parseBuiltinAt(String path) {
+        try (var stream = ColossalReactors.class.getResourceAsStream("/" + path)) {
             if (stream == null) {
-                LOGGER.warn("Builtin heating coils not found: {}", BUILTIN_PATH);
                 return List.of();
             }
             try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                return HeatingCoilLoader.parse(reader, "builtin");
+                return HeatingCoilLoader.parse(reader, "builtin:" + path);
             }
         } catch (Exception e) {
-            LOGGER.warn("Failed to load builtin heating coils: {}", e.getMessage());
+            LOGGER.warn("Failed to load builtin heating coils from {}: {}", path, e.getMessage());
             return List.of();
         }
     }

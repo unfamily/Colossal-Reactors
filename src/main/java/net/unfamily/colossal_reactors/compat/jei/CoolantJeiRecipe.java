@@ -30,15 +30,21 @@ public record CoolantJeiRecipe(CoolantDefinition definition, JeiMedium medium) {
         boolean liquidOut = def.outputs().stream().anyMatch(s -> !MaterialSelector.isChemicalPrefix(s));
         boolean gasOut = def.outputs().stream().anyMatch(MaterialSelector::isChemicalPrefix);
 
+        // One card per medium that has inputs. Gas-only-output without gas input must not create an
+        // empty-input duplicate (e.g. water liquid + orphan steam chemical card).
         List<CoolantJeiRecipe> out = new ArrayList<>();
-        if (liquidIn || liquidOut) {
+        if (liquidIn) {
             out.add(new CoolantJeiRecipe(def, JeiMedium.LIQUID));
         }
-        if ((gasIn || gasOut) && (JeiIngredientsHelper.jeiChemicalsAvailable() || !liquidIn && !liquidOut)) {
+        if (gasIn && (JeiIngredientsHelper.jeiChemicalsAvailable() || !liquidIn)) {
             out.add(new CoolantJeiRecipe(def, JeiMedium.GAS));
         }
         if (out.isEmpty()) {
-            out.add(new CoolantJeiRecipe(def, JeiMedium.LIQUID));
+            if (liquidOut || !gasOut) {
+                out.add(new CoolantJeiRecipe(def, JeiMedium.LIQUID));
+            } else {
+                out.add(new CoolantJeiRecipe(def, JeiMedium.GAS));
+            }
         }
         return out;
     }

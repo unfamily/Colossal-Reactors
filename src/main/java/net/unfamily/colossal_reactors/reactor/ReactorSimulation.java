@@ -167,6 +167,9 @@ public final class ReactorSimulation {
         return Math.max(1e-6, 1.0 + alpha * (phi - 1.0));
     }
 
+    /** Max non-adjacent heat-sink cells that count toward modifiers: {@code 4 * rodCount}. */
+    public static final int NON_ADJACENT_HEAT_SINK_PER_ROD = 4;
+
     /** Result of GUI simulation: stats that would be shown per tick (no actual consumption). */
     public record SimulationResult(
             int rodCount,
@@ -178,7 +181,36 @@ public final class ReactorSimulation {
             int fuelPerTickHundredths,
             /** When instability is enabled in config: true if simulated cooling meets production (same threshold as runtime). */
             boolean stabilityCoolingSufficient
-    ) {}
+    ) {
+        /** Fuel units/t divided by RF/t (consumption / production). 0 if either side is zero. */
+        public double consumptionProductionRatio() {
+            if (rfPerTick <= 0 || fuelPerTickHundredths <= 0) {
+                return 0.0;
+            }
+            return (fuelPerTickHundredths / 100.0) / (double) rfPerTick;
+        }
+    }
+
+    /**
+     * Caps non-adjacent heat-sink contribution at {@code 4 * rodCount}, scaling sums proportionally.
+     * @return capped {@code countNon}
+     */
+    public static int capNonAdjacentHeatSinks(
+            int rodCount,
+            int countNon,
+            double[] sumFuelNon,
+            double[] sumEnergyNon,
+            double[] sumOverheatingNon) {
+        int maxNon = Math.max(0, rodCount) * NON_ADJACENT_HEAT_SINK_PER_ROD;
+        if (countNon <= maxNon || countNon <= 0) {
+            return countNon;
+        }
+        double scale = (double) maxNon / (double) countNon;
+        sumFuelNon[0] *= scale;
+        sumEnergyNon[0] *= scale;
+        sumOverheatingNon[0] *= scale;
+        return maxNon;
+    }
 
     /**
      * Runs one tick of consumption and production. Call when reactor is ON and valid.
@@ -688,6 +720,13 @@ public final class ReactorSimulation {
                 }
             }
         }
+        double[] fuelNon = {sumFuelNon};
+        double[] energyNon = {sumEnergyNon};
+        double[] overheatNon = {sumOverheatingNon};
+        countNon = capNonAdjacentHeatSinks(countRod, countNon, fuelNon, energyNon, overheatNon);
+        sumFuelNon = fuelNon[0];
+        sumEnergyNon = energyNon[0];
+        sumOverheatingNon = overheatNon[0];
         double totalWeightedFuel = sumFuelRod + sumFuelAdj * wAdj + sumFuelNon * wNon;
         double totalWeightedEnergy = sumEnergyRod + sumEnergyAdj * wAdj + sumEnergyNon * wNon;
         double totalWeight = countRod + countAdj * wAdj + countNon * wNon;
@@ -724,9 +763,14 @@ public final class ReactorSimulation {
         double sumFuelRod = (double) cache.countRod() * rodM.fuelMultiplier();
         double sumEnergyRod = (double) cache.countRod() * rodM.energyMultiplier();
 
-        double totalWeightedFuel = sumFuelRod + cache.sumFuelAdj() * wAdj + cache.sumFuelNon() * wNon;
-        double totalWeightedEnergy = sumEnergyRod + cache.sumEnergyAdj() * wAdj + cache.sumEnergyNon() * wNon;
-        double totalWeight = cache.countRod() + cache.countAdj() * wAdj + cache.countNon() * wNon;
+        double[] fuelNon = {cache.sumFuelNon()};
+        double[] energyNon = {cache.sumEnergyNon()};
+        double[] overheatNon = {cache.sumOverheatingNon()};
+        int countNon = capNonAdjacentHeatSinks(cache.countRod(), cache.countNon(), fuelNon, energyNon, overheatNon);
+
+        double totalWeightedFuel = sumFuelRod + cache.sumFuelAdj() * wAdj + fuelNon[0] * wNon;
+        double totalWeightedEnergy = sumEnergyRod + cache.sumEnergyAdj() * wAdj + energyNon[0] * wNon;
+        double totalWeight = cache.countRod() + cache.countAdj() * wAdj + countNon * wNon;
         if (totalWeight <= 0) {
             return new HeatSinkLoader.HeatSinkModifiersResult(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0);
         }
@@ -738,7 +782,7 @@ public final class ReactorSimulation {
                     ? BuiltInRegistries.FLUID.getKey(coolantFluidFromPorts).toString()
                     : "none";
             ColossalReactors.LOGGER.info("[ReactorSimulation] Heat sink (cached): rod(scan)={} rod(list)={} coolantFromPorts={} adj={} nonAdj={} sumEnergyAdj={} sumFuelAdj={} wAdj={} wNon={} => fuelMult={} energyMult={}",
-                    cache.countRod(), rodsFromList, coolantStr, cache.countAdj(), cache.countNon(),
+                    cache.countRod(), rodsFromList, coolantStr, cache.countAdj(), countNon,
                     cache.sumEnergyAdj(), cache.sumFuelAdj(), wAdj, wNon, effFuel, effEnergy);
         }
 
@@ -747,12 +791,12 @@ public final class ReactorSimulation {
                 effEnergy,
                 cache.sumEnergyAdj(),
                 cache.sumFuelAdj(),
-                cache.sumEnergyNon(),
-                cache.sumFuelNon(),
+                energyNon[0],
+                fuelNon[0],
                 cache.sumOverheatingAdj(),
-                cache.sumOverheatingNon(),
+                overheatNon[0],
                 cache.countAdj(),
-                cache.countNon()
+                countNon
         );
     }
 
@@ -946,6 +990,12 @@ public final class ReactorSimulation {
                     else countNon++;
                 }
             }
+        }
+        {
+            double[] fuelNon = {0};
+            double[] energyNon = {0};
+            double[] overheatNon = {0};
+            countNon = capNonAdjacentHeatSinks(rodCount, countNon, fuelNon, energyNon, overheatNon);
         }
         int coolantBlockCount = countAdj + countNon;
 

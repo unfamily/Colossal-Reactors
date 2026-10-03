@@ -20,10 +20,11 @@ import net.unfamily.colossal_reactors.turbine.ElecCoilDefinition;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class ElecCoilRecipeCategory implements IRecipeCategory<ElecCoilDefinition> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "elec_coil");
+    public static final ResourceLocation UID = RecipeViewerIds.ELEC_COIL;
     public static final RecipeType<ElecCoilDefinition> RECIPE_TYPE = new RecipeType<>(UID, ElecCoilDefinition.class);
 
     private static final int WIDTH = 180;

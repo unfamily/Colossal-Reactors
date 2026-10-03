@@ -30,15 +30,20 @@ public record TurbineJeiRecipe(TurbineGenerationDefinition definition, JeiMedium
         boolean liquidOut = def.outputs().stream().anyMatch(s -> !MaterialSelector.isChemicalPrefix(s));
         boolean gasOut = def.outputs().stream().anyMatch(MaterialSelector::isChemicalPrefix);
 
+        // One card per medium that has inputs — avoid empty-input gas duplicates.
         List<TurbineJeiRecipe> out = new ArrayList<>();
-        if (liquidIn || liquidOut) {
+        if (liquidIn) {
             out.add(new TurbineJeiRecipe(def, JeiMedium.LIQUID));
         }
-        if ((gasIn || gasOut) && (JeiIngredientsHelper.jeiChemicalsAvailable() || !liquidIn && !liquidOut)) {
+        if (gasIn && (JeiIngredientsHelper.jeiChemicalsAvailable() || !liquidIn)) {
             out.add(new TurbineJeiRecipe(def, JeiMedium.GAS));
         }
         if (out.isEmpty()) {
-            out.add(new TurbineJeiRecipe(def, JeiMedium.LIQUID));
+            if (liquidOut || !gasOut) {
+                out.add(new TurbineJeiRecipe(def, JeiMedium.LIQUID));
+            } else {
+                out.add(new TurbineJeiRecipe(def, JeiMedium.GAS));
+            }
         }
         return out;
     }

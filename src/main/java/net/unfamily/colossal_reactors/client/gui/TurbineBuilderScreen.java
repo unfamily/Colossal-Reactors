@@ -745,6 +745,10 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                 "gui.colossal_reactors.turbine_controller.efficiency.label",
                 Component.translatable("gui.colossal_reactors.turbine_controller.efficiency.value",
                         String.format("%.2f", result.bladeEfficiency())));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
+                "gui.colossal_reactors.turbine_builder.simulation.ratio.label",
+                Component.translatable("gui.colossal_reactors.turbine_builder.simulation.ratio.value",
+                        String.format("%.4f", result.consumptionProductionRatio())));
         return y;
     }
 

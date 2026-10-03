@@ -5,14 +5,16 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.minecraft.world.level.Level;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RecipesUpdatedEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.unfamily.colossal_reactors.block.ReactorBuilderBlock;
 import net.unfamily.colossal_reactors.block.TurbineBuilderBlock;
 import net.unfamily.colossal_reactors.client.turbine.TurbineRotorAnimationManager;
-import net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync;
+import net.unfamily.colossal_reactors.crafting.ColossalRecipeData;
 import net.unfamily.colossal_reactors.datapack.LoadDataReloadListener;
 import net.unfamily.colossal_reactors.network.ReactorPreviewPayload;
 import net.unfamily.colossal_reactors.network.TurbinePreviewPayload;
@@ -53,9 +55,32 @@ public final class ColossalReactorsClientEvents {
         refreshDatapackForWorld();
     }
 
+    @SubscribeEvent
+    public static void onRecipesUpdated(RecipesUpdatedEvent event) {
+        ColossalRecipeData.apply(event.getRecipeManager());
+        syncRecipeViewers();
+    }
+
     private static void refreshDatapackForWorld() {
         LoadDataReloadListener.refreshFromLastLoaded();
-        JeiDatapackRecipeSync.syncWhenWorldReady();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() != null) {
+            ColossalRecipeData.apply(mc.getConnection().getRecipeManager());
+        }
+        syncRecipeViewers();
+    }
+
+    /** Only touch viewer classes that are actually present (JEI/EMI/REI are exclusive at runtime). */
+    private static void syncRecipeViewers() {
+        if (ModList.get().isLoaded("jei")) {
+            net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync.syncWhenWorldReady();
+        }
+        if (ModList.get().isLoaded("emi")) {
+            net.unfamily.colossal_reactors.compat.emi.EmiDatapackRecipeSync.syncWhenWorldReady();
+        }
+        if (ModList.get().isLoaded("roughlyenoughitems")) {
+            net.unfamily.colossal_reactors.compat.rei.ReiDatapackRecipeSync.syncWhenWorldReady();
+        }
     }
 
     @SubscribeEvent

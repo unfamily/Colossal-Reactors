@@ -23,10 +23,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "reactor_coolant");
+    public static final ResourceLocation UID = RecipeViewerIds.REACTOR_COOLANT;
     private static final int WIDTH = 180;
     /** Slots (~18px) + four text lines */
     private static final int HEIGHT = 62;
@@ -85,9 +86,9 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
                         .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
             }
         } else {
-            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
+            JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputSelectors());
-            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
+            JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
                     JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, recipe.outputSelectors());
         }
     }

@@ -22,10 +22,11 @@ import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class MelterHeatSourceRecipeCategory implements IRecipeCategory<MelterHeatEntry> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "melter_heat_source");
+    public static final ResourceLocation UID = RecipeViewerIds.MELTER_HEAT_SOURCE;
     private static final int WIDTH = 180;
     private static final int HEIGHT = 52;
 

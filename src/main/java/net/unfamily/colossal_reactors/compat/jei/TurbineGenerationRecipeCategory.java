@@ -24,10 +24,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJeiRecipe> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "turbine_generation");
+    public static final ResourceLocation UID = RecipeViewerIds.TURBINE_GENERATION;
     public static final RecipeType<TurbineJeiRecipe> RECIPE_TYPE = new RecipeType<>(UID, TurbineJeiRecipe.class);
 
     private static final int WIDTH = 180;
@@ -81,10 +82,10 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJ
                         .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
             }
         } else {
-            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
+            JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
                     JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputSelectors());
             if (!recipe.outputSelectors().isEmpty()) {
-                JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
+                JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
                         JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, recipe.outputSelectors());
             } else {
                 // No gas output in datapack: condensate defaults to liquid (fluid EXTRACT port).

@@ -31,10 +31,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJeiRecipe> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(ColossalReactors.MODID, "heating_coil");
+    public static final ResourceLocation UID = RecipeViewerIds.HEATING_COIL;
     private static final int WIDTH = 170;
     private static final int HEIGHT = 112;
     private static final int FLUID_DISPLAY_AMOUNT_MB = 1000;
@@ -46,11 +47,9 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
 
     public HeatingCoilRecipeCategory(IGuiHelper helper) {
         this.background = new JeiHeatingCoilBackgroundDrawable(WIDTH, HEIGHT);
-        // Pick the first registered coil block as icon (fallback to MELTER if none).
-        ItemStack stack = ModBlocks.HEATING_COIL_BLOCKS.isEmpty()
-                ? new ItemStack(ModBlocks.MELTER.get())
-                : new ItemStack(ModBlocks.HEATING_COIL_BLOCKS.get(0).get());
-        this.icon = helper.createDrawableIngredient(VanillaTypes.ITEM_STACK, stack);
+        // Category icon = Melter; catalysts/workstations are the coil blocks.
+        this.icon = helper.createDrawableIngredient(
+                VanillaTypes.ITEM_STACK, new ItemStack(ModBlocks.MELTER.get()));
     }
 
     @Override
@@ -108,7 +107,7 @@ public class HeatingCoilRecipeCategory implements IRecipeCategory<HeatingCoilJei
             ConsumeOption.ChemicalRequirement chemReq = opt.chemical();
             List<Object> chemStacks = MekChemicalHelper.stacksForSelector(chemReq.selector());
             if (!chemStacks.isEmpty()) {
-                var chemType = JeiIngredientsHelper.getMekChemicalIngredientType();
+                var chemType = JeiChemicalSlots.getMekChemicalIngredientType();
                 if (chemType != null) {
                     int x = getInputSlotX(slotIdx++);
                     builder.addSlot(RecipeIngredientRole.INPUT, x + JeiHeatingCoilBackgroundDrawable.ITEM_OFFSET_X,
