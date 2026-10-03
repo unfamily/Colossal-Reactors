@@ -23,6 +23,7 @@ import net.minecraft.world.item.Items;
 import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.blockentity.RedstoneMode;
 import net.unfamily.colossal_reactors.client.gui.FluidRenderHelper;
+import net.unfamily.colossal_reactors.compat.MelterProgressBarRecipes;
 import net.unfamily.colossal_reactors.menu.MelterMenu;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.network.MelterRedstoneModePayload;
@@ -85,11 +86,20 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     private static final int PROGRESS_BAR_X = 77;
     private static final int PROGRESS_BAR_Y = SLOT_Y + (18 - PROGRESS_BAR_HEIGHT) / 2;
 
-    /** Exposed for JEI recipe click area (click on progress bar opens Melter recipes). */
+    /** Exposed for JEI/REI recipe click areas (progress bar opens Melter recipes). */
     public static int getProgressBarX() { return PROGRESS_BAR_X; }
     public static int getProgressBarY() { return PROGRESS_BAR_Y; }
     public static int getProgressBarWidth() { return PROGRESS_BAR_WIDTH; }
     public static int getProgressBarHeight() { return PROGRESS_BAR_HEIGHT; }
+
+    public boolean isOverProgressBar(double mouseX, double mouseY) {
+        int left = leftPos + PROGRESS_BAR_X;
+        int top = topPos + PROGRESS_BAR_Y;
+        return mouseX >= left
+                && mouseX < left + PROGRESS_BAR_WIDTH
+                && mouseY >= top
+                && mouseY < top + PROGRESS_BAR_HEIGHT;
+    }
 
     private Button closeButton;
     private Button buttonDumpFluid;
@@ -217,12 +227,23 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
             ClientPacketDistributor.sendToServer(new MelterRedstoneModePayload(menu.getBlockPos(), event.button() == 0));
             return true;
         }
+        // EMI has no native GUI click-area API; JEI/REI register theirs separately.
+        if (event.button() == 0
+                && isOverProgressBar(event.x(), event.y())
+                && MelterProgressBarRecipes.tryOpenFromProgressBar()) {
+            return true;
+        }
         return super.mouseClicked(event, doubleClick);
     }
 
     @Override
     protected void extractTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         super.extractTooltip(guiGraphics, mouseX, mouseY);
+
+        if (isOverProgressBar(mouseX, mouseY)) {
+            guiGraphics.setTooltipForNextFrame(
+                    font, Component.translatable("gui.colossal_reactors.melter.show_recipes"), mouseX, mouseY);
+        }
 
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;

@@ -120,6 +120,7 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJ
 
     @Override
     public @Nullable Identifier getRegistryName(TurbineJeiRecipe recipe) {
+        // Bare RecipeManager / KubeJS id when present (shared with EMI/REI).
         return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

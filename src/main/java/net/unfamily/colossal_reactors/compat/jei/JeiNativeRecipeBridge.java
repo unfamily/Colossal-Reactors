@@ -12,6 +12,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.crafting.ColossalJsonRecipe;
+import net.unfamily.colossal_reactors.crafting.ColossalRecipeDatapackSync;
 import net.unfamily.colossal_reactors.crafting.ModColossalRecipes;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
@@ -31,7 +32,8 @@ import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Builds JEI recipe lists from native {@link RecipeHolder} ids when RecipeManager is available.
+ * Builds JEI/EMI/REI lists from native {@link RecipeHolder} ids — the same keys KubeJS and
+ * other recipe mods see in RecipeManager after Library bundle split.
  */
 public final class JeiNativeRecipeBridge {
     private JeiNativeRecipeBridge() {}
@@ -45,13 +47,14 @@ public final class JeiNativeRecipeBridge {
     @SuppressWarnings("unchecked")
     private static List<RecipeHolder<ColossalJsonRecipe>> holders(RecipeType<ColossalJsonRecipe> type) {
         RecipeManager manager = recipeManager();
-        if (manager == null) {
-            return List.of();
+        if (manager != null) {
+            return manager.getRecipes().stream()
+                    .filter(holder -> holder.value().getType().equals(type))
+                    .map(holder -> (RecipeHolder<ColossalJsonRecipe>) holder)
+                    .toList();
         }
-        return manager.getRecipes().stream()
-                .filter(holder -> holder.value().getType().equals(type))
-                .map(holder -> (RecipeHolder<ColossalJsonRecipe>) holder)
-                .toList();
+        // Dedicated / remote client: use synced RecipeMap (same ids as server / KubeJS).
+        return ColossalRecipeDatapackSync.clientHolders(type);
     }
 
     private static Identifier idOf(RecipeHolder<?> holder) {
@@ -114,12 +117,14 @@ public final class JeiNativeRecipeBridge {
     public static List<MelterHeatJeiRecipe> melterHeats() {
         List<MelterHeatJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.MELTER_HEATS.get())) {
-            Identifier id = idOf(holder);
-            List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(holder.value().json(), id.toString());
-            if (list != null) {
-                for (int i = 0; i < list.size(); i++) {
-                    out.add(MelterHeatJeiRecipe.of(list.get(i), id, i));
-                }
+            Identifier holderId = idOf(holder);
+            List<MelterHeatEntry> list = MelterHeatsLoader.parseFromRoot(holder.value().json(), holderId.toString());
+            if (list == null || list.isEmpty()) {
+                continue;
+            }
+            // Always the RecipeManager / KubeJS id — never invent path_N that is not a holder key.
+            for (int i = 0; i < list.size(); i++) {
+                out.add(MelterHeatJeiRecipe.of(list.get(i), holderId, i));
             }
         }
         return out.isEmpty() ? MelterHeatJeiRecipe.wrapAll(MelterHeatsLoader.getAll()) : out;

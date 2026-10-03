@@ -265,11 +265,8 @@ public final class ColossalEmiRecipes {
     }
 
     public static EmiRecipe heatingCoil(HeatingCoilJeiRecipe recipe) {
-        Identifier id = ViewerRecipeIds.displayLocation(
-                recipe.recipeId(),
-                "heating_coil",
-                ViewerRecipeIds.fallbackId("heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex()),
-                Integer.toString(recipe.optionIndex()));
+        Identifier id = ViewerRecipeIds.heatingCoilDisplayLocation(
+                recipe.recipeId(), recipe.coilId(), recipe.optionIndex());
         return new EmiRecipe() {
             private final List<EmiIngredient> inputs = buildInputs(recipe);
             private final EmiStack output = buildOutput(recipe);

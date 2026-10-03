@@ -45,6 +45,7 @@ public record TurbineJeiRecipe(
         boolean gasOut = def.outputs().stream().anyMatch(s -> s != null && s.startsWith("%"));
 
         List<TurbineJeiRecipe> out = new ArrayList<>();
+        // Same RecipeManager / KubeJS id on every medium card (no synthetic /gas ids).
         if (liquidIn || liquidOut) {
             out.add(new TurbineJeiRecipe(def, JeiMedium.LIQUID, recipeId));
         }

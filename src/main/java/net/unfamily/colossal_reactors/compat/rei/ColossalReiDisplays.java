@@ -170,11 +170,8 @@ public final class ColossalReiDisplays {
         if (onlyChemical && !ReiChemicalHelper.canShowChemicals()) {
             return null;
         }
-        Identifier id = ViewerRecipeIds.displayLocation(
-                recipe.recipeId(),
-                "heating_coil",
-                ViewerRecipeIds.fallbackId("heating_coil/" + recipe.coilId().getPath() + "/" + recipe.optionIndex()),
-                Integer.toString(recipe.optionIndex()));
+        Identifier id = ViewerRecipeIds.heatingCoilDisplayLocation(
+                recipe.recipeId(), recipe.coilId(), recipe.optionIndex());
         List<EntryIngredient> inputs = new ArrayList<>();
         List<EntryIngredient> outputs = new ArrayList<>();
         ItemStack off = HeatingCoilViewerHelper.coilStack(recipe.coilId(), false);

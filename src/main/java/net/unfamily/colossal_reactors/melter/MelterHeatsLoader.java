@@ -162,6 +162,11 @@ public final class MelterHeatsLoader {
 
     @Nullable
     public static List<MelterHeatEntry> parseFromRoot(JsonObject root, String source) {
+        // After RecipeBundleSplitter, each holder is one heat object (blocks/fluids/factor).
+        if (root.has(KEY_FACTOR) && (root.has(KEY_BLOCKS) || root.has(KEY_FLUIDS))) {
+            MelterHeatEntry single = parseOne(root, source);
+            return single != null ? List.of(single) : null;
+        }
         if (!root.has("valid_blocks") || !root.get("valid_blocks").isJsonArray()) {
             LOGGER.warn("Melter heats in {}: missing valid_blocks array", source);
             return null;
