@@ -139,16 +139,6 @@ public class ModBlocks {
                     .requiresCorrectToolForDrops()));
 
     // Resource ores (stone + deepslate)
-    public static final DeferredBlock<Block> URANIUM_ORE = BLOCKS.register("uranium_ore",
-            () -> new Block(BlockBehaviour.Properties.of()
-                    .sound(SoundType.STONE)
-                    .strength(3.0f, 3.0f)
-                    .requiresCorrectToolForDrops()));
-    public static final DeferredBlock<Block> DEEPSLATE_URANIUM_ORE = BLOCKS.register("deep_uranium_ore",
-            () -> new Block(BlockBehaviour.Properties.of()
-                    .sound(SoundType.DEEPSLATE)
-                    .strength(4.5f, 3.0f)
-                    .requiresCorrectToolForDrops()));
     public static final DeferredBlock<Block> LEAD_ORE = BLOCKS.register("lead_ore",
             () -> new Block(BlockBehaviour.Properties.of()
                     .sound(SoundType.STONE)
@@ -180,18 +170,13 @@ public class ModBlocks {
                     .sound(SoundType.DEEPSLATE)
                     .strength(4.5f, 3.0f)
                     .requiresCorrectToolForDrops()));
-
-    // Storage and raw blocks
-    public static final DeferredBlock<Block> URANIUM_BLOCK = BLOCKS.register("uranium_block",
-            () -> new Block(BlockBehaviour.Properties.of()
-                    .sound(SoundType.METAL)
-                    .strength(5.0f, 6.0f)
-                    .requiresCorrectToolForDrops()));
-    public static final DeferredBlock<Block> URANIUM_RAW_BLOCK = BLOCKS.register("uranium_raw_block",
+    public static final DeferredBlock<Block> CALIFORNIUM_END_ORE = BLOCKS.register("californium_end_ore",
             () -> new Block(BlockBehaviour.Properties.of()
                     .sound(SoundType.STONE)
-                    .strength(5.0f, 6.0f)
+                    .strength(3.0f, 9.0f)
                     .requiresCorrectToolForDrops()));
+
+    // Storage and raw blocks
     public static final DeferredBlock<Block> CHROMIUM_BLOCK = BLOCKS.register("chromium_block",
             () -> new Block(BlockBehaviour.Properties.of()
                     .sound(SoundType.METAL)

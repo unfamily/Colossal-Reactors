@@ -1,0 +1,17 @@
+{
+  "neoforge:conditions": [
+    { "type": "neoforge:mod_loaded", "modid": "indreb" }
+  ],
+  "type": "indreb:crushing",
+  "chance_result": [],
+  "duration": 180,
+  "experience": 0.2,
+  "ingredients": [
+    { "tag": "c:ores/californium" }
+  ],
+  "result": {
+    "count": 8,
+    "item": "colossal_reactors:californium_crystals"
+  },
+  "tick_energy_cost": 8
+}

@@ -59,6 +59,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private static final String TAG_SIZE_D = "SizeD";
     private static final String TAG_SIZE_W = "SizeW";
     private static final String TAG_COIL_IDX = "CoilIdx";
+    private static final String TAG_SIM_GENERATION_IDX = "SimGenerationIdx";
     private static final String TAG_OPEN_TOP = "OpenTop";
     private static final String TAG_ROD_PATTERN = "RodPattern";
     private static final String TAG_PATTERN_MODE = "PatternMode";
@@ -169,6 +170,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     private int sizeDepth = 6;
     /** Heat sink option index for fill: 0 = Air, 1.. = ElecCoilLoader definition index. */
     private int selectedCoilIndex = 0;
+    /** Simulation steam-generation recipe index among visible definitions. */
+    private int simGenerationIndex = 0;
     /** When built: true = absolute top face open (no top casing); rod controller still placed. */
     private boolean openTop = false;
     private int coilLayerCount = Config.TURBINE_DEFAULT_COIL_LAYER_COUNT.get();
@@ -253,13 +256,15 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 13 -> buildProgressPercent;
                 case 14 -> buildProgressVisible ? 1 : 0;
                 case 15 -> placementAxisIndex;
+                case 16 -> getSimGenerationIndex();
                 default -> 0;
             };
         }
 
         @Override
         public void set(int index, int value) {
-            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11 && index != 12 && index != 13 && index != 14 && index != 15) {
+            if (index >= 4 && index != 7 && index != 8 && index != 9 && index != 10 && index != 11
+                    && index != 12 && index != 13 && index != 14 && index != 15 && index != 16) {
                 return;
             }
             switch (index) {
@@ -286,13 +291,14 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                         placementAxisIndex = value;
                     }
                 }
+                case 16 -> simGenerationIndex = Math.max(0, value);
                 default -> {}
             }
         }
 
         @Override
         public int getCount() {
-            return 16;
+            return 17;
         }
     };
 
@@ -537,6 +543,29 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         setChanged();
     }
 
+    public int getSimGenerationIndex() {
+        int count = TurbineGenerationLoader.getVisibleDefinitions().size();
+        if (count <= 0) {
+            return 0;
+        }
+        return Math.max(0, Math.min(count - 1, simGenerationIndex));
+    }
+
+    /** Cycle simulation steam-generation recipe among visible definitions. */
+    public void cycleSimGeneration(boolean next) {
+        int count = TurbineGenerationLoader.getVisibleDefinitions().size();
+        if (count <= 0) {
+            return;
+        }
+        int current = getSimGenerationIndex();
+        if (next) {
+            simGenerationIndex = (current + 1) % count;
+        } else {
+            simGenerationIndex = current <= 0 ? count - 1 : current - 1;
+        }
+        setChanged();
+    }
+
     /**
      * Returns the reactor volume AABB in world coordinates (block-aligned).
      * Reactor extends from one block behind the builder (opposite of facing), with left/right/up/depth from sizes.
@@ -650,6 +679,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         tag.putInt(TAG_SIZE_H, sizeHeight);
         tag.putInt(TAG_SIZE_D, sizeDepth);
         tag.putInt(TAG_COIL_IDX, selectedCoilIndex);
+        tag.putInt(TAG_SIM_GENERATION_IDX, getSimGenerationIndex());
         tag.putInt("CoilLayerCount", coilLayerCount);
         tag.putInt(TAG_ROD_PATTERN, rodPattern);
         tag.putString(TAG_PLACEMENT_AXIS, TurbinePlacementAxis.fromIndex(placementAxisIndex).id());
@@ -720,6 +750,9 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         if (tag.contains(TAG_SIZE_H)) sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), tag.getInt(TAG_SIZE_H)));
         if (tag.contains(TAG_SIZE_D)) sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), tag.getInt(TAG_SIZE_D)));
         if (tag.contains(TAG_COIL_IDX)) selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, tag.getInt(TAG_COIL_IDX)));
+        if (tag.contains(TAG_SIM_GENERATION_IDX)) {
+            simGenerationIndex = Math.max(0, tag.getInt(TAG_SIM_GENERATION_IDX));
+        }
         if (tag.contains("CoilLayerCount")) coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, tag.getInt("CoilLayerCount")));
         clampCoilLayerCountToFit();
         if (tag.contains(TAG_ROD_PATTERN)) rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, tag.getInt(TAG_ROD_PATTERN)));

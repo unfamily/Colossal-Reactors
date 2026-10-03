@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "colossal_reactors:californium_crystals" },
+    { "item": "minecraft:phantom_membrane" },
+    { "item": "minecraft:redstone" }
+  ],
+  "result": { "id": "colossal_reactors:red_cake", "count": 1 }
+}

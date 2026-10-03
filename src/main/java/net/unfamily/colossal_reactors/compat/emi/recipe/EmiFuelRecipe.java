@@ -90,9 +90,8 @@ public final class EmiFuelRecipe implements EmiRecipe {
         int color = 0xFF404040;
         int consume = recipe.consume();
         int produce = recipe.produce();
-        String[] ratio = JeiIngredientsHelper.formatSimplifiedRatio(consume, produce);
-        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.consume_fuel", ratio[1]), margin, textY, color, false);
-        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.produce_waste", ratio[0]), margin, textY + lineHeight, color, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.consume_fuel", consume), margin, textY, color, false);
+        guiGraphics.drawString(font, Component.translatable("jei.colossal_reactors.produce_waste", produce), margin, textY + lineHeight, color, false);
         double fuelPower = recipe.baseRfPerTick() * Config.PRODUCTION_MULTIPLIER.get();
         guiGraphics.drawString(font,
                 Component.translatable("jei.colossal_reactors.fuel.power", formatFuelPower(fuelPower)),
@@ -107,7 +106,7 @@ public final class EmiFuelRecipe implements EmiRecipe {
                 Component.translatable("jei.colossal_reactors.fuel.units_per_waste", recipe.unitsPerWaste()),
                 margin, textY + lineHeight * 5, color, false);
         guiGraphics.drawString(font,
-                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste()),
+                Component.translatable("jei.colossal_reactors.fuel.burn_to_waste", recipe.unitsPerWaste(), produce),
                 margin, textY + lineHeight * 6, color, false);
     }
 
@@ -121,7 +120,8 @@ public final class EmiFuelRecipe implements EmiRecipe {
                 yield EmiStackHelper.ingredientOfFluids(fluids);
             }
             case CHEMICAL -> EmiStackHelper.ingredientOfChemicalSelectors(recipe.inputs());
-            case ITEM -> EmiStackHelper.ingredientOf(JeiIngredientsHelper.getFuelInputStacks(recipe.inputs(), reg));
+            case ITEM -> EmiStackHelper.ingredientOf(
+                    JeiIngredientsHelper.withCount(JeiIngredientsHelper.getFuelInputStacks(recipe.inputs(), reg), recipe.consume()));
         };
     }
 
@@ -137,7 +137,8 @@ public final class EmiFuelRecipe implements EmiRecipe {
                 yield ing.getEmiStacks().getFirst();
             }
             case ITEM -> {
-                var stacks = JeiIngredientsHelper.getWasteOutputStacks(output, reg);
+                var stacks = JeiIngredientsHelper.withCount(
+                        JeiIngredientsHelper.getWasteOutputStacks(output, reg), recipe.produce());
                 yield stacks.isEmpty() ? EmiStack.EMPTY : EmiStackHelper.outputOf(stacks.get(0));
             }
         };

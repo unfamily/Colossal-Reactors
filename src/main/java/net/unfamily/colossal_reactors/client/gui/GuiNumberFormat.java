@@ -38,4 +38,32 @@ public final class GuiNumberFormat {
         }
         return String.format("%.1f%s", scaled, SUFFIXES[suffixIndex]);
     }
+
+    /**
+     * Formats efficiency as production per consumption (RF/Fuel or RF/mB). Higher is better.
+     * Uses compact suffixes for large reactor values (e.g. 29797 → 29.8K).
+     */
+    public static String formatEfficiency(double productionPerConsumption) {
+        if (!Double.isFinite(productionPerConsumption) || productionPerConsumption <= 0.0d) {
+            return "0";
+        }
+        return format(productionPerConsumption);
+    }
+
+    /** RF per fuel unit from fuel hundredths/t and RF/t. */
+    public static String formatReactorRfPerFuel(long rfPerTick, int fuelPerTickHundredths) {
+        if (rfPerTick <= 0L || fuelPerTickHundredths <= 0) {
+            return "0";
+        }
+        double fuelUnits = fuelPerTickHundredths / 100.0d;
+        return formatEfficiency(rfPerTick / fuelUnits);
+    }
+
+    /** RF per steam mB from RF/t and steam mB/t. */
+    public static String formatTurbineRfPerMb(long rfPerTick, double steamMbPerTick) {
+        if (rfPerTick <= 0L || !(steamMbPerTick > 0.0d)) {
+            return "0";
+        }
+        return formatEfficiency(rfPerTick / steamMbPerTick);
+    }
 }

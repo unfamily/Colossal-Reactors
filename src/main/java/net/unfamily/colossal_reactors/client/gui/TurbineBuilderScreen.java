@@ -30,6 +30,7 @@ import net.unfamily.colossal_reactors.network.TurbineBuilderBuildPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderMarkInputPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderCoilPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderOptionPayload;
+import net.unfamily.colossal_reactors.network.TurbineBuilderSimSettingsPayload;
 import net.unfamily.colossal_reactors.network.TurbineBuilderSizePayload;
 import net.unfamily.colossal_reactors.network.FluidTankDumpPayload;
 import net.unfamily.colossal_reactors.client.BuilderPreviewTracker;
@@ -159,8 +160,6 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private enum ViewMode { BUILDER, SIMULATION }
 
     private ViewMode viewMode = ViewMode.BUILDER;
-    /** Index into {@link #getVisibleGenerations()} for simulation RF/steam estimate. */
-    private int simulationGenerationIndex = 0;
 
     private static final String TOOLTIP_LEFT_CLICK = "gui.colossal_reactors.turbine_builder.tooltip.left_click";
     private static final String TOOLTIP_RIGHT_CLICK = "gui.colossal_reactors.turbine_builder.tooltip.right_click";
@@ -309,6 +308,8 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             } else {
                 lastPreviewSettingsHash = computePreviewSettingsHash();
             }
+        } else {
+            updateSteamGenerationButtonLabel();
         }
     }
 
@@ -330,17 +331,8 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     }
 
     private void cycleSimulationGeneration(boolean next) {
-        List<TurbineGenerationDefinition> gens = getVisibleGenerations();
-        if (gens.isEmpty()) return;
-        if (minecraft != null && minecraft.getSoundManager() != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-        }
-        if (next) {
-            simulationGenerationIndex = (simulationGenerationIndex + 1) % gens.size();
-        } else {
-            simulationGenerationIndex = simulationGenerationIndex <= 0 ? gens.size() - 1 : simulationGenerationIndex - 1;
-        }
-        updateSteamGenerationButtonLabel();
+        if (menu.getBlockEntity() == null || getVisibleGenerations().isEmpty()) return;
+        PacketDistributor.sendToServer(new TurbineBuilderSimSettingsPayload(menu.getBlockPos(), next));
     }
 
     private void updateSteamGenerationButtonLabel() {
@@ -353,7 +345,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             steamGenerationButton.setTooltip(Tooltip.create(title.append(Component.literal("\n")).append(clickHint)));
             return;
         }
-        if (simulationGenerationIndex >= gens.size()) simulationGenerationIndex = 0;
+        int simulationGenerationIndex = Math.min(menu.getSimGenerationIndex(), gens.size() - 1);
         TurbineGenerationDefinition def = gens.get(simulationGenerationIndex);
         var ra = minecraft != null && minecraft.level != null ? minecraft.level.registryAccess() : null;
         Component label = getGenerationDisplayName(def, ra);
@@ -748,7 +740,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
         y = ReactorPanelText.drawMetricRow(guiGraphics, font, textX, y, SIM_LINE_HEIGHT,
                 "gui.colossal_reactors.turbine_builder.simulation.ratio.label",
                 Component.translatable("gui.colossal_reactors.turbine_builder.simulation.ratio.value",
-                        String.format("%.4f", result.consumptionProductionRatio())));
+                        GuiNumberFormat.formatTurbineRfPerMb((long) result.rfPerTick(), result.steamMbPerTick())));
         return y;
     }
 
@@ -806,7 +798,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
     private ResourceLocation getSelectedGenerationId() {
         List<TurbineGenerationDefinition> gens = getVisibleGenerations();
         if (gens.isEmpty()) return null;
-        int idx = Math.min(simulationGenerationIndex, gens.size() - 1);
+        int idx = Math.min(menu.getSimGenerationIndex(), gens.size() - 1);
         return gens.get(idx).generationId();
     }
 

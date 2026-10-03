@@ -51,10 +51,8 @@ public final class HeatSinkLoader {
      */
     public static boolean shouldSkipSolidHeatSinkAutoPlacement(int selectedHeatSinkIndex) {
         if (selectedHeatSinkIndex <= 0) return true;
-        int defIdx = selectedHeatSinkIndex - 1;
-        if (defIdx < 0 || defIdx >= DEFINITIONS.size()) return true;
-        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
-        if (def.validBlocks().isEmpty()) return true;
+        HeatSinkDefinition def = definitionForOptionIndex(selectedHeatSinkIndex);
+        if (def == null || def.validBlocks().isEmpty()) return true;
         return def.validBlocks().stream().allMatch(HeatSinkLoader::isMinecraftAirInteriorSelector);
     }
 
@@ -73,6 +71,40 @@ public final class HeatSinkLoader {
         if (selector.startsWith("#")) return false;
         ResourceLocation id = ResourceLocation.tryParse(selector);
         return id != null && ResourceLocation.DEFAULT_NAMESPACE.equals(id.getNamespace()) && "air".equals(id.getPath());
+    }
+
+    /**
+     * Air-only datapack entries stay in {@link #DEFINITIONS} for runtime modifiers, but are not separate
+     * builder options (index 0 already is Air).
+     */
+    public static boolean isAirOnlyDefinition(HeatSinkDefinition def) {
+        return def != null
+                && def.validLiquids().isEmpty()
+                && !def.validBlocks().isEmpty()
+                && def.validBlocks().stream().allMatch(HeatSinkLoader::isMinecraftAirInteriorSelector);
+    }
+
+    /**
+     * Maps builder option index to a non-air definition. Index 0 = synthetic Air (returns null).
+     * Skips air-only datapack entries so they do not appear as a second "Air" option.
+     */
+    @Nullable
+    public static HeatSinkDefinition definitionForOptionIndex(int optionIndex) {
+        if (optionIndex <= 0) {
+            return null;
+        }
+        int target = optionIndex - 1;
+        int i = 0;
+        for (HeatSinkDefinition def : DEFINITIONS) {
+            if (isAirOnlyDefinition(def)) {
+                continue;
+            }
+            if (i == target) {
+                return def;
+            }
+            i++;
+        }
+        return null;
     }
 
     /**
@@ -228,14 +260,13 @@ public final class HeatSinkLoader {
     }
 
     /**
-     * Returns modifiers for the builder heat sink option index (0 = Air = 1,1,1; 1.. = definition by order).
+     * Returns modifiers for the builder heat sink option index (0 = Air; 1.. = non-air definitions).
      * Used by GUI simulation when all heat sink positions are the same selected type.
      */
     public static HeatSinkModifiers getModifiersForHeatSinkIndex(RegistryAccess registryAccess, int index) {
         if (index <= 0) return modifiersForInteriorAirLike();
-        int defIdx = index - 1;
-        if (defIdx >= DEFINITIONS.size()) return new HeatSinkModifiers(1.0, 1.0, 1.0);
-        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        HeatSinkDefinition def = definitionForOptionIndex(index);
+        if (def == null) return new HeatSinkModifiers(1.0, 1.0, 1.0);
         if (!def.validBlocks().isEmpty()) {
             BlockState state = getFirstBlockStateFromSelector(def.validBlocks().getFirst(), registryAccess);
             return state != null ? getModifiersForBlockOrDefault(state, registryAccess) : new HeatSinkModifiers(1.0, 1.0, 1.0);
@@ -286,11 +317,8 @@ public final class HeatSinkLoader {
      */
     public static boolean isFluidMatchingSelectedHeatSink(RegistryAccess registryAccess, int selectedHeatSinkIndex, Fluid fluid) {
         if (fluid == null || fluid == Fluids.EMPTY) return false;
-        if (selectedHeatSinkIndex <= 0) return false;
-        int defIdx = selectedHeatSinkIndex - 1;
-        if (defIdx >= DEFINITIONS.size()) return false;
-        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
-        if (def.validLiquids().isEmpty()) return false;
+        HeatSinkDefinition def = definitionForOptionIndex(selectedHeatSinkIndex);
+        if (def == null || def.validLiquids().isEmpty()) return false;
         for (String selector : def.validLiquids()) {
             if (fluidMatches(fluid, selector, registryAccess)) {
                 if (def.mustSource() && !fluid.defaultFluidState().isSource()) continue;
@@ -305,10 +333,8 @@ public final class HeatSinkLoader {
      * Used by reactor builder to place only the chosen block type.
      */
     public static boolean isBlockMatchingSelectedHeatSink(BlockState state, int selectedHeatSinkIndex, RegistryAccess registryAccess) {
-        if (selectedHeatSinkIndex <= 0) return false;
-        int defIdx = selectedHeatSinkIndex - 1;
-        if (defIdx >= DEFINITIONS.size()) return false;
-        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        HeatSinkDefinition def = definitionForOptionIndex(selectedHeatSinkIndex);
+        if (def == null) return false;
         for (String selector : def.validBlocks()) {
             if (blockMatches(state, selector, registryAccess)) return true;
         }
@@ -320,25 +346,28 @@ public final class HeatSinkLoader {
         return List.copyOf(DEFINITIONS);
     }
 
-    /** Number of heat sink options for builder GUI: 1 (Air) + one per definition. */
+    /** Number of heat sink options for builder GUI: 1 (Air) + one per non-air definition. */
     public static int getHeatSinkOptionCount() {
-        return 1 + DEFINITIONS.size();
+        int nonAir = 0;
+        for (HeatSinkDefinition def : DEFINITIONS) {
+            if (!isAirOnlyDefinition(def)) {
+                nonAir++;
+            }
+        }
+        return 1 + nonAir;
     }
 
     /** True when the builder heat-sink option places interior liquid (valid_liquids non-empty). */
     public static boolean requiresLiquidPlacement(int selectedHeatSinkIndex) {
-        if (selectedHeatSinkIndex <= 0) return false;
-        int defIdx = selectedHeatSinkIndex - 1;
-        if (defIdx < 0 || defIdx >= DEFINITIONS.size()) return false;
-        return !DEFINITIONS.get(defIdx).validLiquids().isEmpty();
+        HeatSinkDefinition def = definitionForOptionIndex(selectedHeatSinkIndex);
+        return def != null && !def.validLiquids().isEmpty();
     }
 
     /** Display name for option index (0 = Air, 1.. = first block/fluid name from that definition). */
     public static Component getOptionDisplayName(RegistryAccess registryAccess, int index) {
         if (index <= 0) return Component.translatable("block.minecraft.air");
-        int defIdx = index - 1;
-        if (defIdx >= DEFINITIONS.size()) return Component.literal("?");
-        HeatSinkDefinition def = DEFINITIONS.get(defIdx);
+        HeatSinkDefinition def = definitionForOptionIndex(index);
+        if (def == null) return Component.literal("?");
         if (!def.validBlocks().isEmpty()) {
             return net.unfamily.colossal_reactors.client.SelectorDisplayNames.fromFirstSelector(def.validBlocks(), registryAccess);
         }

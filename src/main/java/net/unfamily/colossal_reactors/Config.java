@@ -47,9 +47,6 @@ public class Config {
         BUILDER.comment("Ore generation toggles").push("worldgen");
     }
 
-    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_URANIUM_OREGEN = BUILDER
-            .comment("When true, disables uranium ore generation in the world. Default: false")
-            .define("000_disable_uranium_oregen", false);
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_LEAD_OREGEN = BUILDER
             .comment("When true, disables lead ore generation in the world. Default: false")
             .define("001_disable_lead_oregen", false);
@@ -59,6 +56,9 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_CHROMIUM_OREGEN = BUILDER
             .comment("When true, disables chromium ore generation in the world. Default: false")
             .define("003_disable_chromium_oregen", false);
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_CALIFORNIUM_OREGEN = BUILDER
+            .comment("When true, disables californium End ore generation. Default: false")
+            .define("004_disable_californium_oregen", false);
 
     static {
         BUILDER.pop();

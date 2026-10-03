@@ -6,7 +6,7 @@ import mekanism.common.registration.impl.ChemicalDeferredRegister;
 import mekanism.common.registration.impl.DeferredChemical;
 import net.unfamily.colossal_reactors.ColossalReactors;
 
-/** Dirty/clean slurries for boron, chromium, and uranium (Mekanism dissolution chain). */
+/** Dirty/clean slurries for boron and chromium (Mekanism dissolution chain). */
 public final class ModMekanismChemicals {
 
     public static final ChemicalDeferredRegister CHEMICALS =
@@ -28,11 +28,6 @@ public final class ModMekanismChemicals {
             () -> new Chemical(ChemicalBuilder.cleanSlurry().tint(0xCF8EAE)));
     public static final DeferredChemical<Chemical> DIRTY_CHROMIUM = CHEMICALS.register("dirty_chromium",
             () -> new Chemical(ChemicalBuilder.dirtySlurry().tint(darken(0xCF8EAE, 0.55))));
-
-    public static final DeferredChemical<Chemical> CLEAN_URANIUM = CHEMICALS.register("clean_uranium",
-            () -> new Chemical(ChemicalBuilder.cleanSlurry().tint(0x46664F)));
-    public static final DeferredChemical<Chemical> DIRTY_URANIUM = CHEMICALS.register("dirty_uranium",
-            () -> new Chemical(ChemicalBuilder.dirtySlurry().tint(darken(0x46664F, 0.55))));
 
     private ModMekanismChemicals() {}
 }

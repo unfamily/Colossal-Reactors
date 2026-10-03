@@ -62,7 +62,7 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
             this.blockEntity = null;
             this.levelAccess = ContainerLevelAccess.NULL;
             this.fluidData = new SimpleContainerData(3);
-            this.sizeData = new SimpleContainerData(16);
+            this.sizeData = new SimpleContainerData(17);
         }
         addDataSlots(fluidData);
         addDataSlots(sizeData);
@@ -151,6 +151,8 @@ public class ReactorBuilderMenu extends AbstractContainerMenu {
     public boolean isInvalidBlocksDetected() { return sizeData.get(12) != 0; }
     public int getBuildProgressPercent() { return sizeData.get(13); }
     public boolean isBuildProgressVisible() { return sizeData.get(14) != 0; }
+    public int getSimCoolantIndex() { return sizeData.get(15); }
+    public int getSimFuelIndex() { return sizeData.get(16); }
 
     @Override
     public boolean stillValid(Player player) {

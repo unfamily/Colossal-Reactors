@@ -155,6 +155,10 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
                 "gui.colossal_reactors.reactor_controller.fuel_units.label",
                 Component.translatable("gui.colossal_reactors.reactor_controller.fuel_units.value", fuelStr));
+        y = ReactorPanelText.drawMetricRow(guiGraphics, font, PANEL_X, y, LINE_HEIGHT,
+                "gui.colossal_reactors.reactor_controller.ratio.label",
+                Component.translatable("gui.colossal_reactors.reactor_controller.ratio.value",
+                        GuiNumberFormat.formatReactorRfPerFuel(energyPerTick, fuelHundredths)));
 
         int cap = menu.getFuelCapacityUnits();
         int stored = menu.getFuelStoredUnits();
@@ -250,4 +254,5 @@ public class ReactorControllerScreen extends AbstractContainerScreen<ReactorCont
         String fracStr = String.format("%02d", frac).replaceFirst("0+$", "");
         return intPart + "." + fracStr;
     }
+
 }

@@ -34,6 +34,17 @@
       "units_per_waste": 500,
       "base_rf_per_tick": 1500.0,
       "base_fuel_units_per_tick": 1.0
+    },
+    {
+      "fuel_id": "colossal_reactors:red_cake",
+      "waste_id": "colossal_reactors:nuclear_waste",
+      "inputs": ["colossal_reactors:red_cake"],
+      "output": "colossal_reactors:nuclear_waste",
+      "produce": 2,
+      "units_per_fuel": 1500,
+      "units_per_waste": 1500,
+      "base_rf_per_tick": 1500.0,
+      "base_fuel_units_per_tick": 0.03
     }
   ]
 }
