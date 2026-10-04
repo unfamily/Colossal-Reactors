@@ -33,6 +33,7 @@ public record AddFeaturesIfOregenEnabledModifier(
 
     private boolean isOregenDisabled() {
         return switch (ore) {
+            case "uranium" -> Config.DISABLE_URANIUM_OREGEN.get();
             case "lead" -> Config.DISABLE_LEAD_OREGEN.get();
             case "boron" -> Config.DISABLE_BORON_OREGEN.get();
             case "chromium" -> Config.DISABLE_CHROMIUM_OREGEN.get();

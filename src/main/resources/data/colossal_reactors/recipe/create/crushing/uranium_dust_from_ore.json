@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{ "type": "neoforge:mod_loaded", "modid": "create" }],
+  "type": "create:crushing",
+  "ingredients": [{ "tag": "c:ores/uranium" }],
+  "results": [{ "item": "colossal_reactors:uranium_dust", "count": 2 }],
+  "processingTime": 350
+}

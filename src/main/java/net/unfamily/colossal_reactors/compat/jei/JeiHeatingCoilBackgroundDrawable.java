@@ -17,7 +17,8 @@ public class JeiHeatingCoilBackgroundDrawable implements IDrawable {
     public static final int OFF_X = 0;
     public static final int OFF_Y = 0;
 
-    public static final int PLUS_X = 22;
+    /** Centered in the gap between OFF (0..18) and IN1 (32). */
+    public static final int PLUS_X = 23;
     public static final int PLUS_Y = 5;
 
     public static final int IN1_X = 32;
@@ -25,7 +26,8 @@ public class JeiHeatingCoilBackgroundDrawable implements IDrawable {
     public static final int IN3_X = 72;
     public static final int IN_Y = 0;
 
-    public static final int RF_X = 86;
+    /** Just after IN3 (72+18), before the arrow at 118 — avoids overlapping the third slot. */
+    public static final int RF_X = 92;
     public static final int RF_Y = 5;
 
     public static final int ARROW_X = 118;
