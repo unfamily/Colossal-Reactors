@@ -1,5 +1,7 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +20,6 @@ import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilLoader;
-import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilRegistry;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkLoader;
 import net.unfamily.colossal_reactors.melter.MelterHeatEntry;
@@ -32,8 +33,8 @@ import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Builds JEI/EMI/REI lists from native {@link RecipeHolder} ids — the same keys KubeJS and
- * other recipe mods see in RecipeManager after Library bundle split.
+ * Builds JEI lists from RecipeManager / synced RecipeMap holders.
+ * Expands unsplit parent {@code entries} arrays when ModifyRecipeJsonsEvent missed a bundle.
  */
 public final class JeiNativeRecipeBridge {
     private JeiNativeRecipeBridge() {}
@@ -53,7 +54,6 @@ public final class JeiNativeRecipeBridge {
                     .map(holder -> (RecipeHolder<ColossalJsonRecipe>) holder)
                     .toList();
         }
-        // Dedicated / remote client: use synced RecipeMap (same ids as server / KubeJS).
         return ColossalRecipeDatapackSync.clientHolders(type);
     }
 
@@ -61,31 +61,56 @@ public final class JeiNativeRecipeBridge {
         return holder.id().identifier();
     }
 
+    private static List<JsonObject> expandEntries(JsonObject json) {
+        if (json != null && json.has("entries") && json.get("entries").isJsonArray()) {
+            List<JsonObject> out = new ArrayList<>();
+            for (JsonElement el : json.getAsJsonArray("entries")) {
+                if (el != null && el.isJsonObject()) {
+                    out.add(el.getAsJsonObject());
+                }
+            }
+            if (!out.isEmpty()) {
+                return out;
+            }
+        }
+        return json == null ? List.of() : List.of(json);
+    }
+
+    private static Identifier childId(Identifier holderId, int index, int total) {
+        if (total <= 1) {
+            return holderId;
+        }
+        return Identifier.fromNamespaceAndPath(holderId.getNamespace(), holderId.getPath() + "_" + index);
+    }
+
     public static List<FuelJeiRecipe> fuels() {
         List<FuelJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.FUEL.get())) {
-            Identifier id = idOf(holder);
-            FuelDefinition def = FuelLoader.parseEntry(holder.value().json(), id.toString(), true);
-            if (def != null) {
-                out.add(FuelJeiRecipe.of(def, id));
+            int i = 0;
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (JsonObject entry : entries) {
+                FuelDefinition def = FuelLoader.parseEntry(entry, idOf(holder).toString(), true);
+                if (def != null) {
+                    out.add(FuelJeiRecipe.of(def, childId(idOf(holder), i, entries.size())));
+                }
+                i++;
             }
         }
-        return out.isEmpty() ? FuelJeiRecipe.wrapAll(FuelLoader.getVisibleDefinitions()) : out;
+        return out;
     }
 
     public static List<CoolantJeiRecipe> coolants() {
         List<CoolantJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.COOLANT.get())) {
-            Identifier id = idOf(holder);
-            CoolantDefinition def = CoolantLoader.parseEntry(holder.value().json(), id.toString(), true);
-            if (def != null) {
-                out.addAll(CoolantJeiRecipe.expand(def, id));
+            int i = 0;
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (JsonObject entry : entries) {
+                CoolantDefinition def = CoolantLoader.parseEntry(entry, idOf(holder).toString(), true);
+                if (def != null) {
+                    out.addAll(CoolantJeiRecipe.expand(def, childId(idOf(holder), i, entries.size())));
+                }
+                i++;
             }
-        }
-        if (out.isEmpty()) {
-            return CoolantLoader.getVisibleDefinitions().stream()
-                    .flatMap(def -> CoolantJeiRecipe.expand(def).stream())
-                    .toList();
         }
         return out;
     }
@@ -93,25 +118,33 @@ public final class JeiNativeRecipeBridge {
     public static List<HeatSinkJeiRecipe> heatSinks() {
         List<HeatSinkJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.HEAT_SINKS.get())) {
-            Identifier id = idOf(holder);
-            HeatSinkDefinition def = HeatSinkLoader.parseEntry(holder.value().json(), id.toString());
-            if (def != null) {
-                out.add(HeatSinkJeiRecipe.of(def, id));
+            int i = 0;
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (JsonObject entry : entries) {
+                HeatSinkDefinition def = HeatSinkLoader.parseEntry(entry, idOf(holder).toString());
+                if (def != null) {
+                    out.add(HeatSinkJeiRecipe.of(def, childId(idOf(holder), i, entries.size())));
+                }
+                i++;
             }
         }
-        return out.isEmpty() ? HeatSinkJeiRecipe.wrapAll(HeatSinkLoader.getAllDefinitions()) : out;
+        return out;
     }
 
     public static List<MelterJeiRecipe> melterRecipes() {
         List<MelterJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.MELTER_RECIPES.get())) {
-            Identifier id = idOf(holder);
-            MelterRecipe r = MelterRecipesLoader.parseEntry(holder.value().json(), id.toString());
-            if (r != null) {
-                out.add(MelterJeiRecipe.of(r, id));
+            int i = 0;
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (JsonObject entry : entries) {
+                MelterRecipe r = MelterRecipesLoader.parseEntry(entry, idOf(holder).toString());
+                if (r != null) {
+                    out.add(MelterJeiRecipe.of(r, childId(idOf(holder), i, entries.size())));
+                }
+                i++;
             }
         }
-        return out.isEmpty() ? MelterJeiRecipe.wrapAll(MelterRecipesLoader.getAll()) : out;
+        return out;
     }
 
     public static List<MelterHeatJeiRecipe> melterHeats() {
@@ -122,40 +155,42 @@ public final class JeiNativeRecipeBridge {
             if (list == null || list.isEmpty()) {
                 continue;
             }
-            // Always the RecipeManager / KubeJS id — never invent path_N that is not a holder key.
             for (int i = 0; i < list.size(); i++) {
                 out.add(MelterHeatJeiRecipe.of(list.get(i), holderId, i));
             }
         }
-        return out.isEmpty() ? MelterHeatJeiRecipe.wrapAll(MelterHeatsLoader.getAll()) : out;
+        return out;
     }
 
     public static List<ElecCoilJeiRecipe> elecCoils() {
         List<ElecCoilJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.ELEC_COILS.get())) {
-            Identifier id = idOf(holder);
-            ElecCoilDefinition def = ElecCoilLoader.parseEntry(holder.value().json(), id.toString());
-            if (def != null) {
-                out.add(ElecCoilJeiRecipe.of(def, id));
+            int i = 0;
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (JsonObject entry : entries) {
+                ElecCoilDefinition def = ElecCoilLoader.parseEntry(entry, idOf(holder).toString());
+                if (def != null) {
+                    out.add(ElecCoilJeiRecipe.of(def, childId(idOf(holder), i, entries.size())));
+                }
+                i++;
             }
         }
-        return out.isEmpty() ? ElecCoilJeiRecipe.wrapAll(ElecCoilLoader.getJeIDefinitions()) : out;
+        return out;
     }
 
     public static List<TurbineJeiRecipe> turbineGeneration() {
         List<TurbineJeiRecipe> out = new ArrayList<>();
         for (RecipeHolder<ColossalJsonRecipe> holder : holders(ModColossalRecipes.TURBINE_GENERATION.get())) {
-            Identifier id = idOf(holder);
-            TurbineGenerationDefinition def =
-                    TurbineGenerationLoader.parseEntry(holder.value().json(), id.toString(), true);
-            if (def != null) {
-                out.addAll(TurbineJeiRecipe.expand(def, id));
+            int i = 0;
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (JsonObject entry : entries) {
+                TurbineGenerationDefinition def =
+                        TurbineGenerationLoader.parseEntry(entry, idOf(holder).toString(), true);
+                if (def != null) {
+                    out.addAll(TurbineJeiRecipe.expand(def, childId(idOf(holder), i, entries.size())));
+                }
+                i++;
             }
-        }
-        if (out.isEmpty()) {
-            return TurbineGenerationLoader.getJeIDefinitions().stream()
-                    .flatMap(def -> TurbineJeiRecipe.expand(def).stream())
-                    .toList();
         }
         return out;
     }
@@ -167,12 +202,6 @@ public final class JeiNativeRecipeBridge {
             for (HeatingCoilDefinition def : HeatingCoilLoader.parseFromRoot(holder.value().json(), id.toString())) {
                 out.addAll(HeatingCoilJeiRecipe.expand(def, id));
             }
-        }
-        if (out.isEmpty()) {
-            return HeatingCoilRegistry.getAll().values().stream()
-                    .flatMap(def -> HeatingCoilJeiRecipe.expand(def).stream())
-                    .filter(Objects::nonNull)
-                    .toList();
         }
         return out.stream().filter(Objects::nonNull).toList();
     }

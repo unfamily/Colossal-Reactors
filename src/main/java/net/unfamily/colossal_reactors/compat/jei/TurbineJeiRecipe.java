@@ -1,36 +1,41 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
-import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.Identifier;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.integration.mekanism.MaterialSelector;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import org.jetbrains.annotations.Nullable;
 
-/** One JEI row for a turbine generation definition on a single medium (liquid or gas). */
+/**
+ * One JEI card per turbine-generation RecipeManager entry. Liquid and gas share the same
+ * slots (JEI cycles both media under one registry id).
+ */
 public record TurbineJeiRecipe(
-        TurbineGenerationDefinition definition, JeiMedium medium, @Nullable Identifier recipeId) {
+        TurbineGenerationDefinition definition, @Nullable Identifier recipeId) {
 
-    public TurbineJeiRecipe(TurbineGenerationDefinition definition, JeiMedium medium) {
-        this(definition, medium, null);
+    public TurbineJeiRecipe(TurbineGenerationDefinition definition) {
+        this(definition, null);
     }
 
     public Identifier jeiId() {
-        String suffix = medium == JeiMedium.LIQUID ? "_jei_liquid" : "_jei_gas";
-        return Identifier.fromNamespaceAndPath(
-                ColossalReactors.MODID, definition.generationId().getPath() + suffix);
+        return Identifier.fromNamespaceAndPath(ColossalReactors.MODID, definition.generationId().getPath());
     }
 
-    public String mediumCollisionSuffix() {
-        return medium == JeiMedium.LIQUID ? "liquid" : "gas";
+    public List<String> liquidInputs() {
+        return definition.inputs().stream().filter(s -> !MaterialSelector.isChemicalPrefix(s)).toList();
     }
 
-    public List<String> inputSelectors() {
-        return definition.inputs().stream().filter(medium::matchesSelector).toList();
+    public List<String> gasInputs() {
+        return definition.inputs().stream().filter(MaterialSelector::isChemicalPrefix).toList();
     }
 
-    public List<String> outputSelectors() {
-        return definition.outputs().stream().filter(medium::matchesSelector).toList();
+    public List<String> liquidOutputs() {
+        return definition.outputs().stream().filter(s -> !MaterialSelector.isChemicalPrefix(s)).toList();
+    }
+
+    public List<String> gasOutputs() {
+        return definition.outputs().stream().filter(MaterialSelector::isChemicalPrefix).toList();
     }
 
     public static List<TurbineJeiRecipe> expand(TurbineGenerationDefinition def) {
@@ -39,22 +44,6 @@ public record TurbineJeiRecipe(
 
     public static List<TurbineJeiRecipe> expand(
             TurbineGenerationDefinition def, @Nullable Identifier recipeId) {
-        boolean liquidIn = def.inputs().stream().anyMatch(s -> s == null || !s.startsWith("%"));
-        boolean gasIn = def.inputs().stream().anyMatch(s -> s != null && s.startsWith("%"));
-        boolean liquidOut = def.outputs().stream().anyMatch(s -> s == null || !s.startsWith("%"));
-        boolean gasOut = def.outputs().stream().anyMatch(s -> s != null && s.startsWith("%"));
-
-        List<TurbineJeiRecipe> out = new ArrayList<>();
-        // Same RecipeManager / KubeJS id on every medium card (no synthetic /gas ids).
-        if (liquidIn || liquidOut) {
-            out.add(new TurbineJeiRecipe(def, JeiMedium.LIQUID, recipeId));
-        }
-        if ((gasIn || gasOut) && (JeiIngredientsHelper.jeiChemicalsAvailable() || !liquidIn && !liquidOut)) {
-            out.add(new TurbineJeiRecipe(def, JeiMedium.GAS, recipeId));
-        }
-        if (out.isEmpty()) {
-            out.add(new TurbineJeiRecipe(def, JeiMedium.LIQUID, recipeId));
-        }
-        return out;
+        return List.of(new TurbineJeiRecipe(def, recipeId));
     }
 }

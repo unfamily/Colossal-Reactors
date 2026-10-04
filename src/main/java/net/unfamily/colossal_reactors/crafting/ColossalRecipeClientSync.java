@@ -11,6 +11,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RecipesReceivedEvent;
 import net.unfamily.colossal_reactors.ColossalReactors;
+import net.unfamily.colossal_reactors.compat.jei.JeiDatapackRecipeSync;
 
 /**
  * Client-only: keeps the synced {@link RecipeMap} so viewers use the same recipe ids as
@@ -26,6 +27,8 @@ public final class ColossalRecipeClientSync {
     public static void onRecipesReceived(RecipesReceivedEvent event) {
         clientRecipeMap = event.getRecipeMap();
         ColossalRecipeData.applyFromRecipeMap(event.getRecipeMap());
+        // JEI may have registered empty before the synced RecipeMap arrived.
+        JeiDatapackRecipeSync.syncWhenWorldReady();
     }
 
     @SubscribeEvent

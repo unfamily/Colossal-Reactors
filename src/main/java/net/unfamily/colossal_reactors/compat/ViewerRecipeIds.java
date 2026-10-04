@@ -7,16 +7,15 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Datapack {@link Identifier} for JEI {@code getRegistryName} / EMI / REI / KubeJS.
  *
- * <p>Every Colossal RecipeManager id (Library progressive {@code path_N}, or heating-coil
- * {@code heating_coils_<coil>_<i>}) must be shown as-is in JEI, EMI and REI. Do not invent
- * {@code /gas}, {@code /liquid}, or other fake path segments — those are not RecipeManager keys.
+ * <p>Every Colossal RecipeManager id is shown as-is. Liquid/gas variants of one coolant or
+ * turbine entry share that same id in one viewer card (slots cycle both media).
  *
- * <p>Collision suffixes apply only to synthetic fallbacks when {@code recipeId} is null.
+ * <p>{@code collisionSuffix} applies only to synthetic fallbacks when {@code recipeId} is null.
  */
 public final class ViewerRecipeIds {
     private ViewerRecipeIds() {}
 
-    /** JEI copy-id: bare datapack id. */
+    /** JEI copy-id: bare datapack id (KubeJS / RecipeManager key). */
     public static @Nullable Identifier registryName(@Nullable Identifier recipeId) {
         return recipeId;
     }
@@ -48,12 +47,6 @@ public final class ViewerRecipeIds {
         return Identifier.fromNamespaceAndPath(ColossalReactors.MODID, path);
     }
 
-    /**
-     * Heating-coil id shared by RecipeManager / KubeJS / JEI / EMI / REI:
-     * {@code ns:heating_coils_coilPath_optionIndex}
-     * e.g. {@code colossal_reactors:heating_coils_heating_coil_energy_0}.
-     * Prefer {@code recipeId} when already set by the Library heating-coil split.
-     */
     public static Identifier heatingCoilDisplayLocation(
             @Nullable Identifier recipeId, Identifier coilId, int optionIndex) {
         if (recipeId != null) {

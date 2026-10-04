@@ -25,7 +25,6 @@ import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.compat.jei.CoolantJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.HeatingCoilJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.JeiIngredientsHelper;
-import net.unfamily.colossal_reactors.compat.jei.JeiMedium;
 import net.unfamily.colossal_reactors.compat.jei.TurbineJeiRecipe;
 import net.unfamily.colossal_reactors.heatingcoil.ConsumeOption;
 import net.unfamily.colossal_reactors.heatsink.HeatSinkDefinition;
@@ -43,24 +42,23 @@ public final class ColossalEmiRecipes {
 
     public static EmiRecipe coolant(CoolantJeiRecipe recipe) {
         Identifier id = ViewerRecipeIds.displayLocation(
-                recipe.recipeId(), "coolant", recipe.jeiId(), recipe.mediumCollisionSuffix());
+                recipe.recipeId(), "coolant", recipe.jeiId(), null);
         return new SimpleEmiRecipe(
                 EmiCategories.COOLANT, id, 180, 62, true) {
             @Override
             protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
-                if (recipe.medium() == JeiMedium.LIQUID) {
-                    addIn(EmiStackHelper.ingredientOfFluids(
-                            JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputSelectors(), reg)));
-                    List<FluidStack> out = new ArrayList<>();
-                    for (String sel : recipe.outputSelectors()) {
-                        out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, reg));
-                    }
-                    addOut(EmiStackHelper.ingredientOfFluids(out));
-                } else {
-                    addIn(EmiStackHelper.ingredientOfChemicalSelectors(recipe.inputSelectors()));
-                    addOut(EmiStackHelper.ingredientOfChemicalSelectors(recipe.outputSelectors()));
+                addIn(EmiStackHelper.combine(
+                        EmiStackHelper.ingredientOfFluids(
+                                JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.liquidInputs(), reg)),
+                        EmiStackHelper.ingredientOfChemicalSelectors(recipe.gasInputs())));
+                List<FluidStack> out = new ArrayList<>();
+                for (String sel : recipe.liquidOutputs()) {
+                    out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, reg));
                 }
+                addOut(EmiStackHelper.combine(
+                        EmiStackHelper.ingredientOfFluids(out),
+                        EmiStackHelper.ingredientOfChemicalSelectors(recipe.gasOutputs())));
             }
 
             @Override
@@ -214,7 +212,7 @@ public final class ColossalEmiRecipes {
 
     public static EmiRecipe turbineGeneration(TurbineJeiRecipe recipe) {
         Identifier id = ViewerRecipeIds.displayLocation(
-                recipe.recipeId(), "turbine_generation", recipe.jeiId(), recipe.mediumCollisionSuffix());
+                recipe.recipeId(), "turbine_generation", recipe.jeiId(), null);
         return new SimpleEmiRecipe(
                 EmiCategories.TURBINE_GENERATION,
                 id,
@@ -225,31 +223,19 @@ public final class ColossalEmiRecipes {
             protected void resolveStacks() {
                 var reg = EmiStackHelper.registryOrThrow();
                 TurbineGenerationDefinition def = recipe.definition();
-                if (recipe.medium() == JeiMedium.LIQUID) {
-                    addIn(EmiStackHelper.ingredientOfFluids(
-                            JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputSelectors(), reg)));
-                    List<FluidStack> out = new ArrayList<>();
-                    for (String sel : recipe.outputSelectors()) {
-                        out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, reg));
-                    }
-                    if (out.isEmpty() && def.liquidOutputSelector() != null) {
-                        out.addAll(JeiIngredientsHelper.getOutputFluidStacks(def.liquidOutputSelector(), reg));
-                    }
-                    addOut(EmiStackHelper.ingredientOfFluids(out));
-                } else {
-                    addIn(EmiStackHelper.ingredientOfChemicalSelectors(recipe.inputSelectors()));
-                    var chemOut = EmiStackHelper.ingredientOfChemicalSelectors(recipe.outputSelectors());
-                    if (!chemOut.isEmpty()) {
-                        addOut(chemOut);
-                    } else {
-                        // Same as JEI: chemical steam condensate defaults to liquid water output.
-                        String liquidOut = def.liquidOutputSelector();
-                        if (liquidOut != null && !liquidOut.isBlank()) {
-                            addOut(EmiStackHelper.ingredientOfFluids(
-                                    JeiIngredientsHelper.getOutputFluidStacks(liquidOut, reg)));
-                        }
-                    }
+                addIn(EmiStackHelper.combine(
+                        EmiStackHelper.ingredientOfFluids(
+                                JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.liquidInputs(), reg)),
+                        EmiStackHelper.ingredientOfChemicalSelectors(recipe.gasInputs())));
+                List<FluidStack> out = new ArrayList<>();
+                for (String sel : recipe.liquidOutputs()) {
+                    out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, reg));
                 }
+                var chemOut = EmiStackHelper.ingredientOfChemicalSelectors(recipe.gasOutputs());
+                if (out.isEmpty() && chemOut.isEmpty() && def.liquidOutputSelector() != null) {
+                    out.addAll(JeiIngredientsHelper.getOutputFluidStacks(def.liquidOutputSelector(), reg));
+                }
+                addOut(EmiStackHelper.combine(EmiStackHelper.ingredientOfFluids(out), chemOut));
             }
 
             @Override

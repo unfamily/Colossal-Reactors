@@ -64,6 +64,7 @@ public final class ColossalReactorsClientEvents {
         MelterHeatsLoader.rebuild();
         ElecCoilLoader.rebuildDefinitions();
         TurbineGenerationLoader.rebuildDefinitions();
+        // EMI/REI sources are excluded on 26; JEI only.
         JeiDatapackRecipeSync.syncWhenWorldReady();
     }
 

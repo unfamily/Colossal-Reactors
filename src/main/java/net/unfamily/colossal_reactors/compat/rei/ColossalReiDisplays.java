@@ -30,7 +30,6 @@ import net.unfamily.colossal_reactors.compat.RecipeViewerLayout;
 import net.unfamily.colossal_reactors.compat.jei.CoolantJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.HeatingCoilJeiRecipe;
 import net.unfamily.colossal_reactors.compat.jei.JeiIngredientsHelper;
-import net.unfamily.colossal_reactors.compat.jei.JeiMedium;
 import net.unfamily.colossal_reactors.compat.jei.TurbineJeiRecipe;
 import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
@@ -82,27 +81,29 @@ public final class ColossalReiDisplays {
     }
 
     public static ColossalReiDisplay coolant(CoolantJeiRecipe recipe) {
-        if (recipe.medium() == JeiMedium.GAS && !ReiChemicalHelper.canShowChemicals()) {
-            return null;
-        }
         RegistryAccess access = registryAccess();
         List<EntryIngredient> inputs = new ArrayList<>();
         List<EntryIngredient> outputs = new ArrayList<>();
         if (access != null) {
-            if (recipe.medium() == JeiMedium.LIQUID) {
-                addFluids(inputs, JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputSelectors(), access));
-                List<FluidStack> out = new ArrayList<>();
-                for (String sel : recipe.outputSelectors()) {
-                    out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, access));
-                }
-                addFluids(outputs, out);
-            } else if (recipe.medium() == JeiMedium.GAS) {
-                ReiChemicalHelper.addChemicals(inputs, recipe.inputSelectors());
-                ReiChemicalHelper.addChemicals(outputs, recipe.outputSelectors());
+            List<EntryStack<?>> in = new ArrayList<>();
+            addFluidEntries(in, JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.liquidInputs(), access));
+            ReiChemicalHelper.appendChemicalEntries(in, recipe.gasInputs());
+            if (!in.isEmpty()) {
+                inputs.add(EntryIngredient.of(in));
+            }
+            List<EntryStack<?>> out = new ArrayList<>();
+            List<FluidStack> liquidOut = new ArrayList<>();
+            for (String sel : recipe.liquidOutputs()) {
+                liquidOut.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, access));
+            }
+            addFluidEntries(out, liquidOut);
+            ReiChemicalHelper.appendChemicalEntries(out, recipe.gasOutputs());
+            if (!out.isEmpty()) {
+                outputs.add(EntryIngredient.of(out));
             }
         }
         Identifier id = ViewerRecipeIds.displayLocation(
-                recipe.recipeId(), "coolant", recipe.jeiId(), recipe.mediumCollisionSuffix());
+                recipe.recipeId(), "coolant", recipe.jeiId(), null);
         return display(ColossalReiCategories.COOLANT, id, inputs, outputs, (g, ox, oy) -> drawCoolant(g, ox, oy, recipe));
     }
 
@@ -219,33 +220,35 @@ public final class ColossalReiDisplays {
     }
 
     public static ColossalReiDisplay turbineGeneration(TurbineJeiRecipe recipe) {
-        if (recipe.medium() == JeiMedium.GAS && !ReiChemicalHelper.canShowChemicals()) {
-            return null;
-        }
         RegistryAccess access = registryAccess();
         List<EntryIngredient> inputs = new ArrayList<>();
         List<EntryIngredient> outputs = new ArrayList<>();
         if (access != null) {
-            if (recipe.medium() == JeiMedium.LIQUID) {
-                addFluids(inputs, JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputSelectors(), access));
-                List<FluidStack> out = new ArrayList<>();
-                for (String sel : recipe.outputSelectors()) {
-                    out.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, access));
+            List<EntryStack<?>> in = new ArrayList<>();
+            addFluidEntries(in, JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.liquidInputs(), access));
+            ReiChemicalHelper.appendChemicalEntries(in, recipe.gasInputs());
+            if (!in.isEmpty()) {
+                inputs.add(EntryIngredient.of(in));
+            }
+            List<EntryStack<?>> out = new ArrayList<>();
+            List<FluidStack> liquidOut = new ArrayList<>();
+            for (String sel : recipe.liquidOutputs()) {
+                liquidOut.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, access));
+            }
+            ReiChemicalHelper.appendChemicalEntries(out, recipe.gasOutputs());
+            if (liquidOut.isEmpty() && out.isEmpty()) {
+                String fallback = recipe.definition().liquidOutputSelector();
+                if (fallback != null && !fallback.isBlank()) {
+                    liquidOut.addAll(JeiIngredientsHelper.getOutputFluidStacks(fallback, access));
                 }
-                addFluids(outputs, out);
-            } else if (recipe.medium() == JeiMedium.GAS) {
-                ReiChemicalHelper.addChemicals(inputs, recipe.inputSelectors());
-                ReiChemicalHelper.addChemicals(outputs, recipe.outputSelectors());
-                if (outputs.isEmpty()) {
-                    String liquidOut = recipe.definition().liquidOutputSelector();
-                    if (liquidOut != null && !liquidOut.isBlank()) {
-                        addFluids(outputs, JeiIngredientsHelper.getOutputFluidStacks(liquidOut, access));
-                    }
-                }
+            }
+            addFluidEntries(out, liquidOut);
+            if (!out.isEmpty()) {
+                outputs.add(EntryIngredient.of(out));
             }
         }
         Identifier id = ViewerRecipeIds.displayLocation(
-                recipe.recipeId(), "turbine_generation", recipe.jeiId(), recipe.mediumCollisionSuffix());
+                recipe.recipeId(), "turbine_generation", recipe.jeiId(), null);
         return display(ColossalReiCategories.TURBINE, id, inputs, outputs, (g, ox, oy) -> drawTurbine(g, ox, oy, recipe));
     }
 
@@ -440,17 +443,21 @@ public final class ColossalReiDisplays {
     }
 
     private static void addFluids(List<EntryIngredient> target, List<FluidStack> stacks) {
+        List<EntryStack<?>> entries = new ArrayList<>();
+        addFluidEntries(entries, stacks);
+        if (!entries.isEmpty()) {
+            target.add(EntryIngredient.of(entries));
+        }
+    }
+
+    private static void addFluidEntries(List<EntryStack<?>> entries, List<FluidStack> stacks) {
         if (stacks == null || stacks.isEmpty()) {
             return;
         }
-        List<EntryStack<?>> entries = new ArrayList<>();
         for (FluidStack stack : stacks) {
             if (stack != null && !stack.isEmpty()) {
                 entries.add(EntryStacks.of(stack.getFluid()));
             }
-        }
-        if (!entries.isEmpty()) {
-            target.add(EntryIngredient.of(entries));
         }
     }
 

@@ -72,30 +72,40 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
         if (level == null) return;
         var registryAccess = level.registryAccess();
 
-        if (recipe.medium() == JeiMedium.LIQUID) {
-            List<FluidStack> inputFluids = JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.inputSelectors(), registryAccess);
-            if (!inputFluids.isEmpty()) {
-                builder.addSlot(RecipeIngredientRole.INPUT,
-                        JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                        JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                        .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
-            }
-            List<FluidStack> outputFluids = new ArrayList<>();
-            for (String sel : recipe.outputSelectors()) {
-                outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
-            }
-            if (!outputFluids.isEmpty()) {
-                builder.addSlot(RecipeIngredientRole.OUTPUT,
-                        JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                        JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                        .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
-            }
-        } else {
-            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputSelectors());
-            JeiIngredientsHelper.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, recipe.outputSelectors());
+        // Same pattern as FuelRecipeCategory: fluid + chemical at identical coords → JEI cycles.
+        List<FluidStack> inputFluids =
+                JeiIngredientsHelper.getCoolantInputFluidStacks(recipe.liquidInputs(), registryAccess);
+        if (!inputFluids.isEmpty()) {
+            builder.addSlot(
+                            RecipeIngredientRole.INPUT,
+                            JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                            JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
         }
+        JeiIngredientsHelper.addChemicalSlot(
+                builder,
+                RecipeIngredientRole.INPUT,
+                JeiRecipeBackgroundDrawable.SLOT_IN_X,
+                JeiRecipeBackgroundDrawable.SLOT_IN_Y,
+                recipe.gasInputs());
+
+        List<FluidStack> outputFluids = new ArrayList<>();
+        for (String sel : recipe.liquidOutputs()) {
+            outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
+        }
+        if (!outputFluids.isEmpty()) {
+            builder.addSlot(
+                            RecipeIngredientRole.OUTPUT,
+                            JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                            JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+        }
+        JeiIngredientsHelper.addChemicalSlot(
+                builder,
+                RecipeIngredientRole.OUTPUT,
+                JeiRecipeBackgroundDrawable.SLOT_OUT_X,
+                JeiRecipeBackgroundDrawable.SLOT_OUT_Y,
+                recipe.gasOutputs());
     }
 
     @Override
@@ -133,7 +143,6 @@ public class CoolantRecipeCategory implements IRecipeCategory<CoolantJeiRecipe> 
 
     @Override
     public @Nullable Identifier getRegistryName(CoolantJeiRecipe recipe) {
-        // Bare RecipeManager / KubeJS id when present (shared with EMI/REI).
         return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

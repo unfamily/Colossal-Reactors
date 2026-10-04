@@ -98,6 +98,11 @@ public final class ModColossalRecipes {
         });
     }
 
+    static {
+        // Register as early as class load so ModifyRecipeJsonsEvent sees these types.
+        registerBundleTypes();
+    }
+
     public static void register(IEventBus modEventBus) {
         RECIPE_TYPES.register(modEventBus);
         SERIALIZERS.register(modEventBus);

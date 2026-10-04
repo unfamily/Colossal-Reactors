@@ -17,6 +17,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.core.RegistryAccess;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.ingredients.IIngredientType;
+import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
@@ -96,6 +97,39 @@ public final class JeiIngredientsHelper {
         builder.addSlot(role, slotX + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
                         slotY + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
                 .addIngredients(type, stacks);
+    }
+
+    /**
+     * One JEI slot that cycles fluids and Mek chemicals together (same RecipeManager card).
+     * @return true if at least one ingredient was added
+     */
+    public static boolean addFluidAndChemicalSlot(
+            IRecipeLayoutBuilder builder,
+            RecipeIngredientRole role,
+            int slotX,
+            int slotY,
+            List<FluidStack> fluids,
+            List<String> chemicalSelectors) {
+        boolean hasFluids = fluids != null && !fluids.isEmpty();
+        IIngredientType<Object> chemType = getMekChemicalIngredientType();
+        List<Object> chemStacks = chemicalSelectors == null || chemicalSelectors.isEmpty()
+                ? List.of()
+                : getChemicalStacks(chemicalSelectors);
+        boolean hasChem = chemType != null && !chemStacks.isEmpty();
+        if (!hasFluids && !hasChem) {
+            return false;
+        }
+        var slot = builder.addSlot(
+                role,
+                slotX + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                slotY + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y);
+        if (hasFluids) {
+            slot.addIngredients(NeoForgeTypes.FLUID_STACK, fluids);
+        }
+        if (hasChem) {
+            slot.addIngredients(chemType, chemStacks);
+        }
+        return true;
     }
 
     /**
