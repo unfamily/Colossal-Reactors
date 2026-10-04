@@ -78,6 +78,11 @@ public final class ModColossalRecipes {
         return SERIALIZERS.register(path, () -> new ColossalJsonRecipe.Serializer(type.get()));
     }
 
+    static {
+        // Register as early as class load so the virtual pack / recipe JSON hooks see these types.
+        registerBundleTypes();
+    }
+
     public static void register(IEventBus modEventBus) {
         RECIPE_TYPES.register(modEventBus);
         SERIALIZERS.register(modEventBus);

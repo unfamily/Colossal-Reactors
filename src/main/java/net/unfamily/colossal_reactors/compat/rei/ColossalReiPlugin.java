@@ -33,8 +33,7 @@ public class ColossalReiPlugin implements REIClientPlugin {
                         MelterScreen.getProgressBarWidth(),
                         MelterScreen.getProgressBarHeight()),
                 MelterScreen.class,
-                ColossalReiCategories.MELTER,
-                ColossalReiCategories.MELTER_HEAT);
+                ColossalReiCategories.MELTER);
     }
 
     @Override

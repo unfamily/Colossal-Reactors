@@ -8,15 +8,15 @@ import org.jetbrains.annotations.Nullable;
  * Datapack {@link ResourceLocation} for JEI {@code getRegistryName} / EMI / REI / KubeJS.
  *
  * <p>Every Colossal RecipeManager id (Library progressive {@code path_N}, or heating-coil
- * {@code heating_coils_<coil>_<i>}) must be shown as-is in JEI, EMI and REI. Do not invent
- * {@code /gas}, {@code /liquid}, or other fake path segments — those are not RecipeManager keys.
+ * {@code heating_coils_<coil>_<i>}) is shown as-is. Coolant/turbine liquid+gas share one viewer
+ * card (slots cycle both media) under that same id.
  *
- * <p>Collision suffixes apply only to synthetic fallbacks when {@code recipeId} is null.
+ * <p>{@code collisionSuffix} applies only to synthetic fallbacks when {@code recipeId} is null.
  */
 public final class ViewerRecipeIds {
     private ViewerRecipeIds() {}
 
-    /** JEI copy-id: bare datapack id. */
+    /** JEI copy-id: bare datapack id (KubeJS / RecipeManager key). */
     public static @Nullable ResourceLocation registryName(@Nullable ResourceLocation recipeId) {
         return recipeId;
     }

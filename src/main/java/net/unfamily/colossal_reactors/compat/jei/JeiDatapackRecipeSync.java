@@ -10,8 +10,9 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * JEI registers before datapack entries are resolved with a live level.
- * Fills melter, turbine, and heating coil categories after world load using native holder ids.
+ * JEI often registers before a live RecipeManager exists. After world load, fill Colossal
+ * categories from RecipeManager holders. Only adds when a category is still short — never
+ * hide+readd (JEI keeps hidden state by registry name and empties the category).
  */
 public final class JeiDatapackRecipeSync {
 
@@ -25,7 +26,6 @@ public final class JeiDatapackRecipeSync {
         syncWhenWorldReady();
     }
 
-    /** Call after datapack loaders were rebuilt with a live level (tags bound). */
     public static void syncWhenWorldReady() {
         if (FMLEnvironment.dist != Dist.CLIENT || runtime == null) {
             return;

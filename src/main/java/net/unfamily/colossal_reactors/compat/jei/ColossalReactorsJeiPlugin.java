@@ -39,7 +39,7 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        // Prefer native RecipeHolder ids from RecipeManager; fall back to runtime loaders.
+        // RecipeManager holders only (KubeJS removals / missing-mod skips). Sync fills after world load.
         registration.addRecipes(CoolantRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.coolants());
         registration.addRecipes(FuelRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.fuels());
         registration.addRecipes(HeatSinkRecipeCategory.RECIPE_TYPE, JeiNativeRecipeBridge.heatSinks());
@@ -63,15 +63,14 @@ public class ColossalReactorsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        // Click progress bar (always visible) → Melter melting + heat-source recipes
+        // Click progress bar → Melter melting recipes only (not heat sources).
         registration.addRecipeClickArea(
                 MelterScreen.class,
                 MelterScreen.getProgressBarX(),
                 MelterScreen.getProgressBarY(),
                 MelterScreen.getProgressBarWidth(),
                 MelterScreen.getProgressBarHeight(),
-                MelterRecipeCategory.RECIPE_TYPE,
-                MelterHeatSourceRecipeCategory.RECIPE_TYPE);
+                MelterRecipeCategory.RECIPE_TYPE);
     }
 
     @Override

@@ -103,6 +103,25 @@ public final class EmiStackHelper {
         return emi.isEmpty() ? EmiStack.EMPTY : EmiIngredient.of(emi);
     }
 
+    /** Merge fluid + chemical alternatives into one cycling EMI ingredient (one recipe id). */
+    public static EmiIngredient combine(EmiIngredient a, EmiIngredient b) {
+        boolean aEmpty = a == null || a.isEmpty();
+        boolean bEmpty = b == null || b.isEmpty();
+        if (aEmpty && bEmpty) {
+            return EmiStack.EMPTY;
+        }
+        if (aEmpty) {
+            return b;
+        }
+        if (bEmpty) {
+            return a;
+        }
+        List<EmiStack> stacks = new ArrayList<>();
+        stacks.addAll(a.getEmiStacks());
+        stacks.addAll(b.getEmiStacks());
+        return stacks.isEmpty() ? EmiStack.EMPTY : EmiIngredient.of(stacks);
+    }
+
     /** Reflective call into MekanismEmiHelper — optional client-only bridge. */
     private static EmiStack chemicalToEmiStack(Object chemicalStack) {
         if (chemicalStack == null) {

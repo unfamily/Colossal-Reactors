@@ -1,6 +1,6 @@
 package net.unfamily.colossal_reactors.compat.jei;
 
-/** JEI display medium: one recipe card per liquid or gas path. */
+/** Selector medium helper (liquid vs Mek chemical). Kept for FuelMedium-style partitioning. */
 public enum JeiMedium {
     LIQUID,
     GAS;

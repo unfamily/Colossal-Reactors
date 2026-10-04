@@ -16,16 +16,15 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.colossal_reactors.block.ModBlocks;
+import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
+import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.Nullable;
-import net.unfamily.colossal_reactors.compat.ViewerRecipeIds;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.unfamily.colossal_reactors.compat.RecipeViewerIds;
 
 public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJeiRecipe> {
 
@@ -64,44 +63,45 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJ
         var registryAccess = level.registryAccess();
         TurbineGenerationDefinition def = recipe.definition();
 
-        if (recipe.medium() == JeiMedium.LIQUID) {
-            List<FluidStack> inputFluids = JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.inputSelectors(), registryAccess);
-            if (!inputFluids.isEmpty()) {
-                builder.addSlot(RecipeIngredientRole.INPUT,
-                        JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                        JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                        .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
-            }
-            List<FluidStack> outputFluids = new ArrayList<>();
-            for (String sel : recipe.outputSelectors()) {
-                outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
-            }
-            if (!outputFluids.isEmpty()) {
-                builder.addSlot(RecipeIngredientRole.OUTPUT,
-                        JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                        JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                        .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
-            }
-        } else {
-            JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.INPUT,
-                    JeiRecipeBackgroundDrawable.SLOT_IN_X, JeiRecipeBackgroundDrawable.SLOT_IN_Y, recipe.inputSelectors());
-            if (!recipe.outputSelectors().isEmpty()) {
-                JeiChemicalSlots.addChemicalSlot(builder, RecipeIngredientRole.OUTPUT,
-                        JeiRecipeBackgroundDrawable.SLOT_OUT_X, JeiRecipeBackgroundDrawable.SLOT_OUT_Y, recipe.outputSelectors());
-            } else {
-                // No gas output in datapack: condensate defaults to liquid (fluid EXTRACT port).
-                String liquidOut = def.liquidOutputSelector();
-                if (liquidOut != null && !liquidOut.isBlank()) {
-                    List<FluidStack> outputFluids = JeiIngredientsHelper.getOutputFluidStacks(liquidOut, registryAccess);
-                    if (!outputFluids.isEmpty()) {
-                        builder.addSlot(RecipeIngredientRole.OUTPUT,
-                                JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
-                                JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
-                                .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
-                    }
-                }
+        // Same pattern as FuelRecipeCategory: fluid + chemical at identical coords → JEI cycles.
+        List<FluidStack> inputFluids =
+                JeiIngredientsHelper.getTurbineGenerationInputFluids(recipe.liquidInputs(), registryAccess);
+        if (!inputFluids.isEmpty()) {
+            builder.addSlot(RecipeIngredientRole.INPUT,
+                            JeiRecipeBackgroundDrawable.SLOT_IN_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                            JeiRecipeBackgroundDrawable.SLOT_IN_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, inputFluids);
+        }
+        JeiChemicalSlots.addChemicalSlot(
+                builder,
+                RecipeIngredientRole.INPUT,
+                JeiRecipeBackgroundDrawable.SLOT_IN_X,
+                JeiRecipeBackgroundDrawable.SLOT_IN_Y,
+                recipe.gasInputs());
+
+        List<FluidStack> outputFluids = new ArrayList<>();
+        for (String sel : recipe.liquidOutputs()) {
+            outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(sel, registryAccess));
+        }
+        List<String> gasOut = recipe.gasOutputs();
+        if (outputFluids.isEmpty() && gasOut.isEmpty()) {
+            String liquidOut = def.liquidOutputSelector();
+            if (liquidOut != null && !liquidOut.isBlank()) {
+                outputFluids.addAll(JeiIngredientsHelper.getOutputFluidStacks(liquidOut, registryAccess));
             }
         }
+        if (!outputFluids.isEmpty()) {
+            builder.addSlot(RecipeIngredientRole.OUTPUT,
+                            JeiRecipeBackgroundDrawable.SLOT_OUT_X + JeiRecipeBackgroundDrawable.ITEM_OFFSET_X,
+                            JeiRecipeBackgroundDrawable.SLOT_OUT_Y + JeiRecipeBackgroundDrawable.ITEM_OFFSET_Y)
+                    .addIngredients(NeoForgeTypes.FLUID_STACK, outputFluids);
+        }
+        JeiChemicalSlots.addChemicalSlot(
+                builder,
+                RecipeIngredientRole.OUTPUT,
+                JeiRecipeBackgroundDrawable.SLOT_OUT_X,
+                JeiRecipeBackgroundDrawable.SLOT_OUT_Y,
+                gasOut);
     }
 
     @Override
@@ -118,7 +118,6 @@ public class TurbineGenerationRecipeCategory implements IRecipeCategory<TurbineJ
 
     @Override
     public @Nullable ResourceLocation getRegistryName(TurbineJeiRecipe recipe) {
-        // Bare RecipeManager / KubeJS id when present (shared with EMI/REI).
         return ViewerRecipeIds.registryName(recipe.recipeId());
     }
 }

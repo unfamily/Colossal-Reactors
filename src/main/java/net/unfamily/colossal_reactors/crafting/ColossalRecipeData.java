@@ -1,5 +1,6 @@
 package net.unfamily.colossal_reactors.crafting;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -84,28 +85,36 @@ public final class ColossalRecipeData {
         Map<ResourceLocation, HeatingCoilDefinition> coils = new HashMap<>();
 
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.FUEL.get())) {
-            FuelDefinition def = FuelLoader.parseEntry(holder.value().json(), SOURCE + "/" + holder.id(), true);
-            if (def != null) {
-                fuel.put(def.fuelId(), def);
+            for (JsonObject entry : expandEntries(holder.value().json())) {
+                FuelDefinition def = FuelLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
+                if (def != null) {
+                    fuel.put(def.fuelId(), def);
+                }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.COOLANT.get())) {
-            CoolantDefinition def = CoolantLoader.parseEntry(holder.value().json(), SOURCE + "/" + holder.id(), true);
-            if (def != null) {
-                coolant.put(def.coolantId(), def);
+            for (JsonObject entry : expandEntries(holder.value().json())) {
+                CoolantDefinition def = CoolantLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
+                if (def != null) {
+                    coolant.put(def.coolantId(), def);
+                }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.HEAT_SINKS.get())) {
-            HeatSinkDefinition def = HeatSinkLoader.parseEntry(holder.value().json(), SOURCE + "/" + holder.id());
-            if (def != null) {
-                heatSinks.add(def);
+            for (JsonObject entry : expandEntries(holder.value().json())) {
+                HeatSinkDefinition def = HeatSinkLoader.parseEntry(entry, SOURCE + "/" + holder.id());
+                if (def != null) {
+                    heatSinks.add(def);
+                }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(recipeManager, ModColossalRecipes.MELTER_RECIPES.get())) {
-            MelterRecipe r = MelterRecipesLoader.parseEntry(holder.value().json(), SOURCE + "/" + holder.id());
-            if (r != null) {
-                melterRecipes.add(r);
+            for (JsonObject entry : expandEntries(holder.value().json())) {
+                MelterRecipe r = MelterRecipesLoader.parseEntry(entry, SOURCE + "/" + holder.id());
+                if (r != null) {
+                    melterRecipes.add(r);
+                }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.MELTER_HEATS.get())) {
@@ -131,16 +140,20 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(recipeManager, ModColossalRecipes.TURBINE_GENERATION.get())) {
-            TurbineGenerationDefinition def =
-                    TurbineGenerationLoader.parseEntry(holder.value().json(), SOURCE + "/" + holder.id(), true);
-            if (def != null) {
-                turbine.put(def.generationId(), def);
+            for (JsonObject entry : expandEntries(holder.value().json())) {
+                TurbineGenerationDefinition def =
+                        TurbineGenerationLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
+                if (def != null) {
+                    turbine.put(def.generationId(), def);
+                }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.ELEC_COILS.get())) {
-            ElecCoilDefinition def = ElecCoilLoader.parseEntry(holder.value().json(), SOURCE + "/" + holder.id());
-            if (def != null) {
-                elecCoils.add(def);
+            for (JsonObject entry : expandEntries(holder.value().json())) {
+                ElecCoilDefinition def = ElecCoilLoader.parseEntry(entry, SOURCE + "/" + holder.id());
+                if (def != null) {
+                    elecCoils.add(def);
+                }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
@@ -185,6 +198,25 @@ public final class ColossalRecipeData {
     private static List<RecipeHolder<ColossalJsonRecipe>> recipes(
             RecipeManager manager, RecipeType<ColossalJsonRecipe> type) {
         return List.copyOf(manager.getAllRecipesFor(type));
+    }
+
+    /**
+     * If the virtual pack / ModifyRecipeJsonsEvent did not split a parent bundle, the holder still
+     * contains an {@code entries} array — expand it so loaders stay populated.
+     */
+    private static List<JsonObject> expandEntries(JsonObject json) {
+        if (json != null && json.has("entries") && json.get("entries").isJsonArray()) {
+            List<JsonObject> out = new ArrayList<>();
+            for (JsonElement el : json.getAsJsonArray("entries")) {
+                if (el != null && el.isJsonObject()) {
+                    out.add(el.getAsJsonObject());
+                }
+            }
+            if (!out.isEmpty()) {
+                return out;
+            }
+        }
+        return json == null ? List.of() : List.of(json);
     }
 
     private static HeatingCoilDefinition mergeHeatingCoil(HeatingCoilDefinition a, HeatingCoilDefinition b) {

@@ -204,14 +204,6 @@ public class MelterScreen extends AbstractContainerScreen<MelterMenu> {
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         super.renderTooltip(guiGraphics, mouseX, mouseY);
 
-        if (isOverProgressBar(mouseX, mouseY)) {
-            guiGraphics.renderTooltip(
-                    font,
-                    Component.translatable("gui.colossal_reactors.melter.show_recipes"),
-                    mouseX,
-                    mouseY);
-        }
-
         int left = leftPos + FLUID_BAR_X + FLUID_FILL_INSET;
         int top = topPos + FLUID_BAR_Y + FLUID_FILL_INSET;
         if (mouseX >= left && mouseX < left + FLUID_FILL_WIDTH && mouseY >= top && mouseY < top + FLUID_FILL_HEIGHT) {

@@ -30,11 +30,23 @@ public final class ReiChemicalHelper {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static void addChemicals(List<EntryIngredient> target, List<String> selectors) {
-        if (target == null || selectors == null || selectors.isEmpty() || !canShowChemicals()) {
+        if (target == null) {
+            return;
+        }
+        List<EntryStack<?>> entries = new ArrayList<>();
+        appendChemicalEntries(entries, selectors);
+        if (!entries.isEmpty()) {
+            target.add(EntryIngredient.of(entries));
+        }
+    }
+
+    /** Append chemical entry stacks into an existing list (for shared liquid+gas slots). */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static void appendChemicalEntries(List<EntryStack<?>> entries, List<String> selectors) {
+        if (entries == null || selectors == null || selectors.isEmpty() || !canShowChemicals()) {
             return;
         }
         EntryType type = EntryType.deferred(CHEMICAL_TYPE_ID);
-        List<EntryStack<?>> entries = new ArrayList<>();
         for (Object stack : JeiIngredientsHelper.getChemicalStacks(selectors)) {
             if (stack == null) {
                 continue;
@@ -44,9 +56,6 @@ public final class ReiChemicalHelper {
             } catch (Throwable ignored) {
                 // Entry type not registered yet or wrong stack class.
             }
-        }
-        if (!entries.isEmpty()) {
-            target.add(EntryIngredient.of(entries));
         }
     }
 }
