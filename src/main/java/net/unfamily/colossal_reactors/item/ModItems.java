@@ -73,6 +73,8 @@ public class ModItems {
             () -> new TurbineBladeItem(ModBlocks.TURBINE_BLADE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> TURBINE_ROD_CONTROLLER = ITEMS.register("turbine_rod_controller",
             () -> new BlockItem(ModBlocks.TURBINE_ROD_CONTROLLER.get(), new Item.Properties()));
+    public static final DeferredItem<Item> URANIUM_INGOT = ITEMS.register("uranium_ingot",
+            () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> NUCLEAR_WASTE = ITEMS.register("nuclear_waste",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> CATALYST_BREEZIUM = ITEMS.register("catalyst_breezium",
@@ -81,6 +83,10 @@ public class ModItems {
             () -> new RadiationCureItem(new Item.Properties().stacksTo(16)));
 
     // Resource block items
+    public static final DeferredItem<BlockItem> URANIUM_ORE = ITEMS.register("uranium_ore",
+            () -> new BlockItem(ModBlocks.URANIUM_ORE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> DEEPSLATE_URANIUM_ORE = ITEMS.register("deep_uranium_ore",
+            () -> new BlockItem(ModBlocks.DEEPSLATE_URANIUM_ORE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> LEAD_ORE = ITEMS.register("lead_ore",
             () -> new BlockItem(ModBlocks.LEAD_ORE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> DEEPSLATE_LEAD_ORE = ITEMS.register("deep_lead_ore",
@@ -95,6 +101,10 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.DEEPSLATE_CHROMIUM_ORE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> CALIFORNIUM_END_ORE = ITEMS.register("californium_end_ore",
             () -> new BlockItem(ModBlocks.CALIFORNIUM_END_ORE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> URANIUM_BLOCK = ITEMS.register("uranium_block",
+            () -> new BlockItem(ModBlocks.URANIUM_BLOCK.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> URANIUM_RAW_BLOCK = ITEMS.register("uranium_raw_block",
+            () -> new BlockItem(ModBlocks.URANIUM_RAW_BLOCK.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> LEAD_BLOCK = ITEMS.register("lead_block",
             () -> new BlockItem(ModBlocks.LEAD_BLOCK.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> RAW_LEAD_BLOCK = ITEMS.register("raw_lead_block",
@@ -117,6 +127,8 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.STAINLESS_STEEL_BLOCK.get(), new Item.Properties()));
 
     // Raw materials and ingots
+    public static final DeferredItem<Item> RAW_URANIUM = ITEMS.register("raw_uranium",
+            () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> LEAD_RAW = ITEMS.register("lead_raw",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> BORON_RAW = ITEMS.register("boron_raw",
@@ -139,6 +151,8 @@ public class ModItems {
             () -> new Item(new Item.Properties()));
 
     // Dusts (for crusher/enriching integration)
+    public static final DeferredItem<Item> URANIUM_DUST = ITEMS.register("uranium_dust",
+            () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> LEAD_DUST = ITEMS.register("lead_dust",
             () -> new Item(new Item.Properties()));
     public static final DeferredItem<Item> BORON_DUST = ITEMS.register("boron_dust",

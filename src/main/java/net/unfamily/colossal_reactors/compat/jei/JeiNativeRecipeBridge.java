@@ -14,6 +14,7 @@ import net.unfamily.colossal_reactors.coolant.CoolantDefinition;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.crafting.ColossalJsonRecipe;
 import net.unfamily.colossal_reactors.crafting.ModColossalRecipes;
+import net.unfamily.colossal_reactors.datapack.DatapackSelectorValidator;
 import net.unfamily.colossal_reactors.fuel.FuelDefinition;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.heatingcoil.HeatingCoilDefinition;
@@ -34,6 +35,8 @@ import org.jetbrains.annotations.Nullable;
  * Builds JEI/EMI/REI recipe lists from RecipeManager holders.
  * Expands unsplit parent {@code entries} arrays so viewers stay filled if the virtual pack
  * missed a bundle (e.g. Gradle classes-only mod path).
+ * Applies the same {@link DatapackSelectorValidator} sanitize as machine loaders so invalid
+ * (unresolved) recipes are never shown in recipe viewers.
  */
 public final class JeiNativeRecipeBridge {
     private JeiNativeRecipeBridge() {}
@@ -93,8 +96,9 @@ public final class JeiNativeRecipeBridge {
             List<JsonObject> entries = expandEntries(holder.value().json());
             for (JsonObject entry : entries) {
                 FuelDefinition def = FuelLoader.parseEntry(entry, holder.id().toString(), true);
-                if (def != null) {
-                    out.add(FuelJeiRecipe.of(def, childId(holder.id(), i, entries.size())));
+                FuelDefinition sanitized = def != null ? DatapackSelectorValidator.sanitizeFuel(def) : null;
+                if (sanitized != null) {
+                    out.add(FuelJeiRecipe.of(sanitized, childId(holder.id(), i, entries.size())));
                 }
                 i++;
             }
@@ -113,8 +117,9 @@ public final class JeiNativeRecipeBridge {
             List<JsonObject> entries = expandEntries(holder.value().json());
             for (JsonObject entry : entries) {
                 CoolantDefinition def = CoolantLoader.parseEntry(entry, holder.id().toString(), true);
-                if (def != null) {
-                    out.addAll(CoolantJeiRecipe.expand(def, childId(holder.id(), i, entries.size())));
+                CoolantDefinition sanitized = def != null ? DatapackSelectorValidator.sanitizeCoolant(def) : null;
+                if (sanitized != null) {
+                    out.addAll(CoolantJeiRecipe.expand(sanitized, childId(holder.id(), i, entries.size())));
                 }
                 i++;
             }
@@ -133,8 +138,9 @@ public final class JeiNativeRecipeBridge {
             List<JsonObject> entries = expandEntries(holder.value().json());
             for (JsonObject entry : entries) {
                 HeatSinkDefinition def = HeatSinkLoader.parseEntry(entry, holder.id().toString());
-                if (def != null) {
-                    out.add(HeatSinkJeiRecipe.of(def, childId(holder.id(), i, entries.size())));
+                HeatSinkDefinition sanitized = def != null ? DatapackSelectorValidator.sanitizeHeatSink(def) : null;
+                if (sanitized != null) {
+                    out.add(HeatSinkJeiRecipe.of(sanitized, childId(holder.id(), i, entries.size())));
                 }
                 i++;
             }
@@ -153,7 +159,7 @@ public final class JeiNativeRecipeBridge {
             List<JsonObject> entries = expandEntries(holder.value().json());
             for (JsonObject entry : entries) {
                 MelterRecipe r = MelterRecipesLoader.parseEntry(entry, holder.id().toString());
-                if (r != null) {
+                if (r != null && DatapackSelectorValidator.isMelterRecipeResolvable(r)) {
                     out.add(MelterJeiRecipe.of(r, childId(holder.id(), i, entries.size())));
                 }
                 i++;
@@ -175,7 +181,10 @@ public final class JeiNativeRecipeBridge {
                 continue;
             }
             for (int i = 0; i < list.size(); i++) {
-                out.add(MelterHeatJeiRecipe.of(list.get(i), holderId, i));
+                MelterHeatEntry sanitized = DatapackSelectorValidator.sanitizeMelterHeat(list.get(i));
+                if (sanitized != null) {
+                    out.add(MelterHeatJeiRecipe.of(sanitized, holderId, i));
+                }
             }
         }
         return out;
@@ -192,8 +201,9 @@ public final class JeiNativeRecipeBridge {
             List<JsonObject> entries = expandEntries(holder.value().json());
             for (JsonObject entry : entries) {
                 ElecCoilDefinition def = ElecCoilLoader.parseEntry(entry, holder.id().toString());
-                if (def != null) {
-                    out.add(ElecCoilJeiRecipe.of(def, childId(holder.id(), i, entries.size())));
+                if (ElecCoilLoader.isVisibleInJei(def)) {
+                    ElecCoilDefinition sanitized = DatapackSelectorValidator.sanitizeElecCoil(def);
+                    out.add(ElecCoilJeiRecipe.of(sanitized, childId(holder.id(), i, entries.size())));
                 }
                 i++;
             }
@@ -213,8 +223,10 @@ public final class JeiNativeRecipeBridge {
             for (JsonObject entry : entries) {
                 TurbineGenerationDefinition def =
                         TurbineGenerationLoader.parseEntry(entry, holder.id().toString(), true);
-                if (def != null) {
-                    out.addAll(TurbineJeiRecipe.expand(def, childId(holder.id(), i, entries.size())));
+                TurbineGenerationDefinition sanitized =
+                        def != null ? DatapackSelectorValidator.sanitizeTurbineGeneration(def) : null;
+                if (sanitized != null) {
+                    out.addAll(TurbineJeiRecipe.expand(sanitized, childId(holder.id(), i, entries.size())));
                 }
                 i++;
             }
@@ -232,7 +244,8 @@ public final class JeiNativeRecipeBridge {
             ResourceLocation id = holder.id();
             for (HeatingCoilDefinition def :
                     HeatingCoilLoader.parseFromRoot(holder.value().json(), id.toString())) {
-                out.addAll(HeatingCoilJeiRecipe.expand(def, id));
+                HeatingCoilDefinition sanitized = DatapackSelectorValidator.sanitizeHeatingCoil(def);
+                out.addAll(HeatingCoilJeiRecipe.expand(sanitized, id));
             }
         }
         return out.stream().filter(Objects::nonNull).toList();

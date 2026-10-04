@@ -47,6 +47,9 @@ public class Config {
         BUILDER.comment("Ore generation toggles").push("worldgen");
     }
 
+    public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_URANIUM_OREGEN = BUILDER
+            .comment("When true, disables uranium ore generation in the world. Default: false")
+            .define("000_disable_uranium_oregen", false);
     public static final ModConfigSpec.ConfigValue<Boolean> DISABLE_LEAD_OREGEN = BUILDER
             .comment("When true, disables lead ore generation in the world. Default: false")
             .define("001_disable_lead_oregen", false);

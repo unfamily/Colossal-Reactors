@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "colossal_reactors:block/resources/deep_uranium_ore"
+  }
+}

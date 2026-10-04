@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 0.7,
+  "ingredient": { "tag": "c:raw_materials/uranium" },
+  "result": { "id": "colossal_reactors:uranium_ingot", "count": 1 }
+}
