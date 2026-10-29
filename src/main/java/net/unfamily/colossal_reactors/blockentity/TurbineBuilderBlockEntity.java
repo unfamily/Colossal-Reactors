@@ -279,7 +279,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 4 -> worldPosition.getX();
                 case 5 -> worldPosition.getY();
                 case 6 -> worldPosition.getZ();
-                case 7 -> selectedCoilIndex;
+                case 7 -> ElecCoilLoader.clampOptionIndex(selectedCoilIndex);
                 case 8 -> coilLayerCount;
                 case 9 -> rodPattern;
                 case 10 -> openTop ? 1 : 0;
@@ -290,7 +290,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 15 -> placementAxis.ordinal();
                 case 16 -> getSimGenerationIndex();
                 case 17 -> bladeVariant;
-                case 18 -> selectedRodCoilIndex;
+                case 18 -> ElecCoilLoader.clampOptionIndex(selectedRodCoilIndex);
                 default -> 0;
             };
         }
@@ -321,7 +321,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                     sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), value));
                     invalidateWebsiteRodCache();
                 }
-                case 7 -> selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, value));
+                case 7 -> selectedCoilIndex = ElecCoilLoader.clampOptionIndex(value);
                 case 8 -> coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, value));
                 case 9 -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, value));
                 case 10 -> openTop = value != 0;
@@ -337,7 +337,7 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
                 }
                 case 16 -> simGenerationIndex = Math.max(0, value);
                 case 17 -> bladeVariant = Math.max(0, Math.min(BLADE_VARIANT_COUNT - 1, value));
-                case 18 -> selectedRodCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, value));
+                case 18 -> selectedRodCoilIndex = ElecCoilLoader.clampOptionIndex(value);
                 default -> {}
             }
         }
@@ -449,8 +449,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSizeRight() { return sizeRight; }
     public int getSizeHeight() { return sizeHeight; }
     public int getSizeDepth() { return sizeDepth; }
-    public int getSelectedCoilIndex() { return selectedCoilIndex; }
-    public int getSelectedRodCoilIndex() { return selectedRodCoilIndex; }
+    public int getSelectedCoilIndex() { return ElecCoilLoader.clampOptionIndex(selectedCoilIndex); }
+    public int getSelectedRodCoilIndex() { return ElecCoilLoader.clampOptionIndex(selectedRodCoilIndex); }
     public int getCoilLayerCount() { return coilLayerCount; }
     public int getRodPattern() { return rodPattern; }
     public Direction getPlacementAxis() { return placementAxis; }
@@ -478,12 +478,12 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     public void setSelectedCoilIndex(int index) {
-        this.selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, index));
+        this.selectedCoilIndex = ElecCoilLoader.clampOptionIndex(index);
         setChanged();
     }
 
     public void setSelectedRodCoilIndex(int index) {
-        this.selectedRodCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, index));
+        this.selectedRodCoilIndex = ElecCoilLoader.clampOptionIndex(index);
         setChanged();
     }
 
@@ -813,18 +813,20 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
 
     /** Cycle elec coil block type. On Website pattern, also rewrites the mdct1/mdct2 seed coil token. */
     public void cycleCoil(boolean next) {
-        int max = ElecCoilLoader.getCoilOptionCount() - 1;
-        if (next) selectedCoilIndex = selectedCoilIndex >= max ? 0 : selectedCoilIndex + 1;
-        else selectedCoilIndex = selectedCoilIndex <= 0 ? max : selectedCoilIndex - 1;
+        int max = Math.max(0, ElecCoilLoader.getCoilOptionCount() - 1);
+        int cur = ElecCoilLoader.clampOptionIndex(selectedCoilIndex);
+        if (next) selectedCoilIndex = cur >= max ? 0 : cur + 1;
+        else selectedCoilIndex = cur <= 0 ? max : cur - 1;
         net.unfamily.colossal_reactors.builder.web.BuilderWebsiteDesigns.syncTurbineWebsiteSeedFromCoilSelection(this);
         setChanged();
     }
 
     /** Cycle coil material for rod-column cells; on Website pattern also rewrites mdct1/mdct2 rodCoil. */
     public void cycleRodCoil(boolean next) {
-        int max = ElecCoilLoader.getCoilOptionCount() - 1;
-        if (next) selectedRodCoilIndex = selectedRodCoilIndex >= max ? 0 : selectedRodCoilIndex + 1;
-        else selectedRodCoilIndex = selectedRodCoilIndex <= 0 ? max : selectedRodCoilIndex - 1;
+        int max = Math.max(0, ElecCoilLoader.getCoilOptionCount() - 1);
+        int cur = ElecCoilLoader.clampOptionIndex(selectedRodCoilIndex);
+        if (next) selectedRodCoilIndex = cur >= max ? 0 : cur + 1;
+        else selectedRodCoilIndex = cur <= 0 ? max : cur - 1;
         net.unfamily.colossal_reactors.builder.web.BuilderWebsiteDesigns.syncTurbineWebsiteSeedFromCoilSelection(this);
         setChanged();
     }
@@ -1066,8 +1068,8 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
         input.getInt(TAG_SIZE_H).ifPresent(v -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), v)));
         input.getInt(TAG_SIZE_D).ifPresent(v -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), v)));
-        input.getInt(TAG_COIL_IDX).ifPresent(v -> selectedCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, v)));
-        input.getInt(TAG_ROD_COIL_IDX).ifPresent(v -> selectedRodCoilIndex = Math.max(0, Math.min(ElecCoilLoader.getCoilOptionCount() - 1, v)));
+        input.getInt(TAG_COIL_IDX).ifPresent(v -> selectedCoilIndex = ElecCoilLoader.clampOptionIndex(v));
+        input.getInt(TAG_ROD_COIL_IDX).ifPresent(v -> selectedRodCoilIndex = ElecCoilLoader.clampOptionIndex(v));
         input.getInt(TAG_SIM_GENERATION_IDX).ifPresent(v -> simGenerationIndex = Math.max(0, v));
         input.getInt("CoilLayerCount").ifPresent(v -> coilLayerCount = Math.max(COIL_LAYER_MIN, Math.min(COIL_LAYER_MAX, v)));
         clampCoilLayerCountToFit();

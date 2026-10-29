@@ -14,7 +14,9 @@ import java.util.regex.Pattern;
  * mdct2.X.Z.Y.{f|c}.ring.coil.rodCoil.coilLayers.{a|o}.steam.rodsB64
  * </pre>
  * Profile {@code f}=full (same blade rings every layer), {@code c}=climb.
- * {@code rodCoil} (mdct2 only): coil material on rod-controller columns; omitted / same as {@code coil} → mdct1.
+ * {@code coil}/{@code rodCoil}: mdct1 uses short ids ({@code gold}); mdct2 uses recipe selectors
+ * ({@code ~c:storage_blocks/gold}, {@code minecraft:air}) — {@code ~} replaces {@code #} for URL safety.
+ * {@code rodCoil} omitted / same as {@code coil} → mdct1 when the zone coil is a short id.
  * Coil fill {@code o} (one block) is decoded only; see {@link #coilFillOne}.
  * Steam is mB/t or {@code -} for uncapped.
  * Rods: 1 bit per interior cell {@code x*(Z-2)+z}, LSB first, base64url.
@@ -27,8 +29,7 @@ public record ModDecodedTurbineDesign(
         int ring,
         String coilId,
         /**
-         * Rod-column coil website id when distinct from {@link #coilId()}; {@code null} means same as zone coil
-         * (mdct1, or mdct2 with rodCoil equal to coil).
+         * Rod-column coil token when distinct from {@link #coilId()}; {@code null} means same as zone coil.
          */
         @Nullable String rodCoilId,
         int coilLayers,
@@ -55,7 +56,7 @@ public record ModDecodedTurbineDesign(
         code = code != null ? code : "";
     }
 
-    /** Effective rod-column coil id (falls back to zone {@link #coilId()}). */
+    /** Effective rod-column coil token (falls back to zone {@link #coilId()}). */
     public String effectiveRodCoilId() {
         return rodCoilId != null ? rodCoilId : coilId;
     }
@@ -118,7 +119,7 @@ public record ModDecodedTurbineDesign(
         String rodCoil = null;
         if (p.length == 12 && "mdct2".equals(p[0])) {
             rodCoil = p[7];
-            if (!isCoilId(rodCoil)) {
+            if (!WebsiteSelectorMaps.isSeedMaterialToken(rodCoil)) {
                 return Optional.empty();
             }
             // Normalize to mdct1 field layout for shared parsing.
@@ -135,7 +136,7 @@ public record ModDecodedTurbineDesign(
         if (!"a".equals(p[8]) && !"o".equals(p[8])) {
             return Optional.empty();
         }
-        if (!isCoilId(p[6])) {
+        if (!WebsiteSelectorMaps.isSeedMaterialToken(p[6])) {
             return Optional.empty();
         }
         int x = parseBoundedInt(p[1], MIN_XZ, MAX_EXT);
@@ -189,7 +190,9 @@ public record ModDecodedTurbineDesign(
     }
 
     /**
-     * Builds the canonical seed string (mdct2 when {@code rodCoilId} is set and distinct from {@code coilId}).
+     * Builds the canonical seed string.
+     * mdct2 when rod-column coil is distinct or zone coil is not a short CSV/mdct1 id;
+     * in mdct2, coil fields are recipe selectors ({@code ~} for tags).
      */
     public static String encodeCode(
             int x, int z, int y,
@@ -206,14 +209,16 @@ public record ModDecodedTurbineDesign(
         if (rod != null && (rod.isEmpty() || rod.equals(coil))) {
             rod = null;
         }
-        boolean two = rod != null;
+        boolean two = rod != null || !isMdct1CoilToken(coil);
         StringBuilder sb = new StringBuilder(two ? "mdct2" : "mdct1");
         sb.append('.').append(x).append('.').append(z).append('.').append(y);
         sb.append('.').append(climb ? "c" : "f");
         sb.append('.').append(ring);
-        sb.append('.').append(coil);
         if (two) {
-            sb.append('.').append(rod);
+            sb.append('.').append(toMdct2CoilField(coil));
+            sb.append('.').append(toMdct2CoilField(rod != null ? rod : coil));
+        } else {
+            sb.append('.').append(coil);
         }
         sb.append('.').append(Math.max(1, Math.min(63, coilLayers)));
         sb.append('.').append(coilFillOne ? "o" : "a");
@@ -229,21 +234,35 @@ public record ModDecodedTurbineDesign(
         return sb.toString();
     }
 
+    /** Short id listed in the optional CSV map (or {@code air}). */
+    private static boolean isMdct1CoilToken(String token) {
+        if (token == null || token.isEmpty()) {
+            return true;
+        }
+        if (token.startsWith("~") || token.indexOf(':') > 0) {
+            return false;
+        }
+        return WebsiteSelectorMaps.isShortCoilId(token);
+    }
+
+    /** ModDecoded {@code coilSel}: air → {@code minecraft:air}; short id → CSV selector with {@code ~}. */
+    private static String toMdct2CoilField(String token) {
+        if (token == null || token.isEmpty() || "air".equals(token)) {
+            return "minecraft:air";
+        }
+        if (token.startsWith("~") || token.indexOf(':') > 0) {
+            return WebsiteSelectorMaps.toSeedSelector(WebsiteSelectorMaps.toDatapackSelector(token));
+        }
+        return WebsiteSelectorMaps.coilSelectorForWebsiteId(token)
+                .map(WebsiteSelectorMaps::toSeedSelector)
+                .orElse(token);
+    }
+
     private String rebuildCode(
             String newCoilId, @Nullable String newRodCoilId, int newLayers) {
         return encodeCode(
                 exteriorX, exteriorZ, exteriorY, climbProfile, ring,
                 newCoilId, newRodCoilId, newLayers, coilFillOne, steamMbPerTick, rodMask);
-    }
-
-    private static boolean isCoilId(String id) {
-        if (id == null || id.isEmpty()) {
-            return false;
-        }
-        if ("air".equals(id)) {
-            return true;
-        }
-        return id.matches("[a-z][a-z0-9_]*");
     }
 
     @Nullable

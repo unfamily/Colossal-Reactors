@@ -427,6 +427,19 @@ public final class HeatSinkLoader {
         return 1 + nonAir;
     }
 
+    /**
+     * Clamp a persisted/synced heat-sink option index. While only Air is available
+     * (datapack not applied yet), keep the raw index so early sync cannot wipe the selection.
+     */
+    public static int clampOptionIndex(int index) {
+        int v = Math.max(0, index);
+        int count = getHeatSinkOptionCount();
+        if (count <= 1) {
+            return v;
+        }
+        return Math.min(count - 1, v);
+    }
+
     /** True when the builder heat-sink option places interior liquid (valid_liquids non-empty). */
     public static boolean requiresLiquidPlacement(int selectedHeatSinkIndex) {
         HeatSinkDefinition def = definitionForOptionIndex(selectedHeatSinkIndex);

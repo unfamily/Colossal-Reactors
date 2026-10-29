@@ -581,15 +581,16 @@ public final class TurbineBuildLogic {
             if (!canReplaceForSolidBlock(level, pos)) {
                 continue;
             }
-            BlockState coilState = ElecCoilLoader.placementStateForOption(idx, level.registryAccess());
-            if (coilState == null) {
+            // Tag options may resolve to many blocks — place the matching buffer item, not tag.findFirst().
+            if (ElecCoilLoader.placementStateForOption(idx, level.registryAccess()) == null) {
                 continue;
             }
-            if (!consumeCoilFromBuffer(builder, idx, level)) {
+            BlockState coilState = takeCoilStateFromBuffer(builder, idx, level);
+            if (coilState == null) {
                 builder.setBuildRodCursor(cellIndex, 0, 0);
                 return true;
             }
-            level.setBlock(pos, coilState, net.minecraft.world.level.block.Block.UPDATE_ALL);
+            level.setBlock(pos, coilState, Block.UPDATE_ALL);
             builder.setBuildRodCursor(cellIndex + 1, 0, 0);
             return true;
         }
@@ -674,18 +675,30 @@ public final class TurbineBuildLogic {
         return count;
     }
 
-    private static boolean consumeCoilFromBuffer(
+    /**
+     * Consumes one matching coil item from the builder buffer and returns that item's block state.
+     * Prefer inventory over {@link ElecCoilLoader#placementStateForOption} so tag recipes place
+     * the block the player supplied, not the first tag member.
+     */
+    @Nullable
+    private static BlockState takeCoilStateFromBuffer(
             TurbineBuilderBlockEntity builder, int coilIndex, ServerLevel level) {
         var handler = builder.getBufferHandler();
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack stack = handler.getStackInSlot(i);
-            if (!stack.isEmpty()
-                    && ElecCoilLoader.itemMatchesSelectedCoil(stack, coilIndex, level.registryAccess())) {
-                handler.extractItem(i, 1, false);
-                return true;
+            if (stack.isEmpty()
+                    || !ElecCoilLoader.itemMatchesSelectedCoil(stack, coilIndex, level.registryAccess())) {
+                continue;
             }
+            Block block = Block.byItem(stack.getItem());
+            BlockState state = block.defaultBlockState();
+            if (state.isAir()) {
+                continue;
+            }
+            handler.extractItem(i, 1, false);
+            return state;
         }
-        return false;
+        return null;
     }
 
     private static boolean isOnClosurePlane(int x, int y, int z, TurbineRotorLayout layout) {

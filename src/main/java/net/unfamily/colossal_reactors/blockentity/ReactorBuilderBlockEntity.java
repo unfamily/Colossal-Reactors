@@ -280,7 +280,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                 case 4 -> worldPosition.getX();
                 case 5 -> worldPosition.getY();
                 case 6 -> worldPosition.getZ();
-                case 7 -> selectedHeatSinkIndex;
+                case 7 -> HeatSinkLoader.clampOptionIndex(selectedHeatSinkIndex);
                 case 8 -> openTop ? 1 : 0;
                 case 9 -> rodPattern;
                 case 10 -> patternMode;
@@ -314,7 +314,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
                     sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), value));
                     invalidateWebsiteCellCache();
                 }
-                case 7 -> selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, value));
+                case 7 -> selectedHeatSinkIndex = HeatSinkLoader.clampOptionIndex(value);
                 case 8 -> openTop = value != 0;
                 case 9 -> rodPattern = Math.max(0, Math.min(ROD_PATTERN_COUNT - 1, value));
                 case 10 -> patternMode = Math.max(0, Math.min(PATTERN_MODE_COUNT - 1, value));
@@ -435,7 +435,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     public int getSizeRight() { return sizeRight; }
     public int getSizeHeight() { return sizeHeight; }
     public int getSizeDepth() { return sizeDepth; }
-    public int getSelectedHeatSinkIndex() { return selectedHeatSinkIndex; }
+    public int getSelectedHeatSinkIndex() { return HeatSinkLoader.clampOptionIndex(selectedHeatSinkIndex); }
     public boolean isOpenTop() { return openTop; }
     public int getRodPattern() { return rodPattern; }
     public int getPatternMode() { return patternMode; }
@@ -459,7 +459,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
     }
 
     public void setSelectedHeatSinkIndex(int index) {
-        this.selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, index));
+        this.selectedHeatSinkIndex = HeatSinkLoader.clampOptionIndex(index);
         setChanged();
     }
 
@@ -668,9 +668,10 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
 
     /** Cycle heat sink option: next=true next, next=false previous. Left click=next, right click=previous. */
     public void cycleHeatSink(boolean next) {
-        int max = HeatSinkLoader.getHeatSinkOptionCount() - 1;
-        if (next) selectedHeatSinkIndex = selectedHeatSinkIndex >= max ? 0 : selectedHeatSinkIndex + 1;
-        else selectedHeatSinkIndex = selectedHeatSinkIndex <= 0 ? max : selectedHeatSinkIndex - 1;
+        int max = Math.max(0, HeatSinkLoader.getHeatSinkOptionCount() - 1);
+        int cur = HeatSinkLoader.clampOptionIndex(selectedHeatSinkIndex);
+        if (next) selectedHeatSinkIndex = cur >= max ? 0 : cur + 1;
+        else selectedHeatSinkIndex = cur <= 0 ? max : cur - 1;
         setChanged();
     }
 
@@ -930,7 +931,7 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
         }
         input.getInt(TAG_SIZE_H).ifPresent(v -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), v)));
         input.getInt(TAG_SIZE_D).ifPresent(v -> sizeDepth = Math.max(MIN_SIZE, Math.min(getMaxDepth(), v)));
-        input.getInt(TAG_HEAT_SINK_IDX).ifPresent(v -> selectedHeatSinkIndex = Math.max(0, Math.min(HeatSinkLoader.getHeatSinkOptionCount() - 1, v)));
+        input.getInt(TAG_HEAT_SINK_IDX).ifPresent(v -> selectedHeatSinkIndex = HeatSinkLoader.clampOptionIndex(v));
         input.getInt(TAG_SIM_COOLANT_IDX).ifPresent(v -> simCoolantIndex = Math.max(0, Math.min(simCoolantOptionCount() - 1, v)));
         input.getInt(TAG_SIM_FUEL_IDX).ifPresent(v -> simFuelIndex = Math.max(0, v));
         openTop = input.getBooleanOr(TAG_OPEN_TOP, openTop);
