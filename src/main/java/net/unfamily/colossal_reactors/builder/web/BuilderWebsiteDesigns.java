@@ -105,24 +105,35 @@ public final class BuilderWebsiteDesigns {
     }
 
     /**
-     * Heat-sink builder option for a ModDecoded sink id.
-     * Unknown ids fall back to the first non-air heatsink (config CSV map).
+     * Heat-sink builder option for a ModDecoded sink id or seed selector ({@code ~c:…} / {@code ns:path}).
+     * CSV short ids are optional aliases. Unknown → first non-air heatsink.
      */
     public static int findHeatSinkOptionIndex(String websiteSinkId) {
         if (websiteSinkId == null || websiteSinkId.isEmpty() || "rod".equals(websiteSinkId)) {
             return WebsiteSelectorMaps.firstNonAirHeatSinkOptionIndex();
         }
-        if ("air".equals(websiteSinkId)) {
+        if ("air".equals(websiteSinkId) || "minecraft:air".equals(websiteSinkId)) {
             return 0;
         }
-        String hint = WebsiteSelectorMaps.heatsinkSelectorForWebsiteId(websiteSinkId).orElse(websiteSinkId);
+        String datapack = WebsiteSelectorMaps.toDatapackSelector(websiteSinkId);
         int optionCount = HeatSinkLoader.getHeatSinkOptionCount();
         for (int opt = 1; opt < optionCount; opt++) {
             HeatSinkDefinition def = HeatSinkLoader.definitionForOptionIndex(opt);
             if (def == null) {
                 continue;
             }
-            if (selectorsContainHint(def.validBlocks(), hint) || selectorsContainHint(def.validLiquids(), hint)) {
+            if (selectorsMatchExact(def.validBlocks(), datapack) || selectorsMatchExact(def.validLiquids(), datapack)) {
+                return opt;
+            }
+        }
+        String hint = WebsiteSelectorMaps.heatsinkSelectorForWebsiteId(websiteSinkId).orElse(datapack);
+        for (int opt = 1; opt < optionCount; opt++) {
+            HeatSinkDefinition def = HeatSinkLoader.definitionForOptionIndex(opt);
+            if (def == null) {
+                continue;
+            }
+            if (selectorsMatchExact(def.validBlocks(), hint) || selectorsMatchExact(def.validLiquids(), hint)
+                    || selectorsContainHint(def.validBlocks(), hint) || selectorsContainHint(def.validLiquids(), hint)) {
                 return opt;
             }
         }
@@ -130,24 +141,34 @@ public final class BuilderWebsiteDesigns {
     }
 
     /**
-     * Coil builder option for a ModDecoded coil id ({@code air} → 0).
-     * Unknown ids fall back to the first non-air coil (config CSV map).
+     * Coil builder option for a ModDecoded coil id or seed selector ({@code air} → 0).
+     * Exact datapack match first; CSV short-id alias optional. Unknown → first non-air coil.
      */
     public static int findCoilOptionIndex(String websiteCoilId) {
         if (websiteCoilId == null || websiteCoilId.isEmpty()) {
             return WebsiteSelectorMaps.firstNonAirCoilOptionIndex();
         }
-        if ("air".equals(websiteCoilId)) {
+        if ("air".equals(websiteCoilId) || "minecraft:air".equals(websiteCoilId)) {
             return 0;
         }
-        String hint = WebsiteSelectorMaps.coilSelectorForWebsiteId(websiteCoilId).orElse(websiteCoilId);
+        String datapack = WebsiteSelectorMaps.toDatapackSelector(websiteCoilId);
         List<ElecCoilDefinition> defs = ElecCoilLoader.getAllDefinitions();
         for (int i = 0; i < defs.size(); i++) {
             ElecCoilDefinition def = defs.get(i);
             if (ElecCoilLoader.isAirOnlyDefinition(def)) {
                 continue;
             }
-            if (selectorsContainHint(def.validBlocks(), hint) || selectorsMatchExact(def.validBlocks(), hint)) {
+            if (selectorsMatchExact(def.validBlocks(), datapack)) {
+                return i;
+            }
+        }
+        String hint = WebsiteSelectorMaps.coilSelectorForWebsiteId(websiteCoilId).orElse(datapack);
+        for (int i = 0; i < defs.size(); i++) {
+            ElecCoilDefinition def = defs.get(i);
+            if (ElecCoilLoader.isAirOnlyDefinition(def)) {
+                continue;
+            }
+            if (selectorsMatchExact(def.validBlocks(), hint) || selectorsContainHint(def.validBlocks(), hint)) {
                 return i;
             }
         }
@@ -155,9 +176,8 @@ public final class BuilderWebsiteDesigns {
     }
 
     /**
-     * Website {@code mdct1}/{@code mdct2} coil token for a builder coil option index (0 → {@code air}).
-     * Prefer {@code website.000_coil_selector_map}; else derive a stable token from the selector
-     * so distinct options stay distinct when zone ≠ rod-column coil.
+     * Seed coil token for a builder option: short CSV id when mapped (mdct1-friendly),
+     * otherwise {@link WebsiteSelectorMaps#toSeedSelector(String)} of the first {@code valid_blocks} entry.
      */
     public static String websiteCoilIdForOptionIndex(int optionIndex) {
         if (optionIndex <= 0) {
@@ -177,13 +197,45 @@ public final class BuilderWebsiteDesigns {
                 return id.get();
             }
         }
-        for (String sel : def.validBlocks()) {
-            String derived = WebsiteSelectorMaps.websiteTokenFromSelector(sel);
-            if (derived != null && !"air".equals(derived)) {
-                return derived;
+        return WebsiteSelectorMaps.toSeedSelector(def.validBlocks().get(0));
+    }
+
+    /**
+     * Seed heat-sink token for a builder option: short CSV id when mapped, else seed selector.
+     */
+    public static String websiteHeatSinkIdForOptionIndex(int optionIndex) {
+        if (optionIndex <= 0) {
+            return "air";
+        }
+        HeatSinkDefinition def = HeatSinkLoader.definitionForOptionIndex(optionIndex);
+        if (def == null) {
+            return "air";
+        }
+        List<String> blocks = def.validBlocks();
+        List<String> liquids = def.validLiquids();
+        if (blocks != null) {
+            for (String sel : blocks) {
+                Optional<String> id = WebsiteSelectorMaps.websiteIdForHeatsinkSelector(sel);
+                if (id.isPresent()) {
+                    return id.get();
+                }
             }
         }
-        return WebsiteSelectorMaps.firstNonAirCoilWebsiteId();
+        if (liquids != null) {
+            for (String sel : liquids) {
+                Optional<String> id = WebsiteSelectorMaps.websiteIdForHeatsinkSelector(sel);
+                if (id.isPresent()) {
+                    return id.get();
+                }
+            }
+        }
+        if (blocks != null && !blocks.isEmpty()) {
+            return WebsiteSelectorMaps.toSeedSelector(blocks.get(0));
+        }
+        if (liquids != null && !liquids.isEmpty()) {
+            return WebsiteSelectorMaps.toSeedSelector(liquids.get(0));
+        }
+        return "air";
     }
 
     private static boolean selectorsMatchExact(List<String> selectors, String hint) {

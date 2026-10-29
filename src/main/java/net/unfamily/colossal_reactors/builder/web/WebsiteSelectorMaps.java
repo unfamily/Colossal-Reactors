@@ -8,12 +8,17 @@ import net.unfamily.colossal_reactors.turbine.ElecCoilLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Parses config CSV rows {@code datapack_selector;website_id} for ModDecoded website material maps.
+ * <p>
+ * Seed tokens use {@code ~} instead of {@code #} for tags (URL hash-safe), matching ModDecoded
+ * {@code coilSel}/{@code sinkSel}. CSV maps are optional aliases for short mdct1/mdcr1 ids.
  */
 public final class WebsiteSelectorMaps {
 
@@ -63,6 +68,95 @@ public final class WebsiteSelectorMaps {
         return new Entry(selector, websiteId);
     }
 
+    /**
+     * Seed token → datapack selector: {@code ~c:…} → {@code #c:…}; block/fluid ids and short ids unchanged.
+     */
+    public static String toDatapackSelector(@Nullable String token) {
+        if (token == null || token.isEmpty()) {
+            return "";
+        }
+        if (token.startsWith("~")) {
+            return "#" + token.substring(1);
+        }
+        return token;
+    }
+
+    /**
+     * Datapack selector → seed token: {@code #c:…} → {@code ~c:…}; block/fluid ids unchanged.
+     */
+    public static String toSeedSelector(@Nullable String datapackSel) {
+        if (datapackSel == null || datapackSel.isEmpty()) {
+            return "";
+        }
+        if (datapackSel.startsWith("#")) {
+            return "~" + datapackSel.substring(1);
+        }
+        return datapackSel;
+    }
+
+    /**
+     * True for tokens allowed in mdct2/mdcr2 material fields: {@code air}, short id,
+     * {@code namespace:path}, or {@code ~namespace:…}. Must not contain {@code .} or {@code ,}.
+     */
+    public static boolean isSeedMaterialToken(@Nullable String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        if (s.indexOf('.') >= 0 || s.indexOf(',') >= 0) {
+            return false;
+        }
+        if ("air".equals(s) || "rod".equals(s)) {
+            return true;
+        }
+        if (s.startsWith("~")) {
+            String rest = s.substring(1);
+            return !rest.isEmpty() && rest.indexOf(':') > 0
+                    && rest.matches("[a-z0-9_.:/-]+");
+        }
+        if (s.indexOf(':') > 0) {
+            return s.matches("[a-z0-9_.-]+:[a-z0-9_./-]+");
+        }
+        return s.matches("[a-z][a-z0-9_]*");
+    }
+
+    /** Short coil ids from {@code website.000_coil_selector_map} (mdct1 table); empty if CSV unused. */
+    public static Set<String> shortCoilIds() {
+        Set<String> out = new LinkedHashSet<>();
+        out.add("air");
+        for (Entry e : coilEntries()) {
+            if (e.websiteId() != null && e.websiteId().matches("[a-z][a-z0-9_]*")) {
+                out.add(e.websiteId().toLowerCase(Locale.ROOT));
+            }
+        }
+        return out;
+    }
+
+    /** Short heat-sink ids from {@code website.001_heatsink_selector_map} (mdcr1 table). */
+    public static Set<String> shortHeatSinkIds() {
+        Set<String> out = new LinkedHashSet<>();
+        out.add("air");
+        for (Entry e : heatsinkEntries()) {
+            if (e.websiteId() != null && e.websiteId().matches("[a-z][a-z0-9_]*")) {
+                out.add(e.websiteId().toLowerCase(Locale.ROOT));
+            }
+        }
+        return out;
+    }
+
+    public static boolean isShortCoilId(@Nullable String id) {
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        return shortCoilIds().contains(id.toLowerCase(Locale.ROOT));
+    }
+
+    public static boolean isShortHeatSinkId(@Nullable String id) {
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        return shortHeatSinkIds().contains(id.toLowerCase(Locale.ROOT));
+    }
+
     /** Website coil id → datapack selector from config, if listed. */
     public static Optional<String> coilSelectorForWebsiteId(String websiteId) {
         return selectorForWebsiteId(coilEntries(), websiteId);
@@ -102,15 +196,17 @@ public final class WebsiteSelectorMaps {
             return Optional.empty();
         }
         String s = selector.toLowerCase(Locale.ROOT);
+        // Also try seed-form (~) as if it were a datapack tag.
+        String datapack = toDatapackSelector(s).toLowerCase(Locale.ROOT);
         for (Entry e : entries) {
-            if (e.selector().equalsIgnoreCase(s)) {
+            if (e.selector().equalsIgnoreCase(s) || e.selector().equalsIgnoreCase(datapack)) {
                 return Optional.of(e.websiteId());
             }
         }
-        String path = pathTail(s);
+        String path = pathTail(datapack);
         for (Entry e : entries) {
             String ep = pathTail(e.selector().toLowerCase(Locale.ROOT));
-            if (ep.equals(path) || s.contains(ep) || e.selector().toLowerCase(Locale.ROOT).contains(path)) {
+            if (ep.equals(path) || datapack.contains(ep) || e.selector().toLowerCase(Locale.ROOT).contains(path)) {
                 return Optional.of(e.websiteId());
             }
         }
@@ -150,14 +246,15 @@ public final class WebsiteSelectorMaps {
         int idx = firstNonAirCoilOptionIndex();
         List<ElecCoilDefinition> defs = ElecCoilLoader.getAllDefinitions();
         if (idx >= 0 && idx < defs.size() && defs.get(idx) != null && !defs.get(idx).validBlocks().isEmpty()) {
-            return websiteIdForCoilSelector(defs.get(idx).validBlocks().get(0)).orElse("air");
+            String sel = defs.get(idx).validBlocks().get(0);
+            return websiteIdForCoilSelector(sel).orElseGet(() -> toSeedSelector(sel));
         }
         return "air";
     }
 
     /**
-     * Stable mdct coil token derived from a datapack selector when no config map entry exists.
-     * Keeps distinct builder options distinct in mdct2 (avoids collapsing everything to graphite).
+     * Stable short token derived from a datapack selector when no config map entry exists.
+     * Prefer {@link #toSeedSelector(String)} for mdct2/mdcr2 fields.
      */
     @Nullable
     public static String websiteTokenFromSelector(String selector) {
@@ -176,7 +273,7 @@ public final class WebsiteSelectorMaps {
 
     private static String pathTail(String selector) {
         String s = selector;
-        if (s.startsWith("#")) {
+        if (s.startsWith("#") || s.startsWith("~")) {
             s = s.substring(1);
         }
         if (s.contains(":")) {

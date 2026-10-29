@@ -163,6 +163,20 @@ public final class ElecCoilLoader {
         return DEFINITIONS.size();
     }
 
+    /**
+     * Clamp a persisted/synced coil option index. While the loader still has only the
+     * synthetic air entry (datapack recipes not applied yet on this side), keep the raw
+     * index so early {@code ContainerData}/NBT sync cannot wipe zone/rod coil back to air.
+     */
+    public static int clampOptionIndex(int index) {
+        int v = Math.max(0, index);
+        int count = getCoilOptionCount();
+        if (count <= 1) {
+            return v;
+        }
+        return Math.min(count - 1, v);
+    }
+
     public static boolean shouldSkipSolidCoilAutoPlacement(int selectedCoilIndex) {
         if (selectedCoilIndex < 0 || selectedCoilIndex >= DEFINITIONS.size()) return true;
         ElecCoilDefinition def = DEFINITIONS.get(selectedCoilIndex);
@@ -170,7 +184,10 @@ public final class ElecCoilLoader {
         return def.validBlocks().stream().allMatch(ElecCoilLoader::isMinecraftAirSelector);
     }
 
-    /** First placeable block state for builder auto-fill (supports tags). */
+    /**
+     * Whether this coil option has at least one resolvable block (tag non-empty or direct id).
+     * Not used as the placed state — builders place the matching buffer item instead.
+     */
     @Nullable
     public static BlockState placementStateForOption(int selectedCoilIndex, RegistryAccess registryAccess) {
         if (shouldSkipSolidCoilAutoPlacement(selectedCoilIndex)) {
