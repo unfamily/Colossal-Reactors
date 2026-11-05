@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Applies Colossal datapack recipes from {@link RecipeManager} into runtime loaders.
  * No file-scan merge / empty→builtin fallbacks. Heating coils also merge {@code load/} retrocompat.
+ * <p>
+ * Synergy Matter Foundry ({@code synergy:foundry}) is not applied here — stage those recipe ids
+ * via Synergy/KubeJS, not {@link ColossalRecipeIndex}.
  */
 @EventBusSubscriber(modid = ColossalReactors.MODID)
 public final class ColossalRecipeData {
@@ -155,10 +158,14 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(source, ModColossalRecipes.RADIATION_SCRUBBER_CATALYSTS.get())) {
+            Identifier recipeId = holderRecipeId(holder);
             var parsed = RadiationScrubberCatalystsLoader.parseFromRoot(
                     holder.value().json(), SOURCE + "/" + recipeSourceId(holder));
             if (parsed != null) {
                 catalysts.addAll(parsed.catalysts());
+                for (String selector : parsed.catalysts()) {
+                    ColossalRecipeIndex.registerScrubberCatalyst(recipeId, selector);
+                }
                 if (parsed.mult() >= 0) {
                     rsMult[0] = parsed.mult();
                 }
@@ -199,7 +206,18 @@ public final class ColossalRecipeData {
         }
         Map<Identifier, HeatingCoilDefinition> loadPathCoils = LoadDataReloadListener.consumeLastLoaded();
         if (loadPathCoils != null) {
-            coils.putAll(loadPathCoils);
+            for (Map.Entry<Identifier, HeatingCoilDefinition> entry : loadPathCoils.entrySet()) {
+                HeatingCoilDefinition def = entry.getValue();
+                coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
+                if (ColossalRecipeIndex.heatingCoilOptionRecipes(def.id()).isEmpty()) {
+                    for (int i = 0; i < def.consume().size(); i++) {
+                        Identifier synthetic = Identifier.fromNamespaceAndPath(
+                                def.id().getNamespace(),
+                                "load/" + def.id().getPath() + "_" + i);
+                        ColossalRecipeIndex.registerHeatingCoilOption(def.id(), synthetic);
+                    }
+                }
+            }
         }
 
         FuelLoader.applyLoaded(fuel);

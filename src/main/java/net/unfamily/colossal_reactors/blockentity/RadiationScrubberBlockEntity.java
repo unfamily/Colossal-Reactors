@@ -65,7 +65,12 @@ public class RadiationScrubberBlockEntity extends BlockEntity
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            if (slot == 0) return !stack.isEmpty() && isCatalyst(stack);
+            if (slot == 0) {
+                return !stack.isEmpty()
+                        && isCatalyst(stack)
+                        && net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isScrubberCatalystAllowed(
+                                stack, ownerPlayerUuid, level);
+            }
             if (slot == 1) return !stack.isEmpty() && isProductionModule(stack);
             return super.isItemValid(slot, stack);
         }
@@ -357,7 +362,10 @@ public class RadiationScrubberBlockEntity extends BlockEntity
         int interval = Config.RADIATION_SCRUBBER_INTERVAL_TICKS.get();
         if (level.getGameTime() % interval != 0) return;
         ItemStack catalystStack = itemHandler.getStackInSlot(0);
-        boolean hasCatalyst = !catalystStack.isEmpty() && isCatalyst(catalystStack);
+        boolean hasCatalyst = !catalystStack.isEmpty()
+                && isCatalyst(catalystStack)
+                && net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isScrubberCatalystAllowed(
+                        catalystStack, ownerPlayerUuid, level);
         int moduleCount = getProductionModuleCount();
         int moduleMultiplier = 1 + moduleCount;
         if (hasRadiation) {

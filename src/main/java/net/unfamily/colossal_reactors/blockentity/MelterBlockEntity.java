@@ -67,6 +67,19 @@ public class MelterBlockEntity extends BlockEntity
         protected void onContentsChanged(int slot) {
             setChanged();
         }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (stack.isEmpty() || level == null) {
+                return false;
+            }
+            MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(stack, level.registryAccess());
+            if (recipe == null) {
+                return false;
+            }
+            return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isMelterAllowed(
+                    MelterRecipesLoader.mergeKey(recipe), ownerPlayerUuid, level);
+        }
     };
 
     private final FluidTank fluidTank = new FluidTank(getTankCapacityMb()) {

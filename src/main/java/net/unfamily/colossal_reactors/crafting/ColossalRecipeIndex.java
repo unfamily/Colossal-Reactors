@@ -7,13 +7,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.unfamily.iskalib.crafting.RecipeBlockBridge;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Maps RecipeManager child ids ({@code path_N}) to semantic machine definitions for stage/KubeJS gating.
+ * <p>
+ * Synergy Matter Foundry recipes ({@code synergy:foundry} under {@code recipe/synergy/foundry/}) are
+ * not indexed here — stage those via Synergy/KubeJS recipe ids, not ColossalRecipeIndex.
  */
 public final class ColossalRecipeIndex {
     private static final Map<Identifier, List<Identifier>> FUEL_ID_TO_RECIPES = new HashMap<>();
@@ -22,6 +30,8 @@ public final class ColossalRecipeIndex {
     private static final Map<String, List<Identifier>> MELTER_KEY_TO_RECIPES = new HashMap<>();
     /** coilId -> ordered recipe ids (one per consume option after Library split). */
     private static final Map<Identifier, List<Identifier>> HEATING_COIL_OPTION_RECIPES = new LinkedHashMap<>();
+    /** Catalyst selector (item id or {@code #tag}) -> recipe ids that declare it. */
+    private static final Map<String, List<Identifier>> SCRUBBER_CATALYST_TO_RECIPES = new HashMap<>();
 
     private ColossalRecipeIndex() {}
 
@@ -31,6 +41,7 @@ public final class ColossalRecipeIndex {
         TURBINE_ID_TO_RECIPES.clear();
         MELTER_KEY_TO_RECIPES.clear();
         HEATING_COIL_OPTION_RECIPES.clear();
+        SCRUBBER_CATALYST_TO_RECIPES.clear();
     }
 
     public static void registerFuel(Identifier recipeId, Identifier fuelId) {
@@ -56,6 +67,11 @@ public final class ColossalRecipeIndex {
     public static void registerHeatingCoilOption(Identifier coilId, Identifier recipeId) {
         if (coilId == null || recipeId == null) return;
         HEATING_COIL_OPTION_RECIPES.computeIfAbsent(coilId, k -> new ArrayList<>()).add(recipeId);
+    }
+
+    public static void registerScrubberCatalyst(Identifier recipeId, String selector) {
+        if (recipeId == null || selector == null || selector.isBlank()) return;
+        SCRUBBER_CATALYST_TO_RECIPES.computeIfAbsent(selector.trim(), k -> new ArrayList<>()).add(recipeId);
     }
 
     public static List<Identifier> fuelRecipes(Identifier fuelId) {
@@ -134,5 +150,41 @@ public final class ColossalRecipeIndex {
             return true;
         }
         return isAllowed(List.of(recipeId), ownerUuid, level);
+    }
+
+    /** True if any indexed catalyst selector matching the stack is allowed for the owner. */
+    public static boolean isScrubberCatalystAllowed(
+            ItemStack stack, @Nullable UUID ownerUuid, @Nullable Level level) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        if (!RecipeBlockBridge.hasProviders()) {
+            return true;
+        }
+        List<Identifier> matched = new ArrayList<>();
+        for (Map.Entry<String, List<Identifier>> e : SCRUBBER_CATALYST_TO_RECIPES.entrySet()) {
+            if (selectorMatchesStack(e.getKey(), stack)) {
+                matched.addAll(e.getValue());
+            }
+        }
+        return isAllowed(matched, ownerUuid, level);
+    }
+
+    private static boolean selectorMatchesStack(String selector, ItemStack stack) {
+        if (selector == null || selector.isBlank()) {
+            return false;
+        }
+        try {
+            if (selector.startsWith("#")) {
+                Identifier tagId = Identifier.parse(selector.substring(1).trim());
+                TagKey<Item> tag = TagKey.create(Registries.ITEM, tagId);
+                return stack.is(tag);
+            }
+            Identifier itemId = Identifier.parse(selector.trim());
+            Item item = BuiltInRegistries.ITEM.getValue(itemId);
+            return item != null && !item.equals(net.minecraft.world.item.Items.AIR) && stack.is(item);
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }
