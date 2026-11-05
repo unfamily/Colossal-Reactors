@@ -43,6 +43,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Applies Colossal datapack recipes from {@link RecipeManager} into runtime loaders.
  * No file-scan merge / empty→builtin fallbacks. Heating coils also merge {@code load/} retrocompat.
+ * <p>
+ * Synergy Matter Foundry ({@code synergy:foundry}) is not applied here — stage those recipe ids
+ * via Synergy/KubeJS, not {@link ColossalRecipeIndex}.
  */
 @EventBusSubscriber(modid = ColossalReactors.MODID)
 public final class ColossalRecipeData {
@@ -135,6 +138,9 @@ public final class ColossalRecipeData {
                     holder.value().json(), SOURCE + "/" + holder.id());
             if (parsed != null) {
                 catalysts.addAll(parsed.catalysts());
+                for (String selector : parsed.catalysts()) {
+                    ColossalRecipeIndex.registerScrubberCatalyst(holder.id(), selector);
+                }
                 if (parsed.mult() >= 0) {
                     rsMult[0] = parsed.mult();
                 }
@@ -174,7 +180,18 @@ public final class ColossalRecipeData {
         // Retrocompat: datapack authors may still ship heating coils under data/*/load/
         Map<ResourceLocation, HeatingCoilDefinition> loadPathCoils = LoadDataReloadListener.consumeLastLoaded();
         if (loadPathCoils != null) {
-            coils.putAll(loadPathCoils);
+            for (Map.Entry<ResourceLocation, HeatingCoilDefinition> entry : loadPathCoils.entrySet()) {
+                HeatingCoilDefinition def = entry.getValue();
+                coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
+                if (ColossalRecipeIndex.heatingCoilOptionRecipes(def.id()).isEmpty()) {
+                    for (int i = 0; i < def.consume().size(); i++) {
+                        ResourceLocation synthetic = ResourceLocation.fromNamespaceAndPath(
+                                def.id().getNamespace(),
+                                "load/" + def.id().getPath() + "_" + i);
+                        ColossalRecipeIndex.registerHeatingCoilOption(def.id(), synthetic);
+                    }
+                }
+            }
         }
 
         FuelLoader.applyLoaded(fuel);

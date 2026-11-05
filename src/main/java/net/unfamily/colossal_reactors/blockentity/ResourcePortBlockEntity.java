@@ -923,6 +923,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (gen == null) {
             return false;
         }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isTurbineAllowed(
+                gen.generationId(), recipeGateOwnerUuid, level)) {
+            return false;
+        }
         return MaterialSelector.matchesAnyFluidInput(fluid, gen.inputs());
     }
 
@@ -932,6 +936,10 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
         TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
         if (gen == null) {
+            return false;
+        }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isTurbineAllowed(
+                gen.generationId(), recipeGateOwnerUuid, level)) {
             return false;
         }
         for (String input : gen.inputs()) {
@@ -951,12 +959,14 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return acceptsTurbineChemicalInput(chemicalStack);
         }
         RegistryAccess registries = level.registryAccess();
-        boolean isFuel = FuelLoader.getDefinitionForChemical(chemicalStack) != null;
-        boolean isCoolant = CoolantLoader.getDefinitionForChemical(chemicalStack, registries) != null;
-        if (portFilter.acceptsFuelRole() && isFuel) {
+        var fuelDef = FuelLoader.getDefinitionForChemical(chemicalStack);
+        if (portFilter.acceptsFuelRole() && fuelDef != null && isFuelRecipeAllowed(fuelDef.fuelId())) {
             return true;
         }
-        return portFilter.acceptsCoolantRole() && isCoolant;
+        var coolantDef = CoolantLoader.getDefinitionForChemical(chemicalStack, registries);
+        return portFilter.acceptsCoolantRole()
+                && coolantDef != null
+                && isCoolantRecipeAllowed(coolantDef.coolantId());
     }
 
     /** EXTRACT: chemical waste from fuel recipe {@code output} selectors (datapack JSON). */
