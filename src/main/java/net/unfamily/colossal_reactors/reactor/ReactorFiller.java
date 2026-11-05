@@ -98,7 +98,7 @@ public final class ReactorFiller {
             return;
         }
         if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
-                def.fuelId(), controller.resolveOwnerPlayer(), controller.getLevel())) {
+                def.fuelId(), controller.getOwnerPlayerUuid(), controller.getLevel())) {
             return;
         }
         float unitsPerItem = def.fuelUnitsPerInputUnit();
@@ -287,7 +287,7 @@ public final class ReactorFiller {
             return;
         }
         if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
-                fuelDef.fuelId(), controller.resolveOwnerPlayer(), controller.getLevel())) {
+                fuelDef.fuelId(), controller.getOwnerPlayerUuid(), controller.getLevel())) {
             return;
         }
         float spaceUnits = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelAndWasteUnits());
@@ -326,7 +326,7 @@ public final class ReactorFiller {
             return budget;
         }
         if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(
-                coolantDef.coolantId(), controller.resolveOwnerPlayer(), controller.getLevel())) {
+                coolantDef.coolantId(), controller.getOwnerPlayerUuid(), controller.getLevel())) {
             return budget;
         }
         int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());

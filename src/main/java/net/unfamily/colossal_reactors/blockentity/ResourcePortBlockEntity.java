@@ -36,7 +36,6 @@ import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.NotNull;
-import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -910,13 +909,13 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean isFuelRecipeAllowed(net.minecraft.resources.ResourceLocation fuelId) {
-        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
-        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(fuelId, owner, level);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
+                fuelId, recipeGateOwnerUuid, level);
     }
 
     private boolean isCoolantRecipeAllowed(net.minecraft.resources.ResourceLocation coolantId) {
-        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
-        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(coolantId, owner, level);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(
+                coolantId, recipeGateOwnerUuid, level);
     }
 
     private boolean acceptsTurbineFluidInput(Fluid fluid, RegistryAccess registries) {

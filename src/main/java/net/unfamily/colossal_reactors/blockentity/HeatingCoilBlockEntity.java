@@ -371,7 +371,7 @@ public class HeatingCoilBlockEntity extends BlockEntity
         for (int i = 0; i < def.consume().size(); i++) {
             ConsumeOption opt = def.consume().get(i);
             if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
-                    def.id(), i, resolveHeatingCoilGatePlayer(), level)) {
+                    def.id(), i, ownerPlayerUuid, level)) {
                 continue;
             }
             if (isOptionSatisfied(opt)) {
@@ -382,11 +382,6 @@ public class HeatingCoilBlockEntity extends BlockEntity
                 return;
             }
         }
-    }
-
-    @Nullable
-    private ServerPlayer resolveHeatingCoilGatePlayer() {
-        return net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
     }
 
     /** Whether the coil is allowed to run (tick) based on redstone mode and current signal. */

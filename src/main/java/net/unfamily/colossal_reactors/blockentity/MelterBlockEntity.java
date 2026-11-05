@@ -297,13 +297,12 @@ public class MelterBlockEntity extends BlockEntity
         if (level == null || input.isEmpty()) {
             return null;
         }
-        MelterRecipe recipe = resolveAllowedRecipe(input);
+        MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(input, level.registryAccess());
         if (recipe == null) {
             return null;
         }
-        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
         if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isMelterAllowed(
-                MelterRecipesLoader.mergeKey(recipe), owner, level)) {
+                MelterRecipesLoader.mergeKey(recipe), ownerPlayerUuid, level)) {
             return null;
         }
         return recipe;
