@@ -53,7 +53,7 @@ public final class TurbineFiller {
 
         RegistryAccess registryAccess = level.registryAccess();
         if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isTurbineAllowed(
-                gen.generationId(), controller.resolveOwnerPlayer(), level)) {
+                gen.generationId(), controller.getOwnerPlayerUuid(), level)) {
             return;
         }
         java.util.UUID ownerUuid = controller.getOwnerPlayerUuid();

@@ -6,8 +6,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.unfamily.iskalib.crafting.RecipeBlockBridge;
 import org.jetbrains.annotations.Nullable;
@@ -88,53 +88,51 @@ public final class ColossalRecipeIndex {
     }
 
     /**
-     * When providers are registered (stages etc.): missing/offline owner => blocked.
-     * Otherwise any unblocked recipe id allows the semantic definition.
-     * No tracked recipe ids => allowed (load/ retrocompat or unindexed).
+     * Any unblocked recipe id allows the semantic definition.
+     * No providers → allowed. Empty/unindexed lists → allowed (retrocompat).
+     * Missing owner with providers active is blocked by {@link RecipeBlockBridge}
+     * ({@code ownerUuid == null}); offline owners still pass their UUID to the bridge.
      */
     public static boolean isAllowed(
-            List<Identifier> recipeIds, @Nullable ServerPlayer owner, @Nullable Level level) {
+            List<Identifier> recipeIds, @Nullable UUID ownerUuid, @Nullable Level level) {
         if (!RecipeBlockBridge.hasProviders()) {
             return true;
         }
         if (recipeIds == null || recipeIds.isEmpty()) {
             return true;
         }
-        if (owner == null) {
-            return false;
-        }
         for (Identifier recipeId : recipeIds) {
-            if (!RecipeBlockBridge.isRecipeBlocked(recipeId, owner, level)) {
+            if (!RecipeBlockBridge.isRecipeBlocked(recipeId, ownerUuid, level)) {
                 return true;
             }
         }
         return false;
     }
 
-    public static boolean isFuelAllowed(Identifier fuelId, @Nullable ServerPlayer owner, @Nullable Level level) {
-        return isAllowed(FUEL_ID_TO_RECIPES.getOrDefault(fuelId, Collections.emptyList()), owner, level);
+    public static boolean isFuelAllowed(Identifier fuelId, @Nullable UUID ownerUuid, @Nullable Level level) {
+        return isAllowed(FUEL_ID_TO_RECIPES.getOrDefault(fuelId, Collections.emptyList()), ownerUuid, level);
     }
 
     public static boolean isCoolantAllowed(
-            Identifier coolantId, @Nullable ServerPlayer owner, @Nullable Level level) {
-        return isAllowed(COOLANT_ID_TO_RECIPES.getOrDefault(coolantId, Collections.emptyList()), owner, level);
+            Identifier coolantId, @Nullable UUID ownerUuid, @Nullable Level level) {
+        return isAllowed(COOLANT_ID_TO_RECIPES.getOrDefault(coolantId, Collections.emptyList()), ownerUuid, level);
     }
 
     public static boolean isTurbineAllowed(
-            Identifier generationId, @Nullable ServerPlayer owner, @Nullable Level level) {
-        return isAllowed(TURBINE_ID_TO_RECIPES.getOrDefault(generationId, Collections.emptyList()), owner, level);
+            Identifier generationId, @Nullable UUID ownerUuid, @Nullable Level level) {
+        return isAllowed(TURBINE_ID_TO_RECIPES.getOrDefault(generationId, Collections.emptyList()), ownerUuid, level);
     }
 
-    public static boolean isMelterAllowed(String mergeKey, @Nullable ServerPlayer owner, @Nullable Level level) {
-        return isAllowed(MELTER_KEY_TO_RECIPES.getOrDefault(mergeKey, Collections.emptyList()), owner, level);
+    public static boolean isMelterAllowed(String mergeKey, @Nullable UUID ownerUuid, @Nullable Level level) {
+        return isAllowed(MELTER_KEY_TO_RECIPES.getOrDefault(mergeKey, Collections.emptyList()), ownerUuid, level);
     }
 
     public static boolean isHeatingCoilOptionAllowed(
-            Identifier coilId, int optionIndex, @Nullable ServerPlayer owner, @Nullable Level level) {
+            Identifier coilId, int optionIndex, @Nullable UUID ownerUuid, @Nullable Level level) {
         Identifier recipeId = heatingCoilOptionRecipe(coilId, optionIndex);
         if (recipeId == null) {
-            return !RecipeBlockBridge.hasProviders() || owner != null;
+            return true;
         }
-        return isAllowed(List.of(recipeId), owner, level);
+        return isAllowed(List.of(recipeId), ownerUuid, level);
     }
 }

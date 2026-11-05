@@ -5,7 +5,6 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -929,13 +928,13 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean isFuelRecipeAllowed(Identifier fuelId) {
-        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
-        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(fuelId, owner, level);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
+                fuelId, recipeGateOwnerUuid, level);
     }
 
     private boolean isCoolantRecipeAllowed(Identifier coolantId) {
-        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
-        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(coolantId, owner, level);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(
+                coolantId, recipeGateOwnerUuid, level);
     }
 
     private boolean acceptsTurbineFluidInput(Fluid fluid, RegistryAccess registries) {

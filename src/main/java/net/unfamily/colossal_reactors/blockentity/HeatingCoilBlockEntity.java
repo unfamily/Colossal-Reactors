@@ -391,7 +391,7 @@ public class HeatingCoilBlockEntity extends BlockEntity
         for (int i = 0; i < def.consume().size(); i++) {
             ConsumeOption opt = def.consume().get(i);
             if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
-                    def.id(), i, resolveHeatingCoilGatePlayer(), level)) {
+                    def.id(), i, ownerPlayerUuid, level)) {
                 continue;
             }
             if (isOptionSatisfied(opt)) {
@@ -910,11 +910,6 @@ public class HeatingCoilBlockEntity extends BlockEntity
     @Override
     public void setOwnerPlayerUuid(@Nullable java.util.UUID uuid) {
         this.ownerPlayerUuid = uuid;
-    }
-
-    @Nullable
-    private ServerPlayer resolveHeatingCoilGatePlayer() {
-        return net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
     }
 
     @Override
