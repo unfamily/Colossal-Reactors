@@ -48,8 +48,10 @@ public final class ReactorFiller {
 
         RegistryAccess registryAccess = level.registryAccess();
         int coolantMoveBudgetMb = MultiblockPortScaling.estimateReactorCoolantMoveBudgetMb(controller, registryAccess);
+        java.util.UUID ownerUuid = controller.getOwnerPlayerUuid();
 
         for (ResourcePortBlockEntity port : insertPorts) {
+            port.setRecipeGateOwnerUuid(ownerUuid);
             if (portAcceptsFuel(port) && port.isAllowSolid()) {
                 pullSolidFuel(port, controller, registryAccess);
             }
@@ -80,6 +82,10 @@ public final class ReactorFiller {
         }
         FuelDefinition def = FuelLoader.getDefinitionForItem(stack, registryAccess);
         if (def == null) {
+            return;
+        }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
+                def.fuelId(), controller.resolveOwnerPlayer(), controller.getLevel())) {
             return;
         }
         float space = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelUnits());
@@ -117,6 +123,10 @@ public final class ReactorFiller {
         if (fuelDef == null) {
             return;
         }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
+                fuelDef.fuelId(), controller.resolveOwnerPlayer(), controller.getLevel())) {
+            return;
+        }
         float spaceUnits = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelAndWasteUnits());
         int maxMbInTank = stored.getAmount();
         int maxMbBySpace = fuelDef.inputAmountForSpaceUnits(spaceUnits);
@@ -150,6 +160,10 @@ public final class ReactorFiller {
         }
         var coolantDef = CoolantLoader.getDefinitionForFluid(stored.getFluid(), registryAccess);
         if (coolantDef == null) {
+            return budget;
+        }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(
+                coolantDef.coolantId(), controller.resolveOwnerPlayer(), controller.getLevel())) {
             return budget;
         }
         int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());

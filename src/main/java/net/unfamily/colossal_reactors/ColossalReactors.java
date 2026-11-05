@@ -77,6 +77,7 @@ public class ColossalReactors {
         ModItems.ITEMS.register(modEventBus);
         if (ModList.get().isLoaded("mekanism")) {
             ModMekItems.MEK_ITEMS.register(modEventBus);
+            net.unfamily.colossal_reactors.integration.mekanism.ModMekanismChemicals.CHEMICALS.register(modEventBus);
         }
         ModFluids.register(modEventBus);
 

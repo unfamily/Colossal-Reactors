@@ -6,6 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -100,8 +101,19 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
     }
 
     @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide()) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnPlace(level.getBlockEntity(pos), placer);
+        }
+    }
+
+    @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
             InteractionHand hand, BlockHitResult hitResult) {
+        if (!level.isClientSide()) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(level.getBlockEntity(pos), player);
+        }
         InteractionResult fluid = BlockFluidItemInteractions.useItemOnFluidBlock(stack, level, pos, player, hand, hitResult);
         if (fluid != InteractionResult.PASS) {
             return fluid;
@@ -114,6 +126,7 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
         if (level.isClientSide()) return InteractionResult.SUCCESS;
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof HeatingCoilBlockEntity coil && player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(coil, serverPlayer);
             serverPlayer.openMenu(coil, pos);
             return InteractionResult.CONSUME;
         }

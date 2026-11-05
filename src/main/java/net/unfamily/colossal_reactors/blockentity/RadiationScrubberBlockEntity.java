@@ -4,11 +4,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
+import java.util.UUID;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -42,7 +44,11 @@ import java.util.List;
  * Radiation Scrubber: removes Mekanism radiation in area via IRadiationManager (reflection).
  * Requires energy (config). Slot 0 = optional catalyst (datapack; when present: bonus radius/effectiveness, one consumed per scrub); Slot 1 = general. Without catalyst still consumes energy and removes radiation at base rate.
  */
-public class RadiationScrubberBlockEntity extends BlockEntity implements MenuProvider {
+public class RadiationScrubberBlockEntity extends BlockEntity
+        implements MenuProvider, net.unfamily.colossal_reactors.util.BlockCraftOwner.BlockCraftOwnerHolder {
+
+    @Nullable
+    private UUID ownerPlayerUuid;
 
     private static final String TAG_ITEMS = "Items";
     private static final String TAG_ENERGY = "Energy";
@@ -474,7 +480,21 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnFirstOpen(this, serverPlayer, ownerPlayerUuid);
+        }
         return new RadiationScrubberMenu(id, playerInventory, this, data);
+    }
+
+    @Nullable
+    @Override
+    public UUID getOwnerPlayerUuid() {
+        return ownerPlayerUuid;
+    }
+
+    @Override
+    public void setOwnerPlayerUuid(@Nullable UUID uuid) {
+        this.ownerPlayerUuid = uuid;
     }
 
     public IItemHandler getItemHandler() {
@@ -528,6 +548,7 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         super.saveAdditional(output);
         itemHandler.serialize(output);
         output.putInt(TAG_ENERGY, energyStorage.getEnergyStored());
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.write(output, ownerPlayerUuid);
     }
 
     @Override
@@ -535,6 +556,7 @@ public class RadiationScrubberBlockEntity extends BlockEntity implements MenuPro
         super.loadAdditional(input);
         itemHandler.deserialize(input);
         input.getInt(TAG_ENERGY).ifPresent(energyStorage::setEnergy);
+        ownerPlayerUuid = net.unfamily.colossal_reactors.util.BlockCraftOwner.read(input);
     }
 
     private static final class RadiationScrubberEnergyStorage extends EnergyStorage {

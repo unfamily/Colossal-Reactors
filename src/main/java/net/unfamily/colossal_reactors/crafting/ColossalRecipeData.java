@@ -94,6 +94,7 @@ public final class ColossalRecipeData {
     }
 
     private static void apply(RecipeSource source) {
+        ColossalRecipeIndex.clear();
         Map<Identifier, FuelDefinition> fuel = new HashMap<>();
         Map<Identifier, CoolantDefinition> coolant = new HashMap<>();
         List<HeatSinkDefinition> heatSinks = new ArrayList<>();
@@ -107,18 +108,22 @@ public final class ColossalRecipeData {
         Map<Identifier, HeatingCoilDefinition> coils = new HashMap<>();
 
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(source, ModColossalRecipes.FUEL.get())) {
+            Identifier recipeId = holderRecipeId(holder);
             for (JsonObject entry : expandEntries(holder.value().json())) {
                 FuelDefinition def = FuelLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder), true);
                 if (def != null) {
                     fuel.put(def.fuelId(), def);
+                    ColossalRecipeIndex.registerFuel(recipeId, def.fuelId());
                 }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(source, ModColossalRecipes.COOLANT.get())) {
+            Identifier recipeId = holderRecipeId(holder);
             for (JsonObject entry : expandEntries(holder.value().json())) {
                 CoolantDefinition def = CoolantLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder), true);
                 if (def != null) {
                     coolant.put(def.coolantId(), def);
+                    ColossalRecipeIndex.registerCoolant(recipeId, def.coolantId());
                 }
             }
         }
@@ -132,10 +137,12 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(source, ModColossalRecipes.MELTER_RECIPES.get())) {
+            Identifier recipeId = holderRecipeId(holder);
             for (JsonObject entry : expandEntries(holder.value().json())) {
                 MelterRecipe r = MelterRecipesLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder));
                 if (r != null) {
                     melterRecipes.add(r);
+                    ColossalRecipeIndex.registerMelter(recipeId, MelterRecipesLoader.mergeKey(r));
                 }
             }
         }
@@ -162,11 +169,13 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(source, ModColossalRecipes.TURBINE_GENERATION.get())) {
+            Identifier recipeId = holderRecipeId(holder);
             for (JsonObject entry : expandEntries(holder.value().json())) {
                 TurbineGenerationDefinition def =
                         TurbineGenerationLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder), true);
                 if (def != null) {
                     turbine.put(def.generationId(), def);
+                    ColossalRecipeIndex.registerTurbine(recipeId, def.generationId());
                 }
             }
         }
@@ -180,9 +189,11 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(source, ModColossalRecipes.HEATING_COILS.get())) {
+            Identifier recipeId = holderRecipeId(holder);
             for (HeatingCoilDefinition def :
                     HeatingCoilLoader.parseFromRoot(wrapCoilsRoot(holder), SOURCE + "/" + recipeSourceId(holder))) {
                 // RecipeManager has one entry per consume option; merge back into full coil defs.
+                ColossalRecipeIndex.registerHeatingCoilOption(def.id(), recipeId);
                 coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
             }
         }
@@ -253,8 +264,12 @@ public final class ColossalRecipeData {
     }
 
     private static String recipeSourceId(RecipeHolder<ColossalJsonRecipe> holder) {
+        return holderRecipeId(holder).toString();
+    }
+
+    private static Identifier holderRecipeId(RecipeHolder<ColossalJsonRecipe> holder) {
         ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = holder.id();
-        return id.identifier().toString();
+        return id.identifier();
     }
 
     private static HeatingCoilDefinition mergeHeatingCoil(HeatingCoilDefinition a, HeatingCoilDefinition b) {

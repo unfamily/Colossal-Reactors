@@ -43,10 +43,13 @@ import java.util.Optional;
  * State (OFF/VALIDATING/ON) and tick logic are in ReactorControllerBlock.
  * When ON, right-click opens the Reactor OS GUI.
  */
-public class ReactorControllerBlockEntity extends BlockEntity implements MenuProvider {
+public class ReactorControllerBlockEntity extends BlockEntity
+        implements MenuProvider, net.unfamily.colossal_reactors.util.BlockCraftOwner.BlockCraftOwnerHolder {
 
     private ReactorValidation.Result cachedResult;
     private ServerPlayer lastInteractingPlayer;
+    @Nullable
+    private java.util.UUID ownerPlayerUuid;
 
     /**
      * Runtime caches of reactor parts (positions as {@link BlockPos#asLong()}), rebuilt on validate/revalidate.
@@ -698,12 +701,32 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnFirstOpen(this, serverPlayer, ownerPlayerUuid);
+        }
         return new ReactorControllerMenu(containerId, playerInventory, this);
+    }
+
+    @Nullable
+    @Override
+    public java.util.UUID getOwnerPlayerUuid() {
+        return ownerPlayerUuid;
+    }
+
+    @Override
+    public void setOwnerPlayerUuid(@Nullable java.util.UUID uuid) {
+        this.ownerPlayerUuid = uuid;
+    }
+
+    @Nullable
+    public ServerPlayer resolveOwnerPlayer() {
+        return net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.write(output, ownerPlayerUuid);
         if (cachedResult != null && cachedResult.valid()) {
             output.putInt("val_minX", cachedResult.minX());
             output.putInt("val_minY", cachedResult.minY());
@@ -731,6 +754,7 @@ public class ReactorControllerBlockEntity extends BlockEntity implements MenuPro
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
+        ownerPlayerUuid = net.unfamily.colossal_reactors.util.BlockCraftOwner.read(input);
         Optional<Integer> minX = input.getInt("val_minX");
         if (minX.isPresent()) {
             int minY = input.getIntOr("val_minY", 0);

@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
  * Single-tank fluid storage with {@code long} capacity and amount. {@link IFluidHandler} API remains {@code int}
  * per operation; values above {@link Integer#MAX_VALUE} are clamped per fill/drain call.
  */
-public class LongBackedFluidTank implements IFluidHandler, ValueIOSerializable {
+public class LongBackedFluidTank implements IFluidHandler, ValueIOSerializable, RestorableFluidStorage {
 
     private static final String TAG_FLUID = "Fluid";
     private static final String TAG_AMOUNT = "Amount";
@@ -211,5 +211,35 @@ public class LongBackedFluidTank implements IFluidHandler, ValueIOSerializable {
             onChange.run();
         }
         return drained;
+    }
+
+    @Override
+    public Snapshot captureFluidState() {
+        if (fluid.isEmpty() || amountMb <= 0L) {
+            return Snapshot.empty();
+        }
+        return new Snapshot(new FluidStack(fluid.getFluid(), 1), amountMb);
+    }
+
+    @Override
+    public void restoreFluidState(Snapshot snapshot) {
+        if (snapshot == null || snapshot.fluid() == null || snapshot.fluid().isEmpty() || snapshot.amountMb() <= 0L) {
+            fluid = FluidStack.EMPTY;
+            amountMb = 0L;
+        } else {
+            fluid = new FluidStack(snapshot.fluid().getFluid(), 1);
+            amountMb = Math.min(capacityMb, Math.max(0L, snapshot.amountMb()));
+        }
+        // Do not call onChange here — SnapshotJournal onRootCommit handles persistence side-effects.
+    }
+
+    /** Notify listeners after a committed transfer transaction. */
+    public void notifyChanged() {
+        onChange.run();
+    }
+
+    @Override
+    public void onTransactionCommitted() {
+        onChange.run();
     }
 }

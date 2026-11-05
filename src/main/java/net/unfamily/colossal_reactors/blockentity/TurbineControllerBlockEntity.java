@@ -7,6 +7,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.LongTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -55,7 +58,11 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Turbine controller: caches validation and runtime stats for GUI.
  */
-public class TurbineControllerBlockEntity extends BlockEntity implements MenuProvider {
+public class TurbineControllerBlockEntity extends BlockEntity
+        implements MenuProvider, net.unfamily.colossal_reactors.util.BlockCraftOwner.BlockCraftOwnerHolder {
+
+    @Nullable
+    private java.util.UUID ownerPlayerUuid;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TurbineControllerBlockEntity.class);
 
@@ -455,11 +462,51 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
         } else {
             tag.putBoolean("val_valid", false);
         }
-        if (cachedRodPositions.length > 0) {
-            tag.putLongArray("RodPos", cachedRodPositions);
-            tag.putByteArray("RodFacing", cachedRodFacings);
-        }
+        writeRodCacheToTag(tag, cachedRodPositions, cachedRodFacings);
         return tag;
+    }
+
+    /** Rod cache as ListTag (same shape as {@link #saveAdditional}); never LongArrayTag. */
+    private static void writeRodCacheToTag(CompoundTag tag, long[] rods, byte[] facings) {
+        if (rods.length == 0) {
+            return;
+        }
+        ListTag rodPos = new ListTag();
+        for (long p : rods) {
+            rodPos.add(LongTag.valueOf(p));
+        }
+        tag.put("RodPos", rodPos);
+        ListTag rodFacing = new ListTag();
+        for (byte f : facings) {
+            rodFacing.add(IntTag.valueOf(f & 0xFF));
+        }
+        tag.put("RodFacing", rodFacing);
+    }
+
+    private static long[] readRodPositionsFromTag(CompoundTag tag) {
+        Optional<long[]> asArray = tag.getLongArray("RodPos");
+        if (asArray.isPresent()) {
+            return asArray.get();
+        }
+        ListTag list = tag.getListOrEmpty("RodPos");
+        LongArrayList rods = new LongArrayList(list.size());
+        for (net.minecraft.nbt.Tag element : list) {
+            rods.add(element.asLong().orElse(0L));
+        }
+        return rods.toLongArray();
+    }
+
+    private static byte[] readRodFacingsFromTag(CompoundTag tag) {
+        Optional<byte[]> asArray = tag.getByteArray("RodFacing");
+        if (asArray.isPresent()) {
+            return asArray.get();
+        }
+        ListTag list = tag.getListOrEmpty("RodFacing");
+        it.unimi.dsi.fastutil.bytes.ByteArrayList facings = new it.unimi.dsi.fastutil.bytes.ByteArrayList(list.size());
+        for (int i = 0; i < list.size(); i++) {
+            facings.add((byte) list.getIntOr(i, 0));
+        }
+        return facings.toByteArray();
     }
 
     private void applyStructureSyncTag(CompoundTag tag) {
@@ -489,10 +536,8 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
             cachedResult = TurbineValidation.Result.invalid();
         }
         if (tag.contains("RodPos")) {
-            cachedRodPositions = tag.getLongArray("RodPos").orElse(new long[0]);
-            cachedRodFacings = tag.contains("RodFacing")
-                    ? tag.getByteArray("RodFacing").orElse(new byte[0])
-                    : new byte[0];
+            cachedRodPositions = readRodPositionsFromTag(tag);
+            cachedRodFacings = tag.contains("RodFacing") ? readRodFacingsFromTag(tag) : new byte[0];
         } else {
             cachedRodPositions = new long[0];
             cachedRodFacings = new byte[0];
@@ -716,12 +761,32 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnFirstOpen(this, serverPlayer, ownerPlayerUuid);
+        }
         return new TurbineControllerMenu(id, inv, this);
+    }
+
+    @Nullable
+    @Override
+    public java.util.UUID getOwnerPlayerUuid() {
+        return ownerPlayerUuid;
+    }
+
+    @Override
+    public void setOwnerPlayerUuid(@Nullable java.util.UUID uuid) {
+        this.ownerPlayerUuid = uuid;
+    }
+
+    @Nullable
+    public ServerPlayer resolveOwnerPlayer() {
+        return net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.write(output, ownerPlayerUuid);
         output.putBoolean("Powered", powered);
         output.putBoolean("RedstoneGateOpen", redstoneGateOpen);
         output.putLong("LastRf", lastRfPerTick);
@@ -769,6 +834,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
+        ownerPlayerUuid = net.unfamily.colossal_reactors.util.BlockCraftOwner.read(input);
         powered = input.getBooleanOr("Powered", false);
         redstoneGateOpen = input.getBooleanOr("RedstoneGateOpen", false);
         lastRfPerTick = input.getLongOr("LastRf", 0L);

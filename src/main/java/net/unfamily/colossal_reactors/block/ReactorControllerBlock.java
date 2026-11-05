@@ -17,8 +17,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
@@ -205,6 +208,14 @@ public class ReactorControllerBlock extends BaseEntityBlock {
         }
     }
 
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide()) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnPlace(level.getBlockEntity(pos), placer);
+        }
+    }
+
     /**
      * On click: if ON open GUI; if OFF start one validation (boot then ON/OFF).
      */
@@ -216,6 +227,7 @@ public class ReactorControllerBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof ReactorControllerBlockEntity be)) {
             return InteractionResult.PASS;
         }
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(be, player);
         if (state.getValue(STATE) == ControllerState.ON) {
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.openMenu(be, pos);

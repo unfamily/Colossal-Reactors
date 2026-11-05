@@ -33,7 +33,7 @@ public final class MekChemicalHelper {
      * Runtime lock: {@code false} on 26.x — chemical fuel/coolant/ports/JEI stay inactive even if
      * Mekanism Version Locked is installed. Set {@code true} when ready to support Mek gas again.
      */
-    public static final boolean GAS_SUPPORT_ENABLED = false;
+    public static final boolean GAS_SUPPORT_ENABLED = true;
 
     private MekChemicalHelper() {}
 

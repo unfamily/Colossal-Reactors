@@ -6,8 +6,13 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
 
 /**
  * World interaction (not GUI): fluid containers and buckets on blocks that expose
@@ -31,9 +36,29 @@ public final class BlockFluidItemInteractions {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (FluidUtil.interactWithFluidHandler(player, hand, level, pos, hitResult.getDirection())) {
-            player.getInventory().setChanged();
-            return InteractionResult.CONSUME;
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof ResourcePortBlockEntity port) {
+            var itemHandler = ItemAccess.forStack(stack.copyWithCount(1)).oneByOne()
+                    .getCapability(Capabilities.Fluid.ITEM);
+            if (itemHandler == null) {
+                return InteractionResult.PASS;
+            }
+            try (Transaction tx = Transaction.openRoot()) {
+                if (FluidUtil.interactWithFluidHandler(
+                        player, hand, pos, port.getFluidResourceHandlerForCapability(), tx)) {
+                    tx.commit();
+                    player.getInventory().setChanged();
+                    return InteractionResult.CONSUME;
+                }
+            }
+            return InteractionResult.PASS;
+        }
+        try (Transaction tx = Transaction.openRoot()) {
+            if (FluidUtil.interactWithFluidHandler(player, hand, level, pos, hitResult.getDirection(), tx)) {
+                tx.commit();
+                player.getInventory().setChanged();
+                return InteractionResult.CONSUME;
+            }
         }
         return InteractionResult.PASS;
     }

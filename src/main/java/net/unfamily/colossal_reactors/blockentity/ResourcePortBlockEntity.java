@@ -5,6 +5,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -32,6 +33,7 @@ import net.unfamily.colossal_reactors.multiblock.PortCapacityPolicy;
 import net.unfamily.colossal_reactors.multiblock.PortScalingConstants;
 import net.unfamily.colossal_reactors.transfer.LongBackedFluidTank;
 import net.unfamily.colossal_reactors.transfer.LegacyIFluidHandlerResourceHandler;
+import net.unfamily.colossal_reactors.transfer.RestorableFluidStorage;
 import net.unfamily.colossal_reactors.coolant.CoolantLoader;
 import net.unfamily.colossal_reactors.fuel.FuelLoader;
 import net.unfamily.colossal_reactors.integration.mekanism.MekChemicalHelper;
@@ -602,6 +604,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     public void setPortMode(PortMode mode) {
         this.portMode = mode;
+        cachedFluidCapability = null;
         setChanged();
     }
 
@@ -619,6 +622,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
         this.portFilter = filter;
+        cachedFluidCapability = null;
         setChanged();
     }
 
@@ -631,6 +635,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
         mediumFlags.setMedium(clampMedium(medium));
+        cachedFluidCapability = null;
         setChanged();
     }
 
@@ -641,6 +646,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         } else {
             mediumFlags.cycleReactor(gasAvailable);
         }
+        cachedFluidCapability = null;
         setChanged();
     }
 
@@ -775,7 +781,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     /**
      * Fluid handler exposed to capability (hoppers/pipes). INSERT: allow fill. EXTRACT/EJECT: allow drain only.
      */
-    private final class FilteredFluidHandler implements IFluidHandler {
+    private final class FilteredFluidHandler implements IFluidHandler, RestorableFluidStorage {
         private boolean allowLiquidFill() {
             return portMode == PortMode.INSERT && mediumFlags.isAllowLiquid() && !mediumFlags.isAllowGas();
         }
@@ -834,6 +840,21 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
             return allowFill() && acceptsFluidForCapability(stack) && fluidTank.isFluidValid(tank, stack);
         }
+
+        @Override
+        public Snapshot captureFluidState() {
+            return fluidTank.captureFluidState();
+        }
+
+        @Override
+        public void restoreFluidState(Snapshot snapshot) {
+            fluidTank.restoreFluidState(snapshot);
+        }
+
+        @Override
+        public void onTransactionCommitted() {
+            fluidTank.notifyChanged();
+        }
     }
 
     private boolean acceptsReactorFluidPush(FluidStack stack) {
@@ -870,11 +891,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return false;
         }
         RegistryAccess registries = level.registryAccess();
-        boolean isFuel = FuelLoader.getDefinitionForItem(stack, registries) != null;
-        if (portFilter.acceptsFuelRole() && isFuel) {
-            return true;
+        var def = FuelLoader.getDefinitionForItem(stack, registries);
+        if (def == null || !portFilter.acceptsFuelRole()) {
+            return false;
         }
-        return false;
+        return isFuelRecipeAllowed(def.fuelId());
     }
 
     private boolean acceptsFluidForCapability(FluidStack stack) {
@@ -889,12 +910,32 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (isTurbineResourcePort()) {
             return acceptsTurbineFluidInput(fluid, registries);
         }
-        boolean isFuel = FuelLoader.getDefinitionForFluid(fluid, registries) != null;
-        boolean isCoolant = CoolantLoader.getDefinitionForFluid(fluid, registries) != null;
-        if (portFilter.acceptsFuelRole() && isFuel) {
+        var fuelDef = FuelLoader.getDefinitionForFluid(fluid, registries);
+        if (portFilter.acceptsFuelRole() && fuelDef != null && isFuelRecipeAllowed(fuelDef.fuelId())) {
             return true;
         }
-        return portFilter.acceptsCoolantRole() && isCoolant;
+        var coolantDef = CoolantLoader.getDefinitionForFluid(fluid, registries);
+        return portFilter.acceptsCoolantRole()
+                && coolantDef != null
+                && isCoolantRecipeAllowed(coolantDef.coolantId());
+    }
+
+    /** Set each filler tick from the formed controller; used for recipe-id gates on capability insert. */
+    @Nullable
+    private java.util.UUID recipeGateOwnerUuid;
+
+    public void setRecipeGateOwnerUuid(@Nullable java.util.UUID uuid) {
+        this.recipeGateOwnerUuid = uuid;
+    }
+
+    private boolean isFuelRecipeAllowed(Identifier fuelId) {
+        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(fuelId, owner, level);
+    }
+
+    private boolean isCoolantRecipeAllowed(Identifier coolantId) {
+        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(coolantId, owner, level);
     }
 
     private boolean acceptsTurbineFluidInput(Fluid fluid, RegistryAccess registries) {
