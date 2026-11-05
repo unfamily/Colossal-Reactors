@@ -48,7 +48,11 @@ import java.lang.reflect.Proxy;
  * Tracks activation progress; when any consume option is satisfied, block switches to ON.
  * Stays ON for duration ticks; every duration ticks consumes substain; if not met, switches back to OFF.
  */
-public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider {
+public class HeatingCoilBlockEntity extends BlockEntity
+        implements MenuProvider, net.unfamily.colossal_reactors.util.BlockCraftOwner.BlockCraftOwnerHolder {
+
+    @Nullable
+    private java.util.UUID ownerPlayerUuid;
 
     /** Fallback when definition is missing (e.g. registry not loaded yet). */
     private static final int DEFAULT_TANK_MB = 10_000;
@@ -84,6 +88,23 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (stack.isEmpty()) return false;
+            HeatingCoilDefinition def = getDefinition();
+            if (def == null || def.noItem()) return false;
+            boolean acceptsBurnable = false;
+            for (ConsumeOption opt : def.consume()) {
+                if (opt.item() != null && itemMatchesRequirement(stack, opt.item())) {
+                    return true;
+                }
+                if (opt.burnable() != null) {
+                    acceptsBurnable = true;
+                }
+            }
+            return acceptsBurnable && stack.getBurnTime(RecipeType.SMELTING) > 0;
         }
     };
     private final FluidTank fluidTank;
@@ -329,12 +350,14 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
 
     /** Consumes one burnable item from slot and adds its burn time when below cap (used in both ON and OFF). */
     private void tryAcceptOneBurnableFromSlot(HeatingCoilDefinition def) {
+        int cap = maxBurnableActivation(def);
+        // No burnable consume option configured: never eat furnace fuel (e.g. after water+burnable was removed).
+        if (cap <= 0) return;
         ItemStack stack = itemHandler.getStackInSlot(0);
         if (stack.isEmpty()) return;
         int burn = stack.getBurnTime(RecipeType.SMELTING);
         if (burn <= 0) return;
-        int cap = maxBurnableActivation(def);
-        if (cap > 0 && burnableTicksAccumulated >= cap) return;
+        if (burnableTicksAccumulated >= cap) return;
         burnableTicksAccumulated += burn;
         stack.shrink(1);
         if (stack.isEmpty()) itemHandler.setStackInSlot(0, ItemStack.EMPTY);
@@ -347,6 +370,10 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
         // Check if any option is satisfied; then consume activation and switch to ON
         for (int i = 0; i < def.consume().size(); i++) {
             ConsumeOption opt = def.consume().get(i);
+            if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
+                    def.id(), i, resolveHeatingCoilGatePlayer(), level)) {
+                continue;
+            }
             if (isOptionSatisfied(opt)) {
                 activeOptionIndex = i;
                 consumeActivation(opt);
@@ -355,6 +382,11 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
                 return;
             }
         }
+    }
+
+    @Nullable
+    private ServerPlayer resolveHeatingCoilGatePlayer() {
+        return net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
     }
 
     /** Whether the coil is allowed to run (tick) based on redstone mode and current signal. */
@@ -814,12 +846,27 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnFirstOpen(this, serverPlayer, ownerPlayerUuid);
+        }
         return new HeatingCoilMenu(id, inv, this, data);
+    }
+
+    @Nullable
+    @Override
+    public java.util.UUID getOwnerPlayerUuid() {
+        return ownerPlayerUuid;
+    }
+
+    @Override
+    public void setOwnerPlayerUuid(@Nullable java.util.UUID uuid) {
+        this.ownerPlayerUuid = uuid;
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.write(tag, ownerPlayerUuid);
         tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
         tag.putInt(TAG_FLUID_AMOUNT, fluidTank.getFluidAmount());
         if (!fluidTank.getFluid().isEmpty()) {
@@ -849,6 +896,7 @@ public class HeatingCoilBlockEntity extends BlockEntity implements MenuProvider 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        ownerPlayerUuid = net.unfamily.colossal_reactors.util.BlockCraftOwner.read(tag);
         if (tag.contains(TAG_ITEMS)) itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
         fluidTank.setFluid(FluidStack.EMPTY);
         if (tag.contains(TAG_FLUID)) {

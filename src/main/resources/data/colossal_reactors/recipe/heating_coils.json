@@ -29,11 +29,6 @@
           }
         },
         {
-          "fluid": {
-            "id": "#c:water",
-            "activation": 20000,
-            "substain": 200
-          },
           "burnable": {
             "activation": 20000,
             "substain": 100

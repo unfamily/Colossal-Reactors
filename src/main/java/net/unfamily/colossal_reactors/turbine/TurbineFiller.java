@@ -44,9 +44,15 @@ public final class TurbineFiller {
         }
 
         RegistryAccess registryAccess = level.registryAccess();
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isTurbineAllowed(
+                gen.generationId(), controller.resolveOwnerPlayer(), level)) {
+            return;
+        }
+        java.util.UUID ownerUuid = controller.getOwnerPlayerUuid();
         for (long lp : resourcePorts) {
             if (budget <= 0) break;
             if (!(level.getBlockEntity(BlockPos.of(lp)) instanceof ResourcePortBlockEntity port)) continue;
+            port.setRecipeGateOwnerUuid(ownerUuid);
             if (port.getPortMode() != PortMode.INSERT) continue;
 
             budget -= pullLiquidSteamInputs(port, inputs, controller, budget, registryAccess);

@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -38,7 +39,11 @@ import org.slf4j.LoggerFactory;
  * Melter: no direct fuel; heated by adjacent blocks/fluids (melter_heats).
  * final_time = time / (UP * DOWN * EAST * WEST * NORTH * SOUTH); sides without heat = 1.
  */
-public class MelterBlockEntity extends BlockEntity implements MenuProvider {
+public class MelterBlockEntity extends BlockEntity
+        implements MenuProvider, net.unfamily.colossal_reactors.util.BlockCraftOwner.BlockCraftOwnerHolder {
+
+    @Nullable
+    private java.util.UUID ownerPlayerUuid;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MelterBlockEntity.class);
     private static int getTankCapacityMb() {
@@ -130,7 +135,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
         boolean hasInput = !input.isEmpty();
         long gt = level.getGameTime();
 
-        MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(input, level.registryAccess());
+        MelterRecipe recipe = resolveAllowedRecipe(input);
         if (recipe == null) {
             progress = 0;
             setActiveState(level, pos, false);
@@ -241,7 +246,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     private int getCurrentMaxProgress() {
         Level level = getLevel();
         if (level == null) return 0;
-        MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(itemHandler.getStackInSlot(0), level.registryAccess());
+        MelterRecipe recipe = resolveAllowedRecipe(itemHandler.getStackInSlot(0));
         if (recipe == null) return 0;
         boolean anyHeat =
                 MelterHeatsLoader.hasHeatingSource(level, worldPosition, Direction.UP)
@@ -270,7 +275,38 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnFirstOpen(this, serverPlayer, ownerPlayerUuid);
+        }
         return new MelterMenu(id, playerInventory, this, data);
+    }
+
+    @Nullable
+    @Override
+    public java.util.UUID getOwnerPlayerUuid() {
+        return ownerPlayerUuid;
+    }
+
+    @Override
+    public void setOwnerPlayerUuid(@Nullable java.util.UUID uuid) {
+        this.ownerPlayerUuid = uuid;
+    }
+
+    @Nullable
+    private MelterRecipe resolveAllowedRecipe(ItemStack input) {
+        if (level == null || input.isEmpty()) {
+            return null;
+        }
+        MelterRecipe recipe = resolveAllowedRecipe(input);
+        if (recipe == null) {
+            return null;
+        }
+        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isMelterAllowed(
+                MelterRecipesLoader.mergeKey(recipe), owner, level)) {
+            return null;
+        }
+        return recipe;
     }
 
     public IItemHandler getItemHandler() {
@@ -381,6 +417,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.write(tag, ownerPlayerUuid);
         tag.put(TAG_ITEMS, itemHandler.serializeNBT(registries));
         tag.putInt(TAG_FLUID_AMOUNT, fluidTank.getFluidAmount());
         if (!fluidTank.getFluid().isEmpty()) {
@@ -395,6 +432,7 @@ public class MelterBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        ownerPlayerUuid = net.unfamily.colossal_reactors.util.BlockCraftOwner.read(tag);
         if (tag.contains(TAG_ITEMS)) itemHandler.deserializeNBT(registries, tag.getCompound(TAG_ITEMS));
         fluidTank.setFluid(FluidStack.EMPTY);
         if (tag.contains(TAG_FLUID)) {

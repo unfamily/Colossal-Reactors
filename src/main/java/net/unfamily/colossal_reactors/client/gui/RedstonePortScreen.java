@@ -76,6 +76,11 @@ public class RedstonePortScreen extends AbstractContainerScreen<RedstonePortMenu
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 1 && redstoneModeButton != null && redstoneModeButton.isMouseOver(mouseX, mouseY)) {
+            if (minecraft != null && minecraft.getSoundManager() != null) {
+                minecraft.getSoundManager().play(
+                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                                net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            }
             cycleRedstone(false);
             return true;
         }

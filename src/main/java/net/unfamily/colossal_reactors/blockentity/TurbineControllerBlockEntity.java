@@ -45,7 +45,11 @@ import java.util.List;
 /**
  * Turbine controller: caches validation and runtime stats for GUI.
  */
-public class TurbineControllerBlockEntity extends BlockEntity implements MenuProvider {
+public class TurbineControllerBlockEntity extends BlockEntity
+        implements MenuProvider, net.unfamily.colossal_reactors.util.BlockCraftOwner.BlockCraftOwnerHolder {
+
+    @Nullable
+    private java.util.UUID ownerPlayerUuid;
 
     private static final String TAG_STEAM_BUFFER = "SteamBuffer";
     private static final String TAG_OUTPUT_BUFFER = "OutputBuffer";
@@ -738,12 +742,32 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnFirstOpen(this, serverPlayer, ownerPlayerUuid);
+        }
         return new TurbineControllerMenu(id, inv, this);
+    }
+
+    @Nullable
+    @Override
+    public java.util.UUID getOwnerPlayerUuid() {
+        return ownerPlayerUuid;
+    }
+
+    @Override
+    public void setOwnerPlayerUuid(@Nullable java.util.UUID uuid) {
+        this.ownerPlayerUuid = uuid;
+    }
+
+    @Nullable
+    public ServerPlayer resolveOwnerPlayer() {
+        return net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, ownerPlayerUuid);
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.write(tag, ownerPlayerUuid);
         tag.putBoolean("Powered", powered);
         tag.putBoolean("RedstoneGateOpen", redstoneGateOpen);
         tag.putLong("LastRf", lastRfPerTick);
@@ -783,6 +807,7 @@ public class TurbineControllerBlockEntity extends BlockEntity implements MenuPro
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        ownerPlayerUuid = net.unfamily.colossal_reactors.util.BlockCraftOwner.read(tag);
         powered = tag.getBoolean("Powered");
         redstoneGateOpen = tag.getBoolean("RedstoneGateOpen");
         lastRfPerTick = tag.getLong("LastRf");

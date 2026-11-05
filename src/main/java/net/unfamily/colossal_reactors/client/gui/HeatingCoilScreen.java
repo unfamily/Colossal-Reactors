@@ -241,6 +241,9 @@ public class HeatingCoilScreen extends AbstractContainerScreen<HeatingCoilMenu> 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 1 && redstoneModeButton != null && redstoneModeButton.isMouseOver(mouseX, mouseY)) {
+            if (minecraft != null && minecraft.getSoundManager() != null) {
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            }
             cycleRedstone(false);
             return true;
         }

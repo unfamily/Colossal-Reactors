@@ -36,6 +36,7 @@ import net.unfamily.colossal_reactors.menu.ResourcePortMenu;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationDefinition;
 import net.unfamily.colossal_reactors.turbine.TurbineGenerationLoader;
 import org.jetbrains.annotations.NotNull;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -866,16 +867,24 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return false;
     }
 
+    /** Set each filler tick from the formed controller; used for recipe-id gates on capability insert. */
+    @Nullable
+    private java.util.UUID recipeGateOwnerUuid;
+
+    public void setRecipeGateOwnerUuid(@Nullable java.util.UUID uuid) {
+        this.recipeGateOwnerUuid = uuid;
+    }
+
     private boolean acceptsItemForCapability(ItemStack stack) {
         if (isTurbineResourcePort() || stack.isEmpty() || level == null) {
             return false;
         }
         RegistryAccess registries = level.registryAccess();
-        boolean isFuel = FuelLoader.getDefinitionForItem(stack, registries) != null;
-        if (portFilter.acceptsFuelRole() && isFuel) {
-            return true;
+        var def = FuelLoader.getDefinitionForItem(stack, registries);
+        if (def == null || !portFilter.acceptsFuelRole()) {
+            return false;
         }
-        return false;
+        return isFuelRecipeAllowed(def.fuelId());
     }
 
     private boolean acceptsFluidForCapability(FluidStack stack) {
@@ -890,12 +899,24 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (isTurbineResourcePort()) {
             return acceptsTurbineFluidInput(fluid, registries);
         }
-        boolean isFuel = FuelLoader.getDefinitionForFluid(fluid, registries) != null;
-        boolean isCoolant = CoolantLoader.getDefinitionForFluid(fluid, registries) != null;
-        if (portFilter.acceptsFuelRole() && isFuel) {
+        var fuelDef = FuelLoader.getDefinitionForFluid(fluid, registries);
+        if (portFilter.acceptsFuelRole() && fuelDef != null && isFuelRecipeAllowed(fuelDef.fuelId())) {
             return true;
         }
-        return portFilter.acceptsCoolantRole() && isCoolant;
+        var coolantDef = CoolantLoader.getDefinitionForFluid(fluid, registries);
+        return portFilter.acceptsCoolantRole()
+                && coolantDef != null
+                && isCoolantRecipeAllowed(coolantDef.coolantId());
+    }
+
+    private boolean isFuelRecipeAllowed(net.minecraft.resources.ResourceLocation fuelId) {
+        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(fuelId, owner, level);
+    }
+
+    private boolean isCoolantRecipeAllowed(net.minecraft.resources.ResourceLocation coolantId) {
+        ServerPlayer owner = net.unfamily.colossal_reactors.util.BlockCraftOwner.resolve(level, recipeGateOwnerUuid);
+        return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(coolantId, owner, level);
     }
 
     private boolean acceptsTurbineFluidInput(Fluid fluid, RegistryAccess registries) {

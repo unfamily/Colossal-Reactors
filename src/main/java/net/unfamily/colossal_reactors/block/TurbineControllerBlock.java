@@ -7,10 +7,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -169,6 +172,14 @@ public class TurbineControllerBlock extends BaseEntityBlock {
     }
 
     @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide()) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnPlace(level.getBlockEntity(pos), placer);
+        }
+    }
+
+    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
@@ -176,6 +187,7 @@ public class TurbineControllerBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof TurbineControllerBlockEntity controllerBe)) {
             return InteractionResult.PASS;
         }
+        net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(controllerBe, player);
         if (state.getValue(VISUAL) == TurbineVisualState.ON) {
             ServerLevel serverLevel = (ServerLevel) level;
             Direction into = state.getValue(FACING).getOpposite();

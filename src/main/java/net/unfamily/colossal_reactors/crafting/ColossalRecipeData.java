@@ -73,6 +73,7 @@ public final class ColossalRecipeData {
             return;
         }
 
+        ColossalRecipeIndex.clear();
         Map<ResourceLocation, FuelDefinition> fuel = new HashMap<>();
         Map<ResourceLocation, CoolantDefinition> coolant = new HashMap<>();
         List<HeatSinkDefinition> heatSinks = new ArrayList<>();
@@ -90,6 +91,7 @@ public final class ColossalRecipeData {
                 FuelDefinition def = FuelLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
                 if (def != null) {
                     fuel.put(def.fuelId(), def);
+                    ColossalRecipeIndex.registerFuel(holder.id(), def.fuelId());
                 }
             }
         }
@@ -98,6 +100,7 @@ public final class ColossalRecipeData {
                 CoolantDefinition def = CoolantLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
                 if (def != null) {
                     coolant.put(def.coolantId(), def);
+                    ColossalRecipeIndex.registerCoolant(holder.id(), def.coolantId());
                 }
             }
         }
@@ -115,6 +118,7 @@ public final class ColossalRecipeData {
                 MelterRecipe r = MelterRecipesLoader.parseEntry(entry, SOURCE + "/" + holder.id());
                 if (r != null) {
                     melterRecipes.add(r);
+                    ColossalRecipeIndex.registerMelter(holder.id(), MelterRecipesLoader.mergeKey(r));
                 }
             }
         }
@@ -146,6 +150,7 @@ public final class ColossalRecipeData {
                         TurbineGenerationLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
                 if (def != null) {
                     turbine.put(def.generationId(), def);
+                    ColossalRecipeIndex.registerTurbine(holder.id(), def.generationId());
                 }
             }
         }
@@ -162,6 +167,7 @@ public final class ColossalRecipeData {
             for (HeatingCoilDefinition def :
                     HeatingCoilLoader.parseFromRoot(wrapCoilsRoot(holder), SOURCE + "/" + holder.id())) {
                 // RecipeManager has one entry per consume option; merge back into full coil defs.
+                ColossalRecipeIndex.registerHeatingCoilOption(def.id(), holder.id());
                 coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
             }
         }
