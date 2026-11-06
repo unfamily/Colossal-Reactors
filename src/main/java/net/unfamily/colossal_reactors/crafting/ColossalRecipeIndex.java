@@ -14,6 +14,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.unfamily.colossal_reactors.ColossalReactors;
 import net.unfamily.iskalib.crafting.RecipeBlockBridge;
 import org.jetbrains.annotations.Nullable;
 
@@ -104,6 +105,17 @@ public final class ColossalRecipeIndex {
     }
 
     /**
+     * Stable synthetic id for load/-only (or unindexed) coil options:
+     * {@code colossal_reactors:load/<coilPath>_<optionIndex>}.
+     * Providers gate by this id even when no RecipeManager entry exists.
+     */
+    public static Identifier heatingCoilLoadOptionId(@Nullable Identifier coilId, int optionIndex) {
+        String coilPath = coilId != null ? coilId.getPath() : "unknown";
+        int idx = Math.max(0, optionIndex);
+        return Identifier.fromNamespaceAndPath(ColossalReactors.MODID, "load/" + coilPath + "_" + idx);
+    }
+
+    /**
      * Any unblocked recipe id allows the semantic definition.
      * No providers → allowed. Empty/unindexed lists → allowed (retrocompat).
      * Missing owner with providers active is blocked by {@link RecipeBlockBridge}
@@ -145,11 +157,14 @@ public final class ColossalRecipeIndex {
 
     public static boolean isHeatingCoilOptionAllowed(
             Identifier coilId, int optionIndex, @Nullable UUID ownerUuid, @Nullable Level level) {
-        Identifier recipeId = heatingCoilOptionRecipe(coilId, optionIndex);
-        if (recipeId == null) {
+        if (!RecipeBlockBridge.hasProviders()) {
             return true;
         }
-        return isAllowed(List.of(recipeId), ownerUuid, level);
+        Identifier recipeId = heatingCoilOptionRecipe(coilId, optionIndex);
+        if (recipeId == null) {
+            recipeId = heatingCoilLoadOptionId(coilId, optionIndex);
+        }
+        return !RecipeBlockBridge.isRecipeBlocked(recipeId, ownerUuid, level);
     }
 
     /** True if any indexed catalyst selector matching the stack is allowed for the owner. */
