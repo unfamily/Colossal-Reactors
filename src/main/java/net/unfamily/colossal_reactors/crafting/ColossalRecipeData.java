@@ -111,22 +111,26 @@ public final class ColossalRecipeData {
         Map<Identifier, HeatingCoilDefinition> coils = new HashMap<>();
 
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(source, ModColossalRecipes.FUEL.get())) {
-            Identifier recipeId = holderRecipeId(holder);
-            for (JsonObject entry : expandEntries(holder.value().json())) {
-                FuelDefinition def = FuelLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder), true);
+            Identifier baseId = holderRecipeId(holder);
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                FuelDefinition def =
+                        FuelLoader.parseEntry(entries.get(i), SOURCE + "/" + recipeSourceId(holder), true);
                 if (def != null) {
                     fuel.put(def.fuelId(), def);
-                    ColossalRecipeIndex.registerFuel(recipeId, def.fuelId());
+                    ColossalRecipeIndex.registerFuel(recipeChildId(baseId, i, entries.size()), def.fuelId());
                 }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(source, ModColossalRecipes.COOLANT.get())) {
-            Identifier recipeId = holderRecipeId(holder);
-            for (JsonObject entry : expandEntries(holder.value().json())) {
-                CoolantDefinition def = CoolantLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder), true);
+            Identifier baseId = holderRecipeId(holder);
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                CoolantDefinition def =
+                        CoolantLoader.parseEntry(entries.get(i), SOURCE + "/" + recipeSourceId(holder), true);
                 if (def != null) {
                     coolant.put(def.coolantId(), def);
-                    ColossalRecipeIndex.registerCoolant(recipeId, def.coolantId());
+                    ColossalRecipeIndex.registerCoolant(recipeChildId(baseId, i, entries.size()), def.coolantId());
                 }
             }
         }
@@ -176,13 +180,15 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(source, ModColossalRecipes.TURBINE_GENERATION.get())) {
-            Identifier recipeId = holderRecipeId(holder);
-            for (JsonObject entry : expandEntries(holder.value().json())) {
-                TurbineGenerationDefinition def =
-                        TurbineGenerationLoader.parseEntry(entry, SOURCE + "/" + recipeSourceId(holder), true);
+            Identifier baseId = holderRecipeId(holder);
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                TurbineGenerationDefinition def = TurbineGenerationLoader.parseEntry(
+                        entries.get(i), SOURCE + "/" + recipeSourceId(holder), true);
                 if (def != null) {
                     turbine.put(def.generationId(), def);
-                    ColossalRecipeIndex.registerTurbine(recipeId, def.generationId());
+                    ColossalRecipeIndex.registerTurbine(
+                            recipeChildId(baseId, i, entries.size()), def.generationId());
                 }
             }
         }
@@ -287,6 +293,17 @@ public final class ColossalRecipeData {
     private static Identifier holderRecipeId(RecipeHolder<ColossalJsonRecipe> holder) {
         ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = holder.id();
         return id.identifier();
+    }
+
+    /**
+     * Matches {@code JeiNativeRecipeBridge.childId} / RecipeBundleSplitter: single entry keeps
+     * holder id; unsplit multi-entry parents get {@code path_i}.
+     */
+    private static Identifier recipeChildId(Identifier holderId, int index, int total) {
+        if (holderId == null || total <= 1) {
+            return holderId;
+        }
+        return Identifier.fromNamespaceAndPath(holderId.getNamespace(), holderId.getPath() + "_" + index);
     }
 
     private static HeatingCoilDefinition mergeHeatingCoil(HeatingCoilDefinition a, HeatingCoilDefinition b) {
