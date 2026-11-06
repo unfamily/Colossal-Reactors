@@ -90,20 +90,24 @@ public final class ColossalRecipeData {
         Map<ResourceLocation, HeatingCoilDefinition> coils = new HashMap<>();
 
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.FUEL.get())) {
-            for (JsonObject entry : expandEntries(holder.value().json())) {
-                FuelDefinition def = FuelLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
+            ResourceLocation baseId = holder.id();
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                FuelDefinition def = FuelLoader.parseEntry(entries.get(i), SOURCE + "/" + baseId, true);
                 if (def != null) {
                     fuel.put(def.fuelId(), def);
-                    ColossalRecipeIndex.registerFuel(holder.id(), def.fuelId());
+                    ColossalRecipeIndex.registerFuel(recipeChildId(baseId, i, entries.size()), def.fuelId());
                 }
             }
         }
         for (RecipeHolder<ColossalJsonRecipe> holder : recipes(recipeManager, ModColossalRecipes.COOLANT.get())) {
-            for (JsonObject entry : expandEntries(holder.value().json())) {
-                CoolantDefinition def = CoolantLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
+            ResourceLocation baseId = holder.id();
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                CoolantDefinition def = CoolantLoader.parseEntry(entries.get(i), SOURCE + "/" + baseId, true);
                 if (def != null) {
                     coolant.put(def.coolantId(), def);
-                    ColossalRecipeIndex.registerCoolant(holder.id(), def.coolantId());
+                    ColossalRecipeIndex.registerCoolant(recipeChildId(baseId, i, entries.size()), def.coolantId());
                 }
             }
         }
@@ -151,12 +155,15 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(recipeManager, ModColossalRecipes.TURBINE_GENERATION.get())) {
-            for (JsonObject entry : expandEntries(holder.value().json())) {
+            ResourceLocation baseId = holder.id();
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
                 TurbineGenerationDefinition def =
-                        TurbineGenerationLoader.parseEntry(entry, SOURCE + "/" + holder.id(), true);
+                        TurbineGenerationLoader.parseEntry(entries.get(i), SOURCE + "/" + baseId, true);
                 if (def != null) {
                     turbine.put(def.generationId(), def);
-                    ColossalRecipeIndex.registerTurbine(holder.id(), def.generationId());
+                    ColossalRecipeIndex.registerTurbine(
+                            recipeChildId(baseId, i, entries.size()), def.generationId());
                 }
             }
         }
@@ -240,6 +247,17 @@ public final class ColossalRecipeData {
             }
         }
         return json == null ? List.of() : List.of(json);
+    }
+
+    /**
+     * Matches {@code JeiNativeRecipeBridge.childId} / RecipeBundleSplitter: single entry keeps
+     * holder id; unsplit multi-entry parents get {@code path_i}.
+     */
+    private static ResourceLocation recipeChildId(ResourceLocation holderId, int index, int total) {
+        if (holderId == null || total <= 1) {
+            return holderId;
+        }
+        return ResourceLocation.fromNamespaceAndPath(holderId.getNamespace(), holderId.getPath() + "_" + index);
     }
 
     private static HeatingCoilDefinition mergeHeatingCoil(HeatingCoilDefinition a, HeatingCoilDefinition b) {

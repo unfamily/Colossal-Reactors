@@ -170,6 +170,10 @@ public final class ReactorFiller {
         if (chemFuel == null) {
             return budget;
         }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isFuelAllowed(
+                chemFuel.fuelId(), controller.getOwnerPlayerUuid(), controller.getLevel())) {
+            return budget;
+        }
         float spaceUnits = Math.max(0f, controller.getMaxFuelUnitsTotal() - controller.getTotalFuelAndWasteUnits());
         int maxMbInTank = (int) Math.min(MekChemicalHelper.getAmount(inTank), Integer.MAX_VALUE);
         int maxMbBySpace = chemFuel.inputAmountForSpaceUnits(spaceUnits);
@@ -217,6 +221,10 @@ public final class ReactorFiller {
             int budget) {
         CoolantDefinition coolantDef = CoolantLoader.getDefinitionForChemical(inTank, registryAccess);
         if (coolantDef == null) {
+            return budget;
+        }
+        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isCoolantAllowed(
+                coolantDef.coolantId(), controller.getOwnerPlayerUuid(), controller.getLevel())) {
             return budget;
         }
         int space = Math.max(0, controller.getCoolantCapacityMbTotal() - controller.getTotalCoolantMb());
