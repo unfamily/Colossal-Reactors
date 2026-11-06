@@ -183,13 +183,12 @@ public final class ColossalRecipeData {
             for (Map.Entry<ResourceLocation, HeatingCoilDefinition> entry : loadPathCoils.entrySet()) {
                 HeatingCoilDefinition def = entry.getValue();
                 coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
-                if (ColossalRecipeIndex.heatingCoilOptionRecipes(def.id()).isEmpty()) {
-                    for (int i = 0; i < def.consume().size(); i++) {
-                        ResourceLocation synthetic = ResourceLocation.fromNamespaceAndPath(
-                                def.id().getNamespace(),
-                                "load/" + def.id().getPath() + "_" + i);
-                        ColossalRecipeIndex.registerHeatingCoilOption(def.id(), synthetic);
-                    }
+                HeatingCoilDefinition merged = coils.get(def.id());
+                int registered = ColossalRecipeIndex.heatingCoilOptionRecipes(def.id()).size();
+                int total = merged != null && merged.consume() != null ? merged.consume().size() : 0;
+                for (int i = registered; i < total; i++) {
+                    ResourceLocation synthetic = ColossalRecipeIndex.heatingCoilLoadOptionId(def.id(), i);
+                    ColossalRecipeIndex.registerHeatingCoilOption(def.id(), synthetic);
                 }
             }
         }
