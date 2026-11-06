@@ -121,11 +121,14 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(recipeManager, ModColossalRecipes.MELTER_RECIPES.get())) {
-            for (JsonObject entry : expandEntries(holder.value().json())) {
-                MelterRecipe r = MelterRecipesLoader.parseEntry(entry, SOURCE + "/" + holder.id());
+            ResourceLocation baseId = holder.id();
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                MelterRecipe r = MelterRecipesLoader.parseEntry(entries.get(i), SOURCE + "/" + baseId);
                 if (r != null) {
                     melterRecipes.add(r);
-                    ColossalRecipeIndex.registerMelter(holder.id(), MelterRecipesLoader.mergeKey(r));
+                    ColossalRecipeIndex.registerMelter(
+                            recipeChildId(baseId, i, entries.size()), MelterRecipesLoader.mergeKey(r));
                 }
             }
         }
@@ -138,12 +141,18 @@ public final class ColossalRecipeData {
         }
         for (RecipeHolder<ColossalJsonRecipe> holder :
                 recipes(recipeManager, ModColossalRecipes.RADIATION_SCRUBBER_CATALYSTS.get())) {
-            var parsed = RadiationScrubberCatalystsLoader.parseFromRoot(
-                    holder.value().json(), SOURCE + "/" + holder.id());
-            if (parsed != null) {
+            ResourceLocation baseId = holder.id();
+            List<JsonObject> entries = expandEntries(holder.value().json());
+            for (int i = 0; i < entries.size(); i++) {
+                JsonObject wrapped = wrapEntriesRoot(entries.get(i));
+                var parsed = RadiationScrubberCatalystsLoader.parseFromRoot(wrapped, SOURCE + "/" + baseId);
+                if (parsed == null) {
+                    continue;
+                }
+                ResourceLocation childId = recipeChildId(baseId, i, entries.size());
                 catalysts.addAll(parsed.catalysts());
                 for (String selector : parsed.catalysts()) {
-                    ColossalRecipeIndex.registerScrubberCatalyst(holder.id(), selector);
+                    ColossalRecipeIndex.registerScrubberCatalyst(childId, selector);
                 }
                 if (parsed.mult() >= 0) {
                     rsMult[0] = parsed.mult();
@@ -258,6 +267,16 @@ public final class ColossalRecipeData {
             return holderId;
         }
         return ResourceLocation.fromNamespaceAndPath(holderId.getNamespace(), holderId.getPath() + "_" + index);
+    }
+
+    /** Wrap a single scrubber entry so {@link RadiationScrubberCatalystsLoader#parseFromRoot} accepts it. */
+    private static JsonObject wrapEntriesRoot(JsonObject entry) {
+        if (entry != null && entry.has("entries") && entry.get("entries").isJsonArray()) {
+            return entry;
+        }
+        JsonObject root = new JsonObject();
+        root.add("entries", jsonArrayOf(entry != null ? entry : new JsonObject()));
+        return root;
     }
 
     private static HeatingCoilDefinition mergeHeatingCoil(HeatingCoilDefinition a, HeatingCoilDefinition b) {
