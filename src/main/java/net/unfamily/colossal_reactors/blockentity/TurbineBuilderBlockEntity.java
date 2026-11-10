@@ -1159,6 +1159,15 @@ public class TurbineBuilderBlockEntity extends BlockEntity implements MenuProvid
         return new TurbineBuilderMenu(containerId, playerInventory, this);
     }
 
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        var level = getLevel();
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
+    }
+
     /** Drops all buffer contents into the world when the block is removed. */
     public void dropAllContents() {
         if (level == null || level.isClientSide()) return;

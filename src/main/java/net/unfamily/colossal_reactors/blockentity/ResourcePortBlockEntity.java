@@ -568,6 +568,15 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         return true;
     }
 
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState oldState) {
+        Level level = getLevel();
+        if (level != null && !oldState.is(level.getBlockState(pos).getBlock())) {
+            dropAllContents();
+        }
+        super.preRemoveSideEffects(pos, oldState);
+    }
+
     /**
      * Drops items and vents gas tank contents when the block is broken (radioactive gas → Mek radiation).
      */
