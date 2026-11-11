@@ -194,11 +194,16 @@ public final class ColossalRecipeData {
             }
         }
         // Retrocompat: datapack authors may still ship heating coils under data/*/load/
+        // Fill-missing only: never append consume options for coil ids already loaded from RecipeManager
+        // (duplicate load/ + recipe/ would invent unstaged synthetic option ids and bypass stage gates).
         Map<ResourceLocation, HeatingCoilDefinition> loadPathCoils = LoadDataReloadListener.consumeLastLoaded();
         if (loadPathCoils != null) {
             for (Map.Entry<ResourceLocation, HeatingCoilDefinition> entry : loadPathCoils.entrySet()) {
                 HeatingCoilDefinition def = entry.getValue();
-                coils.merge(def.id(), def, ColossalRecipeData::mergeHeatingCoil);
+                if (coils.containsKey(def.id())) {
+                    continue;
+                }
+                coils.put(def.id(), def);
                 HeatingCoilDefinition merged = coils.get(def.id());
                 int registered = ColossalRecipeIndex.heatingCoilOptionRecipes(def.id()).size();
                 int total = merged != null && merged.consume() != null ? merged.consume().size() : 0;

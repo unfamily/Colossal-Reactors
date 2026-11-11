@@ -162,9 +162,11 @@ public final class ColossalRecipeIndex {
         if (!RecipeBlockBridge.hasProviders()) {
             return true;
         }
+        // Fail-closed: unindexed options must not invent synthetic ids that bypass stage gates.
+        // load/-only coils register via heatingCoilLoadOptionId during ColossalRecipeData fill-missing.
         ResourceLocation recipeId = heatingCoilOptionRecipe(coilId, optionIndex);
         if (recipeId == null) {
-            recipeId = heatingCoilLoadOptionId(coilId, optionIndex);
+            return false;
         }
         return !RecipeBlockBridge.isRecipeBlocked(recipeId, ownerUuid, level);
     }
