@@ -25,8 +25,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.MelterBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 
@@ -99,27 +97,11 @@ public class MelterBlock extends BaseEntityBlock {
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (level.isClientSide()) return ItemInteractionResult.SUCCESS;
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof MelterBlockEntity melter)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if (!level.isClientSide()) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(level.getBlockEntity(pos), player);
         }
-        net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(melter, player);
-        ItemStack singleStack = stack.copyWithCount(1);
-        IFluidHandlerItem fluidHandler = singleStack.getCapability(Capabilities.FluidHandler.ITEM);
-        if (fluidHandler != null && melter.interactWithItemFluidHandlerDrainOnly(fluidHandler, player)) {
-            stack.shrink(1);
-            if (stack.isEmpty()) {
-                player.setItemInHand(hand, fluidHandler.getContainer());
-            } else {
-                player.setItemInHand(hand, stack);
-                if (!player.getInventory().add(fluidHandler.getContainer())) {
-                    player.drop(fluidHandler.getContainer(), false);
-                }
-            }
-            return ItemInteractionResult.SUCCESS;
-        }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions.useItemOnFluidBlock(
+                stack, level, pos, player, hand, hitResult);
     }
 
     @Override

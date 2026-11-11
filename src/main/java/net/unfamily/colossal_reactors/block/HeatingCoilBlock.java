@@ -22,8 +22,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.HeatingCoilBlockEntity;
 import net.unfamily.colossal_reactors.blockentity.ModBlockEntities;
 import net.minecraft.resources.ResourceLocation;
@@ -128,27 +126,11 @@ public class HeatingCoilBlock extends DirectionalBlock implements EntityBlock {
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (level.isClientSide()) return ItemInteractionResult.SUCCESS;
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof HeatingCoilBlockEntity coil)) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(coil, player);
-        if (!coil.acceptsFluidCapability()) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        ItemStack singleStack = stack.copyWithCount(1);
-        IFluidHandlerItem fluidHandler = singleStack.getCapability(Capabilities.FluidHandler.ITEM);
-        if (fluidHandler == null) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (coil.interactWithItemFluidHandler(fluidHandler, player)) {
-            stack.shrink(1);
-            if (stack.isEmpty()) {
-                player.setItemInHand(hand, fluidHandler.getContainer());
-            } else {
-                player.setItemInHand(hand, stack);
-                if (!player.getInventory().add(fluidHandler.getContainer())) {
-                    player.drop(fluidHandler.getContainer(), false);
-                }
-            }
-            return ItemInteractionResult.SUCCESS;
+        if (!level.isClientSide()) {
+            net.unfamily.colossal_reactors.util.BlockCraftOwner.claimOnUse(level.getBlockEntity(pos), player);
         }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions.useItemOnFluidBlock(
+                stack, level, pos, player, hand, hitResult);
     }
 
     @Override

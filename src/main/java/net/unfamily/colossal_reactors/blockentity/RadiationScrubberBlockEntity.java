@@ -60,10 +60,8 @@ public class RadiationScrubberBlockEntity extends BlockEntity
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == 0) {
-                return !stack.isEmpty()
-                        && isCatalyst(stack)
-                        && net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isScrubberCatalystAllowed(
-                                stack, ownerPlayerUuid, level);
+                // Stage lock on tick/consume only — still accept valid catalysts into the slot.
+                return !stack.isEmpty() && isCatalyst(stack);
             }
             if (slot == 1) return !stack.isEmpty() && isProductionModule(stack);
             return super.isItemValid(slot, stack);

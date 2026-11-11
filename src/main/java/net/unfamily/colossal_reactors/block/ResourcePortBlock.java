@@ -14,9 +14,8 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.unfamily.colossal_reactors.blockentity.ResourcePortBlockEntity;
+import net.unfamily.colossal_reactors.fluid.BlockFluidItemInteractions;
 
 public class ResourcePortBlock extends BaseEntityBlock {
 
@@ -54,32 +53,7 @@ public class ResourcePortBlock extends BaseEntityBlock {
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (level.isClientSide()) {
-            return ItemInteractionResult.SUCCESS;
-        }
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof ResourcePortBlockEntity resourcePort)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        }
-        // Work on a copy with count 1 so the capability modifies that copy; then we update player hand explicitly (avoids duplication / missing bucket fill).
-        ItemStack singleStack = stack.copyWithCount(1);
-        IFluidHandlerItem fluidHandler = singleStack.getCapability(Capabilities.FluidHandler.ITEM);
-        if (fluidHandler == null) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        }
-        if (resourcePort.interactWithItemFluidHandler(fluidHandler, player)) {
-            stack.shrink(1);
-            if (stack.isEmpty()) {
-                player.setItemInHand(hand, fluidHandler.getContainer());
-            } else {
-                player.setItemInHand(hand, stack);
-                if (!player.getInventory().add(fluidHandler.getContainer())) {
-                    player.drop(fluidHandler.getContainer(), false);
-                }
-            }
-            return ItemInteractionResult.SUCCESS;
-        }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return BlockFluidItemInteractions.useItemOnFluidBlock(stack, level, pos, player, hand, hitResult);
     }
 
     @Override

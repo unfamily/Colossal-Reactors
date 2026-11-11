@@ -188,6 +188,8 @@ public class LongBackedFluidTank implements IFluidHandler {
         if (maxDrain <= 0 || fluid.isEmpty() || amountMb <= 0) {
             return FluidStack.EMPTY;
         }
+        // Capture type before emptying — callers need a non-empty FluidStack even when the tank hits 0.
+        var type = fluid.getFluid();
         long drained = Math.min(amountMb, maxDrain);
         int out = (int) drained;
         if (!action.simulate()) {
@@ -198,7 +200,7 @@ public class LongBackedFluidTank implements IFluidHandler {
             }
             onChange.run();
         }
-        return new FluidStack(fluid.getFluid(), out);
+        return new FluidStack(type, out);
     }
 
     public long drainLong(long maxDrain, boolean simulate) {

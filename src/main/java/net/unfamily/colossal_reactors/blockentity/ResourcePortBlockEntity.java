@@ -341,7 +341,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Handles bucket/fluid container click: fill block from item or drain block to item.
-     * Uses the same fill/drain rules as the port (INSERT = fill allowed, EXTRACT/EJECT = drain allowed).
+     * Player buckets ignore pipe INSERT/EXTRACT; still require liquid medium + filter on fill.
      * Returns true if a transfer occurred (caller must then update player hand with itemHandler.getContainer()).
      */
     public boolean interactWithItemFluidHandler(IFluidHandlerItem itemHandler, Player player) {
@@ -349,8 +349,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         IFluidHandler blockHandler = getFluidHandler();
         FluidStack inItem = itemHandler.getFluidInTank(0);
         if (!inItem.isEmpty()) {
-            if (portMode != PortMode.INSERT || !mediumFlags.isAllowLiquid() || mediumFlags.isAllowGas()
-                    || !acceptsFluidForCapability(inItem)) {
+            // Exclusive medium: liquid mode already implies !gas; do not dual-medium-block buckets.
+            if (!mediumFlags.isAllowLiquid() || !acceptsFluidForCapability(inItem)) {
                 return false;
             }
             if (blockHandler.fill(inItem.copy(), IFluidHandler.FluidAction.SIMULATE) > 0) {
@@ -362,7 +362,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 }
             }
         } else {
-            if (portMode != PortMode.EXTRACT && portMode != PortMode.EJECT) {
+            if (!mediumFlags.isAllowLiquid()) {
                 return false;
             }
             FluidStack inBlock = blockHandler.getFluidInTank(0);
@@ -373,7 +373,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
                 int filled = itemHandler.fill(toFill, IFluidHandler.FluidAction.EXECUTE);
                 if (filled > 0) {
                     blockHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
-                    var soundEvent = inBlock.getFluid().getFluidType().getSound(net.neoforged.neoforge.common.SoundActions.BUCKET_EMPTY);
+                    var soundEvent = inBlock.getFluid().getFluidType().getSound(net.neoforged.neoforge.common.SoundActions.BUCKET_FILL);
                     if (soundEvent != null) player.playSound(soundEvent);
                     return true;
                 }
@@ -778,7 +778,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
      */
     private final class FilteredFluidHandler implements IFluidHandler {
         private boolean allowLiquidFill() {
-            return portMode == PortMode.INSERT && mediumFlags.isAllowLiquid() && !mediumFlags.isAllowGas();
+            // Exclusive PortMedium: liquid is never combined with gas.
+            return portMode == PortMode.INSERT && mediumFlags.isAllowLiquid();
         }
 
         private boolean allowFill() {
@@ -833,7 +834,8 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
-            return allowFill() && acceptsFluidForCapability(stack) && fluidTank.isFluidValid(tank, stack);
+            // Mode is enforced in fill/drain — FluidUtil probes isValid before mode-aware transfer.
+            return acceptsFluidForCapability(stack) && fluidTank.isFluidValid(tank, stack);
         }
     }
 
@@ -875,18 +877,17 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean acceptsItemForCapability(ItemStack stack) {
+        // Stage lock is applied by ReactorFiller on pull/consume — still accept matching fuel items.
         if (isTurbineResourcePort() || stack.isEmpty() || level == null) {
             return false;
         }
         RegistryAccess registries = level.registryAccess();
         var def = FuelLoader.getDefinitionForItem(stack, registries);
-        if (def == null || !portFilter.acceptsFuelRole()) {
-            return false;
-        }
-        return isFuelRecipeAllowed(def.fuelId());
+        return def != null && portFilter.acceptsFuelRole();
     }
 
     private boolean acceptsFluidForCapability(FluidStack stack) {
+        // Stage lock is applied by fillers on pull/consume — still accept matching fluids.
         if (stack.isEmpty() || level == null) {
             return false;
         }
@@ -899,13 +900,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
             return acceptsTurbineFluidInput(fluid, registries);
         }
         var fuelDef = FuelLoader.getDefinitionForFluid(fluid, registries);
-        if (portFilter.acceptsFuelRole() && fuelDef != null && isFuelRecipeAllowed(fuelDef.fuelId())) {
+        if (portFilter.acceptsFuelRole() && fuelDef != null) {
             return true;
         }
         var coolantDef = CoolantLoader.getDefinitionForFluid(fluid, registries);
-        return portFilter.acceptsCoolantRole()
-                && coolantDef != null
-                && isCoolantRecipeAllowed(coolantDef.coolantId());
+        return portFilter.acceptsCoolantRole() && coolantDef != null;
     }
 
     private boolean isFuelRecipeAllowed(net.minecraft.resources.ResourceLocation fuelId) {
@@ -919,12 +918,9 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean acceptsTurbineFluidInput(Fluid fluid, RegistryAccess registries) {
+        // Stage lock on TurbineFiller pull — accept matching turbine fluids into the port.
         TurbineGenerationDefinition gen = TurbineGenerationLoader.getDefault();
         if (gen == null) {
-            return false;
-        }
-        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isTurbineAllowed(
-                gen.generationId(), recipeGateOwnerUuid, level)) {
             return false;
         }
         return MaterialSelector.matchesAnyFluidInput(fluid, gen.inputs());
@@ -938,10 +934,6 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         if (gen == null) {
             return false;
         }
-        if (!net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isTurbineAllowed(
-                gen.generationId(), recipeGateOwnerUuid, level)) {
-            return false;
-        }
         for (String input : gen.inputs()) {
             if (input != null && MaterialSelector.isChemicalPrefix(input)
                     && MaterialSelector.matchesChemical(chemicalStack, input)) {
@@ -952,6 +944,7 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private boolean acceptsChemicalForCapability(@Nullable Object chemicalStack) {
+        // Stage lock on filler consume — still accept matching chemicals into the port.
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack) || level == null) {
             return false;
         }
@@ -960,13 +953,11 @@ public class ResourcePortBlockEntity extends BlockEntity implements MenuProvider
         }
         RegistryAccess registries = level.registryAccess();
         var fuelDef = FuelLoader.getDefinitionForChemical(chemicalStack);
-        if (portFilter.acceptsFuelRole() && fuelDef != null && isFuelRecipeAllowed(fuelDef.fuelId())) {
+        if (portFilter.acceptsFuelRole() && fuelDef != null) {
             return true;
         }
         var coolantDef = CoolantLoader.getDefinitionForChemical(chemicalStack, registries);
-        return portFilter.acceptsCoolantRole()
-                && coolantDef != null
-                && isCoolantRecipeAllowed(coolantDef.coolantId());
+        return portFilter.acceptsCoolantRole() && coolantDef != null;
     }
 
     /** EXTRACT: chemical waste from fuel recipe {@code output} selectors (datapack JSON). */
