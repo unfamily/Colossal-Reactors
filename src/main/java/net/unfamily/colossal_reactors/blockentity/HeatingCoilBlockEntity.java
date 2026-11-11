@@ -104,22 +104,16 @@ public class HeatingCoilBlockEntity extends BlockEntity
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
+            // Stage lock applies on consume/tick only — still accept matching resources into slots.
             if (stack.isEmpty()) return false;
             HeatingCoilDefinition def = getDefinition();
             if (def == null || def.noItem()) return false;
             boolean acceptsBurnable = false;
-            for (int i = 0; i < def.consume().size(); i++) {
-                ConsumeOption opt = def.consume().get(i);
+            for (ConsumeOption opt : def.consume()) {
                 if (opt.item() != null && itemMatchesRequirement(stack, opt.item())) {
-                    if (net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
-                            def.id(), i, ownerPlayerUuid, level)) {
-                        return true;
-                    }
-                    continue;
+                    return true;
                 }
-                if (opt.burnable() != null
-                        && net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
-                                def.id(), i, ownerPlayerUuid, level)) {
+                if (opt.burnable() != null) {
                     acceptsBurnable = true;
                 }
             }
@@ -200,16 +194,13 @@ public class HeatingCoilBlockEntity extends BlockEntity
 
             @Override
             public boolean isFluidValid(FluidStack stack) {
+                // Stage lock applies on consume/tick only — still accept matching fluids.
                 HeatingCoilDefinition def = getDefinition();
                 if (def == null || stack.isEmpty()) {
                     return false;
                 }
-                for (int i = 0; i < def.consume().size(); i++) {
-                    ConsumeOption opt = def.consume().get(i);
-                    if (opt.fluid() != null
-                            && fluidMatchesRequirement(stack, opt.fluid())
-                            && net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
-                                    def.id(), i, ownerPlayerUuid, level)) {
+                for (ConsumeOption opt : def.consume()) {
+                    if (opt.fluid() != null && fluidMatchesRequirement(stack, opt.fluid())) {
                         return true;
                     }
                 }
@@ -404,6 +395,9 @@ public class HeatingCoilBlockEntity extends BlockEntity
         int cap = maxBurnableActivation(def);
         // No burnable consume option configured: never eat furnace fuel (e.g. after water+burnable was removed).
         if (cap <= 0) return;
+        if (!isAnyBurnableOptionStageAllowed(def)) {
+            return;
+        }
         ItemStack stack = itemHandler.getStackInSlot(0);
         if (stack.isEmpty()) return;
         int burn = stack.getBurnTime(RecipeType.SMELTING, level.fuelValues());
@@ -413,6 +407,21 @@ public class HeatingCoilBlockEntity extends BlockEntity
         stack.shrink(1);
         if (stack.isEmpty()) itemHandler.setStackInSlot(0, ItemStack.EMPTY);
         setChanged();
+    }
+
+    /** True if at least one burnable consume option is stage-allowed for this owner. */
+    private boolean isAnyBurnableOptionStageAllowed(HeatingCoilDefinition def) {
+        for (int i = 0; i < def.consume().size(); i++) {
+            ConsumeOption opt = def.consume().get(i);
+            if (opt.burnable() == null) {
+                continue;
+            }
+            if (net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
+                    def.id(), i, ownerPlayerUuid, level)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void tickOff(Level level, BlockPos pos, HeatingCoilDefinition def) {
@@ -738,16 +747,14 @@ public class HeatingCoilBlockEntity extends BlockEntity
     }
 
     private boolean acceptsChemicalInput(@Nullable Object chemicalStack) {
+        // Stage lock applies on consume/tick only — still accept matching chemicals.
         if (!MekChemicalHelper.isLoaded() || MekChemicalHelper.isEmpty(chemicalStack)) return false;
         HeatingCoilDefinition def = getDefinition();
         if (def == null) return false;
         boolean matchesRequirement = false;
-        for (int i = 0; i < def.consume().size(); i++) {
-            ConsumeOption opt = def.consume().get(i);
+        for (ConsumeOption opt : def.consume()) {
             if (opt.chemical() != null
-                    && MekChemicalHelper.matchesSelector(chemicalStack, opt.chemical().selector())
-                    && net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isHeatingCoilOptionAllowed(
-                            def.id(), i, ownerPlayerUuid, level)) {
+                    && MekChemicalHelper.matchesSelector(chemicalStack, opt.chemical().selector())) {
                 matchesRequirement = true;
                 break;
             }

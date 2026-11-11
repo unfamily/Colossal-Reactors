@@ -70,15 +70,11 @@ public class MelterBlockEntity extends BlockEntity
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
+            // Stage lock on tick/craft only — still accept items that have a melter recipe.
             if (stack.isEmpty() || level == null) {
                 return false;
             }
-            MelterRecipe recipe = MelterRecipesLoader.getRecipeFor(stack, level.registryAccess());
-            if (recipe == null) {
-                return false;
-            }
-            return net.unfamily.colossal_reactors.crafting.ColossalRecipeIndex.isMelterAllowed(
-                    MelterRecipesLoader.mergeKey(recipe), ownerPlayerUuid, level);
+            return MelterRecipesLoader.getRecipeFor(stack, level.registryAccess()) != null;
         }
     };
 

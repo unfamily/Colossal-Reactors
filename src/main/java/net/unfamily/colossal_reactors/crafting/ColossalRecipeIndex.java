@@ -117,9 +117,10 @@ public final class ColossalRecipeIndex {
 
     /**
      * Any unblocked recipe id allows the semantic definition.
-     * No providers → allowed. Empty/unindexed lists → allowed (retrocompat).
-     * Missing owner with providers active is blocked by {@link RecipeBlockBridge}
-     * ({@code ownerUuid == null}); offline owners still pass their UUID to the bridge.
+     * No providers → allowed. Empty/unindexed lists with providers active → denied
+     * (fail-closed so unindexed semantic keys cannot bypass stage locks).
+     * Null owner is normal — bridge delegates to providers (world stages apply;
+     * not a blanket fail-close). Offline owners still pass their UUID to the bridge.
      */
     public static boolean isAllowed(
             List<Identifier> recipeIds, @Nullable UUID ownerUuid, @Nullable Level level) {
@@ -127,7 +128,7 @@ public final class ColossalRecipeIndex {
             return true;
         }
         if (recipeIds == null || recipeIds.isEmpty()) {
-            return true;
+            return false;
         }
         for (Identifier recipeId : recipeIds) {
             if (!RecipeBlockBridge.isRecipeBlocked(recipeId, ownerUuid, level)) {
