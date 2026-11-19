@@ -638,7 +638,10 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
             closeButton.setX(leftPos + closeX);
             closeButton.setY(topPos + CLOSE_BUTTON_Y);
         }
-        if (buttonUp != null) buttonUp.visible = showBuilder;
+        if (buttonUp != null) {
+            buttonUp.visible = showBuilder;
+            buttonUp.active = showBuilder && !website;
+        }
         if (buttonOffsetLeft != null) buttonOffsetLeft.visible = showBuilder;
         if (buttonOffsetRight != null) buttonOffsetRight.visible = showBuilder;
         if (buttonCenter != null) buttonCenter.visible = showBuilder;
@@ -1037,7 +1040,7 @@ public class TurbineBuilderScreen extends AbstractContainerScreen<TurbineBuilder
                 playUiClickSound();
                 return true;
             }
-            if (isInBounds(x, y, leftPos + BUTTON_UP_X, topPos + ROW1_Y)) {
+            if (buttonUp != null && buttonUp.active && isInBounds(x, y, leftPos + BUTTON_UP_X, topPos + ROW1_Y)) {
                 sendSize(0, false);
                 playUiClickSound();
                 return true;

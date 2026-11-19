@@ -755,6 +755,10 @@ public class ReactorBuilderBlockEntity extends BlockEntity implements MenuProvid
      * 4=offset toward left («), 5=offset toward right (»), 6=center L/R.
      */
     public void adjustSize(int direction, boolean increment, int amount) {
+        // Website seeds own exterior size. Offset (4/5) and center (6) stay available.
+        if (rodPattern == RodPatternLogic.PATTERN_WEBSITE && direction >= 0 && direction <= 3) {
+            return;
+        }
         int delta = increment ? amount : -amount;
         switch (direction) {
             case 0 -> sizeHeight = Math.max(MIN_SIZE, Math.min(getMaxHeight(), sizeHeight + delta));
